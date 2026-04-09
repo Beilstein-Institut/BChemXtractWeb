@@ -210,3 +210,6 @@ __marimo__/
 backend/jars/*.jar
 backend/.venv/
 backend/.pytest_cache/
+
+# GSD planning docs (local only)
+.planning/
