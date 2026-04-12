@@ -11,19 +11,24 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.errors import BridgeError, bridge_error_handler
 from app.routers import health
+from app.services.jvm_bridge import initialize_jvm, shutdown_pool
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler.
 
-    Startup: Initialize resources (JVM startup will be added in Phase 2).
-    Shutdown: Clean up resources.
+    Startup: Initialize JVM with BChemXtract JAR and create thread pool.
+    Shutdown: Shut down thread pool (JVM shutdown is skipped -- irreversible).
+
+    Raises:
+        JVMStartupError: If JVM fails to start (fatal -- app exits, Docker restarts).
     """
-    # TODO: Phase 2 -- initialize JVM via jpype.startJVM() here
+    initialize_jvm(settings)
     yield
-    # TODO: Phase 2 -- JVM cleanup (if needed) here
+    shutdown_pool()
 
 
 def create_app() -> FastAPI:
@@ -38,6 +43,9 @@ def create_app() -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
+
+    # Bridge error handler -- maps BridgeError subtypes to HTTP status codes
+    application.add_exception_handler(BridgeError, bridge_error_handler)
 
     # CORS middleware -- allows frontend dev server access
     application.add_middleware(
