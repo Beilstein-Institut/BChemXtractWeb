@@ -1,0 +1,259 @@
+"""Tests for DTO null-coercion functions in the extractor service.
+
+Uses mock Java objects to verify that all nullable fields are coerced
+to type-appropriate defaults before Pydantic model construction.
+No JVM needed -- pure Python unit tests.
+"""
+
+from unittest.mock import MagicMock
+
+from app.services.extractor import (
+    _coerce_reaction,
+    _coerce_reaction_component,
+    _coerce_substance,
+    _coerce_substance_info,
+)
+
+
+def _make_mock_substance(**overrides) -> MagicMock:
+    """Create a mock BCXSubstance with configurable getter returns.
+
+    By default, all nullable String getters return None and
+    getAbbreviations returns an empty dict-like mock.
+
+    Args:
+        **overrides: Keys are getter method names (without 'get' prefix,
+            in camelCase), values are the return values.
+
+    Returns:
+        MagicMock mimicking a BCXSubstance Java object.
+    """
+    mock = MagicMock()
+    mock.getInchi.return_value = overrides.get("inchi")
+    mock.getInchiKey.return_value = overrides.get("inchiKey")
+    mock.getSmiles.return_value = overrides.get("smiles")
+    mock.getExtendedSmiles.return_value = overrides.get("extendedSmiles")
+    mock.getIupacName.return_value = overrides.get("iupacName")
+    mock.getMolecularFormula.return_value = overrides.get("molecularFormula")
+    mock.getAuxInfo.return_value = overrides.get("auxInfo")
+    mock.getMdlv3000.return_value = overrides.get("mdlv3000")
+    mock.getAbbreviations.return_value = overrides.get("abbreviations", {})
+    return mock
+
+
+def _make_mock_reaction_component(**overrides) -> MagicMock:
+    """Create a mock BCXReactionComponent.
+
+    Args:
+        **overrides: Getter return value overrides.
+
+    Returns:
+        MagicMock mimicking a BCXReactionComponent Java object.
+    """
+    mock = MagicMock()
+    mock.getInchi.return_value = overrides.get("inchi")
+    mock.getInchiKey.return_value = overrides.get("inchiKey")
+    mock.getCdxTop.return_value = overrides.get("cdxTop", 0.0)
+    mock.getCdxLeft.return_value = overrides.get("cdxLeft", 0.0)
+    mock.getCdxBottom.return_value = overrides.get("cdxBottom", 0.0)
+    mock.getCdxRight.return_value = overrides.get("cdxRight", 0.0)
+    return mock
+
+
+def _make_mock_reaction(**overrides) -> MagicMock:
+    """Create a mock BCXReaction.
+
+    Args:
+        **overrides: Getter return value overrides.
+
+    Returns:
+        MagicMock mimicking a BCXReaction Java object.
+    """
+    mock = MagicMock()
+    mock.getRinchi.return_value = overrides.get("rinchi")
+    mock.getRinchiKey.return_value = overrides.get("rinchiKey")
+    mock.getShortRinchiKey.return_value = overrides.get("shortRinchiKey")
+    mock.getLongRinchiKey.return_value = overrides.get("longRinchiKey")
+    mock.getWebRinchiKey.return_value = overrides.get("webRinchiKey")
+    mock.getReactionSmiles.return_value = overrides.get("reactionSmiles")
+    mock.getAuxInfo.return_value = overrides.get("auxInfo")
+    mock.getReactants.return_value = overrides.get("reactants", [])
+    mock.getProducts.return_value = overrides.get("products", [])
+    mock.getAgents.return_value = overrides.get("agents", [])
+    return mock
+
+
+def _make_mock_substance_info(**overrides) -> MagicMock:
+    """Create a mock BCXSubstanceInfo.
+
+    Args:
+        **overrides: Getter return value overrides.
+
+    Returns:
+        MagicMock mimicking a BCXSubstanceInfo Java object.
+    """
+    mock = MagicMock()
+    mock.getNoFragments.return_value = overrides.get("noFragments", 0)
+    mock.getNoInchis.return_value = overrides.get("noInchis", 0)
+    mock.getNoSubstances.return_value = overrides.get("noSubstances", 0)
+    return mock
+
+
+class TestCoerceSubstance:
+    """Tests for _coerce_substance null-coercion."""
+
+    def test_coerce_substance_all_nulls(self):
+        """All nullable fields return None from Java -> all empty strings."""
+        mock = _make_mock_substance()
+        result = _coerce_substance(mock)
+
+        assert result["inchi"] == ""
+        assert result["inchi_key"] == ""
+        assert result["smiles"] == ""
+        assert result["extended_smiles"] == ""
+        assert result["iupac_name"] == ""
+        assert result["molecular_formula"] == ""
+        assert result["aux_info"] == ""
+        assert result["mdlv3000"] == ""
+        assert result["abbreviations"] == {}
+
+    def test_coerce_substance_with_values(self):
+        """Fields with real Java values pass through correctly."""
+        mock = _make_mock_substance(
+            inchi="InChI=1S/CH4/h1H4",
+            inchiKey="VNWKTOKETHGBQD-UHFFFAOYSA-N",
+            smiles="C",
+            extendedSmiles="[CH4]",
+            iupacName="methane",
+            molecularFormula="CH4",
+            auxInfo="AuxInfo/1/0/",
+            mdlv3000="V3000 block",
+            abbreviations={"Me": "methyl"},
+        )
+        result = _coerce_substance(mock)
+
+        assert result["inchi"] == "InChI=1S/CH4/h1H4"
+        assert result["inchi_key"] == "VNWKTOKETHGBQD-UHFFFAOYSA-N"
+        assert result["smiles"] == "C"
+        assert result["extended_smiles"] == "[CH4]"
+        assert result["iupac_name"] == "methane"
+        assert result["molecular_formula"] == "CH4"
+        assert result["aux_info"] == "AuxInfo/1/0/"
+        assert result["mdlv3000"] == "V3000 block"
+        assert result["abbreviations"] == {"Me": "methyl"}
+
+    def test_coerce_substance_mixed_nulls(self):
+        """Some fields null, some populated -> correct mix."""
+        mock = _make_mock_substance(
+            inchi="InChI=1S/C2H6O/c1-2-3/h3H,2H2,1H3",
+            smiles="CCO",
+            molecularFormula="C2H6O",
+        )
+        result = _coerce_substance(mock)
+
+        assert result["inchi"] == "InChI=1S/C2H6O/c1-2-3/h3H,2H2,1H3"
+        assert result["inchi_key"] == ""  # null -> empty
+        assert result["smiles"] == "CCO"
+        assert result["extended_smiles"] == ""  # null -> empty
+        assert result["molecular_formula"] == "C2H6O"
+        assert result["mdlv3000"] == ""  # null -> empty
+
+
+class TestCoerceReaction:
+    """Tests for _coerce_reaction null-coercion."""
+
+    def test_coerce_reaction_all_nulls(self):
+        """All nullable reaction fields -> empty strings, empty lists."""
+        mock = _make_mock_reaction()
+        result = _coerce_reaction(mock)
+
+        assert result["rinchi"] == ""
+        assert result["rinchi_key"] == ""
+        assert result["short_rinchi_key"] == ""
+        assert result["long_rinchi_key"] == ""
+        assert result["web_rinchi_key"] == ""
+        assert result["reaction_smiles"] == ""
+        assert result["aux_info"] == ""
+        assert result["reactants"] == []
+        assert result["products"] == []
+        assert result["agents"] == []
+
+    def test_coerce_reaction_with_components(self):
+        """Reaction with populated component lists coerces correctly."""
+        comp_mock = _make_mock_reaction_component(
+            inchi="InChI=1S/CH4/h1H4",
+            cdxTop=10.5,
+            cdxLeft=20.0,
+        )
+        mock = _make_mock_reaction(
+            rinchi="RInChI=1.00.1S/",
+            reactants=[comp_mock],
+        )
+        result = _coerce_reaction(mock)
+
+        assert result["rinchi"] == "RInChI=1.00.1S/"
+        assert len(result["reactants"]) == 1
+        assert result["reactants"][0]["inchi"] == "InChI=1S/CH4/h1H4"
+        assert result["reactants"][0]["cdx_top"] == 10.5
+        assert result["reactants"][0]["cdx_left"] == 20.0
+
+
+class TestCoerceReactionComponent:
+    """Tests for _coerce_reaction_component null-coercion."""
+
+    def test_coerce_reaction_component_all_nulls(self):
+        """inchi and inchiKey null -> empty strings, floats default to 0.0."""
+        mock = _make_mock_reaction_component()
+        result = _coerce_reaction_component(mock)
+
+        assert result["inchi"] == ""
+        assert result["inchi_key"] == ""
+        assert result["cdx_top"] == 0.0
+        assert result["cdx_left"] == 0.0
+        assert result["cdx_bottom"] == 0.0
+        assert result["cdx_right"] == 0.0
+
+    def test_coerce_reaction_component_with_values(self):
+        """All fields populated pass through correctly."""
+        mock = _make_mock_reaction_component(
+            inchi="InChI=1S/H2O/h1H2",
+            inchiKey="XLYOFNOQVPJJNP-UHFFFAOYSA-N",
+            cdxTop=1.5,
+            cdxLeft=2.5,
+            cdxBottom=3.5,
+            cdxRight=4.5,
+        )
+        result = _coerce_reaction_component(mock)
+
+        assert result["inchi"] == "InChI=1S/H2O/h1H2"
+        assert result["inchi_key"] == "XLYOFNOQVPJJNP-UHFFFAOYSA-N"
+        assert result["cdx_top"] == 1.5
+        assert result["cdx_left"] == 2.5
+        assert result["cdx_bottom"] == 3.5
+        assert result["cdx_right"] == 4.5
+
+
+class TestCoerceSubstanceInfo:
+    """Tests for _coerce_substance_info."""
+
+    def test_coerce_substance_info_values(self):
+        """Primitive int fields pass through correctly."""
+        mock = _make_mock_substance_info(
+            noFragments=5,
+            noInchis=3,
+            noSubstances=7,
+        )
+        result = _coerce_substance_info(mock)
+
+        assert result["no_fragments"] == 5
+        assert result["no_inchis"] == 3
+        assert result["no_substances"] == 7
+
+    def test_coerce_substance_info_zeros(self):
+        """Default zero values pass through."""
+        mock = _make_mock_substance_info()
+        result = _coerce_substance_info(mock)
+
+        assert result["no_fragments"] == 0
+        assert result["no_inchis"] == 0
+        assert result["no_substances"] == 0
