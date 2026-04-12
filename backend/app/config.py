@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     jar_path: str = "jars"
     cors_origins: list[str] = ["http://localhost:5173"]
     debug: bool = False
+    jvm_max_heap: str = "512m"
+    jpype_workers: int = 4
+    jvm_opts: str | None = None
 
 
 settings = Settings()
