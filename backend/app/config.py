@@ -31,5 +31,15 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
     debug: bool = False
 
+    # JVM settings (Phase 2)
+    jvm_max_heap: str = "512m"
+    """Max JVM heap size (D-01/D-03). Configurable via JVM_MAX_HEAP env var."""
+
+    jpype_workers: int = 4
+    """Thread pool size for JPype calls (D-04). Configurable via JPYPE_WORKERS."""
+
+    jvm_opts: str | None = None
+    """Optional extra JVM flags (e.g. '-XX:+UseG1GC'). Configurable via JVM_OPTS."""
+
 
 settings = Settings()
