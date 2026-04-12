@@ -4,7 +4,6 @@ Pure Python tests -- no JVM needed.
 """
 
 import pytest
-
 from app.errors import FormatDetectionError
 from app.services.format_detector import detect_format
 
