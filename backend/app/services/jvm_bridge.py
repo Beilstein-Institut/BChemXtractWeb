@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 _executor: ThreadPoolExecutor | None = None
+_pool_size: int = 0
 
 
 def initialize_jvm(settings: Settings) -> None:
@@ -56,7 +57,7 @@ def initialize_jvm(settings: Settings) -> None:
     Raises:
         JVMStartupError: If no JAR is found or the JVM fails to start.
     """
-    global _executor  # noqa: PLW0603
+    global _executor, _pool_size  # noqa: PLW0603
 
     if jpype.isJVMStarted():
         logger.warning("JVM is already started -- skipping initialization")
@@ -96,6 +97,7 @@ def initialize_jvm(settings: Settings) -> None:
     )
 
     # Create bounded thread pool for JPype calls (D-04)
+    _pool_size = settings.jpype_workers
     _executor = ThreadPoolExecutor(
         max_workers=settings.jpype_workers,
         thread_name_prefix="jpype-worker",
@@ -133,6 +135,26 @@ def get_executor() -> ThreadPoolExecutor:
         msg = "JPype thread pool is not initialized -- was initialize_jvm() called?"
         raise RuntimeError(msg)
     return _executor
+
+
+def get_pool_stats() -> dict[str, int]:
+    """Return thread pool statistics using public interfaces where possible.
+
+    The ``workers`` count is tracked at creation time to avoid accessing the
+    private ``_max_workers`` attribute. The ``active`` count uses the private
+    ``_threads`` attribute with a ``hasattr`` guard since there is no public
+    stdlib API for this -- if the attribute is removed in a future Python
+    version the value falls back to 0.
+
+    Returns:
+        Dict with ``workers`` (configured max) and ``active`` (live threads).
+    """
+    if _executor is None:
+        return {"workers": 0, "active": 0}
+    active = 0
+    if hasattr(_executor, "_threads"):
+        active = len([t for t in _executor._threads if t.is_alive()])
+    return {"workers": _pool_size, "active": active}
 
 
 async def run_in_jvm_thread(

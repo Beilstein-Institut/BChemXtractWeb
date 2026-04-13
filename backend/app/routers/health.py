@@ -13,7 +13,7 @@ from fastapi import APIRouter
 
 from app.config import settings
 from app.models.health import HealthDetailResponse, HealthResponse
-from app.services.jvm_bridge import get_executor, run_in_jvm_thread
+from app.services.jvm_bridge import get_pool_stats, run_in_jvm_thread
 
 logger = logging.getLogger(__name__)
 
@@ -105,13 +105,9 @@ async def health_detail() -> HealthDetailResponse:
     )
 
     # Thread pool stats (Python-side, no JVM call needed)
-    executor = get_executor()
-    pool_workers = executor._max_workers  # ThreadPoolExecutor internal
-    pool_active = (
-        len([t for t in executor._threads if t.is_alive()])
-        if hasattr(executor, "_threads")
-        else 0
-    )
+    pool_stats = get_pool_stats()
+    pool_workers = pool_stats["workers"]
+    pool_active = pool_stats["active"]
 
     # JAR version from filename (Python-side, no JVM call needed)
     jar_version = _get_jar_version()
