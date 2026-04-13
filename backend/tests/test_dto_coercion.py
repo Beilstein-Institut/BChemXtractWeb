@@ -139,7 +139,7 @@ class TestCoerceSubstance:
         assert result["iupac_name"] == "methane"
         assert result["molecular_formula"] == "CH4"
         assert result["aux_info"] == "AuxInfo/1/0/"
-        assert result["mdlv3000"] == "V3000 block"
+        assert result["mdlv3000"] == ""  # BCXSubstance has no getMdlv3000()
         assert result["abbreviations"] == {"Me": "methyl"}
 
     def test_coerce_substance_mixed_nulls(self):

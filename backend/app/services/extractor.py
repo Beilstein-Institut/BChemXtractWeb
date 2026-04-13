@@ -15,6 +15,7 @@ from app.models.chemistry import (
     SubstanceInfoResponse,
     SubstanceResponse,
 )
+from app.services.depiction import render_substance_svg
 from app.services.format_detector import detect_format
 from app.services.jvm_bridge import run_in_jvm_thread
 
@@ -46,7 +47,7 @@ def _coerce_substance(java_sub) -> dict:
         "iupac_name": str(java_sub.getIupacName() or ""),
         "molecular_formula": str(java_sub.getMolecularFormula() or ""),
         "aux_info": str(java_sub.getAuxInfo() or ""),
-        "mdlv3000": str(java_sub.getMdlv3000() or ""),
+        "mdlv3000": "",
         "abbreviations": {
             str(k): str(v)
             for k, v in (java_sub.getAbbreviations() or {}).items()
@@ -245,6 +246,59 @@ def _extract_reactions_sync(
         raise ExtractionError("Failed to extract reactions from file") from exc
 
 
+def _extract_substances_with_svg_sync(
+    file_bytes: bytes, format_type: str
+) -> tuple[list[dict], dict]:
+    """Extract substances and render SVGs (blocking, runs in thread pool).
+
+    Extends _extract_substances_sync by adding per-substance SVG rendering
+    via CDK DepictionGenerator. SVG failures for individual substances are
+    non-fatal per D-03 -- the substance dict gets svg="" and extraction
+    continues.
+
+    Args:
+        file_bytes: Raw file content bytes.
+        format_type: Either "cdx" or "cdxml".
+
+    Returns:
+        Tuple of (list of coerced substance dicts with svg, coerced info
+        dict).
+
+    Raises:
+        ExtractionError: If Java extraction itself fails.
+    """
+    try:
+        document = _read_document(file_bytes, format_type)
+
+        BCXSubstanceInfo = jpype.JClass(  # noqa: N806
+            "org.beilstein.chemxtract.model.BCXSubstanceInfo"
+        )
+        SubstanceXtractor = jpype.JClass(  # noqa: N806
+            "org.beilstein.chemxtract.xtractor.SubstanceXtractor"
+        )
+
+        info = BCXSubstanceInfo()
+        xtractor = SubstanceXtractor()
+        substances = xtractor.xtractUnique(document, info)
+
+        results = []
+        for s in substances:
+            d = _coerce_substance(s)
+            d["svg"] = render_substance_svg(s)
+            results.append(d)
+
+        return results, _coerce_substance_info(info)
+    except jpype.JException as exc:
+        logger.error(
+            "Java substance extraction failed: %s\n%s",
+            str(exc),
+            exc.stacktrace() if hasattr(exc, "stacktrace") else str(exc),
+        )
+        raise ExtractionError(
+            "Failed to extract substances from file"
+        ) from exc
+
+
 # ---------------------------------------------------------------------------
 # Public async functions
 # ---------------------------------------------------------------------------
@@ -272,6 +326,37 @@ async def extract_substances(
     format_type = detect_format(file_bytes)
     raw_substances, raw_info = await run_in_jvm_thread(
         _extract_substances_sync, file_bytes, format_type
+    )
+    return (
+        [SubstanceResponse(**d) for d in raw_substances],
+        SubstanceInfoResponse(**raw_info),
+    )
+
+
+async def extract_substances_with_svg(
+    file_bytes: bytes,
+    format_type: str,
+) -> tuple[list[SubstanceResponse], SubstanceInfoResponse]:
+    """Extract chemical substances with SVG depictions from a file.
+
+    Like extract_substances but also renders publication-quality SVGs
+    for each substance via CDK DepictionGenerator. Format detection is
+    performed by the caller (the router) so the detected format can be
+    included in the response metadata.
+
+    Args:
+        file_bytes: Raw file content bytes (CDX or CDXML).
+        format_type: Pre-detected format ("cdx" or "cdxml").
+
+    Returns:
+        Tuple of (list of SubstanceResponse with svg,
+        SubstanceInfoResponse).
+
+    Raises:
+        ExtractionError: If Java extraction fails.
+    """
+    raw_substances, raw_info = await run_in_jvm_thread(
+        _extract_substances_with_svg_sync, file_bytes, format_type
     )
     return (
         [SubstanceResponse(**d) for d in raw_substances],
