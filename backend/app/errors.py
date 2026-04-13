@@ -54,13 +54,17 @@ async def bridge_error_handler(request: Request, exc: BridgeError) -> JSONRespon
     Returns:
         JSONResponse with the appropriate HTTP status code.
     """
-    status_map: dict[type, int] = {
-        JVMStartupError: 503,
-        FormatDetectionError: 415,
-        ExtractionError: 422,
-        NullFieldError: 500,
-    }
-    status = status_map.get(type(exc), 500)
+    status_map: list[tuple[type, int]] = [
+        (JVMStartupError, 503),
+        (FormatDetectionError, 415),
+        (ExtractionError, 422),
+        (NullFieldError, 500),
+    ]
+    status = 500
+    for exc_type, code in status_map:
+        if isinstance(exc, exc_type):
+            status = code
+            break
     return JSONResponse(
         status_code=status,
         content={"error": str(exc)},
