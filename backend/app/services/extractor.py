@@ -355,8 +355,12 @@ async def extract_substances_with_svg(
     Raises:
         ExtractionError: If Java extraction fails.
     """
+    # Extraction with SVG rendering needs a longer timeout than the
+    # default 30s because the first call triggers JVM class loading
+    # for CDK DepictionGenerator + BChemXtract (cold-start overhead).
     raw_substances, raw_info = await run_in_jvm_thread(
-        _extract_substances_with_svg_sync, file_bytes, format_type
+        _extract_substances_with_svg_sync, file_bytes, format_type,
+        timeout=120.0,
     )
     return (
         [SubstanceResponse(**d) for d in raw_substances],
