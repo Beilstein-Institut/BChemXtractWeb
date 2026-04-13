@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     jvm_opts: str | None = None
     """Optional extra JVM flags (e.g. '-XX:+UseG1GC'). Configurable via JVM_OPTS."""
 
+    max_upload_size: int = 50 * 1024 * 1024
+    """Max upload file size in bytes (D-05). Default 50 MB."""
+
     @model_validator(mode="after")
     def _validate_jar_path(self) -> "Settings":
         """Reject path traversal in jar_path and resolve to absolute."""

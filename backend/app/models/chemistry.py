@@ -19,6 +19,7 @@ class SubstanceResponse(BaseModel):
     aux_info: str = ""
     mdlv3000: str = ""
     abbreviations: dict[str, str] = Field(default_factory=dict)
+    svg: str = ""
 
 
 class ReactionComponentResponse(BaseModel):
@@ -53,3 +54,19 @@ class SubstanceInfoResponse(BaseModel):
     no_fragments: int = 0
     no_inchis: int = 0
     no_substances: int = 0
+
+
+class ExtractionResponse(BaseModel):
+    """Full extraction result including substances, metadata, and warnings.
+
+    Matches the D-10 response shape for the single-file extraction endpoint.
+    """
+
+    substances: list[SubstanceResponse]
+    info: SubstanceInfoResponse
+    format: str
+    filename: str
+    file_size: int
+    structure_count: int
+    extraction_time_ms: float
+    warnings: list[str] = Field(default_factory=list)

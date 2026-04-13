@@ -7,6 +7,7 @@ module.
 
 Exception tree:
     BridgeError
+    +-- FileSizeError         (413 Request Entity Too Large)
     +-- JVMStartupError      (503 Service Unavailable)
     +-- FormatDetectionError  (415 Unsupported Media Type)
     +-- ExtractionError       (422 Unprocessable Entity)
@@ -41,6 +42,10 @@ class NullFieldError(BridgeError):
     """Unexpected null in a required Java field."""
 
 
+class FileSizeError(BridgeError):
+    """Uploaded file exceeds the size limit."""
+
+
 async def bridge_error_handler(request: Request, exc: BridgeError) -> JSONResponse:
     """Map BridgeError subtypes to HTTP status codes.
 
@@ -55,6 +60,7 @@ async def bridge_error_handler(request: Request, exc: BridgeError) -> JSONRespon
         JSONResponse with the appropriate HTTP status code.
     """
     status_map: list[tuple[type, int]] = [
+        (FileSizeError, 413),
         (JVMStartupError, 503),
         (FormatDetectionError, 415),
         (ExtractionError, 422),
