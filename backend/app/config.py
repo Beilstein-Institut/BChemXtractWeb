@@ -4,6 +4,9 @@ Loads environment variables from .env file with typed validation.
 All backend configuration is centralized here.
 """
 
+from pathlib import Path
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,9 +33,6 @@ class Settings(BaseSettings):
     jar_path: str = "jars"
     cors_origins: list[str] = ["http://localhost:5173"]
     debug: bool = False
-    jvm_max_heap: str = "512m"
-    jpype_workers: int = 4
-    jvm_opts: str | None = None
 
     # JVM settings (Phase 2)
     jvm_max_heap: str = "512m"
@@ -43,6 +43,16 @@ class Settings(BaseSettings):
 
     jvm_opts: str | None = None
     """Optional extra JVM flags (e.g. '-XX:+UseG1GC'). Configurable via JVM_OPTS."""
+
+    @model_validator(mode="after")
+    def _validate_jar_path(self) -> "Settings":
+        """Reject path traversal in jar_path and resolve to absolute."""
+        if ".." in self.jar_path:
+            raise ValueError(
+                f"jar_path must not contain '..': {self.jar_path}"
+            )
+        self.jar_path = str(Path(self.jar_path).resolve())
+        return self
 
 
 settings = Settings()
