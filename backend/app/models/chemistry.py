@@ -4,7 +4,7 @@ All fields are guaranteed non-null by the DTO coercion layer (D-09).
 Downstream code never needs to check for None.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SubstanceResponse(BaseModel):
@@ -18,7 +18,7 @@ class SubstanceResponse(BaseModel):
     molecular_formula: str = ""
     aux_info: str = ""
     mdlv3000: str = ""
-    abbreviations: dict[str, str] = {}
+    abbreviations: dict[str, str] = Field(default_factory=dict)
 
 
 class ReactionComponentResponse(BaseModel):
@@ -42,9 +42,9 @@ class ReactionResponse(BaseModel):
     web_rinchi_key: str = ""
     reaction_smiles: str = ""
     aux_info: str = ""
-    reactants: list[ReactionComponentResponse] = []
-    products: list[ReactionComponentResponse] = []
-    agents: list[ReactionComponentResponse] = []
+    reactants: list[ReactionComponentResponse] = Field(default_factory=list)
+    products: list[ReactionComponentResponse] = Field(default_factory=list)
+    agents: list[ReactionComponentResponse] = Field(default_factory=list)
 
 
 class SubstanceInfoResponse(BaseModel):
