@@ -201,7 +201,9 @@ async def run_in_jvm_thread(
         )
     except TimeoutError:
         logger.warning(
-            "JPype call timed out after %.1fs: %s",
+            "JPype call timed out after %.1fs: %s. "
+            "NOTE: The underlying thread continues running and occupies "
+            "a pool slot until the Java call completes.",
             timeout,
             fn.__name__ if hasattr(fn, "__name__") else str(fn),
         )
