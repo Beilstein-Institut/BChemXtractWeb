@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.errors import BridgeError, bridge_error_handler
-from app.routers import health
+from app.routers import extract, health
 from app.services.jvm_bridge import initialize_jvm, shutdown_pool
 
 
@@ -58,6 +58,7 @@ def create_app() -> FastAPI:
 
     # Register routers
     application.include_router(health.router, prefix="/api")
+    application.include_router(extract.router, prefix="/api")
 
     return application
 
