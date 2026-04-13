@@ -74,7 +74,11 @@ def initialize_jvm(settings: Settings) -> None:
         )
 
     # Build JVM arguments
-    jvm_args: list[str] = [f"-Xmx{settings.jvm_max_heap}"]
+    jvm_args: list[str] = [
+        f"-Xmx{settings.jvm_max_heap}",
+        # Required for CDK SVG rendering in headless environments
+        "-Djava.awt.headless=true",
+    ]
     if settings.jvm_opts:
         jvm_args.extend(settings.jvm_opts.split())
 

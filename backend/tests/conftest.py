@@ -1,10 +1,21 @@
 """Shared pytest fixtures for backend tests."""
 
+from pathlib import Path
+
 import pytest
 from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app
+
+FIXTURES_DIR = (
+    Path(__file__).parent.parent
+    / "lib"
+    / "bchemxtract"
+    / "src"
+    / "test"
+    / "resources"
+)
 
 
 @pytest.fixture(scope="session")
@@ -37,3 +48,33 @@ async def client_no_jvm() -> AsyncClient:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+
+@pytest.fixture(scope="session")
+def cdx_file_bytes() -> bytes:
+    """L-lactic-acid.cdx -- small single-substance CDX file for fast tests.
+
+    Source: BChemXtract submodule test resources (D-12).
+    """
+    path = FIXTURES_DIR / "integrationTests" / "L-lactic-acid.cdx"
+    return path.read_bytes()
+
+
+@pytest.fixture(scope="session")
+def cdxml_file_bytes() -> bytes:
+    """test_fixture.cdxml -- multi-substance CDXML file.
+
+    Source: BChemXtract submodule test resources (D-12).
+    """
+    path = FIXTURES_DIR / "cdx" / "reader" / "test_fixture.cdxml"
+    return path.read_bytes()
+
+
+@pytest.fixture(scope="session")
+def cdx_multi_file_bytes() -> bytes:
+    """test_fixture.cdx -- multi-substance CDX file.
+
+    Source: BChemXtract submodule test resources (D-12).
+    """
+    path = FIXTURES_DIR / "cdx" / "reader" / "test_fixture.cdx"
+    return path.read_bytes()
