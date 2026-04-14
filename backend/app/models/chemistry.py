@@ -118,3 +118,15 @@ class StatsResponse(BaseModel):
     total_extractions: int
     unique_structures: int
     most_common_formula: str  # "" when no substances exist
+
+
+class BatchStartResponse(BaseModel):
+    """Response from POST /api/batch.
+
+    batch_id IS the Celery GroupResult.id — used to poll progress and download ZIP.
+    task_ids lists the individual AsyncResult IDs, one per file.
+    """
+
+    batch_id: str
+    task_ids: list[str]
+    file_count: int
