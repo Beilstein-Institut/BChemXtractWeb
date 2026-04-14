@@ -1,31 +1,56 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { UploadIcon, XCircleIcon } from "lucide-react";
+import {
+  UploadIcon,
+  XCircleIcon,
+  FileIcon,
+  XIcon,
+  AlertTriangleIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 
 export interface FileUploadProps {
-  /** Called with the validated File when user selects or drops a valid file */
+  /** "single" preserves the original one-file drop zone; "batch" enables multi-file queue */
+  mode?: "single" | "batch";
+  /** Called with the validated File when user selects or drops a valid file (single mode) */
   onExtract: (file: File) => void;
-  /** When true, hides drop zone and shows spinner + loading message */
+  /** When true, hides drop zone and shows spinner + loading message (single mode) */
   isLoading: boolean;
   /** Filename shown in the loading message (e.g. "sample.cdx") */
   loadingFilename?: string;
   /** File size in bytes for the loading message */
   loadingFileSize?: number;
+  /** Batch-mode only: called with validated File[] when user clicks "Start batch" */
+  onStartBatch?: (files: File[]) => void;
+  /** Batch-mode only: when true, hides the queue list (batch is in progress) */
+  isBatchProcessing?: boolean;
+}
+
+/**
+ * Validates a file's extension. Returns an error string if invalid, null if valid.
+ * Used in both single and batch mode to check file type.
+ */
+function validateExtension(file: File): string | null {
+  const name = file.name.toLowerCase();
+  if (!name.endsWith(".cdx") && !name.endsWith(".cdxml")) {
+    return "Only .cdx and .cdxml files are supported.";
+  }
+  return null;
 }
 
 /**
  * Validates a file against allowed extensions and maximum size.
  * Returns an error string on violation, or null if the file is valid.
  * Note: this is a UX-only check — backend validates content via magic bytes (D-06).
+ * Used in single mode only (batch mode shows oversize warning inline in queue).
  */
 function validateFile(file: File): string | null {
-  const name = file.name.toLowerCase();
-  if (!name.endsWith(".cdx") && !name.endsWith(".cdxml")) {
-    return "Only .cdx and .cdxml files are supported.";
-  }
+  const extError = validateExtension(file);
+  if (extError) return extError;
   if (file.size > 52_428_800) {
     return "File exceeds the 50 MB limit.";
   }
@@ -40,24 +65,36 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1_048_576).toFixed(1)} MB`;
 }
 
+const MAX_BATCH_FILES = 20;
+
 /**
- * FileUpload — Drop zone component implementing states D-01 (drop zone),
- * D-02 (loading state), and D-04 (toast error handling).
+ * FileUpload — Drop zone component implementing D-01 through D-05.
  *
- * The component is controlled: it receives onExtract and isLoading as props
- * so the parent (App) can own the useExtract hook state and co-ordinate
- * the results display.
+ * In "single" mode (default): accepts one file, calls onExtract.
+ * In "batch" mode: accepts multiple files up to MAX_BATCH_FILES, shows a file
+ * queue with remove buttons, and calls onStartBatch when the user clicks
+ * "Start batch".
+ *
+ * The component is controlled: it receives onExtract/onStartBatch and
+ * isLoading/isBatchProcessing as props so the parent (App) can own the hook
+ * state and co-ordinate results display.
  */
 export function FileUpload({
+  mode = "single",
   onExtract,
   isLoading,
   loadingFilename,
   loadingFileSize,
+  onStartBatch,
+  isBatchProcessing = false,
 }: FileUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isDragReject, setIsDragReject] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+
+  // Batch-mode queue
+  const [queuedFiles, setQueuedFiles] = useState<File[]>([]);
 
   const zoneClasses = cn(
     "min-h-[200px] rounded-xl flex flex-col items-center justify-center gap-4 p-8",
@@ -80,11 +117,16 @@ export function FileUpload({
       : "text-muted-foreground";
 
   const headlineText =
-    isDragOver && !isDragReject
+    mode === "batch"
+      ? isDragOver && !isDragReject
+        ? "Drop them here"
+        : "Drag & drop your CDX or CDXML files"
+      : isDragOver && !isDragReject
       ? "Drop it here"
       : "Drag & drop your CDX or CDXML file";
 
-  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+  // ── Single-mode drop handler ───────────────────────────────────────────────
+  function handleDropSingle(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     setIsDragOver(false);
     setIsDragReject(false);
@@ -102,19 +144,77 @@ export function FileUpload({
     onExtract(files[0]);
   }
 
-  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const error = validateFile(file);
-    if (error) {
-      toast.error(error);
-      return;
+  // ── Batch-mode drop handler ────────────────────────────────────────────────
+  function handleDropBatch(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragOver(false);
+    setIsDragReject(false);
+    const incoming = Array.from(e.dataTransfer.files);
+    addFilesToQueue(incoming);
+  }
+
+  function addFilesToQueue(incoming: File[]) {
+    setQueuedFiles((prev) => {
+      const currentCount = prev.length;
+      const available = MAX_BATCH_FILES - currentCount;
+
+      if (available <= 0) {
+        toast.error("Batch limit reached. Maximum 20 files per batch.");
+        return prev;
+      }
+
+      const toAdd: File[] = [];
+      for (const file of incoming) {
+        // Wrong extension: reject immediately with toast (never show in queue)
+        const extError = validateExtension(file);
+        if (extError) {
+          toast.error(extError);
+          continue;
+        }
+        // Valid extension (may be oversize — shown in queue with inline warning)
+        if (toAdd.length < available) {
+          toAdd.push(file);
+        }
+      }
+
+      if (currentCount + toAdd.length >= MAX_BATCH_FILES && incoming.length > available) {
+        toast.error("Batch limit reached. Maximum 20 files per batch.");
+      }
+
+      return [...prev, ...toAdd];
+    });
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    if (mode === "batch") {
+      handleDropBatch(e);
+    } else {
+      handleDropSingle(e);
     }
-    onExtract(file);
+  }
+
+  // ── File input change ──────────────────────────────────────────────────────
+  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+
+    if (mode === "batch") {
+      addFilesToQueue(Array.from(fileList));
+    } else {
+      const file = fileList[0];
+      const error = validateFile(file);
+      if (error) {
+        toast.error(error);
+        return;
+      }
+      onExtract(file);
+    }
+
     // Reset input so same file can be re-selected
     e.target.value = "";
   }
 
+  // ── Loading state (single mode only) ──────────────────────────────────────
   if (isLoading) {
     return (
       <div className="flex flex-col items-center gap-4 py-16">
@@ -132,19 +232,29 @@ export function FileUpload({
     );
   }
 
+  // ── Render ─────────────────────────────────────────────────────────────────
+  const hasOversizeFile = queuedFiles.some((f) => f.size > 52_428_800);
+
   return (
     <div>
       <input
         type="file"
         accept=".cdx,.cdxml"
+        multiple={mode === "batch"}
         className="hidden"
         ref={fileInputRef}
         onChange={handleFileInputChange}
       />
+
+      {/* Drop zone */}
       <div
         role="button"
         tabIndex={0}
-        aria-label="Upload CDX or CDXML file"
+        aria-label={
+          mode === "batch"
+            ? "Upload CDX or CDXML files"
+            : "Upload CDX or CDXML file"
+        }
         className={zoneClasses}
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
@@ -172,23 +282,99 @@ export function FileUpload({
           <UploadIcon size={40} className={iconColor} />
         )}
         <p className="text-body font-semibold text-foreground">{headlineText}</p>
-        {!isDragOver && (
-          <p className="text-body text-muted-foreground">or click to browse</p>
+        {mode === "batch" ? (
+          <>
+            {!isDragOver && (
+              <p className="text-body text-muted-foreground">
+                or click to browse · up to 20 files · 50 MB each
+              </p>
+            )}
+            {queuedFiles.length > 0 && (
+              <Badge variant="secondary">{queuedFiles.length} files selected</Badge>
+            )}
+          </>
+        ) : (
+          <>
+            {!isDragOver && (
+              <p className="text-body text-muted-foreground">or click to browse</p>
+            )}
+            <p className="text-caption text-muted-foreground">
+              Supports .cdx and .cdxml — up to 50 MB
+            </p>
+            <Button
+              variant="default"
+              size="lg"
+              onClick={(e) => {
+                e.stopPropagation();
+                fileInputRef.current?.click();
+              }}
+            >
+              Extract structures
+            </Button>
+          </>
         )}
-        <p className="text-caption text-muted-foreground">
-          Supports .cdx and .cdxml — up to 50 MB
-        </p>
-        <Button
-          variant="default"
-          size="lg"
-          onClick={(e) => {
-            e.stopPropagation();
-            fileInputRef.current?.click();
-          }}
-        >
-          Extract structures
-        </Button>
       </div>
+
+      {/* Batch-mode: file queue list + Start batch button */}
+      {mode === "batch" && queuedFiles.length > 0 && !isBatchProcessing && (
+        <div className="mt-4">
+          <ul className="space-y-1 rounded-lg bg-card ring-1 ring-foreground/10 overflow-hidden">
+            {queuedFiles.map((file) => {
+              const oversize = file.size > 52_428_800;
+              return (
+                <li
+                  key={`${file.name}-${file.size}`}
+                  className={cn(
+                    "min-h-[48px] flex items-center gap-2 px-4 py-2",
+                    oversize && "ring-destructive/40"
+                  )}
+                >
+                  <FileIcon size={16} className="text-muted-foreground shrink-0" />
+                  <span className="text-body truncate flex-1">{file.name}</span>
+                  {oversize && (
+                    <AlertTriangleIcon
+                      size={14}
+                      className="text-destructive shrink-0"
+                    />
+                  )}
+                  <span
+                    className={cn(
+                      "text-micro shrink-0",
+                      oversize ? "text-destructive" : "text-muted-foreground"
+                    )}
+                  >
+                    {formatBytes(file.size)}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0"
+                    aria-label={"Remove " + file.name}
+                    onClick={() =>
+                      setQueuedFiles((prev) => prev.filter((f) => f !== file))
+                    }
+                  >
+                    <XIcon size={16} className="text-muted-foreground hover:text-foreground" />
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+          <Separator className="my-3" />
+          <Button
+            variant="default"
+            size="lg"
+            className="w-full"
+            disabled={queuedFiles.length === 0 || hasOversizeFile}
+            onClick={() => {
+              onStartBatch?.(queuedFiles);
+              setQueuedFiles([]);
+            }}
+          >
+            Start batch
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
