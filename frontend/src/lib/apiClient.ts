@@ -1,4 +1,5 @@
 import type { ExtractionResponse } from "@/types/chemistry";
+import type { HistoryListResponse, StatsResponse } from "@/types/history";
 
 /**
  * POSTs a CDX/CDXML file to POST /api/extract using multipart/form-data.
@@ -40,4 +41,74 @@ export async function postExtract(file: File): Promise<ExtractionResponse> {
     throw new Error("Extraction failed — unexpected response format from server.");
   }
   return body as ExtractionResponse;
+}
+
+/**
+ * Fetch extraction history list.
+ * @param limit - Number of entries to fetch. Use "all" for no limit.
+ */
+export async function getHistory(
+  limit: number | "all" = 10
+): Promise<HistoryListResponse> {
+  const url = `/api/history?limit=${limit}`;
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch {
+    throw new Error("Could not reach the server — check your connection.");
+  }
+  if (!response.ok) {
+    throw new Error(`Failed to load history (${response.status})`);
+  }
+  return response.json() as Promise<HistoryListResponse>;
+}
+
+/**
+ * Fetch the full extraction result for one history entry (HIST-02).
+ * Returns the same ExtractionResponse shape as POST /api/extract.
+ */
+export async function getHistoryDetail(id: number): Promise<ExtractionResponse> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/history/${id}`);
+  } catch {
+    throw new Error("Could not reach the server — check your connection.");
+  }
+  if (!response.ok) {
+    if (response.status === 404) throw new Error("Extraction not found.");
+    throw new Error(`Failed to load extraction (${response.status})`);
+  }
+  return response.json() as Promise<ExtractionResponse>;
+}
+
+/**
+ * Delete one history entry by id (D-07).
+ * Throws on non-204 response.
+ */
+export async function deleteHistoryEntry(id: number): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/history/${id}`, { method: "DELETE" });
+  } catch {
+    throw new Error("Could not reach the server — check your connection.");
+  }
+  if (!response.ok && response.status !== 204) {
+    throw new Error(`Could not delete extraction. Try again.`);
+  }
+}
+
+/**
+ * Fetch aggregate statistics (HIST-04, D-08).
+ */
+export async function getStats(): Promise<StatsResponse> {
+  let response: Response;
+  try {
+    response = await fetch("/api/stats");
+  } catch {
+    throw new Error("Could not reach the server — check your connection.");
+  }
+  if (!response.ok) {
+    throw new Error(`Failed to load statistics (${response.status})`);
+  }
+  return response.json() as Promise<StatsResponse>;
 }
