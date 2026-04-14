@@ -83,38 +83,42 @@ export function HistoryEntry({ entry, onReload, onDelete }: HistoryEntryProps) {
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 sm:opacity-100">
           <TooltipProvider>
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleReload}
-                  disabled={reloading || deleting}
-                  aria-label="Reload extraction"
-                  className="text-muted-foreground hover:text-primary"
-                >
-                  {reloading ? (
-                    <LoaderIcon className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RotateCcwIcon className="h-4 w-4" />
-                  )}
-                  <span className="ml-1 hidden sm:inline">Reload extraction</span>
-                </Button>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleReload}
+                    disabled={reloading || deleting}
+                    aria-label="Reload extraction"
+                    className="text-muted-foreground hover:text-primary"
+                  />
+                }
+              >
+                {reloading ? (
+                  <LoaderIcon className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RotateCcwIcon className="h-4 w-4" />
+                )}
+                <span className="ml-1 hidden sm:inline">Reload extraction</span>
               </TooltipTrigger>
               <TooltipContent>Reload this extraction</TooltipContent>
             </Tooltip>
 
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowConfirm(true)}
-                  disabled={reloading || deleting}
-                  aria-label="Delete extraction"
-                  className="text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2Icon className="h-4 w-4" />
-                </Button>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowConfirm(true)}
+                    disabled={reloading || deleting}
+                    aria-label="Delete extraction"
+                    className="text-muted-foreground hover:text-destructive"
+                  />
+                }
+              >
+                <Trash2Icon className="h-4 w-4" />
               </TooltipTrigger>
               <TooltipContent>Delete</TooltipContent>
             </Tooltip>

@@ -75,7 +75,8 @@ function App() {
   }, []);
 
   // Has at least one extraction ever been saved? Controls stats + history visibility (D-09).
-  const hasAnyExtractions = total > 0 || entries.length > 0 || stats !== null;
+  const hasAnyExtractions =
+    total > 0 || entries.length > 0 || (stats !== null && stats.total_extractions > 0);
 
   return (
     <ThemeProvider defaultTheme="system" storageKey="bchemxtract-theme">

@@ -4,6 +4,7 @@ The app factory pattern allows flexible instantiation for both
 production (uvicorn) and testing (httpx.AsyncClient) contexts.
 """
 
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -15,18 +16,43 @@ from app.errors import BridgeError, bridge_error_handler
 from app.routers import extract, health, history
 from app.services.jvm_bridge import initialize_jvm, shutdown_pool
 
+logger = logging.getLogger(__name__)
+
+
+async def _run_migrations() -> None:
+    """Run Alembic migrations at startup to ensure schema is current.
+
+    Alembic's env.py uses asyncio.run() internally, so we must run the
+    synchronous command.upgrade() in a thread to avoid nested event loops.
+    """
+    import asyncio
+    from functools import partial
+
+    from alembic import command
+    from alembic.config import Config
+
+    def _upgrade() -> None:
+        alembic_cfg = Config("alembic.ini")
+        alembic_cfg.set_main_option("sqlalchemy.url", settings.database_url)
+        command.upgrade(alembic_cfg, "head")
+
+    await asyncio.get_event_loop().run_in_executor(None, _upgrade)
+    logger.info("Alembic migrations applied (upgrade to head)")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler.
 
-    Startup: Initialize JVM with BChemXtract JAR and create thread pool.
+    Startup: Initialize JVM with BChemXtract JAR and create thread pool,
+             then run Alembic migrations to ensure DB schema is current.
     Shutdown: Shut down thread pool (JVM shutdown is skipped -- irreversible).
 
     Raises:
         JVMStartupError: If JVM fails to start (fatal -- app exits, Docker restarts).
     """
     initialize_jvm(settings)
+    await _run_migrations()
     yield
     shutdown_pool()
 
