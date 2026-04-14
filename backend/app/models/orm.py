@@ -49,6 +49,9 @@ class Extraction(Base):
         server_default=func.now(),
         nullable=False,
     )
+    batch_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, index=True
+    )
 
     substances: Mapped[list["Substance"]] = relationship(
         secondary="extraction_substances",

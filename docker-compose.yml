@@ -73,5 +73,31 @@ services:
       retries: 3
       start_period: 10s
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    command: celery -A app.celery_app worker --pool=solo --concurrency=1 -l info
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/bchemxtract
+      JAR_PATH: /app/jars
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+
 volumes:
   pgdata:

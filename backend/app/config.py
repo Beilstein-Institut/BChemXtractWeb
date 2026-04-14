@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     max_upload_size: int = 50 * 1024 * 1024
     """Max upload file size in bytes (D-05). Default 50 MB."""
 
+    celery_broker_url: str = "redis://redis:6379/0"
+    """Celery broker URL. Configurable via CELERY_BROKER_URL env var."""
+
+    celery_result_backend: str = "redis://redis:6379/1"
+    """Celery result backend URL. Configurable via CELERY_RESULT_BACKEND env var."""
+
     @model_validator(mode="after")
     def _validate_jar_path(self) -> "Settings":
         """Reject path traversal in jar_path and resolve to absolute."""
