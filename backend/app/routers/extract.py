@@ -131,6 +131,9 @@ async def extract_file(file: UploadFile, db: DbDep) -> ExtractionResponse:
     try:
         await save_extraction(db, response)
     except Exception:
-        logger.exception("Auto-persist failed for %s — extraction result still returned", file.filename)
+        logger.exception(
+            "Auto-persist failed for %s — extraction result still returned",
+            file.filename,
+        )
 
     return response
