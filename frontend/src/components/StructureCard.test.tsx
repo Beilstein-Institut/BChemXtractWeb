@@ -34,8 +34,12 @@ vi.mock("@base-ui/react/dialog", () => {
     Dialog: {
       Root: ({ children }: { children: React.ReactNode }) =>
         React.createElement(React.Fragment, null, children),
-      Trigger: ({ children }: { children: React.ReactNode }) =>
-        React.createElement(React.Fragment, null, children),
+      Trigger: ({ children, render: renderProp, ...rest }: { children?: React.ReactNode; render?: React.ReactElement; [key: string]: unknown }) => {
+        if (renderProp) {
+          return React.cloneElement(renderProp, rest, children);
+        }
+        return React.createElement(React.Fragment, null, children);
+      },
       Portal: ({ children }: { children: React.ReactNode }) =>
         React.createElement(React.Fragment, null, children),
       Backdrop: ({ className }: { className?: string }) =>
@@ -61,8 +65,12 @@ vi.mock("@base-ui/react/tooltip", () => {
         React.createElement(React.Fragment, null, children),
       Root: ({ children }: { children: React.ReactNode }) =>
         React.createElement(React.Fragment, null, children),
-      Trigger: ({ children }: { children: React.ReactNode }) =>
-        React.createElement(React.Fragment, null, children),
+      Trigger: ({ children, render: renderProp, ...rest }: { children?: React.ReactNode; render?: React.ReactElement; [key: string]: unknown }) => {
+        if (renderProp) {
+          return React.cloneElement(renderProp, rest, children);
+        }
+        return React.createElement(React.Fragment, null, children);
+      },
       Portal: ({ children }: { children: React.ReactNode }) =>
         React.createElement(React.Fragment, null, children),
       Positioner: ({ children }: { children: React.ReactNode }) =>

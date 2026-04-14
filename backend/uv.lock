@@ -76,6 +76,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "asgi-lifespan" },
     { name = "httpx" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -90,6 +91,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.18.0" },
+    { name = "asgi-lifespan", marker = "extra == 'dev'", specifier = ">=2.1.0" },
     { name = "fastapi", specifier = ">=0.135.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.0" },
     { name = "jpype1", specifier = ">=1.6.0" },

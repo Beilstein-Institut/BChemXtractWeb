@@ -20,6 +20,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM python:3.12-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openjdk-21-jdk-headless curl \
+    libharfbuzz0b libfreetype6 fontconfig fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 WORKDIR /app
