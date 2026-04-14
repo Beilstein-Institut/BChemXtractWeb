@@ -1,14 +1,21 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ModeToggle } from "@/components/mode-toggle";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
 import { useExtract } from "@/hooks/useExtract";
 import { FileUpload } from "@/components/FileUpload";
 import { ExtractionSummary } from "@/components/ExtractionSummary";
 import { StructureGrid } from "@/components/StructureGrid";
 
 function App() {
-  const { state, result, extract, reset } = useExtract();
+  const { state, result, errorMessage, extract, reset } = useExtract();
+
+  // Show a toast whenever extraction enters the error state (WR-04).
+  useEffect(() => {
+    if (state === "error" && errorMessage) {
+      toast.error(errorMessage);
+    }
+  }, [state, errorMessage]);
 
   /**
    * Track the selected file so we can show filename and size in the
