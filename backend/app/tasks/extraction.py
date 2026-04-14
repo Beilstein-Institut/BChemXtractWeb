@@ -12,6 +12,7 @@ Import note: service imports are at module level (not deferred) so tests
 can patch them at the correct namespace (app.tasks.extraction.*).
 """
 import asyncio
+import base64
 import logging
 import time
 
@@ -26,11 +27,11 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(bind=True, name="extraction.extract_file")
-def extract_file_task(self, file_bytes: bytes, filename: str, batch_id: str) -> dict:
+def extract_file_task(self, file_b64: str, filename: str, batch_id: str) -> dict:
     """Extract substances from one file and persist the result.
 
     Args:
-        file_bytes: Raw CDX/CDXML file content.
+        file_b64: Base64-encoded CDX/CDXML file content (JSON-safe).
         filename: Original filename for metadata and ZIP provenance.
         batch_id: UUID string tagging this extraction to its batch.
 
@@ -42,6 +43,7 @@ def extract_file_task(self, file_bytes: bytes, filename: str, batch_id: str) -> 
     start = time.perf_counter()
 
     try:
+        file_bytes = base64.b64decode(file_b64)
         format_type = detect_format(file_bytes)
         raw_substances, raw_info = _extract_substances_with_svg_sync(file_bytes, format_type)
         elapsed_ms = round((time.perf_counter() - start) * 1000, 1)

@@ -6,6 +6,7 @@ DELETE /api/batch/{id}   — cancel pending tasks (after current file)
 GET  /api/batch/{id}/zip — on-demand ZIP of per-file JSON exports
 """
 import asyncio
+import base64
 import io
 import json
 import uuid
@@ -57,7 +58,11 @@ async def start_batch(files: list[UploadFile] = File(...)) -> BatchStartResponse
                 detail=f"{f.filename} exceeds the {settings.max_upload_size // (1024 * 1024)} MB limit",
             )
         task_signatures.append(
-            extract_file_task.s(file_bytes, f.filename or "unknown", batch_id)
+            extract_file_task.s(
+                base64.b64encode(file_bytes).decode("ascii"),
+                f.filename or "unknown",
+                batch_id,
+            )
         )
 
     task_group = group(task_signatures)

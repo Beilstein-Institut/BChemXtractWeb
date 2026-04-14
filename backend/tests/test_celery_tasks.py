@@ -1,4 +1,5 @@
 """Unit tests for extraction.extract_file_task Celery task."""
+import base64
 import pytest
 from unittest.mock import patch
 
@@ -51,7 +52,7 @@ def test_extract_file_task_returns_success_dict():
     with patch("app.tasks.extraction._extract_substances_with_svg_sync", return_value=([mock_sub], mock_info)), \
          patch("app.tasks.extraction.detect_format", return_value="cdx"), \
          patch("app.tasks.extraction.asyncio.run", return_value=42):
-        result = extract_file_task.apply(args=(b"fake_bytes", "test.cdx", "batch-uuid")).get()
+        result = extract_file_task.apply(args=(base64.b64encode(b"fake_bytes").decode(), "test.cdx", "batch-uuid")).get()
 
     assert result["filename"] == "test.cdx"
     assert result["structure_count"] == 1
@@ -64,7 +65,7 @@ def test_extract_file_task_returns_error_dict_on_failure():
     from app.tasks.extraction import extract_file_task
 
     with patch("app.tasks.extraction.detect_format", side_effect=ValueError("bad format")):
-        result = extract_file_task.apply(args=(b"bad_bytes", "bad.cdx", "batch-uuid")).get()
+        result = extract_file_task.apply(args=(base64.b64encode(b"bad_bytes").decode(), "bad.cdx", "batch-uuid")).get()
 
     assert result["error"] is not None
     assert "bad format" in result["error"]
