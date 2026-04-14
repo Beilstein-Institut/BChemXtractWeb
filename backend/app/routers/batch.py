@@ -107,12 +107,26 @@ async def batch_progress(batch_id: str, request: Request) -> EventSourceResponse
 
                 if task_id not in reported and result.ready():
                     reported.add(task_id)
-                    payload = {
-                        "task_id": task_id,
-                        "state": result.state,
-                        "result": result.result,
-                    }
-                    yield ServerSentEvent(data=json.dumps(payload), event="file_complete")
+                    raw_result = result.result
+                    if isinstance(raw_result, BaseException):
+                        # Task entered FAILURE state via broker/worker error — result is an
+                        # Exception object, not a dict. Serialize to a safe string form.
+                        serializable_result = {"error": str(raw_result)[:200]}
+                    else:
+                        serializable_result = raw_result
+                    try:
+                        event_data = json.dumps({
+                            "task_id": task_id,
+                            "state": result.state,
+                            "result": serializable_result,
+                        })
+                    except (TypeError, ValueError) as exc:
+                        event_data = json.dumps({
+                            "task_id": task_id,
+                            "state": "FAILURE",
+                            "result": {"error": f"Result not serializable: {exc!s}"[:200]},
+                        })
+                    yield ServerSentEvent(data=event_data, event="file_complete")
 
                 if not result.ready():
                     all_done = False
