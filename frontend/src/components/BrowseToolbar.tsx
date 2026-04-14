@@ -71,9 +71,11 @@ export function BrowseToolbar({
     >
       {/* Grid / Table view toggle */}
       <ToggleGroup
-        type="single"
-        value={view}
-        onValueChange={(v: string) => v && onViewChange(v as BrowseView)}
+        value={[view]}
+        onValueChange={(values: string[]) => {
+          const next = values.find((v) => v !== view);
+          if (next) onViewChange(next as BrowseView);
+        }}
         aria-label="View mode"
       >
         <ToggleGroupItem value="grid" aria-label="Grid view" className="h-9 w-9 p-0">
@@ -89,7 +91,7 @@ export function BrowseToolbar({
         <span className="text-xs text-muted-foreground">Sort by</span>
         <Select
           value={sort}
-          onValueChange={(v: string) => onSortChange(v as BrowseSort)}
+          onValueChange={(v) => v && onSortChange(v as BrowseSort)}
         >
           <SelectTrigger className="h-8 w-[160px]" aria-label="Sort order">
             <SelectValue />
@@ -106,8 +108,8 @@ export function BrowseToolbar({
         <span className="text-xs text-muted-foreground">Per page</span>
         <Select
           value={String(pageSize)}
-          onValueChange={(v: string) =>
-            onPageSizeChange(parseInt(v, 10) as 12 | 24 | 48)
+          onValueChange={(v) =>
+            v && onPageSizeChange(parseInt(v, 10) as 12 | 24 | 48)
           }
         >
           <SelectTrigger className="h-8 w-[72px]" aria-label="Items per page">
@@ -141,7 +143,7 @@ export function BrowseToolbar({
             <span className="text-xs text-muted-foreground">Sort by</span>
             <Select
               value={sort}
-              onValueChange={(v: string) => onSortChange(v as BrowseSort)}
+              onValueChange={(v) => v && onSortChange(v as BrowseSort)}
             >
               <SelectTrigger className="h-8 w-full">
                 <SelectValue />
@@ -156,8 +158,8 @@ export function BrowseToolbar({
             <span className="text-xs text-muted-foreground">Per page</span>
             <Select
               value={String(pageSize)}
-              onValueChange={(v: string) =>
-                onPageSizeChange(parseInt(v, 10) as 12 | 24 | 48)
+              onValueChange={(v) =>
+                v && onPageSizeChange(parseInt(v, 10) as 12 | 24 | 48)
               }
             >
               <SelectTrigger className="h-8 w-full">
