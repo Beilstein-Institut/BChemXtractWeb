@@ -70,3 +70,39 @@ class ExtractionResponse(BaseModel):
     structure_count: int
     extraction_time_ms: float
     warnings: list[str] = Field(default_factory=list)
+
+
+class HistoryListItem(BaseModel):
+    """One entry in the extraction history list (D-04).
+
+    Returned by GET /api/history. Contains only the summary fields
+    needed to render HistoryList and HistoryEntry components.
+    """
+
+    id: int
+    filename: str
+    file_size: int
+    format: str
+    structure_count: int
+    extraction_time_ms: float
+    warnings: list[str] = Field(default_factory=list)
+    created_at: str  # ISO 8601 UTC string
+
+
+class HistoryListResponse(BaseModel):
+    """Response shape for GET /api/history."""
+
+    items: list[HistoryListItem]
+    total: int
+
+
+class StatsResponse(BaseModel):
+    """Response shape for GET /api/stats (D-08).
+
+    Counts total extractions, unique substances, and identifies the most
+    frequently occurring molecular formula across all stored substances.
+    """
+
+    total_extractions: int
+    unique_structures: int
+    most_common_formula: str  # "" when no substances exist

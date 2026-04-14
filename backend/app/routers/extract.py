@@ -7,14 +7,18 @@ and returns ExtractionResponse JSON with metadata and optional warnings.
 
 import logging
 import time
+from typing import Annotated
 
-from fastapi import APIRouter, UploadFile
+from fastapi import APIRouter, Depends, UploadFile
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.errors import FileSizeError
 from app.models.chemistry import ExtractionResponse
+from app.services.db import get_db
 from app.services.extractor import extract_substances_with_svg
 from app.services.format_detector import detect_format
+from app.services.persistence import save_extraction
 
 logger = logging.getLogger(__name__)
 
@@ -53,9 +57,11 @@ def _check_extension_mismatch(filename: str, detected_format: str) -> list[str]:
 
 router = APIRouter(tags=["extract"])
 
+DbDep = Annotated[AsyncSession, Depends(get_db)]
+
 
 @router.post("/extract", response_model=ExtractionResponse)
-async def extract_file(file: UploadFile) -> ExtractionResponse:
+async def extract_file(file: UploadFile, db: DbDep) -> ExtractionResponse:
     """Extract chemical substances from a CDX/CDXML file upload.
 
     Accepts a single file via multipart/form-data. Detects format from
@@ -109,7 +115,7 @@ async def extract_file(file: UploadFile) -> ExtractionResponse:
     # D-04: Synchronous response with timing metadata
     # D-09: File metadata in response
     # D-10: Full response shape
-    return ExtractionResponse(
+    response = ExtractionResponse(
         substances=substances,
         info=info,
         format=format_type,
@@ -119,3 +125,12 @@ async def extract_file(file: UploadFile) -> ExtractionResponse:
         extraction_time_ms=round(elapsed_ms, 1),
         warnings=warnings,
     )
+
+    # D-03: Auto-persist every extraction to PostgreSQL.
+    # DB save is best-effort: failures are logged but never break extraction.
+    try:
+        await save_extraction(db, response)
+    except Exception:
+        logger.exception("Auto-persist failed for %s — extraction result still returned", file.filename)
+
+    return response
