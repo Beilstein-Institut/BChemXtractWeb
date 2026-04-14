@@ -12,8 +12,8 @@ vi.mock("./components/FileUpload", () => ({
 vi.mock("./components/ExtractionSummary", () => ({
   ExtractionSummary: () => <div data-testid="extraction-summary">ExtractionSummary</div>,
 }));
-vi.mock("./components/StructureGrid", () => ({
-  StructureGrid: () => <div data-testid="structure-grid">StructureGrid</div>,
+vi.mock("./components/StructureBrowser", () => ({
+  StructureBrowser: () => <div data-testid="structure-browser">StructureBrowser</div>,
 }));
 vi.mock("sonner", () => ({ Toaster: () => null, toast: { error: vi.fn() } }));
 
@@ -60,7 +60,7 @@ describe("App", () => {
     expect(fileUpload).toHaveAttribute("data-loading", "true");
   });
 
-  it("shows ExtractionSummary and StructureGrid in success state", () => {
+  it("shows ExtractionSummary and StructureBrowser in success state", () => {
     vi.mocked(useExtract).mockReturnValue({
       state: "success",
       result: {
@@ -72,7 +72,7 @@ describe("App", () => {
     });
     render(<App />);
     expect(screen.getByTestId("extraction-summary")).toBeInTheDocument();
-    expect(screen.getByTestId("structure-grid")).toBeInTheDocument();
+    expect(screen.getByTestId("structure-browser")).toBeInTheDocument();
     expect(screen.queryByTestId("file-upload")).not.toBeInTheDocument();
   });
 });

@@ -6,7 +6,7 @@ import { useExtract } from "@/hooks/useExtract";
 import { useHistory } from "@/hooks/useHistory";
 import { FileUpload } from "@/components/FileUpload";
 import { ExtractionSummary } from "@/components/ExtractionSummary";
-import { StructureGrid } from "@/components/StructureGrid";
+import { StructureBrowser } from "@/components/StructureBrowser";
 import { StatCard } from "@/components/StatCard";
 import { HistoryList } from "@/components/HistoryList";
 import type { ExtractionResponse } from "@/types/chemistry";
@@ -38,6 +38,9 @@ function App() {
   // Historical view state: when user reloads a past extraction into the grid (D-06).
   const [historicalResult, setHistoricalResult] = useState<ExtractionResponse | null>(null);
 
+  // Active extraction ID for paginated browsing (Phase 6).
+  const [activeExtractionId, setActiveExtractionId] = useState<number | null>(null);
+
   // Determine what to display in the results area:
   //   - historicalResult: user clicked "Reload extraction" on a history entry
   //   - result: fresh extraction just completed
@@ -56,11 +59,13 @@ function App() {
   function handleReset() {
     setSelectedFile(null);
     setHistoricalResult(null);
+    setActiveExtractionId(null);
     reset();
   }
 
   function handleBackToLatest() {
     setHistoricalResult(null);
+    setActiveExtractionId(result?.extraction_id ?? null);
   }
 
   // After a fresh extraction succeeds, refresh history list + stats
@@ -70,8 +75,16 @@ function App() {
     }
   }, [state, refreshHistory]);
 
+  // After a fresh extraction succeeds, set the active extraction ID for paginated browsing
+  useEffect(() => {
+    if (state === "success" && result?.extraction_id) {
+      setActiveExtractionId(result.extraction_id);
+    }
+  }, [state, result]);
+
   const handleReloadSuccess = useCallback((response: ExtractionResponse) => {
     setHistoricalResult(response);
+    setActiveExtractionId(response.extraction_id ?? null);
   }, []);
 
   // Has at least one extraction ever been saved? Controls stats + history visibility (D-09).
@@ -129,7 +142,7 @@ function App() {
                 <ExtractionSummary response={activeResult} onReset={handleReset} />
               </div>
               <div className="mt-8">
-                <StructureGrid response={activeResult} onReset={handleReset} />
+                <StructureBrowser extractionId={activeExtractionId} onReset={handleReset} />
               </div>
             </>
           )}
