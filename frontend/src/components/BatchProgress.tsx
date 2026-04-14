@@ -7,8 +7,6 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Progress,
-  ProgressTrack,
-  ProgressIndicator,
   ProgressLabel,
   ProgressValue,
 } from "@/components/ui/progress";
@@ -62,22 +60,23 @@ export function BatchProgress({
             <ProgressLabel>
               {completedCount} of {totalCount} files
             </ProgressLabel>
-            <ProgressValue>{progressPercent}%</ProgressValue>
-            <ProgressTrack className="h-1 bg-muted">
-              <ProgressIndicator className="bg-primary transition-all" />
-            </ProgressTrack>
+            <ProgressValue>
+              {() => `${progressPercent}%`}
+            </ProgressValue>
           </Progress>
         </div>
 
         <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-destructive border-destructive shrink-0"
-            >
-              Cancel batch
-            </Button>
+          <AlertDialogTrigger
+            render={
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive border-destructive shrink-0"
+              />
+            }
+          >
+            Cancel batch
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
