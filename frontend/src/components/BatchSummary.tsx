@@ -41,6 +41,7 @@ export function BatchSummary({
   succeededCount,
   failedCount,
   onViewExtraction,
+  onReset,
 }: BatchSummaryProps) {
   async function handleDownloadZip() {
     try {
@@ -55,10 +56,15 @@ export function BatchSummary({
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between">
         <span className="text-sub-heading font-semibold">Batch complete</span>
-        <Button variant="default" size="sm" onClick={handleDownloadZip}>
-          <DownloadIcon size={14} className="mr-2" />
-          Download ZIP
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={onReset}>
+            New batch
+          </Button>
+          <Button variant="default" size="sm" onClick={handleDownloadZip}>
+            <DownloadIcon size={14} className="mr-2" />
+            Download ZIP
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Stat row: 4-col desktop, 2-col mobile */}
