@@ -58,6 +58,7 @@ def _extraction_to_response(e: Extraction) -> ExtractionResponse:
     """
     substances = [
         SubstanceResponse(
+            id=s.id,
             inchi_key=s.inchi_key,
             inchi=s.inchi,
             smiles=s.smiles,
@@ -81,6 +82,7 @@ def _extraction_to_response(e: Extraction) -> ExtractionResponse:
         structure_count=e.structure_count,
         extraction_time_ms=e.extraction_time_ms,
         warnings=e.warnings or [],
+        extraction_id=e.id,
     )
 
 

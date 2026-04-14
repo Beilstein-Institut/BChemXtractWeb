@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 class SubstanceResponse(BaseModel):
     """Extracted chemical substance with all fields guaranteed non-null."""
 
+    id: int = 0
     inchi: str = ""
     inchi_key: str = ""
     smiles: str = ""
@@ -70,6 +71,17 @@ class ExtractionResponse(BaseModel):
     structure_count: int
     extraction_time_ms: float
     warnings: list[str] = Field(default_factory=list)
+    extraction_id: int | None = None
+
+
+class PagedSubstancesResponse(BaseModel):
+    """Paginated page of substances for GET /api/extractions/{id}/substances."""
+
+    items: list[SubstanceResponse]
+    total: int
+    page: int
+    size: int
+    pages: int
 
 
 class HistoryListItem(BaseModel):

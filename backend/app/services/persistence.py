@@ -85,8 +85,8 @@ async def save_extraction(
         # Step 4: Insert join rows (ignore duplicates — re-extracting same file)
         if substance_ids:
             join_data = [
-                {"extraction_id": extraction.id, "substance_id": sid}
-                for sid in substance_ids
+                {"extraction_id": extraction.id, "substance_id": sid, "position": index}
+                for index, sid in enumerate(substance_ids)
             ]
             await db.execute(
                 pg_insert(ExtractionSubstance)

@@ -111,3 +111,4 @@ class ExtractionSubstance(Base):
         ForeignKey("substances.id", ondelete="CASCADE"),
         primary_key=True,
     )
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

@@ -6,15 +6,18 @@ and returns ExtractionResponse JSON with metadata and optional warnings.
 """
 
 import logging
+import math
 import time
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.errors import FileSizeError
-from app.models.chemistry import ExtractionResponse
+from app.models.chemistry import ExtractionResponse, PagedSubstancesResponse, SubstanceResponse
+from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.services.db import get_db
 from app.services.extractor import extract_substances_with_svg
 from app.services.format_detector import detect_format
@@ -129,7 +132,8 @@ async def extract_file(file: UploadFile, db: DbDep) -> ExtractionResponse:
     # D-03: Auto-persist every extraction to PostgreSQL.
     # DB save is best-effort: failures are logged but never break extraction.
     try:
-        await save_extraction(db, response)
+        saved = await save_extraction(db, response)
+        response.extraction_id = saved.id
     except Exception:
         logger.exception(
             "Auto-persist failed for %s — extraction result still returned",
@@ -137,3 +141,82 @@ async def extract_file(file: UploadFile, db: DbDep) -> ExtractionResponse:
         )
 
     return response
+
+
+@router.get("/extractions/{extraction_id}/substances", response_model=PagedSubstancesResponse)
+async def get_substances_page(
+    extraction_id: int,
+    db: DbDep,
+    page: int = Query(1, ge=1),
+    size: int = Query(12, ge=1, le=48),
+    sort: str = Query("extraction_order"),
+) -> PagedSubstancesResponse:
+    """Paginated substances for one extraction (D-01, DISP-03).
+
+    Args:
+        extraction_id: Primary key of the Extraction record.
+        db: AsyncSession from get_db() dependency.
+        page: 1-based page number (ge=1).
+        size: Page size (1–48, default 12).
+        sort: "extraction_order" (default) or "formula".
+
+    Returns:
+        PagedSubstancesResponse with items, total, page, size, pages.
+
+    Raises:
+        HTTPException 404: If extraction_id does not exist.
+    """
+    # 404 if extraction doesn't exist
+    exists = await db.scalar(
+        select(func.count()).select_from(Extraction).where(Extraction.id == extraction_id)
+    )
+    if not exists:
+        raise HTTPException(status_code=404, detail="Extraction not found")
+
+    # Total count of substances for this extraction
+    total = await db.scalar(
+        select(func.count())
+        .select_from(Substance)
+        .join(ExtractionSubstance, Substance.id == ExtractionSubstance.substance_id)
+        .where(ExtractionSubstance.extraction_id == extraction_id)
+    ) or 0
+
+    # Ordering
+    order_col = (
+        Substance.molecular_formula.asc()
+        if sort == "formula"
+        else ExtractionSubstance.position.asc()
+    )
+
+    # Paginated SELECT
+    result = await db.execute(
+        select(Substance)
+        .join(ExtractionSubstance, Substance.id == ExtractionSubstance.substance_id)
+        .where(ExtractionSubstance.extraction_id == extraction_id)
+        .order_by(order_col)
+        .offset((page - 1) * size)
+        .limit(size)
+    )
+    substances = result.scalars().all()
+
+    items = [
+        SubstanceResponse(
+            id=s.id,
+            inchi_key=s.inchi_key,
+            inchi=s.inchi,
+            smiles=s.smiles,
+            extended_smiles=s.extended_smiles,
+            molecular_formula=s.molecular_formula,
+            svg=s.svg,
+            mdlv3000=s.mdlv3000,
+        )
+        for s in substances
+    ]
+
+    return PagedSubstancesResponse(
+        items=items,
+        total=total,
+        page=page,
+        size=size,
+        pages=math.ceil(total / size) if total > 0 else 0,
+    )
