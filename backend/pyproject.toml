@@ -12,6 +12,8 @@ dependencies = [
     "alembic>=1.18.0",
     "pydantic-settings>=2.13.0",
     "psycopg[binary]>=3.3.0",
+    "celery[redis]>=5.4.0",
+    "sse-starlette>=2.0.0",
 ]
 
 [project.optional-dependencies]
