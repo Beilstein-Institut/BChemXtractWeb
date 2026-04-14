@@ -77,9 +77,12 @@ async def start_batch(files: list[UploadFile] = File(...)) -> BatchStartResponse
     )
 
 
-@router.get("/batch/{batch_id}/progress")
-async def batch_progress(batch_id: str, request: Request) -> EventSourceResponse:
+@router.get("/batch/{group_id}/progress")
+async def batch_progress(group_id: str, request: Request) -> EventSourceResponse:
     """Stream SSE events for batch progress.
+
+    group_id is the Celery GroupResult.id (NOT the custom batch_id used for DB/ZIP lookups).
+    The frontend sends group_id from BatchStartResponse to this endpoint.
 
     Sends one file_complete event per completed task, then batch_complete when all done.
     Disconnects cleanly when client closes the connection.
@@ -87,7 +90,7 @@ async def batch_progress(batch_id: str, request: Request) -> EventSourceResponse
     """
 
     async def event_generator():
-        group_result = GroupResult.restore(batch_id, app=celery_app)
+        group_result = GroupResult.restore(group_id, app=celery_app)
         if group_result is None:
             yield ServerSentEvent(
                 data=json.dumps({"error": "Batch not found"}), event="error"
@@ -133,7 +136,7 @@ async def batch_progress(batch_id: str, request: Request) -> EventSourceResponse
 
             if all_done:
                 yield ServerSentEvent(
-                    data=json.dumps({"batch_id": batch_id}), event="batch_complete"
+                    data=json.dumps({"group_id": group_id}), event="batch_complete"
                 )
                 break
 
@@ -142,17 +145,18 @@ async def batch_progress(batch_id: str, request: Request) -> EventSourceResponse
     return EventSourceResponse(event_generator())
 
 
-@router.delete("/batch/{batch_id}", status_code=204)
-async def cancel_batch(batch_id: str) -> None:
+@router.delete("/batch/{group_id}", status_code=204)
+async def cancel_batch(group_id: str) -> None:
     """Cancel pending tasks in a batch.
 
+    group_id is the Celery GroupResult.id (NOT the custom batch_id used for DB/ZIP lookups).
     Running task completes (D-10: cancel after current).
     terminate=False means the currently executing task finishes normally.
 
     Raises:
         HTTPException 404: Batch not found.
     """
-    group_result = GroupResult.restore(batch_id, app=celery_app)
+    group_result = GroupResult.restore(group_id, app=celery_app)
     if group_result is None:
         raise HTTPException(status_code=404, detail="Batch not found")
 
