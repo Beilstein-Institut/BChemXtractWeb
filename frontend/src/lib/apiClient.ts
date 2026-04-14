@@ -35,5 +35,9 @@ export async function postExtract(file: File): Promise<ExtractionResponse> {
     throw new Error(`Extraction failed — ${detail}`);
   }
 
-  return response.json() as Promise<ExtractionResponse>;
+  const body = await response.json();
+  if (!body || !Array.isArray(body.substances)) {
+    throw new Error("Extraction failed — unexpected response format from server.");
+  }
+  return body as ExtractionResponse;
 }
