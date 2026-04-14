@@ -5,6 +5,7 @@
  */
 
 export interface SubstanceResponse {
+  id: number;
   inchi: string;
   inchi_key: string;
   smiles: string;
@@ -32,4 +33,13 @@ export interface ExtractionResponse {
   structure_count: number;
   extraction_time_ms: number;
   warnings: string[];
+  extraction_id?: number;
+}
+
+export interface PagedSubstancesResponse {
+  items: SubstanceResponse[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
 }

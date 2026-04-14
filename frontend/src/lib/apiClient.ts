@@ -1,4 +1,4 @@
-import type { ExtractionResponse } from "@/types/chemistry";
+import type { ExtractionResponse, PagedSubstancesResponse } from "@/types/chemistry";
 import type { HistoryListResponse, StatsResponse } from "@/types/history";
 
 /**
@@ -111,4 +111,31 @@ export async function getStats(): Promise<StatsResponse> {
     throw new Error(`Failed to load statistics (${response.status})`);
   }
   return response.json() as Promise<StatsResponse>;
+}
+
+/**
+ * Fetch one page of substances for a stored extraction (DISP-03, D-01).
+ * @param extractionId - DB primary key from ExtractionResponse.extraction_id
+ * @param page - 1-based page number
+ * @param size - items per page (12 | 24 | 48)
+ * @param sort - "extraction_order" | "formula"
+ */
+export async function getSubstancesPage(
+  extractionId: number,
+  page: number,
+  size: 12 | 24 | 48,
+  sort: "extraction_order" | "formula"
+): Promise<PagedSubstancesResponse> {
+  const url = `/api/extractions/${extractionId}/substances?page=${page}&size=${size}&sort=${sort}`;
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch {
+    throw new Error("Could not reach the server — check your connection.");
+  }
+  if (!response.ok) {
+    if (response.status === 404) throw new Error("Extraction not found.");
+    throw new Error(`Failed to load structures (${response.status})`);
+  }
+  return response.json() as Promise<PagedSubstancesResponse>;
 }
