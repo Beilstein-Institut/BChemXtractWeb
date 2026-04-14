@@ -85,7 +85,7 @@ describe("cancelBatch", () => {
   });
 
   it("resolves without error on 204", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 204 }));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 204 }));
     await expect(cancelBatch("bid")).resolves.toBeUndefined();
   });
 });

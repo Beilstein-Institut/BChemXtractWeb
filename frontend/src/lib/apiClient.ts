@@ -196,7 +196,7 @@ export async function cancelBatch(batchId: string): Promise<void> {
   } catch {
     throw new Error("Could not reach the server — check your connection.");
   }
-  if (!response.ok && response.status !== 204) {
+  if (!response.ok) {
     throw new Error(`Could not cancel batch (${response.status})`);
   }
 }
