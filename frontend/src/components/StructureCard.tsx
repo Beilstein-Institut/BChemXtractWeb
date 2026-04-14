@@ -8,7 +8,7 @@
  * SVG is rendered as a URL-encoded data URI in an <img> src — never as raw
  * innerHTML — to prevent XSS injection from backend-supplied SVG (T-04-04).
  */
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ClipboardIcon, CheckIcon, FlaskConicalIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,6 +39,15 @@ export interface StructureCardProps {
 export function StructureCard({ substance }: StructureCardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear any pending copy-reset timer on unmount to avoid setState on
+  // an unmounted component (WR-01).
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current !== null) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
 
   // URL-encode the SVG so it can be safely used as an img src attribute value.
   // This is the only approved rendering method per UI-SPEC.md (T-04-04).
@@ -54,8 +63,9 @@ export function StructureCard({ substance }: StructureCardProps) {
     e.stopPropagation();
     try {
       await navigator.clipboard.writeText(substance.smiles);
+      if (copyTimerRef.current !== null) clearTimeout(copyTimerRef.current);
       setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
+      copyTimerRef.current = setTimeout(() => setIsCopied(false), 2000);
     } catch {
       toast.error("Failed to copy — try selecting the text manually.");
     }
@@ -63,18 +73,21 @@ export function StructureCard({ substance }: StructureCardProps) {
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-      <DialogTrigger asChild>
-        <div
-          role="button"
-          tabIndex={0}
-          aria-label={`View details for ${substance.molecular_formula}`}
-          className="cursor-pointer"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              setIsDialogOpen(true);
-            }
-          }}
-        >
+      <DialogTrigger
+        render={
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label={`View details for ${substance.molecular_formula}`}
+            className="cursor-pointer"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                setIsDialogOpen(true);
+              }
+            }}
+          />
+        }
+      >
           <Card className="hover:shadow-[rgba(0,0,0,0.22)_3px_5px_30px_0px] transition-shadow duration-200 border-0 overflow-hidden">
             {/* SVG container: 240px fixed height */}
             <div className="h-[240px] flex items-center justify-center bg-background rounded-t-lg p-4">
@@ -98,10 +111,12 @@ export function StructureCard({ substance }: StructureCardProps) {
               </p>
               <div className="flex items-center gap-2">
                 <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="text-caption text-muted-foreground truncate max-w-[calc(100%-2rem)]">
-                      {substance.smiles}
-                    </span>
+                  <TooltipTrigger
+                    render={
+                      <span className="text-caption text-muted-foreground truncate max-w-[calc(100%-2rem)]" />
+                    }
+                  >
+                    {substance.smiles}
                   </TooltipTrigger>
                   <TooltipContent>{substance.smiles}</TooltipContent>
                 </Tooltip>
@@ -120,7 +135,6 @@ export function StructureCard({ substance }: StructureCardProps) {
               </div>
             </CardContent>
           </Card>
-        </div>
       </DialogTrigger>
 
       {/* StructureDetail renders as DialogContent inside the Dialog */}

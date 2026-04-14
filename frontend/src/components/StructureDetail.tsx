@@ -5,7 +5,7 @@
  * Rendered inside a Dialog controlled by StructureCard. SVG is rendered via
  * URL-encoded data URI (T-04-04 threat mitigation — never as raw innerHTML).
  */
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ClipboardIcon, CheckIcon, FlaskConicalIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -29,12 +29,22 @@ export interface StructureDetailProps {
  */
 function CopyButton({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear any pending reset timer on unmount to avoid setState on an
+  // unmounted component (WR-01).
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(value);
+      if (timerRef.current !== null) clearTimeout(timerRef.current);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      timerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Failed to copy — try selecting the text manually.");
     }
