@@ -4,7 +4,10 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { Toaster, toast } from "sonner";
 import { useExtract } from "@/hooks/useExtract";
 import { useHistory } from "@/hooks/useHistory";
+import { useBatch } from "@/hooks/useBatch";
 import { FileUpload } from "@/components/FileUpload";
+import { BatchProgress } from "@/components/BatchProgress";
+import { BatchSummary } from "@/components/BatchSummary";
 import { ExtractionSummary } from "@/components/ExtractionSummary";
 import { StructureBrowser } from "@/components/StructureBrowser";
 import { StatCard } from "@/components/StatCard";
@@ -26,12 +29,32 @@ function App() {
     refresh: refreshHistory,
   } = useHistory();
 
+  const {
+    state: batchState,
+    files: batchFiles,
+    batchId,
+    completedCount,
+    failedCount,
+    totalStructures: batchTotalStructures,
+    errorMessage: batchErrorMessage,
+    startBatch,
+    cancelBatch: cancelBatchFn,
+    reset: resetBatch,
+  } = useBatch();
+
   // Show a toast whenever extraction enters the error state (WR-04).
   useEffect(() => {
     if (state === "error" && errorMessage) {
       toast.error(errorMessage);
     }
   }, [state, errorMessage]);
+
+  // Show a toast whenever batch enters the error state.
+  useEffect(() => {
+    if (batchState === "error" && batchErrorMessage) {
+      toast.error(batchErrorMessage);
+    }
+  }, [batchState, batchErrorMessage]);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -82,6 +105,13 @@ function App() {
     }
   }, [state, result]);
 
+  // After batch completes, refresh history to include new extractions
+  useEffect(() => {
+    if (batchState === "complete") {
+      refreshHistory();
+    }
+  }, [batchState, refreshHistory]);
+
   const handleReloadSuccess = useCallback((response: ExtractionResponse) => {
     setHistoricalResult(response);
     setActiveExtractionId(response.extraction_id ?? null);
@@ -104,19 +134,56 @@ function App() {
             Extract chemical structures from ChemDraw files.
           </p>
 
-          {/* FileUpload — always visible */}
-          {(state === "idle" || state === "error") && (
+          {/* FileUpload — visible when idle/error and NOT during batch processing (D-13) */}
+          {(state === "idle" || state === "error") && batchState !== "processing" && (
             <div className="mt-12">
-              <FileUpload onExtract={handleExtract} isLoading={false} />
+              <FileUpload
+                mode="batch"
+                onExtract={handleExtract}
+                onStartBatch={startBatch}
+                isLoading={false}
+                isBatchProcessing={false}
+              />
             </div>
           )}
           {state === "loading" && (
             <div className="mt-12">
               <FileUpload
+                mode="batch"
                 onExtract={handleExtract}
+                onStartBatch={startBatch}
                 isLoading={true}
+                isBatchProcessing={false}
                 loadingFilename={selectedFile?.name}
                 loadingFileSize={selectedFile?.size}
+              />
+            </div>
+          )}
+
+          {/* Batch progress — replaces drop zone during processing (D-13) */}
+          {batchState === "processing" && (
+            <div className="mt-12">
+              <BatchProgress
+                files={batchFiles}
+                completedCount={completedCount}
+                totalCount={batchFiles.length}
+                onCancel={cancelBatchFn}
+              />
+            </div>
+          )}
+
+          {/* Batch summary — appears after completion, drop zone returned above (D-17) */}
+          {batchState === "complete" && batchId && (
+            <div className="mt-8">
+              <BatchSummary
+                batchId={batchId}
+                files={batchFiles}
+                totalFiles={batchFiles.length}
+                totalStructures={batchTotalStructures}
+                succeededCount={completedCount}
+                failedCount={failedCount}
+                onViewExtraction={(id) => setActiveExtractionId(id)}
+                onReset={resetBatch}
               />
             </div>
           )}
