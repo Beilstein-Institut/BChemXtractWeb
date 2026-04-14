@@ -47,7 +47,7 @@ export function StructureGrid({ response, onReset }: StructureGridProps) {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
       {response.substances.map((substance, index) => (
         <StructureCard
-          key={substance.inchi_key || substance.smiles || index}
+          key={`${substance.inchi_key || substance.smiles || "unknown"}-${index}`}
           substance={substance}
         />
       ))}
