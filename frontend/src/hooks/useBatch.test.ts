@@ -41,6 +41,7 @@ describe("useBatch", () => {
   it("transitions to processing when startBatch is called", async () => {
     vi.mocked(postBatchStart).mockResolvedValue({
       batch_id: "test-batch-id",
+      group_id: "test-group-id",
       task_ids: ["t1"],
       file_count: 1,
     });
@@ -74,6 +75,7 @@ describe("useBatch", () => {
   it("reset returns to idle state", async () => {
     vi.mocked(postBatchStart).mockResolvedValue({
       batch_id: "bid",
+      group_id: "gid",
       task_ids: [],
       file_count: 0,
     });
@@ -96,6 +98,7 @@ describe("useBatch", () => {
   it("cancelBatch calls apiCancelBatch and transitions to cancelled", async () => {
     vi.mocked(postBatchStart).mockResolvedValue({
       batch_id: "bid",
+      group_id: "gid",
       task_ids: [],
       file_count: 0,
     });
@@ -112,7 +115,7 @@ describe("useBatch", () => {
     });
 
     expect(result.current.state).toBe("cancelled");
-    expect(apiCancelBatch).toHaveBeenCalledWith("bid");
+    expect(apiCancelBatch).toHaveBeenCalledWith("gid");
     expect(mockEventSource.close).toHaveBeenCalled();
   });
 

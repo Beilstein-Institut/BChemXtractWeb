@@ -65,7 +65,8 @@ async def start_batch(files: list[UploadFile] = File(...)) -> BatchStartResponse
     group_result.save()  # persist GroupResult to Redis so SSE endpoint can restore it
 
     return BatchStartResponse(
-        batch_id=group_result.id,
+        batch_id=batch_id,
+        group_id=group_result.id,
         task_ids=[r.id for r in group_result.results],
         file_count=len(files),
     )

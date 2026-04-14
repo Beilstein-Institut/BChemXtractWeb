@@ -5,8 +5,10 @@
 
 /** Response from POST /api/batch */
 export interface BatchStartResponse {
-  /** Celery GroupResult.id — used for all subsequent batch API calls */
+  /** UUID stored on each Extraction row — used for ZIP download */
   batch_id: string;
+  /** Celery GroupResult.id — used for SSE progress and cancel */
+  group_id: string;
   task_ids: string[];
   file_count: number;
 }

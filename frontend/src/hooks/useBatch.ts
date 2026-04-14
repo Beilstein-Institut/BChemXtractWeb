@@ -51,6 +51,7 @@ export function useBatch(): UseBatchReturn {
   const [state, setState] = useState<BatchState>("idle");
   const [files, setFiles] = useState<BatchFileStatus[]>([]);
   const [batchId, setBatchId] = useState<string | null>(null);
+  const [groupId, setGroupId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
 
@@ -93,11 +94,12 @@ export function useBatch(): UseBatchReturn {
         return;
       }
 
-      const id = startResponse.batch_id;
-      setBatchId(id);
+      setBatchId(startResponse.batch_id);
+      setGroupId(startResponse.group_id);
 
       // Open SSE connection using browser-native EventSource
-      const es = new EventSource(getBatchSSEUrl(id));
+      // SSE and cancel use group_id (Celery GroupResult), ZIP uses batch_id (DB UUID)
+      const es = new EventSource(getBatchSSEUrl(startResponse.group_id));
       esRef.current = es;
 
       es.addEventListener("file_complete", (e: MessageEvent) => {
@@ -141,21 +143,22 @@ export function useBatch(): UseBatchReturn {
 
   const cancelBatch = useCallback(async () => {
     _closeSSE();
-    if (batchId) {
+    if (groupId) {
       try {
-        await apiCancelBatch(batchId);
+        await apiCancelBatch(groupId);
       } catch {
         // Best-effort cancel
       }
     }
     setState("cancelled");
-  }, [batchId, _closeSSE]);
+  }, [groupId, _closeSSE]);
 
   const reset = useCallback(() => {
     _closeSSE();
     setState("idle");
     setFiles([]);
     setBatchId(null);
+    setGroupId(null);
     setErrorMessage(null);
   }, [_closeSSE]);
 

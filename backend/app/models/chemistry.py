@@ -123,10 +123,12 @@ class StatsResponse(BaseModel):
 class BatchStartResponse(BaseModel):
     """Response from POST /api/batch.
 
-    batch_id IS the Celery GroupResult.id — used to poll progress and download ZIP.
-    task_ids lists the individual AsyncResult IDs, one per file.
+    batch_id: UUID stored on each Extraction row — used for ZIP download.
+    group_id: Celery GroupResult.id — used for SSE progress and cancel.
+    task_ids: individual AsyncResult IDs, one per file.
     """
 
     batch_id: str
+    group_id: str
     task_ids: list[str]
     file_count: int

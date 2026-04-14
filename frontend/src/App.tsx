@@ -188,6 +188,16 @@ function App() {
             </div>
           )}
 
+          {/* Batch-initiated browsing — View clicked from BatchSummary */}
+          {!showResults && activeExtractionId !== null && (
+            <div className="mt-8">
+              <StructureBrowser
+                extractionId={activeExtractionId}
+                onReset={() => setActiveExtractionId(null)}
+              />
+            </div>
+          )}
+
           {/* Results area: fresh extraction OR historical reload */}
           {showResults && activeResult !== null && (
             <>
