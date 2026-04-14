@@ -1,0 +1,260 @@
+/**
+ * Tests for StructureSheet component.
+ * Vitest globals: true — no need to import describe/it/expect.
+ *
+ * StructureSheet renders a side-panel Sheet with prev/next navigation,
+ * position indicator, keyboard shortcuts, and substance metadata.
+ */
+import { render, screen, fireEvent } from "@testing-library/react";
+import { vi, beforeEach } from "vitest";
+import type { SubstanceResponse } from "@/types/chemistry";
+
+// Mock @base-ui/react/dialog to avoid portal/animation complexity in jsdom.
+vi.mock("@base-ui/react/dialog", () => {
+  const React = require("react");
+  return {
+    Dialog: {
+      Root: ({
+        children,
+        open,
+      }: {
+        children: React.ReactNode;
+        open?: boolean;
+      }) =>
+        open
+          ? React.createElement(React.Fragment, null, children)
+          : React.createElement(React.Fragment, null),
+      Trigger: ({
+        children,
+        render: renderProp,
+        ...rest
+      }: {
+        children?: React.ReactNode;
+        render?: React.ReactElement;
+        [key: string]: unknown;
+      }) => {
+        if (renderProp) {
+          return React.cloneElement(renderProp, rest, children);
+        }
+        return React.createElement(React.Fragment, null, children);
+      },
+      Portal: ({ children }: { children: React.ReactNode }) =>
+        React.createElement(React.Fragment, null, children),
+      Backdrop: ({ className }: { className?: string }) =>
+        React.createElement("div", {
+          "data-testid": "dialog-backdrop",
+          className,
+        }),
+      Popup: ({
+        children,
+        className,
+      }: {
+        children: React.ReactNode;
+        className?: string;
+      }) =>
+        React.createElement(
+          "div",
+          { "data-testid": "dialog-popup", role: "dialog", className },
+          children
+        ),
+      Close: ({ children }: { children?: React.ReactNode }) =>
+        React.createElement(
+          "button",
+          { "data-testid": "dialog-close" },
+          children ?? null
+        ),
+      Title: ({
+        children,
+        className,
+      }: {
+        children: React.ReactNode;
+        className?: string;
+      }) =>
+        React.createElement(
+          "h2",
+          { "data-testid": "dialog-title", className },
+          children
+        ),
+      Description: ({
+        children,
+        className,
+      }: {
+        children: React.ReactNode;
+        className?: string;
+      }) =>
+        React.createElement(
+          "p",
+          { "data-testid": "dialog-description", className },
+          children
+        ),
+    },
+  };
+});
+
+// Mock @base-ui/react/button to a simple <button> in tests
+vi.mock("@base-ui/react/button", () => {
+  const React = require("react");
+  return {
+    Button: React.forwardRef(
+      (
+        {
+          children,
+          className,
+          ...props
+        }: React.ComponentProps<"button">,
+        ref: React.Ref<HTMLButtonElement>
+      ) =>
+        React.createElement("button", { ref, className, ...props }, children)
+    ),
+  };
+});
+
+// Mock sonner
+vi.mock("sonner", () => ({
+  toast: {
+    error: vi.fn(),
+  },
+}));
+
+// Mock navigator.clipboard
+Object.defineProperty(navigator, "clipboard", {
+  writable: true,
+  value: {
+    writeText: vi.fn(),
+  },
+});
+
+const mockSubstance: SubstanceResponse = {
+  id: 1,
+  inchi: "InChI=1S/C6H6/c1-2-4-6-5-3-1/h1-6H",
+  inchi_key: "UHOVQNZJYSORNB-UHFFFAOYSA-N",
+  smiles: "c1ccccc1",
+  extended_smiles: "c1ccccc1",
+  iupac_name: "benzene",
+  molecular_formula: "C6H6",
+  aux_info: "",
+  mdlv3000: "M  V30 BEGIN CTAB",
+  abbreviations: {},
+  svg: '<svg xmlns="http://www.w3.org/2000/svg" width="450" height="450"><circle cx="225" cy="225" r="100"/></svg>',
+};
+
+import { StructureSheet } from "./StructureSheet";
+
+describe("StructureSheet component", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders "3 of 10" position indicator when substanceIndex=2, totalSubstances=10', () => {
+    render(
+      <StructureSheet
+        open={true}
+        onOpenChange={vi.fn()}
+        substance={mockSubstance}
+        substanceIndex={2}
+        totalSubstances={10}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+      />
+    );
+    expect(screen.getByText("3 of 10")).toBeInTheDocument();
+  });
+
+  it("Prev button is disabled when substanceIndex=0", () => {
+    render(
+      <StructureSheet
+        open={true}
+        onOpenChange={vi.fn()}
+        substance={mockSubstance}
+        substanceIndex={0}
+        totalSubstances={10}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+      />
+    );
+    const prevBtn = screen.getByRole("button", { name: "Previous structure" });
+    expect(prevBtn).toBeDisabled();
+  });
+
+  it("Next button is disabled when substanceIndex === totalSubstances - 1", () => {
+    render(
+      <StructureSheet
+        open={true}
+        onOpenChange={vi.fn()}
+        substance={mockSubstance}
+        substanceIndex={9}
+        totalSubstances={10}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+      />
+    );
+    const nextBtn = screen.getByRole("button", { name: "Next structure" });
+    expect(nextBtn).toBeDisabled();
+  });
+
+  it("onPrev is called when prev button is clicked", () => {
+    const onPrev = vi.fn();
+    render(
+      <StructureSheet
+        open={true}
+        onOpenChange={vi.fn()}
+        substance={mockSubstance}
+        substanceIndex={5}
+        totalSubstances={10}
+        onPrev={onPrev}
+        onNext={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Previous structure" }));
+    expect(onPrev).toHaveBeenCalledTimes(1);
+  });
+
+  it("onNext is called when next button is clicked", () => {
+    const onNext = vi.fn();
+    render(
+      <StructureSheet
+        open={true}
+        onOpenChange={vi.fn()}
+        substance={mockSubstance}
+        substanceIndex={5}
+        totalSubstances={10}
+        onPrev={vi.fn()}
+        onNext={onNext}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Next structure" }));
+    expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders SVG as data URI in an img element", () => {
+    render(
+      <StructureSheet
+        open={true}
+        onOpenChange={vi.fn()}
+        substance={mockSubstance}
+        substanceIndex={0}
+        totalSubstances={1}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+      />
+    );
+    const imgs = document.querySelectorAll("img");
+    expect(imgs.length).toBeGreaterThan(0);
+    expect(imgs[0].src).toMatch(/^data:image\/svg\+xml;charset=utf-8,/);
+  });
+
+  it("does not render content when open is false", () => {
+    render(
+      <StructureSheet
+        open={false}
+        onOpenChange={vi.fn()}
+        substance={mockSubstance}
+        substanceIndex={0}
+        totalSubstances={10}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+      />
+    );
+    expect(screen.queryByText("1 of 10")).not.toBeInTheDocument();
+  });
+});
