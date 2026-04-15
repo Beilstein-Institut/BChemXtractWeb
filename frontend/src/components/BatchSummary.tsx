@@ -53,14 +53,14 @@ export function BatchSummary({
   }
 
   return (
-    <Card className="w-full">
+    <Card className="w-full shadow-[rgba(0,0,0,0.22)_3px_5px_30px_0px]">
       <CardHeader className="flex flex-row items-center justify-between">
-        <span className="text-sub-heading font-semibold">Batch complete</span>
+        <span className="text-heading font-normal tracking-tight">Batch complete</span>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={onReset}>
             New batch
           </Button>
-          <Button variant="default" size="sm" onClick={handleDownloadZip}>
+          <Button variant="default" size="sm" className="rounded-full" onClick={handleDownloadZip}>
             <DownloadIcon size={14} className="mr-2" />
             Download ZIP
           </Button>
@@ -82,7 +82,7 @@ export function BatchSummary({
         {/* File results list — filenames and errors rendered as JSX text children only */}
         <ul className="space-y-2">
           {files.map((f) => (
-            <li key={f.filename} className="flex items-center gap-3 min-h-[48px]">
+            <li key={f.filename} className="flex items-center gap-3 min-h-[48px] hover:bg-muted/20 transition-colors">
               {f.state === "done" ? (
                 <CheckCircle2Icon size={16} className="text-primary shrink-0" />
               ) : (
@@ -104,7 +104,7 @@ export function BatchSummary({
               {f.state === "done" && f.extractionId != null && (
                 <button
                   onClick={() => onViewExtraction(f.extractionId!)}
-                  className="text-[14px] text-primary underline-offset-2 hover:underline shrink-0"
+                  className="text-caption text-[#0066cc] hover:underline underline-offset-2 shrink-0"
                 >
                   View
                 </button>
@@ -129,7 +129,7 @@ function StatItem({
   return (
     <div>
       <dt className="text-caption text-muted-foreground">{label}</dt>
-      <dd className={cn("text-sub-heading font-semibold", valueClassName)}>
+      <dd className={cn("text-display font-semibold leading-[1.10]", valueClassName)}>
         {value}
       </dd>
     </div>

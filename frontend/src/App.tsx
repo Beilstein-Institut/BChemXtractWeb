@@ -126,9 +126,9 @@ function App() {
       <div className="min-h-screen bg-background text-foreground">
         <AppHeader />
 
-        <main className="mx-auto max-w-[980px] px-6 pt-16 pb-16">
-          <h1 className="text-heading font-semibold">BChemXtractWeb</h1>
-          <p className="mt-4 text-body text-muted-foreground">
+        <main className="mx-auto max-w-[980px] px-6 pt-24 pb-24">
+          <h1 className="text-display font-semibold leading-[1.10] tracking-tight">BChemXtractWeb</h1>
+          <p className="mt-4 text-sub-heading font-normal text-muted-foreground tracking-tight">
             Extract chemical structures from ChemDraw files.
           </p>
 
@@ -225,7 +225,7 @@ function App() {
           {/* Stats section — hidden until first extraction exists (D-09) */}
           {hasAnyExtractions && (
             <div className="mt-[48px]">
-              <h2 className="text-[28px] font-normal leading-[1.14] text-foreground mb-4">
+              <h2 className="text-heading font-normal tracking-tight text-foreground mb-4">
                 Summary
               </h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

@@ -97,13 +97,13 @@ export function FileUpload({
   const [queuedFiles, setQueuedFiles] = useState<File[]>([]);
 
   const zoneClasses = cn(
-    "min-h-[200px] rounded-xl flex flex-col items-center justify-center gap-4 p-8",
-    "cursor-pointer transition-colors duration-150",
+    "min-h-[220px] rounded-xl flex flex-col items-center justify-center gap-4 p-8",
+    "cursor-pointer transition-all duration-200",
     "border-2 border-dashed",
     isDragReject
       ? "border-destructive bg-destructive/5"
       : isDragOver
-      ? "border-primary bg-primary/10"
+      ? "border-primary bg-primary/10 scale-[1.01]"
       : isHovering
       ? "border-primary bg-primary/5"
       : "border-border bg-background"
@@ -281,7 +281,7 @@ export function FileUpload({
         ) : (
           <UploadIcon size={40} className={iconColor} />
         )}
-        <p className="text-body font-semibold text-foreground">{headlineText}</p>
+        <p className="text-sub-heading font-normal text-foreground tracking-tight">{headlineText}</p>
         {mode === "batch" ? (
           <>
             {!isDragOver && (
@@ -304,6 +304,7 @@ export function FileUpload({
             <Button
               variant="default"
               size="lg"
+              className="rounded-full px-6 py-2"
               onClick={(e) => {
                 e.stopPropagation();
                 fileInputRef.current?.click();
@@ -318,14 +319,14 @@ export function FileUpload({
       {/* Batch-mode: file queue list + Start batch button */}
       {mode === "batch" && queuedFiles.length > 0 && !isBatchProcessing && (
         <div className="mt-4">
-          <ul className="space-y-1 rounded-lg bg-card ring-1 ring-foreground/10 overflow-hidden">
+          <ul className="space-y-1 rounded-xl bg-card shadow-[rgba(0,0,0,0.22)_3px_5px_30px_0px] overflow-hidden">
             {queuedFiles.map((file) => {
               const oversize = file.size > 52_428_800;
               return (
                 <li
                   key={`${file.name}-${file.size}`}
                   className={cn(
-                    "min-h-[48px] flex items-center gap-2 px-4 py-2",
+                    "min-h-[48px] flex items-center gap-2 px-4 py-2 hover:bg-muted/30 transition-colors",
                     oversize && "ring-destructive/40"
                   )}
                 >
@@ -364,7 +365,7 @@ export function FileUpload({
           <Button
             variant="default"
             size="lg"
-            className="w-full"
+            className="w-full rounded-full"
             disabled={queuedFiles.length === 0 || hasOversizeFile}
             onClick={() => {
               onStartBatch?.(queuedFiles);

@@ -47,14 +47,14 @@ export function ExtractionSummary({ response, onReset }: ExtractionSummaryProps)
     <div>
       {/* Summary bar */}
       <div className="flex items-center justify-between gap-4">
-        <p className="text-caption text-muted-foreground">
+        <p className="text-caption text-muted-foreground tracking-[-0.016em]">
           {response.filename}
           {" · "}
           {pluralize(response.structure_count, "structure", "structures")}
           {" · "}
           {formatExtractionTime(response.extraction_time_ms)}
         </p>
-        <Button variant="default" onClick={onReset}>
+        <Button variant="default" className="rounded-full" onClick={onReset}>
           Upload another file
         </Button>
       </div>

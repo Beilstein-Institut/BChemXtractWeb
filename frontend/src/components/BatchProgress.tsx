@@ -52,7 +52,7 @@ export function BatchProgress({
   const progressPercent = Math.round(progressValue);
 
   return (
-    <div className="py-8 space-y-4">
+    <div className="py-10 space-y-6">
       {/* Top row: progress bar + cancel button */}
       <div className="flex items-center gap-4">
         <div className="flex-1">
@@ -72,7 +72,7 @@ export function BatchProgress({
               <Button
                 variant="outline"
                 size="sm"
-                className="text-destructive border-destructive shrink-0"
+                className="text-destructive border-destructive shrink-0 rounded-full"
               />
             }
           >
@@ -102,12 +102,12 @@ export function BatchProgress({
       {/* Per-file status list */}
       <ul
         aria-live="polite"
-        className="rounded-lg bg-card ring-1 ring-foreground/10 overflow-hidden divide-y divide-border"
+        className="rounded-xl bg-card shadow-[rgba(0,0,0,0.22)_3px_5px_30px_0px] overflow-hidden divide-y divide-border"
       >
         {files.map((f) => (
           <li
             key={f.filename}
-            className="min-h-[48px] flex items-center gap-3 px-4 py-3"
+            className="min-h-[48px] flex items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors"
           >
             {/* Status icon */}
             {f.state === "queued" && (
