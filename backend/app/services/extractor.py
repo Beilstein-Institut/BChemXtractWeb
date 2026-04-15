@@ -269,25 +269,47 @@ def _extract_reactions_sync(
         raise ExtractionError("Failed to extract reactions from file") from exc
 
 
-def _render_atom_container_svg(container) -> str:
-    """Render a CDK IAtomContainer to SVG via DepictionGenerator.
+def _make_depiction_generator():
+    """Create a DepictionGenerator with smart hydrogen display.
 
-    Same rendering pipeline as render_substance_svg but accepts a raw
-    IAtomContainer instead of a BCXSubstance. Used by the fragment
-    fallback path where we have CDK molecules but no BCXSubstance wrapper.
+    Uses IUPAC recommendations for hydrogen visibility: shows hydrogens
+    only where stereochemically or chemically relevant (stereocenters,
+    heteroatoms with H, etc.). Produces cleaner depictions than showing
+    all or no hydrogens.
+    """
+    DepictionGenerator = jpype.JClass(  # noqa: N806
+        "org.openscience.cdk.depict.DepictionGenerator"
+    )
+    StandardGenerator = jpype.JClass(  # noqa: N806
+        "org.openscience.cdk.renderer.generators.standard.StandardGenerator"
+    )
+    SymbolVisibility = jpype.JClass(  # noqa: N806
+        "org.openscience.cdk.renderer.SymbolVisibility"
+    )
+    return (
+        DepictionGenerator()
+        .withAtomColors()
+        .withFillToFit()
+        .withParam(
+            StandardGenerator.Visibility,
+            SymbolVisibility.iupacRecommendations(),
+        )
+    )
+
+
+def _render_atom_container_svg(container) -> str:
+    """Render a CDK IAtomContainer to SVG with original coordinates.
+
+    Uses the 2D coordinates already present on the molecule (from ChemDraw
+    CDX via FragmentConverter). Smart hydrogen display via IUPAC rules.
 
     Returns empty string on any failure — never raises.
     """
     try:
         if container is None:
             return ""
-
-        DepictionGenerator = jpype.JClass(  # noqa: N806
-            "org.openscience.cdk.depict.DepictionGenerator"
-        )
-        dg = DepictionGenerator().withAtomColors().withFillToFit()
-        depiction = dg.depict(container)
-        svg_str = str(depiction.toSvgStr())
+        dg = _make_depiction_generator()
+        svg_str = str(dg.depict(container).toSvgStr())
         return _set_svg_dimensions(svg_str, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
     except Exception as exc:
         logger.warning("SVG rendering failed for atom container: %s", exc)
@@ -299,7 +321,7 @@ def _render_with_cdk_layout(container) -> str:
 
     Generates fresh 2D coordinates instead of using the original CDX
     coordinates. Produces cleaner layouts for complex structures where
-    the ChemDraw layout has long crossing bonds.
+    the ChemDraw layout has long crossing bonds. Smart hydrogen display.
 
     Returns empty string on any failure — never raises.
     """
@@ -310,18 +332,14 @@ def _render_with_cdk_layout(container) -> str:
         StructureDiagramGenerator = jpype.JClass(  # noqa: N806
             "org.openscience.cdk.layout.StructureDiagramGenerator"
         )
-        DepictionGenerator = jpype.JClass(  # noqa: N806
-            "org.openscience.cdk.depict.DepictionGenerator"
-        )
 
         sdg = StructureDiagramGenerator()
         sdg.setMolecule(container)
         sdg.generateCoordinates()
         mol_laid_out = sdg.getMolecule()
 
-        dg = DepictionGenerator().withAtomColors().withFillToFit()
-        depiction = dg.depict(mol_laid_out)
-        svg_str = str(depiction.toSvgStr())
+        dg = _make_depiction_generator()
+        svg_str = str(dg.depict(mol_laid_out).toSvgStr())
         return _set_svg_dimensions(svg_str, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
     except Exception as exc:
         logger.warning("CDK layout + render failed: %s", exc)

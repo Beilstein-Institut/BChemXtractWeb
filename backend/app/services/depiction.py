@@ -42,12 +42,27 @@ def render_substance_svg(java_substance) -> str:
         DepictionGenerator = jpype.JClass(  # noqa: N806
             "org.openscience.cdk.depict.DepictionGenerator"
         )
+        StandardGenerator = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.renderer.generators.standard.StandardGenerator"
+        )
+        SymbolVisibility = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.renderer.SymbolVisibility"
+        )
 
         # Publication-quality settings per D-02:
         # - withAtomColors(): CPK coloring for atom labels
         # - withFillToFit(): fill available space
+        # - IUPAC hydrogen visibility: show H only where stereo/chemically relevant
         # - transparent background (no withBackgroundColor) for CSS
-        dg = DepictionGenerator().withAtomColors().withFillToFit()
+        dg = (
+            DepictionGenerator()
+            .withAtomColors()
+            .withFillToFit()
+            .withParam(
+                StandardGenerator.Visibility,
+                SymbolVisibility.iupacRecommendations(),
+            )
+        )
 
         depiction = dg.depict(container)
         svg_str = str(depiction.toSvgStr())
