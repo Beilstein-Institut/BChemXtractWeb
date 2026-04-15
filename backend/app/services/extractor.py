@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 # Timeout for the primary xtractUnique path. If exceeded, we fall back
 # to the fragment-level extraction which bypasses InChI computation.
-_XTRACT_UNIQUE_TIMEOUT = 30.0
+_XTRACT_UNIQUE_TIMEOUT = 10.0
 
 # Timeout for the fragment-level fallback (typically completes in <1s).
 _FRAGMENT_FALLBACK_TIMEOUT = 90.0
@@ -374,24 +374,28 @@ def _extract_with_fallback_sync(
             except Exception:
                 pass
 
-    with concurrent.futures.ThreadPoolExecutor(
+    pool = concurrent.futures.ThreadPoolExecutor(
         max_workers=1, thread_name_prefix="xtract-enrich"
-    ) as pool:
-        future = pool.submit(_try_xtract_unique)
-        try:
-            result = future.result(timeout=_XTRACT_UNIQUE_TIMEOUT)
-            if result is not None:
-                logger.info(
-                    "xtractUnique succeeded: %d substances (enriched)",
-                    len(result[0]),
-                )
-                return result[0], result[1], False
-        except concurrent.futures.TimeoutError:
-            logger.warning(
-                "xtractUnique timed out after %.0fs — using fragment results",
-                _XTRACT_UNIQUE_TIMEOUT,
+    )
+    future = pool.submit(_try_xtract_unique)
+    try:
+        result = future.result(timeout=_XTRACT_UNIQUE_TIMEOUT)
+        if result is not None:
+            logger.info(
+                "xtractUnique succeeded: %d substances (enriched)",
+                len(result[0]),
             )
-            future.cancel()
+            pool.shutdown(wait=False)
+            return result[0], result[1], False
+    except concurrent.futures.TimeoutError:
+        logger.warning(
+            "xtractUnique timed out after %.0fs — using fragment results",
+            _XTRACT_UNIQUE_TIMEOUT,
+        )
+    # Don't wait for the hung thread — shut down immediately.
+    # The daemon thread will be abandoned (it holds a JVM thread
+    # until xtractUnique eventually completes or the process exits).
+    pool.shutdown(wait=False, cancel_futures=True)
 
     # Return fragment results (xtractUnique timed out or failed)
     return fragment_results, fragment_info, True
