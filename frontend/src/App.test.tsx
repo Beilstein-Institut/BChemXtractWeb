@@ -15,6 +15,9 @@ vi.mock("./components/ExtractionSummary", () => ({
 vi.mock("./components/StructureBrowser", () => ({
   StructureBrowser: () => <div data-testid="structure-browser">StructureBrowser</div>,
 }));
+vi.mock("./components/AppHeader", () => ({
+  AppHeader: () => <header data-testid="app-header">AppHeader</header>,
+}));
 vi.mock("sonner", () => ({ Toaster: () => null, toast: { error: vi.fn() } }));
 
 const { useExtract } = await import("./hooks/useExtract");
