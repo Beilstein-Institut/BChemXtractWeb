@@ -21,7 +21,6 @@ import {
   FlaskConicalIcon,
   ZoomInIcon,
   ZoomOutIcon,
-  RotateCcwIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -171,7 +170,8 @@ export function StructureSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full md:w-[50vw] lg:w-[50vw] overflow-y-auto"
+        className="w-full overflow-y-auto"
+        style={{ maxWidth: "50vw", width: "50vw" }}
         aria-label="Structure detail"
         showCloseButton={true}
       >
