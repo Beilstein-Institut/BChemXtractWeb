@@ -213,6 +213,7 @@ async def get_substances_page(
             extended_smiles=s.extended_smiles,
             molecular_formula=s.molecular_formula,
             svg=s.svg,
+            svg_cdx=s.svg_cdx,
             mdlv3000=s.mdlv3000,
         )
         for s in substances

@@ -77,6 +77,7 @@ class Substance(Base):
         String(255), nullable=False, default=""
     )
     svg: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    svg_cdx: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     mdlv3000: Mapped[str] = mapped_column(Text, nullable=False, default="")
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
