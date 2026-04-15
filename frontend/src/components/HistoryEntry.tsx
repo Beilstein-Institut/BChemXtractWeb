@@ -64,17 +64,17 @@ export function HistoryEntry({ entry, onReload, onDelete }: HistoryEntryProps) {
       <li
         className={cn(
           "flex items-center justify-between gap-4 py-3 px-0",
-          "hover:bg-muted/50 transition-colors",
+          "hover:bg-muted/20 transition-colors",
           "opacity-100 transition-opacity duration-200",
           fading && "opacity-0"
         )}
       >
         {/* Left: filename + metadata */}
         <div className="min-w-0 flex-1">
-          <p className="truncate max-w-xs text-[14px] font-normal leading-[1.29] text-foreground">
+          <p className="truncate max-w-xs text-body tracking-[-0.022em] text-foreground">
             {entry.filename}
           </p>
-          <p className="text-[14px] font-normal leading-[1.29] text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             {entry.structure_count} structure{entry.structure_count !== 1 ? "s" : ""} · {relTime}
           </p>
         </div>

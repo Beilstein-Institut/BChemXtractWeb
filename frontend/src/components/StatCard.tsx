@@ -24,8 +24,8 @@ export function StatCard({ label, value, loading = false, icon, className }: Sta
   const displayValue = value === "" || value === null || value === undefined ? "—" : value;
 
   return (
-    <Card className={cn("px-6 py-5", className)}>
-      <p className="text-[40px] font-semibold leading-[1.10] text-foreground">
+    <Card className={cn("px-6 py-5 transition-shadow hover:shadow-[rgba(0,0,0,0.22)_3px_5px_30px_0px]", className)}>
+      <p className="text-display font-semibold text-foreground">
         {displayValue}
       </p>
       <div className="mt-1 flex items-center gap-1">
@@ -34,7 +34,7 @@ export function StatCard({ label, value, loading = false, icon, className }: Sta
             {icon}
           </span>
         )}
-        <p className="text-[14px] font-normal leading-[1.29] text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           {label}
         </p>
       </div>

@@ -90,10 +90,10 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 function MetadataRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-2">
-      <span className="text-caption font-semibold text-muted-foreground min-w-[120px] shrink-0">
+      <span className="text-micro font-semibold text-muted-foreground uppercase tracking-widest min-w-[120px] shrink-0">
         {label}
       </span>
-      <span className="text-caption text-foreground break-all flex-1">{value}</span>
+      <span className="text-caption text-foreground font-mono break-all flex-1">{value}</span>
       <CopyButton value={value} label={label} />
     </div>
   );
@@ -158,6 +158,7 @@ export function StructureSheet({
               aria-label="Previous structure"
               onClick={onPrev}
               disabled={isPrevDisabled}
+              className="rounded-full"
             >
               <ChevronLeftIcon className="size-5" />
             </Button>
@@ -170,12 +171,13 @@ export function StructureSheet({
               aria-label="Next structure"
               onClick={onNext}
               disabled={isNextDisabled}
+              className="rounded-full"
             >
               <ChevronRightIcon className="size-5" />
             </Button>
           </div>
 
-          <SheetTitle className="text-sub-heading">
+          <SheetTitle className="text-sub-heading font-semibold tracking-tight">
             {substance?.molecular_formula ?? "Structure"}
           </SheetTitle>
           <SheetDescription>Detailed structure metadata</SheetDescription>

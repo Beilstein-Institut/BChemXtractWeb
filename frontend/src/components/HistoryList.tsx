@@ -50,7 +50,7 @@ export function HistoryList({
 
   return (
     <section aria-label="Recent Extractions">
-      <h2 className="text-[28px] font-normal leading-[1.14] text-foreground mb-4">
+      <h2 className="text-heading font-normal tracking-tight text-foreground mb-6">
         Recent Extractions
       </h2>
 
@@ -78,7 +78,7 @@ export function HistoryList({
         <div className="mt-3">
           <Button
             variant="link"
-            className="text-[14px] font-normal text-primary p-0 h-auto underline-offset-2 hover:underline min-h-[44px]"
+            className="text-[14px] font-normal text-primary p-0 h-auto underline-offset-2 hover:underline min-h-[44px] rounded-full"
             onClick={onToggleShowAll}
           >
             {showAll ? "Show less" : `Show all ${total} extractions`}

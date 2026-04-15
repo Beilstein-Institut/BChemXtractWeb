@@ -98,12 +98,12 @@ export function StructureCard({
   const cardInner = (
     <Card
       className={cn(
-        "hover:shadow-[rgba(0,0,0,0.22)_3px_5px_30px_0px] transition-shadow duration-200 border-0 overflow-hidden",
-        isChecked && "ring-1 ring-primary"
+        "rounded-xl overflow-hidden bg-card ring-1 ring-foreground/10 transition-shadow hover:shadow-[rgba(0,0,0,0.22)_3px_5px_30px_0px] border-0",
+        isChecked && "ring-primary"
       )}
     >
       {/* SVG container: 240px fixed height */}
-      <div className="h-[240px] flex items-center justify-center bg-background rounded-t-lg p-4">
+      <div className="h-[240px] flex items-center justify-center bg-background rounded-t-xl p-4">
         {svgSrc ? (
           <img
             src={svgSrc}
@@ -119,7 +119,7 @@ export function StructureCard({
 
       {/* Molecule metadata */}
       <CardContent className="space-y-2">
-        <p className="text-caption font-semibold text-foreground">
+        <p className="text-caption font-normal tracking-[-0.016em] text-foreground">
           {substance.molecular_formula}
         </p>
         <div className="flex items-center gap-2">
