@@ -12,13 +12,16 @@
  * - T-06-09: SVG rendered as encodeURIComponent(svg) data URI in <img src>, never innerHTML
  * - T-06-10: keydown listener added only when open===true, cleaned up on effect return
  */
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ClipboardIcon,
   CheckIcon,
   FlaskConicalIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+  RotateCcwIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -114,6 +117,17 @@ export function StructureSheet({
   onPrev,
   onNext,
 }: StructureSheetProps) {
+  const [zoom, setZoom] = useState(1);
+
+  // Reset zoom when substance changes
+  useEffect(() => {
+    setZoom(1);
+  }, [substance]);
+
+  const zoomIn = useCallback(() => setZoom((z) => Math.min(z + 0.25, 5)), []);
+  const zoomOut = useCallback(() => setZoom((z) => Math.max(z - 0.25, 0.25)), []);
+  const zoomReset = useCallback(() => setZoom(1), []);
+
   // Keyboard navigation scoped to when sheet is open (D-18, T-06-10)
   useEffect(() => {
     if (!open) return;
@@ -125,6 +139,18 @@ export function StructureSheet({
       if (e.key === "ArrowRight") {
         e.preventDefault();
         onNext();
+      }
+      if (e.key === "+" || e.key === "=") {
+        e.preventDefault();
+        setZoom((z) => Math.min(z + 0.25, 5));
+      }
+      if (e.key === "-") {
+        e.preventDefault();
+        setZoom((z) => Math.max(z - 0.25, 0.25));
+      }
+      if (e.key === "0") {
+        e.preventDefault();
+        setZoom(1);
       }
     }
     document.addEventListener("keydown", handleKeyDown);
@@ -145,7 +171,7 @@ export function StructureSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full md:w-[480px] overflow-y-auto"
+        className="w-full md:w-[50vw] lg:w-[50vw] overflow-y-auto"
         aria-label="Structure detail"
         showCloseButton={true}
       >
@@ -185,38 +211,84 @@ export function StructureSheet({
 
         {substance ? (
           <>
-            {/* SVG display area: 300px height (T-06-09: data URI only) */}
-            <div className="h-[300px] bg-background rounded-lg p-4 flex items-center justify-center mx-4">
+            {/* SVG display area: 50vh height with zoom controls */}
+            <div className="relative h-[50vh] bg-background rounded-xl border border-border mx-4 overflow-hidden">
               {svgSrc ? (
-                <img
-                  src={svgSrc}
-                  alt={`${substance.molecular_formula} structure — full size`}
-                  className="max-h-full max-w-full object-contain"
-                />
+                <div className="w-full h-full overflow-auto flex items-center justify-center">
+                  <img
+                    src={svgSrc}
+                    alt={`${substance.molecular_formula} structure — full size`}
+                    className="object-contain transition-transform duration-150"
+                    style={{
+                      transform: `scale(${zoom})`,
+                      transformOrigin: "center center",
+                      maxWidth: zoom <= 1 ? "100%" : "none",
+                      maxHeight: zoom <= 1 ? "100%" : "none",
+                    }}
+                  />
+                </div>
               ) : (
-                <div className="flex items-center justify-center w-full h-full bg-muted rounded">
+                <div className="flex items-center justify-center w-full h-full bg-muted rounded-xl">
                   <FlaskConicalIcon className="size-12 text-muted-foreground" />
+                </div>
+              )}
+
+              {/* Zoom controls — bottom right of image area */}
+              {svgSrc && (
+                <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-card/90 backdrop-blur-sm rounded-full px-2 py-1 ring-1 ring-foreground/10">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Zoom out"
+                    onClick={zoomOut}
+                    disabled={zoom <= 0.25}
+                  >
+                    <ZoomOutIcon className="size-4" />
+                  </Button>
+                  <button
+                    className="text-micro text-muted-foreground tabular-nums min-w-[40px] text-center hover:text-foreground transition-colors"
+                    onClick={zoomReset}
+                    aria-label="Reset zoom"
+                  >
+                    {Math.round(zoom * 100)}%
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Zoom in"
+                    onClick={zoomIn}
+                    disabled={zoom >= 5}
+                  >
+                    <ZoomInIcon className="size-4" />
+                  </Button>
                 </div>
               )}
             </div>
 
             {/* Metadata rows */}
             <div className="space-y-3 mt-4 px-4 pb-6">
-              <MetadataRow label="SMILES" value={substance.smiles} />
-              <MetadataRow label="InChI" value={substance.inchi} />
-              <MetadataRow label="InChI Key" value={substance.inchi_key} />
-              <MetadataRow
-                label="Molecular Formula"
-                value={substance.molecular_formula}
-              />
-              {/* MDL V3000 row only rendered when non-empty */}
+              {substance.smiles && (
+                <MetadataRow label="SMILES" value={substance.smiles} />
+              )}
+              {substance.inchi && (
+                <MetadataRow label="InChI" value={substance.inchi} />
+              )}
+              {substance.inchi_key && (
+                <MetadataRow label="InChI Key" value={substance.inchi_key} />
+              )}
+              {substance.molecular_formula && (
+                <MetadataRow
+                  label="Formula"
+                  value={substance.molecular_formula}
+                />
+              )}
               {substance.mdlv3000 && (
                 <MetadataRow label="MDL V3000" value={substance.mdlv3000} />
               )}
             </div>
           </>
         ) : (
-          <div className="flex items-center justify-center h-[300px] mx-4 bg-muted rounded-lg">
+          <div className="flex items-center justify-center h-[50vh] mx-4 bg-muted rounded-xl">
             <FlaskConicalIcon className="size-12 text-muted-foreground" />
           </div>
         )}
