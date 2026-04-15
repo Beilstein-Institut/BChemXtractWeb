@@ -21,7 +21,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 from app.celery_app import celery_app
 from app.models.chemistry import ExtractionResponse, SubstanceInfoResponse, SubstanceResponse
 from app.services.db import AsyncSessionLocal
-from app.services.extractor import _extract_substances_with_svg_sync
+from app.services.extractor import _extract_with_fallback_sync
 from app.services.format_detector import detect_format
 from app.services.persistence import save_extraction
 
@@ -47,7 +47,17 @@ def extract_file_task(self, file_b64: str, filename: str, batch_id: str) -> dict
     try:
         file_bytes = base64.b64decode(file_b64)
         format_type = detect_format(file_bytes)
-        raw_substances, raw_info = _extract_substances_with_svg_sync(file_bytes, format_type)
+        warnings: list[str] = []
+
+        raw_substances, raw_info, used_fallback = _extract_with_fallback_sync(
+            file_bytes, format_type
+        )
+        if used_fallback:
+            warnings.append(
+                "Extracted via fragment fallback — InChI/InChIKey not "
+                "available for this file."
+            )
+
         elapsed_ms = round((time.perf_counter() - start) * 1000, 1)
 
         substances = [SubstanceResponse(**d) for d in raw_substances]
@@ -58,7 +68,7 @@ def extract_file_task(self, file_b64: str, filename: str, batch_id: str) -> dict
             format=format_type,
             structure_count=len(substances),
             extraction_time_ms=elapsed_ms,
-            warnings=[],
+            warnings=warnings,
             substances=substances,
             info=SubstanceInfoResponse(**raw_info),
             extraction_id=None,
@@ -67,8 +77,6 @@ def extract_file_task(self, file_b64: str, filename: str, batch_id: str) -> dict
         async def _persist() -> int:
             async with AsyncSessionLocal() as db:
                 extraction = await save_extraction(db, response)
-                # Tag extraction with batch_id after initial save
-                # (batch_id is not part of save_extraction signature)
                 extraction.batch_id = batch_id
                 await db.commit()
                 return extraction.id
@@ -83,6 +91,7 @@ def extract_file_task(self, file_b64: str, filename: str, batch_id: str) -> dict
         }
 
     except SoftTimeLimitExceeded:
+        # Both primary and fallback exceeded the time limit
         logger.error("Batch extraction timed out for %s (>120s)", filename)
         return {
             "filename": filename,

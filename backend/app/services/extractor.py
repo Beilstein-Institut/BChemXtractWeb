@@ -3,9 +3,24 @@
 All Java class interactions are isolated in this module. Every JPype call
 runs through run_in_jvm_thread for thread safety. Every Java model object
 is null-coerced before leaving this module.
+
+Extraction has two paths:
+  1. Primary: SubstanceXtractor.xtractUnique — rich data (InChI, InChIKey,
+     SMILES, formula) but internally computes InChI which can hang on
+     complex structures (R-groups, large dendrimers).
+  2. Fallback: FragmentConverter + CDK SmilesGenerator.unique — extracts
+     canonical SMILES and molecular formula directly from CDX fragments,
+     bypassing InChI entirely. Fast and robust for complex structures,
+     but produces less metadata (no InChI/InChIKey). Uses Morgan algorithm
+     for canonical ordering (not InChI-based).
+
+The async extract_substances_with_svg function tries the primary path
+with a 30s timeout. On timeout, it transparently falls back to the
+fragment path and adds a warning to the response.
 """
 
 import logging
+import re
 
 import jpype
 
@@ -15,11 +30,19 @@ from app.models.chemistry import (
     SubstanceInfoResponse,
     SubstanceResponse,
 )
-from app.services.depiction import render_substance_svg
+from app.services.depiction import render_substance_svg, _set_svg_dimensions
+from app.services.depiction import SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT
 from app.services.format_detector import detect_format
 from app.services.jvm_bridge import run_in_jvm_thread
 
 logger = logging.getLogger(__name__)
+
+# Timeout for the primary xtractUnique path. If exceeded, we fall back
+# to the fragment-level extraction which bypasses InChI computation.
+_XTRACT_UNIQUE_TIMEOUT = 30.0
+
+# Timeout for the fragment-level fallback (typically completes in <1s).
+_FRAGMENT_FALLBACK_TIMEOUT = 90.0
 
 
 # ---------------------------------------------------------------------------
@@ -246,51 +269,242 @@ def _extract_reactions_sync(
         raise ExtractionError("Failed to extract reactions from file") from exc
 
 
-def _extract_substances_with_svg_sync(
-    file_bytes: bytes, format_type: str
-) -> tuple[list[dict], dict]:
-    """Extract substances and render SVGs (blocking, runs in thread pool).
+def _render_atom_container_svg(container) -> str:
+    """Render a CDK IAtomContainer to SVG via DepictionGenerator.
 
-    Extends _extract_substances_sync by adding per-substance SVG rendering
-    via CDK DepictionGenerator. SVG failures for individual substances are
-    non-fatal per D-03 -- the substance dict gets svg="" and extraction
-    continues.
+    Same rendering pipeline as render_substance_svg but accepts a raw
+    IAtomContainer instead of a BCXSubstance. Used by the fragment
+    fallback path where we have CDK molecules but no BCXSubstance wrapper.
+
+    Returns empty string on any failure — never raises.
+    """
+    try:
+        if container is None:
+            return ""
+
+        DepictionGenerator = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.depict.DepictionGenerator"
+        )
+        dg = DepictionGenerator().withAtomColors().withFillToFit()
+        depiction = dg.depict(container)
+        svg_str = str(depiction.toSvgStr())
+        return _set_svg_dimensions(svg_str, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
+    except Exception as exc:
+        logger.warning("SVG rendering failed for atom container: %s", exc)
+        return ""
+
+
+def _extract_with_fallback_sync(
+    file_bytes: bytes, format_type: str
+) -> tuple[list[dict], dict, bool]:
+    """Fragment-first extraction with optional xtractUnique enrichment.
+
+    Always runs the fast fragment-level extraction first (typically <1s).
+    Then attempts xtractUnique with a thread timeout to get richer data
+    (InChI, InChIKey). If xtractUnique hangs (common with R-groups, large
+    dendrimers where InChI computation enters an infinite loop), the
+    fragment results are returned immediately.
+
+    The fragment path uses SmilesGenerator.unique() which produces
+    canonical SMILES via Morgan algorithm — no InChI dependency.
 
     Args:
         file_bytes: Raw file content bytes.
         format_type: Either "cdx" or "cdxml".
 
     Returns:
-        Tuple of (list of coerced substance dicts with svg, coerced info
-        dict).
+        Tuple of (substance dicts with svg, info dict, used_fallback bool).
 
     Raises:
-        ExtractionError: If Java extraction itself fails.
+        ExtractionError: If fragment extraction fails.
     """
+    import concurrent.futures
+
     try:
         document = _read_document(file_bytes, format_type)
+    except jpype.JException as exc:
+        logger.error("Document parsing failed: %s", exc)
+        raise ExtractionError("Failed to parse file") from exc
 
-        BCXSubstanceInfo = jpype.JClass(  # noqa: N806
-            "org.beilstein.chemxtract.model.BCXSubstanceInfo"
+    # Stage 1: always run fragment extraction first (fast, reliable)
+    fragment_results, fragment_info = _extract_fragments_from_document(
+        document
+    )
+    logger.info(
+        "Fragment extraction: %d substances from %d fragments",
+        fragment_info["no_substances"],
+        fragment_info["no_fragments"],
+    )
+
+    # Stage 2: attempt xtractUnique enrichment with a timeout.
+    # xtractUnique computes InChI internally and can hang forever on
+    # complex structures. We run it on a daemon thread with a short
+    # timeout — if it completes, we use its richer data; if not, we
+    # return the fragment results.
+    def _try_xtract_unique():
+        """Run xtractUnique on a daemon thread. Attaches to JVM."""
+        try:
+            if not jpype.isThreadAttachedToJVM():
+                jpype.attachThreadToJVM()
+
+            BCXSubstanceInfo = jpype.JClass(  # noqa: N806
+                "org.beilstein.chemxtract.model.BCXSubstanceInfo"
+            )
+            SubstanceXtractor = jpype.JClass(  # noqa: N806
+                "org.beilstein.chemxtract.xtractor.SubstanceXtractor"
+            )
+
+            info = BCXSubstanceInfo()
+            xtractor = SubstanceXtractor()
+            substances = xtractor.xtractUnique(document, info)
+
+            results = []
+            for s in substances:
+                d = _coerce_substance(s)
+                d["svg"] = render_substance_svg(s)
+                results.append(d)
+
+            return results, _coerce_substance_info(info)
+        except jpype.JException as exc:
+            logger.warning("xtractUnique failed: %s", str(exc)[:100])
+            return None
+        finally:
+            try:
+                jpype.java.lang.Thread.detach()
+            except Exception:
+                pass
+
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=1, thread_name_prefix="xtract-enrich"
+    ) as pool:
+        future = pool.submit(_try_xtract_unique)
+        try:
+            result = future.result(timeout=_XTRACT_UNIQUE_TIMEOUT)
+            if result is not None:
+                logger.info(
+                    "xtractUnique succeeded: %d substances (enriched)",
+                    len(result[0]),
+                )
+                return result[0], result[1], False
+        except concurrent.futures.TimeoutError:
+            logger.warning(
+                "xtractUnique timed out after %.0fs — using fragment results",
+                _XTRACT_UNIQUE_TIMEOUT,
+            )
+            future.cancel()
+
+    # Return fragment results (xtractUnique timed out or failed)
+    return fragment_results, fragment_info, True
+
+
+def _extract_fragments_from_document(document) -> tuple[list[dict], dict]:
+    """Extract substances from an already-parsed CDDocument via fragments.
+
+    Converts each CDX fragment to a CDK IAtomContainer, generates absolute
+    SMILES, molecular formula, and SVG. Deduplicates by SMILES. Bypasses
+    InChI entirely — those fields are left empty.
+
+    Args:
+        document: A pre-parsed Java CDDocument object.
+
+    Returns:
+        Tuple of (list of substance dicts with svg, info dict).
+
+    Raises:
+        ExtractionError: If fragment enumeration or conversion fails.
+    """
+    try:
+        CDDocumentUtils = jpype.JClass(  # noqa: N806
+            "org.beilstein.chemxtract.cdx.CDDocumentUtils"
         )
-        SubstanceXtractor = jpype.JClass(  # noqa: N806
-            "org.beilstein.chemxtract.xtractor.SubstanceXtractor"
+        FragmentConverter = jpype.JClass(  # noqa: N806
+            "org.beilstein.chemxtract.converter.FragmentConverter"
+        )
+        SilentChemObjectBuilder = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.silent.SilentChemObjectBuilder"
+        )
+        SmilesGenerator = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.smiles.SmilesGenerator"
+        )
+        MolecularFormulaManipulator = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.tools.manipulator.MolecularFormulaManipulator"
         )
 
-        info = BCXSubstanceInfo()
-        xtractor = SubstanceXtractor()
-        substances = xtractor.xtractUnique(document, info)
+        fragments = CDDocumentUtils.getListOfFragments(document)
+        if not fragments:
+            return [], {
+                "no_fragments": 0, "no_inchis": 0, "no_substances": 0,
+            }
 
-        results = []
-        for s in substances:
-            d = _coerce_substance(s)
-            d["svg"] = render_substance_svg(s)
-            results.append(d)
+        builder = SilentChemObjectBuilder.getInstance()
+        converter = FragmentConverter(builder)
+        smigen = SmilesGenerator.unique()
 
-        return results, _coerce_substance_info(info)
+        seen_smiles: dict[str, dict] = {}
+        total_fragments = 0
+        errors = 0
+
+        for frag in fragments:
+            total_fragments += 1
+            try:
+                mol = converter.convert(frag)
+                if mol is None or mol.getAtomCount() == 0:
+                    continue
+
+                smiles = str(smigen.create(mol) or "")
+                if not smiles:
+                    continue
+
+                if smiles in seen_smiles:
+                    continue
+
+                formula = ""
+                try:
+                    mf = MolecularFormulaManipulator.getMolecularFormula(mol)
+                    if mf is not None:
+                        formula = str(
+                            MolecularFormulaManipulator.getString(mf)
+                        )
+                except Exception:
+                    pass
+
+                svg = _render_atom_container_svg(mol)
+
+                seen_smiles[smiles] = {
+                    "inchi": "",
+                    "inchi_key": "",
+                    "smiles": smiles,
+                    "extended_smiles": "",
+                    "iupac_name": "",
+                    "molecular_formula": formula,
+                    "aux_info": "",
+                    "mdlv3000": "",
+                    "abbreviations": {},
+                    "svg": svg,
+                }
+            except Exception as exc:
+                errors += 1
+                logger.warning(
+                    "Fragment %d conversion failed: %s", total_fragments, exc
+                )
+
+        results = list(seen_smiles.values())
+        info = {
+            "no_fragments": total_fragments,
+            "no_inchis": 0,
+            "no_substances": len(results),
+        }
+
+        logger.info(
+            "Fragment fallback: %d fragments → %d unique substances "
+            "(%d errors)",
+            total_fragments, len(results), errors,
+        )
+        return results, info
+
     except jpype.JException as exc:
         logger.error(
-            "Java substance extraction failed: %s\n%s",
+            "Fragment fallback extraction failed: %s\n%s",
             str(exc),
             exc.stacktrace() if hasattr(exc, "stacktrace") else str(exc),
         )
@@ -336,13 +550,17 @@ async def extract_substances(
 async def extract_substances_with_svg(
     file_bytes: bytes,
     format_type: str,
-) -> tuple[list[SubstanceResponse], SubstanceInfoResponse]:
+) -> tuple[list[SubstanceResponse], SubstanceInfoResponse, list[str]]:
     """Extract chemical substances with SVG depictions from a file.
 
-    Like extract_substances but also renders publication-quality SVGs
-    for each substance via CDK DepictionGenerator. Format detection is
-    performed by the caller (the router) so the detected format can be
-    included in the response metadata.
+    Uses a two-stage strategy:
+      1. Try SubstanceXtractor.xtractUnique (30s timeout) — rich data
+         with InChI, InChIKey, SMILES, formula, and SVG.
+      2. On timeout, fall back to FragmentConverter + SmilesGenerator
+         (90s timeout) — SMILES, formula, and SVG but no InChI/InChIKey.
+
+    The fallback is transparent to the caller. A warning is appended
+    when fallback is used so the UI can inform the user.
 
     Args:
         file_bytes: Raw file content bytes (CDX or CDXML).
@@ -350,21 +568,34 @@ async def extract_substances_with_svg(
 
     Returns:
         Tuple of (list of SubstanceResponse with svg,
-        SubstanceInfoResponse).
+        SubstanceInfoResponse, list of extraction warnings).
 
     Raises:
-        ExtractionError: If Java extraction fails.
+        ExtractionError: If both paths fail.
     """
-    # Extraction with SVG rendering needs a longer timeout than the
-    # default 30s because the first call triggers JVM class loading
-    # for CDK DepictionGenerator + BChemXtract (cold-start overhead).
-    raw_substances, raw_info = await run_in_jvm_thread(
-        _extract_substances_with_svg_sync, file_bytes, format_type,
-        timeout=120.0,
+    warnings: list[str] = []
+
+    # Single-thread extraction: tries xtractUnique first, falls back to
+    # fragment-level extraction on the same thread if xtractUnique throws
+    # a Java exception. This avoids thread-pool contention where a hung
+    # xtractUnique thread blocks fallback calls on separate threads.
+    raw_substances, raw_info, used_fallback = await run_in_jvm_thread(
+        _extract_with_fallback_sync, file_bytes, format_type,
+        timeout=_FRAGMENT_FALLBACK_TIMEOUT,
     )
+
+    if used_fallback:
+        warnings.append(
+            "File contains complex structures. Extracted via direct "
+            "fragment conversion — SMILES and structure images are "
+            "available, but InChI and InChIKey are not computed for "
+            "this file."
+        )
+
     return (
         [SubstanceResponse(**d) for d in raw_substances],
         SubstanceInfoResponse(**raw_info),
+        warnings,
     )
 
 

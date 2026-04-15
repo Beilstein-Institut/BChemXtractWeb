@@ -111,17 +111,12 @@ async def extract_file(file: UploadFile, db: DbDep) -> ExtractionResponse:
 
     # D-08: Substances only (reactions are Phase 10)
     # D-01: SVGs inline in response
-    try:
-        substances, info = await extract_substances_with_svg(file_bytes, format_type)
-    except TimeoutError:
-        logger.warning("Extraction timed out for %s (>120s)", file.filename)
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Extraction timed out — this file is too complex to process "
-                "within the 120-second limit. Try a simpler ChemDraw file."
-            ),
-        )
+    # extract_substances_with_svg handles fallback internally and returns
+    # extraction-level warnings (e.g. fallback mode, no InChI).
+    substances, info, extraction_warnings = await extract_substances_with_svg(
+        file_bytes, format_type
+    )
+    warnings.extend(extraction_warnings)
 
     elapsed_ms = (time.perf_counter() - start) * 1000
 

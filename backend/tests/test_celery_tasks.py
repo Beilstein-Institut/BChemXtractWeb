@@ -49,7 +49,7 @@ def test_extract_file_task_returns_success_dict():
     }
     mock_info = {"no_fragments": 1, "no_inchis": 1, "no_substances": 1}
 
-    with patch("app.tasks.extraction._extract_substances_with_svg_sync", return_value=([mock_sub], mock_info)), \
+    with patch("app.tasks.extraction._extract_with_fallback_sync", return_value=([mock_sub], mock_info, False)), \
          patch("app.tasks.extraction.detect_format", return_value="cdx"), \
          patch("app.tasks.extraction.asyncio.run", return_value=42):
         result = extract_file_task.apply(args=(base64.b64encode(b"fake_bytes").decode(), "test.cdx", "batch-uuid")).get()
