@@ -448,6 +448,10 @@ def _extract_fragments_from_document(document) -> tuple[list[dict], dict]:
         total_fragments = 0
         errors = 0
 
+        ConnectivityChecker = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.graph.ConnectivityChecker"
+        )
+
         for frag in fragments:
             total_fragments += 1
             try:
@@ -455,37 +459,56 @@ def _extract_fragments_from_document(document) -> tuple[list[dict], dict]:
                 if mol is None or mol.getAtomCount() == 0:
                     continue
 
-                smiles = str(smigen.create(mol) or "")
-                if not smiles:
-                    continue
+                # Split disconnected components so each substance renders
+                # cleanly. Without this, a fragment containing a dendrimer
+                # + counterions + H2 molecules would render as one huge
+                # image with stray lines from distant disconnected atoms.
+                if ConnectivityChecker.isConnected(mol):
+                    components = [mol]
+                else:
+                    mol_set = ConnectivityChecker.partitionIntoMolecules(mol)
+                    components = [
+                        mol_set.getAtomContainer(i)
+                        for i in range(mol_set.getAtomContainerCount())
+                    ]
 
-                if smiles in seen_smiles:
-                    continue
+                for component in components:
+                    if component.getAtomCount() == 0:
+                        continue
 
-                formula = ""
-                try:
-                    mf = MolecularFormulaManipulator.getMolecularFormula(mol)
-                    if mf is not None:
-                        formula = str(
-                            MolecularFormulaManipulator.getString(mf)
+                    smiles = str(smigen.create(component) or "")
+                    if not smiles:
+                        continue
+
+                    if smiles in seen_smiles:
+                        continue
+
+                    formula = ""
+                    try:
+                        mf = MolecularFormulaManipulator.getMolecularFormula(
+                            component
                         )
-                except Exception:
-                    pass
+                        if mf is not None:
+                            formula = str(
+                                MolecularFormulaManipulator.getString(mf)
+                            )
+                    except Exception:
+                        pass
 
-                svg = _render_atom_container_svg(mol)
+                    svg = _render_atom_container_svg(component)
 
-                seen_smiles[smiles] = {
-                    "inchi": "",
-                    "inchi_key": "",
-                    "smiles": smiles,
-                    "extended_smiles": "",
-                    "iupac_name": "",
-                    "molecular_formula": formula,
-                    "aux_info": "",
-                    "mdlv3000": "",
-                    "abbreviations": {},
-                    "svg": svg,
-                }
+                    seen_smiles[smiles] = {
+                        "inchi": "",
+                        "inchi_key": "",
+                        "smiles": smiles,
+                        "extended_smiles": "",
+                        "iupac_name": "",
+                        "molecular_formula": formula,
+                        "aux_info": "",
+                        "mdlv3000": "",
+                        "abbreviations": {},
+                        "svg": svg,
+                    }
             except Exception as exc:
                 errors += 1
                 logger.warning(
