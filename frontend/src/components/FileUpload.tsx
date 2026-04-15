@@ -154,6 +154,20 @@ export function FileUpload({
   }
 
   function addFilesToQueue(incoming: File[]) {
+    // Smart single-file detection: if exactly one file is dropped/selected
+    // and the queue is empty, route through the fast single-file extraction
+    // endpoint (POST /api/extract) instead of the Celery batch pipeline.
+    if (incoming.length === 1 && queuedFiles.length === 0) {
+      const file = incoming[0];
+      const error = validateFile(file);
+      if (error) {
+        toast.error(error);
+        return;
+      }
+      onExtract(file);
+      return;
+    }
+
     setQueuedFiles((prev) => {
       const currentCount = prev.length;
       const available = MAX_BATCH_FILES - currentCount;

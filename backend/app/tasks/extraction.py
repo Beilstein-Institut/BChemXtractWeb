@@ -16,6 +16,8 @@ import base64
 import logging
 import time
 
+from celery.exceptions import SoftTimeLimitExceeded
+
 from app.celery_app import celery_app
 from app.models.chemistry import ExtractionResponse, SubstanceInfoResponse, SubstanceResponse
 from app.services.db import AsyncSessionLocal
@@ -78,6 +80,15 @@ def extract_file_task(self, file_b64: str, filename: str, batch_id: str) -> dict
             "structure_count": len(substances),
             "extraction_id": extraction_id,
             "error": None,
+        }
+
+    except SoftTimeLimitExceeded:
+        logger.error("Batch extraction timed out for %s (>120s)", filename)
+        return {
+            "filename": filename,
+            "structure_count": 0,
+            "extraction_id": None,
+            "error": f"Extraction timed out after 120 seconds: {filename}",
         }
 
     except Exception as exc:

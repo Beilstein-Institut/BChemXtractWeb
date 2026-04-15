@@ -22,6 +22,8 @@ celery_app.conf.update(
     task_acks_late=True,
     worker_concurrency=1,
     result_expires=3600,
+    task_soft_time_limit=120,   # SoftTimeLimitExceeded after 120s — task can clean up
+    task_time_limit=150,        # hard kill after 150s — prevents indefinite hang
     include=["app.tasks.extraction"],
 )
 
