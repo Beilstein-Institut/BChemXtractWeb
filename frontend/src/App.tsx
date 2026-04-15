@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ThemeProvider } from "@/components/theme-provider";
-import { ModeToggle } from "@/components/mode-toggle";
+import { AppHeader } from "@/components/AppHeader";
 import { Toaster, toast } from "sonner";
 import { useExtract } from "@/hooks/useExtract";
 import { useHistory } from "@/hooks/useHistory";
@@ -124,9 +124,7 @@ function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="bchemxtract-theme">
       <div className="min-h-screen bg-background text-foreground">
-        <header className="flex items-center justify-end p-4">
-          <ModeToggle />
-        </header>
+        <AppHeader />
 
         <main className="mx-auto max-w-[980px] px-6 pt-16 pb-16">
           <h1 className="text-heading font-semibold">BChemXtractWeb</h1>
