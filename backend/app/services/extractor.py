@@ -8,11 +8,11 @@ Extraction has two paths:
   1. Primary: SubstanceXtractor.xtractUnique — rich data (InChI, InChIKey,
      SMILES, formula) but internally computes InChI which can hang on
      complex structures (R-groups, large dendrimers).
-  2. Fallback: FragmentConverter + CDK SmilesGenerator.unique — extracts
-     canonical SMILES and molecular formula directly from CDX fragments,
-     bypassing InChI entirely. Fast and robust for complex structures,
-     but produces less metadata (no InChI/InChIKey). Uses Morgan algorithm
-     for canonical ordering (not InChI-based).
+  2. Fallback: FragmentConverter + CDK SmilesGenerator.isomeric — extracts
+     SMILES (with stereochemistry) and molecular formula directly from CDX
+     fragments, bypassing InChI entirely. Fast and robust for complex
+     structures, but produces less metadata (no InChI/InChIKey).
+     isomeric() preserves R/S and E/Z stereo without using InChI.
 
 The async extract_substances_with_svg function tries the primary path
 with a 30s timeout. On timeout, it transparently falls back to the
@@ -305,8 +305,8 @@ def _extract_with_fallback_sync(
     dendrimers where InChI computation enters an infinite loop), the
     fragment results are returned immediately.
 
-    The fragment path uses SmilesGenerator.unique() which produces
-    canonical SMILES via Morgan algorithm — no InChI dependency.
+    The fragment path uses SmilesGenerator.isomeric() which preserves
+    R/S and E/Z stereochemistry — no InChI dependency.
 
     Args:
         file_bytes: Raw file content bytes.
@@ -442,7 +442,7 @@ def _extract_fragments_from_document(document) -> tuple[list[dict], dict]:
 
         builder = SilentChemObjectBuilder.getInstance()
         converter = FragmentConverter(builder)
-        smigen = SmilesGenerator.unique()
+        smigen = SmilesGenerator.isomeric()
 
         seen_smiles: dict[str, dict] = {}
         total_fragments = 0
