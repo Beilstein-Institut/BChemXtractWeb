@@ -134,7 +134,7 @@ function App() {
 
           {/* FileUpload — visible when idle/error and NOT during batch processing (D-13) */}
           {(state === "idle" || state === "error") && batchState !== "processing" && (
-            <div className="mt-12">
+            <div id="extract" className="mt-12 scroll-mt-24">
               <FileUpload
                 mode="batch"
                 onExtract={handleExtract}
@@ -145,7 +145,7 @@ function App() {
             </div>
           )}
           {state === "loading" && (
-            <div className="mt-12">
+            <div id="extract" className="mt-12 scroll-mt-24">
               <FileUpload
                 mode="batch"
                 onExtract={handleExtract}
@@ -188,7 +188,7 @@ function App() {
 
           {/* Batch-initiated browsing — View clicked from BatchSummary */}
           {!showResults && activeExtractionId !== null && (
-            <div className="mt-8">
+            <div id="browse" className="mt-8 scroll-mt-24">
               <StructureBrowser
                 extractionId={activeExtractionId}
                 onReset={() => setActiveExtractionId(null)}
@@ -216,7 +216,7 @@ function App() {
               <div className="mt-8">
                 <ExtractionSummary response={activeResult} onReset={handleReset} />
               </div>
-              <div className="mt-8">
+              <div id="browse" className="mt-8 scroll-mt-24">
                 <StructureBrowser extractionId={activeExtractionId} onReset={handleReset} />
               </div>
             </>
@@ -250,7 +250,7 @@ function App() {
 
           {/* History list — hidden until first extraction exists (D-09) */}
           {hasAnyExtractions && (
-            <div className="mt-[32px]">
+            <div id="history" className="mt-[32px] scroll-mt-24">
               <HistoryList
                 entries={entries}
                 total={total}

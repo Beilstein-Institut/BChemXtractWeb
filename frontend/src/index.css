@@ -5,6 +5,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
+html {
+  scroll-behavior: smooth;
+}
+
 /* === shadcn/ui CSS Variables: Apple-inspired OKLCH palette === */
 :root {
   --background: oklch(0.965 0.001 286.38);     /* #f5f5f7 */
