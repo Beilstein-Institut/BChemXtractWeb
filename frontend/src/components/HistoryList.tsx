@@ -61,7 +61,7 @@ export function HistoryList({
           ))}
         </div>
       ) : (
-        <ul className="divide-y divide-border group">
+        <ul className="divide-y divide-border">
           {entries.map((entry) => (
             <HistoryEntry
               key={entry.id}

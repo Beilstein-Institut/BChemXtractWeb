@@ -63,7 +63,7 @@ export function HistoryEntry({ entry, onReload, onDelete }: HistoryEntryProps) {
     <>
       <li
         className={cn(
-          "flex items-center justify-between gap-4 py-3 px-0",
+          "group flex items-center justify-between gap-4 py-3 px-0",
           "hover:bg-muted/20 transition-colors",
           "opacity-100 transition-opacity duration-200",
           fading && "opacity-0"
