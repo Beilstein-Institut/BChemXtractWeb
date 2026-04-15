@@ -21,6 +21,7 @@ class SubstanceResponse(BaseModel):
     mdlv3000: str = ""
     abbreviations: dict[str, str] = Field(default_factory=dict)
     svg: str = ""
+    svg_cdx: str = ""
 
 
 class ReactionComponentResponse(BaseModel):

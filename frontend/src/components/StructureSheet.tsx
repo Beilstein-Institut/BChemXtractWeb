@@ -117,10 +117,12 @@ export function StructureSheet({
   onNext,
 }: StructureSheetProps) {
   const [zoom, setZoom] = useState(1);
+  const [useCdxCoords, setUseCdxCoords] = useState(false);
 
-  // Reset zoom when substance changes
+  // Reset zoom and toggle when substance changes
   useEffect(() => {
     setZoom(1);
+    setUseCdxCoords(false);
   }, [substance]);
 
   const zoomIn = useCallback(() => setZoom((z) => Math.min(z + 0.25, 5)), []);
@@ -157,10 +159,11 @@ export function StructureSheet({
   }, [open, onPrev, onNext]);
 
   // URL-encode SVG as data URI — never set innerHTML (T-06-09)
-  const svgSrc =
-    substance?.svg
-      ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(substance.svg)}`
-      : null;
+  const activeSvg = useCdxCoords && substance?.svg_cdx ? substance.svg_cdx : substance?.svg;
+  const svgSrc = activeSvg
+    ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(activeSvg)}`
+    : null;
+  const hasBothSvgs = Boolean(substance?.svg && substance?.svg_cdx);
 
   const positionLabel = `${substanceIndex + 1} of ${totalSubstances}`;
   const isPrevDisabled = substanceIndex === 0;
@@ -233,34 +236,57 @@ export function StructureSheet({
                 </div>
               )}
 
-              {/* Zoom controls — bottom right of image area */}
+              {/* Controls — bottom of image area */}
               {svgSrc && (
-                <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-card/90 backdrop-blur-sm rounded-full px-2 py-1 ring-1 ring-foreground/10">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Zoom out"
-                    onClick={zoomOut}
-                    disabled={zoom <= 0.25}
-                  >
-                    <ZoomOutIcon className="size-4" />
-                  </Button>
-                  <button
-                    className="text-micro text-muted-foreground tabular-nums min-w-[40px] text-center hover:text-foreground transition-colors"
-                    onClick={zoomReset}
-                    aria-label="Reset zoom"
-                  >
-                    {Math.round(zoom * 100)}%
-                  </button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Zoom in"
-                    onClick={zoomIn}
-                    disabled={zoom >= 5}
-                  >
-                    <ZoomInIcon className="size-4" />
-                  </Button>
+                <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                  {/* Layout toggle — only shown when both CDK and ChemDraw SVGs exist */}
+                  {hasBothSvgs ? (
+                    <div className="flex items-center gap-1 bg-card/90 backdrop-blur-sm rounded-full px-2 py-1 ring-1 ring-foreground/10">
+                      <button
+                        className={`text-micro px-2 py-0.5 rounded-full transition-colors ${!useCdxCoords ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
+                        onClick={() => setUseCdxCoords(false)}
+                      >
+                        CDK
+                      </button>
+                      <button
+                        className={`text-micro px-2 py-0.5 rounded-full transition-colors ${useCdxCoords ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
+                        onClick={() => setUseCdxCoords(true)}
+                      >
+                        ChemDraw
+                      </button>
+                    </div>
+                  ) : (
+                    <div />
+                  )}
+
+                  {/* Zoom controls */}
+                  <div className="flex items-center gap-1 bg-card/90 backdrop-blur-sm rounded-full px-2 py-1 ring-1 ring-foreground/10">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Zoom out"
+                      onClick={zoomOut}
+                      disabled={zoom <= 0.25}
+                    >
+                      <ZoomOutIcon className="size-4" />
+                    </Button>
+                    <button
+                      className="text-micro text-muted-foreground tabular-nums min-w-[40px] text-center hover:text-foreground transition-colors"
+                      onClick={zoomReset}
+                      aria-label="Reset zoom"
+                    >
+                      {Math.round(zoom * 100)}%
+                    </button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Zoom in"
+                      onClick={zoomIn}
+                      disabled={zoom >= 5}
+                    >
+                      <ZoomInIcon className="size-4" />
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>

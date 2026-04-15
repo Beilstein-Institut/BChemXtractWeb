@@ -15,7 +15,8 @@ export interface SubstanceResponse {
   aux_info: string;
   mdlv3000: string;
   abbreviations: Record<string, string>;
-  svg: string; // inline SVG markup from CDK DepictionGenerator, 450x450px
+  svg: string; // CDK-generated 2D layout (clean, no crossing bonds)
+  svg_cdx?: string; // original ChemDraw coordinates (may have crossing bonds)
 }
 
 export interface SubstanceInfoResponse {

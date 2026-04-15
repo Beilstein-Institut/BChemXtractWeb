@@ -294,6 +294,40 @@ def _render_atom_container_svg(container) -> str:
         return ""
 
 
+def _render_with_cdk_layout(container) -> str:
+    """Re-layout a molecule with CDK's StructureDiagramGenerator and render.
+
+    Generates fresh 2D coordinates instead of using the original CDX
+    coordinates. Produces cleaner layouts for complex structures where
+    the ChemDraw layout has long crossing bonds.
+
+    Returns empty string on any failure — never raises.
+    """
+    try:
+        if container is None:
+            return ""
+
+        StructureDiagramGenerator = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.layout.StructureDiagramGenerator"
+        )
+        DepictionGenerator = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.depict.DepictionGenerator"
+        )
+
+        sdg = StructureDiagramGenerator()
+        sdg.setMolecule(container)
+        sdg.generateCoordinates()
+        mol_laid_out = sdg.getMolecule()
+
+        dg = DepictionGenerator().withAtomColors().withFillToFit()
+        depiction = dg.depict(mol_laid_out)
+        svg_str = str(depiction.toSvgStr())
+        return _set_svg_dimensions(svg_str, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
+    except Exception as exc:
+        logger.warning("CDK layout + render failed: %s", exc)
+        return ""
+
+
 def _extract_with_fallback_sync(
     file_bytes: bytes, format_type: str
 ) -> tuple[list[dict], dict, bool]:
@@ -473,7 +507,17 @@ def _extract_fragments_from_document(document) -> tuple[list[dict], dict]:
                     ]
 
                 for component in components:
-                    if component.getAtomCount() == 0:
+                    atom_count = component.getAtomCount()
+                    if atom_count == 0:
+                        continue
+
+                    # Skip trivial fragments: H2, single atoms, etc.
+                    # These are not meaningful chemical structures.
+                    heavy_count = sum(
+                        1 for j in range(atom_count)
+                        if component.getAtom(j).getAtomicNumber() > 1
+                    )
+                    if heavy_count < 1:
                         continue
 
                     smiles = str(smigen.create(component) or "")
@@ -495,7 +539,8 @@ def _extract_fragments_from_document(document) -> tuple[list[dict], dict]:
                     except Exception:
                         pass
 
-                    svg = _render_atom_container_svg(component)
+                    svg_cdx = _render_atom_container_svg(component)
+                    svg = _render_with_cdk_layout(component) or svg_cdx
 
                     seen_smiles[smiles] = {
                         "inchi": "",
@@ -508,6 +553,7 @@ def _extract_fragments_from_document(document) -> tuple[list[dict], dict]:
                         "mdlv3000": "",
                         "abbreviations": {},
                         "svg": svg,
+                        "svg_cdx": svg_cdx,
                     }
             except Exception as exc:
                 errors += 1
