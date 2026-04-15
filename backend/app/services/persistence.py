@@ -5,6 +5,7 @@ save_extraction() and delete_extraction_by_id() call db.commit() internally.
 enforce_cap() also commits internally as a housekeeping step.
 """
 
+import hashlib
 import logging
 
 from sqlalchemy import delete, func, select
@@ -53,7 +54,17 @@ async def save_extraction(
     db.add(extraction)
     await db.flush()  # get extraction.id without committing
 
-    # Step 2: Build substance data — skip entries with empty inchi_key
+    # Step 2: Build substance data.
+    # Substances from the fallback extractor have no InChI/InChIKey.
+    # Generate a synthetic key from SMILES so they can still be stored
+    # and deduplicated. Uses InChIKey format: 14 chars + hyphen + 10 chars
+    # + hyphen + 1 char = 27 chars total. Prefix "S" marks it as
+    # SMILES-derived (real InChIKeys never start with "S").
+    for s in response.substances:
+        if not s.inchi_key and s.smiles:
+            h = hashlib.sha256(s.smiles.encode()).hexdigest().upper()
+            s.inchi_key = f"S{h[:13]}-{h[13:23]}-N"
+
     valid_substances = [s for s in response.substances if s.inchi_key]
     if valid_substances:
         substance_data = [
