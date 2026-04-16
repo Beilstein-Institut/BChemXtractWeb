@@ -115,6 +115,8 @@ export function StructureBrowser({
         total={page?.total ?? 0}
         currentPage={currentPage}
         selectedCount={selectedIds.size}
+        selectedIds={selectedIds}
+        extractionId={extractionId ?? null}
         disabled={browseState === "loading" && page === null}
       />
 
