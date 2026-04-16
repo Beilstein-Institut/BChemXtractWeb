@@ -28,6 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuLabel,
+  DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import {
@@ -141,35 +142,37 @@ export function ExportMenu({
         {trigger}
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align} className="w-48">
-        <DropdownMenuLabel className="text-micro font-semibold uppercase tracking-widest text-muted-foreground px-3 py-1.5">
-          Format
-        </DropdownMenuLabel>
-        {FORMAT_ORDER.map((fmt) => (
-          <DropdownMenuItem
-            key={fmt}
-            className="px-3 py-2 gap-2 text-caption cursor-pointer"
-            onClick={() => onExport(fmt)}
-          >
-            {FORMAT_ICONS[fmt]}
-            {FORMAT_LABELS[fmt]}
-          </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
-        {/* RXN/RDfile — disabled until Phase 10 (D-11) */}
-        <Tooltip>
-          <TooltipTrigger render={<span className="block" />}>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-micro font-semibold uppercase tracking-widest text-muted-foreground px-3 py-1.5">
+            Format
+          </DropdownMenuLabel>
+          {FORMAT_ORDER.map((fmt) => (
             <DropdownMenuItem
-              className="px-3 py-2 gap-2 text-caption pointer-events-none opacity-50"
-              aria-disabled="true"
+              key={fmt}
+              className="px-3 py-2 gap-2 text-caption cursor-pointer"
+              onClick={() => onExport(fmt)}
             >
-              {FORMAT_ICONS["rxn"]}
-              {FORMAT_LABELS["rxn"]}
+              {FORMAT_ICONS[fmt]}
+              {FORMAT_LABELS[fmt]}
             </DropdownMenuItem>
-          </TooltipTrigger>
-          <TooltipContent side="left">
-            Available after reaction extraction (Phase 10)
-          </TooltipContent>
-        </Tooltip>
+          ))}
+          <DropdownMenuSeparator />
+          {/* RXN/RDfile — disabled until Phase 10 (D-11) */}
+          <Tooltip>
+            <TooltipTrigger render={<span className="block" />}>
+              <DropdownMenuItem
+                className="px-3 py-2 gap-2 text-caption pointer-events-none opacity-50"
+                aria-disabled="true"
+              >
+                {FORMAT_ICONS["rxn"]}
+                {FORMAT_LABELS["rxn"]}
+              </DropdownMenuItem>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              Available after reaction extraction (Phase 10)
+            </TooltipContent>
+          </Tooltip>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );
