@@ -14,6 +14,7 @@ Per security:
 import io
 import logging
 from typing import Annotated
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -144,8 +145,18 @@ async def export_substances(
             len(substance_dicts),
         )
 
+    # WR-01: RFC 6266-compliant Content-Disposition — strip control characters
+    # from the ASCII fallback and provide a percent-encoded filename* parameter
+    # so filenames with non-ASCII or special characters are handled correctly.
+    safe_name = filename.replace('"', "").replace("\n", "").replace("\r", "")
+    encoded_name = quote(filename, safe="")
     return StreamingResponse(
         io.BytesIO(content),
         media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{safe_name}"; '
+                f"filename*=UTF-8''{encoded_name}"
+            )
+        },
     )
