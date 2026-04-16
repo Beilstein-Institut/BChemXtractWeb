@@ -4,6 +4,8 @@ All fields are guaranteed non-null by the DTO coercion layer (D-09).
 Downstream code never needs to check for None.
 """
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -133,3 +135,19 @@ class BatchStartResponse(BaseModel):
     group_id: str
     task_ids: list[str]
     file_count: int
+
+
+ExportFormatLiteral = Literal["sdf", "json", "csv", "png", "svg", "cml", "v3000", "rxn"]
+
+
+class ExportRequest(BaseModel):
+    """Request body for POST /api/export (D-08).
+
+    substance_ids: explicit selection (D-01, D-02, D-04).
+    extraction_id: export all from this extraction (D-03) — used when substance_ids is empty.
+    format: one of the seven export formats plus rxn stub.
+    """
+
+    format: ExportFormatLiteral
+    substance_ids: list[int] = []
+    extraction_id: int | None = None
