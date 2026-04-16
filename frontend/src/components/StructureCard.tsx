@@ -176,13 +176,11 @@ export function StructureCard({
         "absolute top-2 left-2 z-10 transition-opacity",
         isChecked ? "opacity-100" : "opacity-0 group-hover:opacity-100"
       )}
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelect?.(substance.id ?? 0);
-      }}
+      onClick={(e) => e.stopPropagation()}
     >
       <Checkbox
         checked={isChecked ?? false}
+        onCheckedChange={() => onSelect?.(substance.id ?? 0)}
         aria-label={`Select ${substance.molecular_formula}`}
       />
     </div>
