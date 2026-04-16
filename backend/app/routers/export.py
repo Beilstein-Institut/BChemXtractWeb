@@ -63,6 +63,7 @@ async def _fetch_substances(payload: ExportRequest, db: AsyncSession) -> list[di
             select(Substance)
             .join(ExtractionSubstance, Substance.id == ExtractionSubstance.substance_id)
             .where(Substance.id.in_(payload.substance_ids))
+            .distinct()
         )
         if payload.extraction_id is not None:
             stmt = stmt.where(
