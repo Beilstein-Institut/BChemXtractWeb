@@ -26,6 +26,10 @@ import {
 import { cn } from "@/lib/utils";
 import { StructureDetail } from "@/components/StructureDetail";
 import type { SubstanceResponse } from "@/types/chemistry";
+import { ExportMenu } from "@/components/ExportMenu";
+import { postExport } from "@/lib/apiClient";
+import type { ExportFormat } from "@/types/export";
+import { FORMAT_EXT } from "@/types/export";
 
 export interface StructureCardProps {
   /** Extracted substance data to display */
@@ -91,6 +95,21 @@ export function StructureCard({
       copyTimerRef.current = setTimeout(() => setIsCopied(false), 2000);
     } catch {
       toast.error("Failed to copy — try selecting the text manually.");
+    }
+  }
+
+  async function handleExport(format: ExportFormat): Promise<void> {
+    const toastId = `export-card-${Date.now()}`;
+    toast.loading("Preparing export\u2026", { id: toastId });
+    try {
+      await postExport(
+        { format, substance_ids: [substance.id ?? 0] },
+        `${substance.inchi_key?.slice(0, 8) ?? "structure"}_${format}.${FORMAT_EXT[format]}`
+      );
+      toast.success("Export ready \u2014 downloading", { id: toastId, duration: 3000 });
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Export failed \u2014 ${reason}. Try again.`, { id: toastId });
     }
   }
 
@@ -174,6 +193,15 @@ export function StructureCard({
     return (
       <div className="relative group">
         {checkboxOverlay}
+        {/* Per-card export icon overlay (D-04) — top-2 right-2, mirrors checkbox at top-2 left-2 */}
+        <div className="absolute top-2 right-2 z-10">
+          <ExportMenu
+            onExport={handleExport}
+            triggerVariant="icon"
+            align="start"
+            onTriggerClick={(e) => e.stopPropagation()}
+          />
+        </div>
         <div
           role="button"
           tabIndex={0}

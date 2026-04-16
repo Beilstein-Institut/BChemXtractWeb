@@ -32,6 +32,10 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import type { SubstanceResponse } from "@/types/chemistry";
+import { ExportMenu } from "@/components/ExportMenu";
+import { postExport } from "@/lib/apiClient";
+import type { ExportFormat } from "@/types/export";
+import { FORMAT_EXT } from "@/types/export";
 
 export interface StructureSheetProps {
   open: boolean;
@@ -129,6 +133,22 @@ export function StructureSheet({
   const zoomOut = useCallback(() => setZoom((z) => Math.max(z - 0.25, 0.25)), []);
   const zoomReset = useCallback(() => setZoom(1), []);
 
+  async function handleExport(format: ExportFormat): Promise<void> {
+    if (!substance?.id) return;
+    const toastId = `export-sheet-${Date.now()}`;
+    toast.loading("Preparing export\u2026", { id: toastId });
+    try {
+      await postExport(
+        { format, substance_ids: [substance.id] },
+        `${substance.inchi_key?.slice(0, 8) ?? "structure"}_${format}.${FORMAT_EXT[format]}`
+      );
+      toast.success("Export ready \u2014 downloading", { id: toastId, duration: 3000 });
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Export failed \u2014 ${reason}. Try again.`, { id: toastId });
+    }
+  }
+
   // Keyboard navigation scoped to when sheet is open (D-18, T-06-10)
   useEffect(() => {
     if (!open) return;
@@ -205,6 +225,18 @@ export function StructureSheet({
               <ChevronRightIcon className="size-5" />
             </Button>
           </div>
+
+          {/* Single-structure export (D-02) */}
+          {substance && (
+            <div className="flex justify-end mb-2">
+              <ExportMenu
+                onExport={handleExport}
+                triggerLabel="Export"
+                triggerVariant="label"
+                align="end"
+              />
+            </div>
+          )}
 
           <SheetTitle className="text-sub-heading font-semibold tracking-tight">
             {substance?.molecular_formula ?? "Structure"}

@@ -1,6 +1,6 @@
 /**
  * BrowseToolbar — grid/table toggle, sort dropdown, page size selector,
- * structure count, and selection badge (D-04, D-11, D-13, D-16, D-17).
+ * structure count, selection badge, and export action bar (D-04, D-11, D-13, D-16, D-17).
  *
  * Layout: flex row, 48px height, border-b.
  * Mobile: Sort + page size collapse into an "Options" Popover.
@@ -21,8 +21,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { BrowseView, BrowseSort } from "@/hooks/useBrowse";
+import { ExportMenu } from "@/components/ExportMenu";
+import { postExport } from "@/lib/apiClient";
+import type { ExportFormat } from "@/types/export";
+import { FORMAT_EXT } from "@/types/export";
 
 export interface BrowseToolbarProps {
   view: BrowseView;
@@ -35,11 +40,16 @@ export interface BrowseToolbarProps {
   currentPage: number;
   selectedCount: number;
   disabled?: boolean;
+  /** IDs of currently selected substances (for "Export N selected"). */
+  selectedIds: Set<number>;
+  /** Current extraction ID — used for Export All. Null when no extraction active. */
+  extractionId: number | null;
 }
 
 /**
  * BrowseToolbar component (D-04, D-11, D-13, D-16, D-17).
- * Renders a 48px toolbar row with view toggle, sort/size selects, count, and selection badge.
+ * Renders a 48px toolbar row with view toggle, sort/size selects, count, selection badge,
+ * and export action bar (D-01, D-03).
  */
 export function BrowseToolbar({
   view,
@@ -52,7 +62,40 @@ export function BrowseToolbar({
   currentPage,
   selectedCount,
   disabled = false,
+  selectedIds,
+  extractionId,
 }: BrowseToolbarProps) {
+  async function handleExport(format: ExportFormat): Promise<void> {
+    const toastId = `export-${Date.now()}`;
+    toast.loading("Preparing export\u2026", { id: toastId });
+    try {
+      await postExport(
+        { format, substance_ids: Array.from(selectedIds) },
+        `export.${FORMAT_EXT[format]}`
+      );
+      toast.success("Export ready \u2014 downloading", { id: toastId, duration: 3000 });
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Export failed \u2014 ${reason}. Try again.`, { id: toastId });
+    }
+  }
+
+  async function handleExportAll(format: ExportFormat): Promise<void> {
+    if (!extractionId) return;
+    const toastId = `export-all-${Date.now()}`;
+    toast.loading("Preparing export\u2026", { id: toastId });
+    try {
+      await postExport(
+        { format, substance_ids: [], extraction_id: extractionId },
+        `export_all.${FORMAT_EXT[format]}`
+      );
+      toast.success("Export ready \u2014 downloading", { id: toastId, duration: 3000 });
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Export failed \u2014 ${reason}. Try again.`, { id: toastId });
+    }
+  }
+
   const start = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const end = Math.min(currentPage * pageSize, total);
   const countLabel =
@@ -177,11 +220,30 @@ export function BrowseToolbar({
 
       <div className="flex-1" />
 
-      {/* Selection count badge — only shown when selections exist (D-17) */}
+      {/* Export "N selected" button — only when selections exist (D-01) */}
       {selectedCount > 0 && (
-        <Badge variant="secondary" className="text-xs font-semibold">
-          {selectedCount} selected
-        </Badge>
+        <div className="flex items-center gap-2" aria-live="polite">
+          <Badge variant="secondary" className="text-xs font-semibold">
+            {selectedCount} selected
+          </Badge>
+          <ExportMenu
+            onExport={handleExport}
+            triggerLabel={`Export ${selectedCount} selected`}
+            triggerVariant="label"
+            align="end"
+          />
+        </div>
+      )}
+
+      {/* Export All — always visible when extraction is active and has substances (D-03) */}
+      {extractionId !== null && total > 0 && (
+        <ExportMenu
+          onExport={handleExportAll}
+          triggerLabel="Export All"
+          triggerVariant="label"
+          align="end"
+          disabled={total === 0}
+        />
       )}
 
       {/* Structure count label */}
