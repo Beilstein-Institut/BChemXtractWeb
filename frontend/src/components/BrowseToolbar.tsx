@@ -5,6 +5,7 @@
  * Layout: flex row, 48px height, border-b.
  * Mobile: Sort + page size collapse into an "Options" Popover.
  */
+import { useState } from "react";
 import { LayoutGridIcon, ListIcon, SlidersHorizontalIcon } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -65,7 +66,11 @@ export function BrowseToolbar({
   selectedIds,
   extractionId,
 }: BrowseToolbarProps) {
+  const [isExporting, setIsExporting] = useState(false);
+
   async function handleExport(format: ExportFormat): Promise<void> {
+    if (isExporting) return;
+    setIsExporting(true);
     const toastId = `export-${Date.now()}`;
     toast.loading("Preparing export\u2026", { id: toastId });
     try {
@@ -77,11 +82,14 @@ export function BrowseToolbar({
     } catch (err) {
       const reason = err instanceof Error ? err.message : "Unknown error";
       toast.error(`Export failed \u2014 ${reason}. Try again.`, { id: toastId });
+    } finally {
+      setIsExporting(false);
     }
   }
 
   async function handleExportAll(format: ExportFormat): Promise<void> {
-    if (!extractionId) return;
+    if (!extractionId || isExporting) return;
+    setIsExporting(true);
     const toastId = `export-all-${Date.now()}`;
     toast.loading("Preparing export\u2026", { id: toastId });
     try {
@@ -93,6 +101,8 @@ export function BrowseToolbar({
     } catch (err) {
       const reason = err instanceof Error ? err.message : "Unknown error";
       toast.error(`Export failed \u2014 ${reason}. Try again.`, { id: toastId });
+    } finally {
+      setIsExporting(false);
     }
   }
 
@@ -231,6 +241,7 @@ export function BrowseToolbar({
             triggerLabel={`Export ${selectedCount} selected`}
             triggerVariant="label"
             align="end"
+            disabled={isExporting || selectedCount === 0}
           />
         </div>
       )}
@@ -242,7 +253,7 @@ export function BrowseToolbar({
           triggerLabel="Export All"
           triggerVariant="label"
           align="end"
-          disabled={total === 0}
+          disabled={isExporting}
         />
       )}
 
