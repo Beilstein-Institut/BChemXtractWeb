@@ -121,24 +121,26 @@ def _generate_sdf_sync(substances: list[dict]) -> bytes:
     sdg = StructureDiagramGenerator()
     sw = StringWriter()
     writer = SDFWriter(sw)
-
-    for s in substances:
-        if not s.get("smiles"):
-            continue
-        try:
-            mol = parser.parseSmiles(s["smiles"])
-            sdg.setMolecule(mol)
-            sdg.generateCoordinates()
-            writer.write(sdg.getMolecule())
-        except Exception:
-            # T-08-03: Skip unparseable SMILES — never crash the whole export
-            _logger.debug(
-                "Skipping substance id=%s during SDF export: unparseable SMILES",
-                s.get("id"),
-            )
-            continue
-
-    writer.close()
+    try:
+        for s in substances:
+            if not s.get("smiles"):
+                continue
+            try:
+                mol = parser.parseSmiles(s["smiles"])
+                sdg.setMolecule(mol)
+                sdg.generateCoordinates()
+                writer.write(sdg.getMolecule())
+            except Exception:
+                # T-08-03: Skip unparseable SMILES — never crash the whole export
+                _logger.debug(
+                    "Skipping substance id=%s during SDF export: unparseable SMILES",
+                    s.get("id"),
+                )
+    finally:
+        # CR-02: always close the JVM-side SDFWriter/StringWriter, even if an
+        # unexpected exception (e.g. Java OutOfMemoryError) escapes the inner
+        # per-molecule try/except above.
+        writer.close()
     return str(sw.toString()).encode("utf-8")
 
 
@@ -243,8 +245,12 @@ def _generate_v3000_sync(smiles: str) -> bytes:
         sdg.generateCoordinates()
         sw = StringWriter()
         writer = MDLV3000Writer(sw)
-        writer.write(sdg.getMolecule())
-        writer.close()
+        try:
+            writer.write(sdg.getMolecule())
+        finally:
+            # CR-02: always close the JVM-side MDLV3000Writer/StringWriter,
+            # even if an unexpected exception escapes writer.write().
+            writer.close()
         return str(sw.toString()).encode("utf-8")
     except Exception:
         _logger.debug(
