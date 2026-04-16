@@ -185,7 +185,10 @@ export function StructureSheet({
     : null;
   const hasBothSvgs = Boolean(substance?.svg && substance?.svg_cdx);
 
-  const positionLabel = `${substanceIndex + 1} of ${totalSubstances}`;
+  // WR-05: guard against "1 of 0" when totalSubstances is momentarily 0
+  // during a page transition (new page substances array is briefly empty).
+  const positionLabel =
+    totalSubstances > 0 ? `${substanceIndex + 1} of ${totalSubstances}` : "";
   const isPrevDisabled = substanceIndex === 0;
   const isNextDisabled = substanceIndex === totalSubstances - 1;
 
