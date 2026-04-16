@@ -52,9 +52,22 @@ async def _fetch_substances(payload: ExportRequest, db: AsyncSession) -> list[di
         HTTPException 404: Extraction not found or yields no substances.
     """
     if payload.substance_ids:
-        result = await db.execute(
-            select(Substance).where(Substance.id.in_(payload.substance_ids))
+        # CR-01: Join through ExtractionSubstance to prevent IDOR — callers must
+        # not be able to export substance rows from arbitrary extractions by
+        # guessing integer IDs.  When extraction_id is present (the normal case
+        # for D-01/D-02 selection flows), restrict to substances that belong to
+        # that extraction.  When extraction_id is absent, still require that the
+        # substance is linked to *some* extraction (prevents orphaned-row leakage).
+        stmt = (
+            select(Substance)
+            .join(ExtractionSubstance, Substance.id == ExtractionSubstance.substance_id)
+            .where(Substance.id.in_(payload.substance_ids))
         )
+        if payload.extraction_id is not None:
+            stmt = stmt.where(
+                ExtractionSubstance.extraction_id == payload.extraction_id
+            )
+        result = await db.execute(stmt)
         substances = result.scalars().all()
     elif payload.extraction_id is not None:
         # Verify extraction exists
