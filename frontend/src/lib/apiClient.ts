@@ -1,6 +1,7 @@
 import type { ExtractionResponse, PagedSubstancesResponse } from "@/types/chemistry";
 import type { HistoryListResponse, StatsResponse } from "@/types/history";
 import type { BatchStartResponse } from "@/types/batch";
+import type { ExportRequest } from "@/types/export";
 
 /**
  * POSTs a CDX/CDXML file to POST /api/extract using multipart/form-data.
@@ -221,6 +222,51 @@ export async function downloadBatchZip(batchId: string): Promise<void> {
   const a = document.createElement("a");
   a.href = url;
   a.download = `batch_${batchId.slice(0, 8)}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * POST /api/export — trigger chemical format export and download.
+ *
+ * POSTs JSON payload, receives a file blob (SDF, ZIP, JSON, CSV, etc.),
+ * and triggers a browser download via temporary anchor element.
+ * Reuses downloadBatchZip blob+anchor pattern (D-08).
+ *
+ * @param payload - ExportRequest with format and substance_ids or extraction_id
+ * @param suggestedFilename - Browser download filename (backend also sends Content-Disposition)
+ */
+export async function postExport(
+  payload: ExportRequest,
+  suggestedFilename: string
+): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch("/api/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new Error("Could not reach the server — check your connection.");
+  }
+  if (!response.ok) {
+    let detail = "please try again";
+    try {
+      const body = await response.json();
+      if (typeof body?.detail === "string") detail = body.detail;
+    } catch {
+      // use default
+    }
+    throw new Error(`Export failed — ${detail}`);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = suggestedFilename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
