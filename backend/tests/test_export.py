@@ -127,7 +127,6 @@ def _patch_jvm_and_db(substance_list: list[dict] | None = None):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.anyio
 async def test_sdf_export(client: AsyncClient) -> None:
     """POST /api/export format=sdf returns chemical/x-mdl-sdfile with $$$$ separator."""
     async with _patch_jvm_and_db():
@@ -141,7 +140,6 @@ async def test_sdf_export(client: AsyncClient) -> None:
     assert b"$$$$" in resp.content
 
 
-@pytest.mark.anyio
 async def test_json_export(client: AsyncClient) -> None:
     """POST /api/export format=json returns application/json array with expected keys."""
     async with _patch_jvm_and_db():
@@ -160,7 +158,6 @@ async def test_json_export(client: AsyncClient) -> None:
         assert key in row, f"Missing key {key!r} in JSON export row"
 
 
-@pytest.mark.anyio
 async def test_csv_export(client: AsyncClient) -> None:
     """POST /api/export format=csv returns text/csv with correct header line."""
     async with _patch_jvm_and_db():
@@ -176,7 +173,6 @@ async def test_csv_export(client: AsyncClient) -> None:
     assert first_line == "id,inchi_key,smiles,molecular_formula,inchi,iupac_name,extended_smiles"
 
 
-@pytest.mark.anyio
 async def test_svg_export(client: AsyncClient) -> None:
     """POST /api/export format=svg returns application/zip containing a .svg file."""
     async with _patch_jvm_and_db():
@@ -194,7 +190,6 @@ async def test_svg_export(client: AsyncClient) -> None:
         assert svg_content.startswith(b"<svg"), f"SVG content does not start with <svg: {svg_content[:40]}"
 
 
-@pytest.mark.anyio
 async def test_cml_export(client: AsyncClient) -> None:
     """POST /api/export format=cml returns application/zip containing a .cml file with CML namespace."""
     async with _patch_jvm_and_db():
@@ -214,7 +209,6 @@ async def test_cml_export(client: AsyncClient) -> None:
         )
 
 
-@pytest.mark.anyio
 async def test_v3000_export(client: AsyncClient) -> None:
     """POST /api/export format=v3000 returns application/zip containing a .mol file."""
     async with _patch_jvm_and_db():
@@ -229,7 +223,6 @@ async def test_v3000_export(client: AsyncClient) -> None:
     assert "chemical/x-mdl-molfile" in content_type or "application/zip" in content_type
 
 
-@pytest.mark.anyio
 async def test_png_export(client: AsyncClient) -> None:
     """POST /api/export format=png returns image/png (single) or application/zip with PNG bytes."""
     async with _patch_jvm_and_db():
@@ -254,7 +247,6 @@ async def test_png_export(client: AsyncClient) -> None:
             assert png_bytes.startswith(b"\x89PNG")
 
 
-@pytest.mark.anyio
 async def test_png_limit(client: AsyncClient) -> None:
     """POST /api/export format=png with 201 substance IDs returns HTTP 400."""
     # Build 201 dummy substances
@@ -273,7 +265,6 @@ async def test_png_limit(client: AsyncClient) -> None:
     assert "200" in resp.json()["detail"] or "limit" in resp.json()["detail"].lower()
 
 
-@pytest.mark.anyio
 async def test_unknown_format(client: AsyncClient) -> None:
     """POST /api/export with unknown format returns HTTP 422 (Pydantic validation)."""
     # No DB/JVM patching needed — Pydantic rejects it before handler runs
@@ -284,7 +275,6 @@ async def test_unknown_format(client: AsyncClient) -> None:
     assert resp.status_code == 422, f"Expected 422, got {resp.status_code}: {resp.text}"
 
 
-@pytest.mark.anyio
 async def test_export_all_uses_extraction_id(client: AsyncClient) -> None:
     """POST /api/export with extraction_id and empty substance_ids fetches all substances."""
     fetched_args = {}
