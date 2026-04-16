@@ -99,11 +99,18 @@ export function StructureCard({
   }
 
   async function handleExport(format: ExportFormat): Promise<void> {
+    // IN-02: guard against sending substance_ids:[0] when id is falsy (Pydantic
+    // default of 0 on SubstanceResponse.id). Backend returns 404 for id=0 which
+    // shows a confusing "No substances found" error to the user.
+    if (!substance.id) {
+      toast.error("Cannot export \u2014 structure has no database ID.");
+      return;
+    }
     const toastId = `export-card-${Date.now()}`;
     toast.loading("Preparing export\u2026", { id: toastId });
     try {
       await postExport(
-        { format, substance_ids: [substance.id ?? 0] },
+        { format, substance_ids: [substance.id] },
         `${substance.inchi_key?.slice(0, 8) ?? "structure"}_${format}.${FORMAT_EXT[format]}`
       );
       toast.success("Export ready \u2014 downloading", { id: toastId, duration: 3000 });
