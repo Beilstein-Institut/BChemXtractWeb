@@ -38,7 +38,7 @@ _PNG_LIMIT = 200
 
 CML_NS = "http://www.xml-cml.org/schema"
 
-_EMPTY_RDF_HEADER = b"$RDFILE 1\n$DATM    2026/04/16\n"
+# IN-01: date is generated at call time in _generate_rxn_stub() — not hardcoded here.
 
 
 # ---------------------------------------------------------------------------
@@ -375,15 +375,19 @@ def _generate_cml_single(substance: dict) -> bytes:
 
 
 def _generate_rxn_stub() -> bytes:
-    """RXN/RDfile stub. Returns minimal valid RDF header.
+    """RXN/RDfile stub. Returns minimal valid RDF header with current date.
 
     Reaction data will be populated in Phase 10 (D-11). Returns only the
     RDfile header so the response has valid Content-Type: chemical/x-mdl-rdfile.
 
+    IN-01: $DATM is generated at call time so exported files are stamped with
+    the actual download date rather than the hardcoded development date.
+
     Returns:
         Minimal RDF header bytes.
     """
-    return _EMPTY_RDF_HEADER
+    datm = date.today().strftime("%Y/%m/%d")
+    return f"$RDFILE 1\n$DATM    {datm}\n".encode()
 
 
 # ---------------------------------------------------------------------------
