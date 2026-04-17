@@ -38,6 +38,13 @@ export interface StructureBrowserProps {
   extractionId: number | null | undefined;
   /** Called when user wishes to reset back to upload state. */
   onReset: () => void;
+  /**
+   * Callback fired when the BrowseToolbar "Search within" button is clicked
+   * (D-20). Forwarded to BrowseToolbar. When undefined, the button is hidden.
+   * Parent (App.tsx) writes `?q=&scope=extraction:{id}` to the URL and
+   * focuses the header SearchInput via `searchInputRef`.
+   */
+  onSearchWithin?: () => void;
 }
 
 /**
@@ -60,7 +67,11 @@ export function buildPageNumbers(current: number, total: number): (number | "...
  * StructureBrowser — the complete browsing UI with toolbar, grid/table views,
  * pagination, and a side-sheet detail panel.
  */
-export function StructureBrowser({ extractionId, onReset: _onReset }: StructureBrowserProps) {
+export function StructureBrowser({
+  extractionId,
+  onReset: _onReset,
+  onSearchWithin,
+}: StructureBrowserProps) {
   const {
     browseState,
     page,
@@ -108,6 +119,7 @@ export function StructureBrowser({ extractionId, onReset: _onReset }: StructureB
         selectedIds={selectedIds}
         extractionId={extractionId ?? null}
         disabled={browseState === "loading" && page === null}
+        onSearchWithin={onSearchWithin}
       />
 
       {/* Loading state — skeleton cards/rows (D-13) */}

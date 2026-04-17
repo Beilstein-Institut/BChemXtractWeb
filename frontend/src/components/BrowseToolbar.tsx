@@ -6,7 +6,7 @@
  * Mobile: Sort + page size collapse into an "Options" Popover.
  */
 import { useState } from "react";
-import { LayoutGridIcon, ListIcon, SlidersHorizontalIcon } from "lucide-react";
+import { LayoutGridIcon, ListIcon, SearchIcon, SlidersHorizontalIcon } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Select,
@@ -17,11 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { BrowseView, BrowseSort } from "@/hooks/useBrowse";
@@ -45,6 +41,13 @@ export interface BrowseToolbarProps {
   selectedIds: Set<number>;
   /** Current extraction ID — used for Export All. Null when no extraction active. */
   extractionId: number | null;
+  /**
+   * Callback fired when "Search within this extraction" is clicked (D-20).
+   * The button is hidden when this is undefined or `extractionId` is null.
+   * Parent writes `?scope=extraction:{id}` to the URL and focuses the
+   * header SearchInput (via `searchInputRef` from `@/lib/searchFocus`).
+   */
+  onSearchWithin?: () => void;
 }
 
 /**
@@ -65,6 +68,7 @@ export function BrowseToolbar({
   disabled = false,
   selectedIds,
   extractionId,
+  onSearchWithin,
 }: BrowseToolbarProps) {
   const [isExporting, setIsExporting] = useState(false);
 
@@ -76,7 +80,7 @@ export function BrowseToolbar({
     try {
       await postExport(
         { format, substance_ids: Array.from(selectedIds) },
-        `export.${FORMAT_EXT[format]}`
+        `export.${FORMAT_EXT[format]}`,
       );
       toast.success("Export ready \u2014 downloading", { id: toastId, duration: 3000 });
     } catch (err) {
@@ -95,7 +99,7 @@ export function BrowseToolbar({
     try {
       await postExport(
         { format, substance_ids: [], extraction_id: extractionId },
-        `export_all.${FORMAT_EXT[format]}`
+        `export_all.${FORMAT_EXT[format]}`,
       );
       toast.success("Export ready \u2014 downloading", { id: toastId, duration: 3000 });
     } catch (err) {
@@ -112,14 +116,14 @@ export function BrowseToolbar({
     total === 0
       ? "No structures"
       : total === 1
-      ? "Showing 1 of 1 structure"
-      : `Showing ${start}\u2013${end} of ${total} structures`;
+        ? "Showing 1 of 1 structure"
+        : `Showing ${start}\u2013${end} of ${total} structures`;
 
   return (
     <div
       className={cn(
         "flex items-center gap-4 px-6 py-3 h-12 border-b border-border",
-        disabled && "opacity-50 pointer-events-none"
+        disabled && "opacity-50 pointer-events-none",
       )}
     >
       {/* Grid / Table view toggle */}
@@ -139,13 +143,27 @@ export function BrowseToolbar({
         </ToggleGroupItem>
       </ToggleGroup>
 
+      {/* Search within this extraction (D-20) — immediately right of the view
+          toggle per UI-SPEC §4. Hidden when no extraction is active or when
+          the parent did not provide a handler. Focuses the header SearchInput
+          via `searchInputRef` (fix #8 — no DOM queries). */}
+      {extractionId !== null && onSearchWithin && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-9 gap-1.5"
+          onClick={onSearchWithin}
+          aria-label="Search within this extraction"
+        >
+          <SearchIcon className="size-4 text-muted-foreground" aria-hidden="true" />
+          <span className="hidden sm:inline text-caption">Search within</span>
+        </Button>
+      )}
+
       {/* Sort dropdown — hidden on mobile, shown in Options popover */}
       <div className="hidden sm:flex items-center gap-2">
         <span className="text-xs text-muted-foreground">Sort by</span>
-        <Select
-          value={sort}
-          onValueChange={(v) => v && onSortChange(v as BrowseSort)}
-        >
+        <Select value={sort} onValueChange={(v) => v && onSortChange(v as BrowseSort)}>
           <SelectTrigger className="h-8 w-[160px]" aria-label="Sort order">
             <SelectValue />
           </SelectTrigger>
@@ -161,9 +179,7 @@ export function BrowseToolbar({
         <span className="text-xs text-muted-foreground">Per page</span>
         <Select
           value={String(pageSize)}
-          onValueChange={(v) =>
-            v && onPageSizeChange(parseInt(v, 10) as 12 | 24 | 48)
-          }
+          onValueChange={(v) => v && onPageSizeChange(parseInt(v, 10) as 12 | 24 | 48)}
         >
           <SelectTrigger className="h-8 w-[72px]" aria-label="Items per page">
             <SelectValue />
@@ -194,10 +210,7 @@ export function BrowseToolbar({
         <PopoverContent className="w-56 flex flex-col gap-3 p-3">
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">Sort by</span>
-            <Select
-              value={sort}
-              onValueChange={(v) => v && onSortChange(v as BrowseSort)}
-            >
+            <Select value={sort} onValueChange={(v) => v && onSortChange(v as BrowseSort)}>
               <SelectTrigger className="h-8 w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -211,9 +224,7 @@ export function BrowseToolbar({
             <span className="text-xs text-muted-foreground">Per page</span>
             <Select
               value={String(pageSize)}
-              onValueChange={(v) =>
-                v && onPageSizeChange(parseInt(v, 10) as 12 | 24 | 48)
-              }
+              onValueChange={(v) => v && onPageSizeChange(parseInt(v, 10) as 12 | 24 | 48)}
             >
               <SelectTrigger className="h-8 w-full">
                 <SelectValue />
