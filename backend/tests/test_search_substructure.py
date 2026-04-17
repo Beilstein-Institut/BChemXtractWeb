@@ -55,20 +55,21 @@ async def test_substructure_benzene_in_naphthalene(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_substructure_invalid_smarts(client: AsyncClient) -> None:
-    """Invalid SMARTS raises InvalidSmartsError (maps to 422 in Plan 05).
+    """Invalid SMARTS raises InvalidSmartsError → 422 + code=INVALID_SMARTS.
 
-    Plan 05 maps ``InvalidSmartsError`` to 422 + ``code='INVALID_SMARTS'``.
-    Until Plan 05 ships, the generic handler returns 500. Accept either
-    here so Plan 03's integration test stays green in the interim — Plan
-    05 will tighten this to ``== 422`` exactly.
+    Plan 05 shipped the unified ErrorResponse handler — InvalidSmartsError
+    now strictly maps to 422 + code=INVALID_SMARTS. No (422, 500) tolerance.
     """
     resp = await client.post(
         "/api/search",
         json={"query": "c1ccc(((", "type": "substructure"},
         timeout=60.0,
     )
-    assert resp.status_code in (422, 500), (
-        f"expected 422 or 500, got {resp.status_code}: {resp.text}"
+    assert resp.status_code == 422, (
+        f"expected 422, got {resp.status_code}: {resp.text}"
+    )
+    assert resp.json().get("code") == "INVALID_SMARTS", (
+        f"expected code=INVALID_SMARTS, got body={resp.text}"
     )
 
 
