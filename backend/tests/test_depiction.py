@@ -67,10 +67,13 @@ async def test_highlight_benzene_contains_apple_blue(started_app) -> None:
     svg = await run_in_jvm_thread(_call)
     assert svg, "highlight SVG must be non-empty"
     svg_lower = svg.lower()
+    # CDK emits the highlight color either as a hex literal or an
+    # rgba(...) fragment — accept all forms (with or without spaces).
+    svg_compact = svg.replace(" ", "").lower()
     assert (
         "0071e3" in svg_lower
-        or "rgba(0, 113, 227" in svg_lower
-        or "rgb(0,113,227" in svg.replace(" ", "").lower()
+        or "rgba(0,113,227" in svg_compact
+        or "rgb(0,113,227" in svg_compact
     ), "highlighted SVG must contain Apple Blue color per UI-SPEC §Color"
 
 

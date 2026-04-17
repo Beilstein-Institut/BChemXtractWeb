@@ -30,8 +30,13 @@ from app.models.chemistry import (
     SubstanceInfoResponse,
     SubstanceResponse,
 )
-from app.services.depiction import render_substance_svg, _set_svg_dimensions
-from app.services.depiction import SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT
+from app.services.depiction import (
+    SVG_TARGET_HEIGHT,
+    SVG_TARGET_WIDTH,
+    _make_depiction_generator,
+    _set_svg_dimensions,
+    render_substance_svg,
+)
 from app.services.format_detector import detect_format
 from app.services.jvm_bridge import run_in_jvm_thread
 
@@ -267,34 +272,6 @@ def _extract_reactions_sync(
             exc.stacktrace() if hasattr(exc, "stacktrace") else str(exc),
         )
         raise ExtractionError("Failed to extract reactions from file") from exc
-
-
-def _make_depiction_generator():
-    """Create a DepictionGenerator with smart hydrogen display.
-
-    Uses IUPAC recommendations for hydrogen visibility: shows hydrogens
-    only where stereochemically or chemically relevant (stereocenters,
-    heteroatoms with H, etc.). Produces cleaner depictions than showing
-    all or no hydrogens.
-    """
-    DepictionGenerator = jpype.JClass(  # noqa: N806
-        "org.openscience.cdk.depict.DepictionGenerator"
-    )
-    StandardGenerator = jpype.JClass(  # noqa: N806
-        "org.openscience.cdk.renderer.generators.standard.StandardGenerator"
-    )
-    SymbolVisibility = jpype.JClass(  # noqa: N806
-        "org.openscience.cdk.renderer.SymbolVisibility"
-    )
-    return (
-        DepictionGenerator()
-        .withAtomColors()
-        .withFillToFit()
-        .withParam(
-            StandardGenerator.Visibility,
-            SymbolVisibility.iupacRecommendations(),
-        )
-    )
 
 
 def _render_atom_container_svg(container) -> str:
