@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.errors import BridgeError, bridge_error_handler
-from app.routers import batch, export, extract, health, history
+from app.routers import batch, export, extract, health, history, search
 from app.services.jvm_bridge import initialize_jvm, shutdown_pool
 
 logger = logging.getLogger(__name__)
@@ -88,6 +88,7 @@ def create_app() -> FastAPI:
     application.include_router(history.router, prefix="/api")
     application.include_router(batch.router, prefix="/api")
     application.include_router(export.router, prefix="/api")
+    application.include_router(search.router, prefix="/api")
 
     return application
 
