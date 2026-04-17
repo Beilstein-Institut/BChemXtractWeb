@@ -1,4 +1,4 @@
-"""API-01/API-02: OpenAPI curation + Redoc smoke tests (Wave 4)."""
+"""API-01/API-02: OpenAPI curation + Redoc smoke tests."""
 
 from __future__ import annotations
 
@@ -6,31 +6,92 @@ import pytest
 from httpx import AsyncClient
 
 
-@pytest.mark.skip(reason="Wave 4 — Redoc endpoint not yet wired")
-@pytest.mark.asyncio
-async def test_redoc_served(client_no_jvm: AsyncClient) -> None:
-    """GET /redoc returns 200 and HTML content."""
-    ...
+APPROVED_OPERATION_IDS = {
+    # extraction
+    "extractFile",
+    "getExtractionSubstances",
+    # history
+    "listHistory",
+    "getHistoryDetail",
+    "deleteHistoryEntry",
+    "getStats",
+    # batch
+    "startBatch",
+    "streamBatchProgress",
+    "cancelBatch",
+    "downloadBatchZip",
+    # export
+    "exportSubstances",
+    # health
+    "healthCheck",
+    "healthDetail",
+    # search (already curated in Plan 03)
+    "searchSubstances",
+}
 
 
-@pytest.mark.skip(reason="Wave 4 — OpenAPI curation not yet applied")
 @pytest.mark.asyncio
 async def test_swagger_docs_served(client_no_jvm: AsyncClient) -> None:
-    """GET /docs returns 200 and Swagger HTML."""
-    ...
+    """GET /docs returns 200 and Swagger UI markup (API-01 — no regression)."""
+    resp = await client_no_jvm.get("/docs")
+    assert resp.status_code == 200
+    assert "swagger" in resp.text.lower()
 
 
-@pytest.mark.skip(reason="Wave 4 — OpenAPI curation not yet applied")
+@pytest.mark.asyncio
+async def test_redoc_served(client_no_jvm: AsyncClient) -> None:
+    """GET /redoc returns 200 and Redoc markup (API-01, D-16)."""
+    resp = await client_no_jvm.get("/redoc")
+    assert resp.status_code == 200
+    assert "redoc" in resp.text.lower()
+
+
 @pytest.mark.asyncio
 async def test_every_route_has_operation_id_and_tags(
     client_no_jvm: AsyncClient,
 ) -> None:
-    """All paths in openapi.json carry operationId + tags."""
-    ...
+    """API-02: every /api route has operationId + non-empty tags."""
+    resp = await client_no_jvm.get("/openapi.json")
+    assert resp.status_code == 200
+    schema = resp.json()
+    for path, methods in schema["paths"].items():
+        for method, spec in methods.items():
+            if method not in ("get", "post", "put", "delete", "patch"):
+                continue
+            assert spec.get("operationId"), (
+                f"{method.upper()} {path} missing operationId"
+            )
+            assert spec.get("tags"), (
+                f"{method.upper()} {path} missing tags"
+            )
 
 
-@pytest.mark.skip(reason="Wave 4 — OpenAPI curation not yet applied")
 @pytest.mark.asyncio
 async def test_operation_id_snapshot(client_no_jvm: AsyncClient) -> None:
-    """operation_ids match the approved minted-set from RESEARCH.md."""
-    ...
+    """API-02: operation_ids match the approved minted set exactly (no drift)."""
+    resp = await client_no_jvm.get("/openapi.json")
+    assert resp.status_code == 200
+    schema = resp.json()
+    observed = set()
+    for path, methods in schema["paths"].items():
+        for method, spec in methods.items():
+            if method not in ("get", "post", "put", "delete", "patch"):
+                continue
+            op_id = spec.get("operationId")
+            if op_id:
+                observed.add(op_id)
+    # Must contain every approved id — no missing ones
+    missing = APPROVED_OPERATION_IDS - observed
+    assert not missing, f"approved operation_ids missing from schema: {missing}"
+    # No unapproved ids introduced
+    extra = observed - APPROVED_OPERATION_IDS
+    assert not extra, f"unapproved operation_ids in schema: {extra}"
+
+
+@pytest.mark.asyncio
+async def test_tags_metadata_present(client_no_jvm: AsyncClient) -> None:
+    """API-02: openapi_tags top-level has descriptions for all six tag groups."""
+    resp = await client_no_jvm.get("/openapi.json")
+    schema = resp.json()
+    tag_names = {t["name"] for t in schema.get("tags", [])}
+    assert {"extraction", "history", "search", "batch", "export", "health"} <= tag_names
