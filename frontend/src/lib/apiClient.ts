@@ -2,6 +2,7 @@ import type { ExtractionResponse, PagedSubstancesResponse } from "@/types/chemis
 import type { HistoryListResponse, StatsResponse } from "@/types/history";
 import type { BatchStartResponse } from "@/types/batch";
 import type { ExportRequest } from "@/types/export";
+import type { SearchRequest, SearchResponse } from "@/types/search";
 
 /**
  * POSTs a CDX/CDXML file to POST /api/extract using multipart/form-data.
@@ -22,9 +23,7 @@ export async function postExtract(file: File): Promise<ExtractionResponse> {
       body: formData,
     });
   } catch {
-    throw new Error(
-      "Could not reach the extraction server — check your connection."
-    );
+    throw new Error("Could not reach the extraction server — check your connection.");
   }
 
   if (!response.ok) {
@@ -49,9 +48,7 @@ export async function postExtract(file: File): Promise<ExtractionResponse> {
  * Fetch extraction history list.
  * @param limit - Number of entries to fetch. Use "all" for no limit.
  */
-export async function getHistory(
-  limit: number | "all" = 10
-): Promise<HistoryListResponse> {
+export async function getHistory(limit: number | "all" = 10): Promise<HistoryListResponse> {
   const url = `/api/history?limit=${limit}`;
   let response: Response;
   try {
@@ -126,7 +123,7 @@ export async function getSubstancesPage(
   extractionId: number,
   page: number,
   size: 12 | 24 | 48,
-  sort: "extraction_order" | "formula"
+  sort: "extraction_order" | "formula",
 ): Promise<PagedSubstancesResponse> {
   const url = `/api/extractions/${extractionId}/substances?page=${page}&size=${size}&sort=${sort}`;
   let response: Response;
@@ -238,10 +235,7 @@ export async function downloadBatchZip(batchId: string): Promise<void> {
  * @param payload - ExportRequest with format and substance_ids or extraction_id
  * @param suggestedFilename - Browser download filename (backend also sends Content-Disposition)
  */
-export async function postExport(
-  payload: ExportRequest,
-  suggestedFilename: string
-): Promise<void> {
+export async function postExport(payload: ExportRequest, suggestedFilename: string): Promise<void> {
   let response: Response;
   try {
     response = await fetch("/api/export", {
@@ -271,4 +265,35 @@ export async function postExport(
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+/**
+ * POST /api/search — execute a structure search.
+ *
+ * Returns the parsed JSON response. Throws an Error on HTTP errors or
+ * network failure. Error message pulls `body.detail` from the unified
+ * ErrorResponse shape (Plan 05, D-17).
+ */
+export async function postSearch(payload: SearchRequest): Promise<SearchResponse> {
+  let response: Response;
+  try {
+    response = await fetch("/api/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new Error("Could not reach the server — check your connection.");
+  }
+  if (!response.ok) {
+    let detail = "please try again";
+    try {
+      const body = await response.json();
+      if (typeof body?.detail === "string") detail = body.detail;
+    } catch {
+      // fall through to default
+    }
+    throw new Error(`Search failed — ${detail}`);
+  }
+  return response.json() as Promise<SearchResponse>;
 }

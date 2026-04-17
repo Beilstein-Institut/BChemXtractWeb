@@ -5,8 +5,10 @@
  * Hidden when zero entries (D-09).
  */
 
+import { ClockIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { ExtractionResponse } from "@/types/chemistry";
 import type { HistoryListItem } from "@/types/history";
 import { HistoryEntry } from "./HistoryEntry";
@@ -34,9 +36,16 @@ export function HistoryList({
   onDelete,
   onReloadSuccess,
 }: HistoryListProps) {
-  // D-09: Hidden entirely when no extractions exist
+  // D-19: Shared EmptyState when no extractions exist (compact variant)
   if (!loading && entries.length === 0 && total === 0) {
-    return null;
+    return (
+      <EmptyState
+        icon={ClockIcon}
+        title="No extractions yet"
+        message="Upload a CDX or CDXML file to get started."
+        size="compact"
+      />
+    );
   }
 
   async function handleReload(id: number) {

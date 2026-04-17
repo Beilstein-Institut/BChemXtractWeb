@@ -43,19 +43,11 @@ vi.mock("@/components/ui/pagination", () => ({
   Pagination: ({ children }: { children: React.ReactNode }) => (
     <nav data-testid="pagination">{children}</nav>
   ),
-  PaginationContent: ({ children }: { children: React.ReactNode }) => (
-    <ul>{children}</ul>
+  PaginationContent: ({ children }: { children: React.ReactNode }) => <ul>{children}</ul>,
+  PaginationItem: ({ children }: { children: React.ReactNode }) => <li>{children}</li>,
+  PaginationLink: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+    <button onClick={onClick}>{children}</button>
   ),
-  PaginationItem: ({ children }: { children: React.ReactNode }) => (
-    <li>{children}</li>
-  ),
-  PaginationLink: ({
-    children,
-    onClick,
-  }: {
-    children: React.ReactNode;
-    onClick?: () => void;
-  }) => <button onClick={onClick}>{children}</button>,
   PaginationPrevious: ({ onClick }: { onClick?: () => void }) => (
     <button onClick={onClick}>Previous</button>
   ),
@@ -123,26 +115,22 @@ describe("StructureBrowser component", () => {
   });
 
   it("shows skeleton loading cards when browseState=loading and page=null", () => {
-    mockUseBrowse.mockReturnValue(
-      makeBrowseReturn({ browseState: "loading", page: null })
-    );
+    mockUseBrowse.mockReturnValue(makeBrowseReturn({ browseState: "loading", page: null }));
     render(<StructureBrowser extractionId={42} onReset={vi.fn()} />);
     const skeletons = screen.getAllByTestId("skeleton");
     expect(skeletons.length).toBeGreaterThan(0);
   });
 
-  it("shows error message when browseState=error", () => {
+  it("shows error EmptyState when browseState=error (D-19)", () => {
     mockUseBrowse.mockReturnValue(makeBrowseReturn({ browseState: "error" }));
     render(<StructureBrowser extractionId={42} onReset={vi.fn()} />);
-    expect(
-      screen.getByText(
-        "Failed to load structures. Check your connection and try again."
-      )
-    ).toBeInTheDocument();
+    // Phase 9 D-19: migrated from inline block to shared <EmptyState>.
+    expect(screen.getByText("Couldn't load structures")).toBeInTheDocument();
+    expect(screen.getByText("Check your connection and try again.")).toBeInTheDocument();
     expect(screen.getByText("Try again")).toBeInTheDocument();
   });
 
-  it('shows "No structures found" when browseState=success and items is empty', () => {
+  it("shows browse EmptyState when browseState=success and items is empty (D-19)", () => {
     const emptyPage: PagedSubstancesResponse = {
       items: [],
       total: 0,
@@ -150,11 +138,10 @@ describe("StructureBrowser component", () => {
       size: 12,
       pages: 0,
     };
-    mockUseBrowse.mockReturnValue(
-      makeBrowseReturn({ browseState: "success", page: emptyPage })
-    );
+    mockUseBrowse.mockReturnValue(makeBrowseReturn({ browseState: "success", page: emptyPage }));
     render(<StructureBrowser extractionId={42} onReset={vi.fn()} />);
-    expect(screen.getByText("No structures found")).toBeInTheDocument();
+    // Phase 9 D-19: migrated from inline FlaskConicalIcon block to shared EmptyState.
+    expect(screen.getByText("Nothing to browse yet")).toBeInTheDocument();
   });
 
   it("renders StructureCard items in grid view when substances exist", () => {
@@ -184,7 +171,7 @@ describe("StructureBrowser component", () => {
         browseState: "success",
         page: testPage,
         view: "grid",
-      })
+      }),
     );
     render(<StructureBrowser extractionId={42} onReset={vi.fn()} />);
     expect(screen.getByTestId("structure-card")).toBeInTheDocument();
@@ -198,9 +185,7 @@ describe("StructureBrowser component", () => {
   });
 
   it("toolbar is disabled during initial loading when page is null", () => {
-    mockUseBrowse.mockReturnValue(
-      makeBrowseReturn({ browseState: "loading", page: null })
-    );
+    mockUseBrowse.mockReturnValue(makeBrowseReturn({ browseState: "loading", page: null }));
     render(<StructureBrowser extractionId={42} onReset={vi.fn()} />);
     const toolbar = screen.getByTestId("browse-toolbar");
     expect(toolbar.getAttribute("data-disabled")).toBe("true");

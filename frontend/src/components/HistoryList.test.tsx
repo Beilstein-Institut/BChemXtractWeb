@@ -18,20 +18,32 @@ const noop = async () => {};
 const noopSync = () => {};
 
 describe("HistoryList", () => {
-  it("renders nothing when empty and not loading", () => {
-    const { container } = render(
+  it("renders shared EmptyState when empty and not loading (D-19)", () => {
+    render(
       <HistoryList
         entries={[]}
         total={0}
         loading={false}
         showAll={false}
         onToggleShowAll={noopSync}
-        onReload={async () => ({ substances: [], info: { no_fragments: 0, no_inchis: 0, no_substances: 0 }, format: "cdx", filename: "test.cdx", file_size: 0, structure_count: 0, extraction_time_ms: 0, warnings: [] })}
+        onReload={async () => ({
+          substances: [],
+          info: { no_fragments: 0, no_inchis: 0, no_substances: 0 },
+          format: "cdx",
+          filename: "test.cdx",
+          file_size: 0,
+          structure_count: 0,
+          extraction_time_ms: 0,
+          warnings: [],
+        })}
         onDelete={noop}
         onReloadSuccess={noopSync}
-      />
+      />,
     );
-    expect(container.firstChild).toBeNull();
+    // Phase 9 D-19: previously returned null; now renders shared EmptyState
+    // with compact variant so "upload a file" cue is always visible.
+    expect(screen.getByText("No extractions yet")).toBeInTheDocument();
+    expect(screen.getByText("Upload a CDX or CDXML file to get started.")).toBeInTheDocument();
   });
 
   it("renders 'Recent Extractions' heading when entries exist", () => {
@@ -42,10 +54,19 @@ describe("HistoryList", () => {
         loading={false}
         showAll={false}
         onToggleShowAll={noopSync}
-        onReload={async () => ({ substances: [], info: { no_fragments: 0, no_inchis: 0, no_substances: 0 }, format: "cdx", filename: "test.cdx", file_size: 0, structure_count: 0, extraction_time_ms: 0, warnings: [] })}
+        onReload={async () => ({
+          substances: [],
+          info: { no_fragments: 0, no_inchis: 0, no_substances: 0 },
+          format: "cdx",
+          filename: "test.cdx",
+          file_size: 0,
+          structure_count: 0,
+          extraction_time_ms: 0,
+          warnings: [],
+        })}
         onDelete={noop}
         onReloadSuccess={noopSync}
-      />
+      />,
     );
     expect(screen.getByText("Recent Extractions")).toBeTruthy();
   });
@@ -58,10 +79,19 @@ describe("HistoryList", () => {
         loading={true}
         showAll={false}
         onToggleShowAll={noopSync}
-        onReload={async () => ({ substances: [], info: { no_fragments: 0, no_inchis: 0, no_substances: 0 }, format: "cdx", filename: "test.cdx", file_size: 0, structure_count: 0, extraction_time_ms: 0, warnings: [] })}
+        onReload={async () => ({
+          substances: [],
+          info: { no_fragments: 0, no_inchis: 0, no_substances: 0 },
+          format: "cdx",
+          filename: "test.cdx",
+          file_size: 0,
+          structure_count: 0,
+          extraction_time_ms: 0,
+          warnings: [],
+        })}
         onDelete={noop}
         onReloadSuccess={noopSync}
-      />
+      />,
     );
     // Loading state: skeleton divs rendered instead of empty null
     expect(container.querySelector("section")).toBeTruthy();
@@ -80,10 +110,19 @@ describe("HistoryList", () => {
         loading={false}
         showAll={false}
         onToggleShowAll={noopSync}
-        onReload={async () => ({ substances: [], info: { no_fragments: 0, no_inchis: 0, no_substances: 0 }, format: "cdx", filename: "test.cdx", file_size: 0, structure_count: 0, extraction_time_ms: 0, warnings: [] })}
+        onReload={async () => ({
+          substances: [],
+          info: { no_fragments: 0, no_inchis: 0, no_substances: 0 },
+          format: "cdx",
+          filename: "test.cdx",
+          file_size: 0,
+          structure_count: 0,
+          extraction_time_ms: 0,
+          warnings: [],
+        })}
         onDelete={noop}
         onReloadSuccess={noopSync}
-      />
+      />,
     );
     expect(screen.getByText(/Show all 25 extractions/)).toBeTruthy();
   });
