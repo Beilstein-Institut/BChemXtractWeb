@@ -40,7 +40,6 @@ async def test_substructure_benzene_in_naphthalene(client: AsyncClient) -> None:
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["total"] >= 1
-    # Plan 04 will add match_svg; here match_atom_indices should be populated
     hits = [
         r
         for r in body["results"]
@@ -48,6 +47,10 @@ async def test_substructure_benzene_in_naphthalene(client: AsyncClient) -> None:
     ]
     assert len(hits) == 1
     assert len(hits[0]["match_atom_indices"]) >= 6  # benzene ring is 6 atoms
+    # Plan 04: match_svg is now populated for every substructure hit.
+    assert hits[0]["match_svg"] is not None, (
+        "Plan 04 must populate match_svg on substructure hits"
+    )
 
 
 @pytest.mark.asyncio
@@ -69,11 +72,61 @@ async def test_substructure_invalid_smarts(client: AsyncClient) -> None:
     )
 
 
-@pytest.mark.skip(reason="Wave 4 — depiction highlight not yet implemented (Plan 09-04)")
 @pytest.mark.asyncio
 async def test_substructure_match_svg_highlight(client: AsyncClient) -> None:
-    """Substructure hit response includes match_svg with blue highlight."""
-    ...
+    """Substructure hit response includes match_svg with Apple Blue highlight.
+
+    Plan 04: D-13 + UI-SPEC §Color. Every substructure hit carries a
+    :func:`render_substance_svg_with_highlight`-rendered SVG that contains:
+      - the Apple Blue color (#0071e3 or rgba(0,113,227,…)) per UI-SPEC §Color
+      - a ``<title>Matches …</title>`` accessibility tag per UI-SPEC §Accessibility
+    """
+    # Seed naphthalene (needs a hit to produce match_svg)
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            text(
+                "INSERT INTO substances (inchi_key, smiles, inchi, "
+                "extended_smiles, molecular_formula, svg, svg_cdx, "
+                "mdlv3000, canonical_smiles) VALUES "
+                "(:k, 'c1ccc2ccccc2c1', '', '', 'C10H8', '', '', '', "
+                "'c1ccc2ccccc2c1') "
+                "ON CONFLICT (inchi_key) DO NOTHING"
+            ),
+            {"k": "UFWIBTONFRDIAS-UHFFFAOYSA-N"},
+        )
+        await session.commit()
+
+    resp = await client.post(
+        "/api/search",
+        json={"query": "c1ccccc1", "type": "substructure"},
+        timeout=60.0,
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    hit = next(
+        (
+            r
+            for r in body["results"]
+            if r["substance"]["inchi_key"] == "UFWIBTONFRDIAS-UHFFFAOYSA-N"
+        ),
+        None,
+    )
+    assert hit is not None, "expected naphthalene in hits"
+    svg = hit["match_svg"]
+    assert svg, "match_svg must be populated for substructure hits"
+    # UI-SPEC §Color: Apple Blue appears either as the #0071e3 hex
+    # literal or as an rgba()/rgb() fragment (with or without spaces).
+    svg_lower = svg.lower()
+    svg_compact = svg.replace(" ", "").lower()
+    assert (
+        "0071e3" in svg_lower
+        or "rgba(0,113,227" in svg_compact
+        or "rgb(0,113,227" in svg_compact
+    ), "match_svg must contain Apple Blue highlight color per UI-SPEC §Color"
+    # Accessibility contract: the helper injects <title>Matches …</title>
+    assert "<title>Matches " in svg, (
+        "match_svg must embed <title>Matches …</title> per UI-SPEC §Accessibility"
+    )
 
 
 @pytest.mark.asyncio

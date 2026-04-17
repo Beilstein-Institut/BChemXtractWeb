@@ -65,6 +65,7 @@ from app.models.chemistry import (
 )
 from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.services.canonicalize import canonicalize_smiles
+from app.services.depiction import render_substance_svg_with_highlight
 from app.services.jvm_bridge import run_in_jvm_thread
 
 logger = logging.getLogger(__name__)
@@ -236,13 +237,19 @@ async def _search_smiles(
 def _substructure_sync(
     smarts: str,
     rows: list[tuple[int, str]],
-) -> tuple[list[tuple[int, list[int]]], list[int]]:
-    """Blocking SMARTS iterate. Must run in a JVM-attached thread.
+) -> tuple[list[tuple[int, list[int], str]], list[int]]:
+    """Blocking SMARTS iterate + per-hit highlight render. JVM-thread-bound.
 
     Uses the *new* CDK SMARTS package path
     ``org.openscience.cdk.smarts.SmartsPattern`` (RESEARCH Pitfall 1 — the
     legacy ``org.openscience.cdk.smiles.smarts.SmartsPattern`` is deprecated
     and behaves differently).
+
+    Plan 04 extension: for every hit, render a tinted SVG via
+    :func:`app.services.depiction.render_substance_svg_with_highlight`
+    *in the same pass*. Doing the render here (while the parsed mol is
+    still in scope on the JVM thread) avoids a second parse + second
+    thread-attach round-trip per hit.
 
     Args:
         smarts: User-supplied SMARTS pattern. Validated by
@@ -255,8 +262,8 @@ def _substructure_sync(
 
     Returns:
         ``(hits, skipped)`` where ``hits`` is a list of
-        ``(substance_id, sorted_matched_atom_indices)`` tuples and
-        ``skipped`` is the list of ``substance_id`` values whose stored
+        ``(substance_id, sorted_matched_atom_indices, match_svg)`` triples
+        and ``skipped`` is the list of ``substance_id`` values whose stored
         SMILES could not be parsed by CDK.
     """
     SmartsPattern = jpype.JClass(  # noqa: N806
@@ -297,7 +304,12 @@ def _substructure_sync(
             f"Invalid SMARTS pattern: {str(exc)[:200]}"
         ) from exc
 
-    hits: list[tuple[int, list[int]]] = []
+    # Accessibility title embedded in each highlighted SVG per UI-SPEC
+    # §Accessibility. The helper HTML-escapes the title to prevent
+    # user-supplied SMARTS from breaking SVG structure (threat T-09-04-02).
+    highlight_title = f"Matches {smarts[:80]}"
+
+    hits: list[tuple[int, list[int], str]] = []
     skipped: list[int] = []
     for substance_id, smi in rows:
         if not smi:
@@ -327,24 +339,39 @@ def _substructure_sync(
             skipped.append(substance_id)
             continue
         target_indices: set[int] = {int(idx) for row in int2d for idx in row}
-        hits.append((substance_id, sorted(target_indices)))
+        sorted_indices = sorted(target_indices)
+        # Plan 04: render per-hit highlight SVG in the same JVM pass.
+        # The helper has its own two-tier fallback (highlight → plain → ""),
+        # so a render failure never breaks the hit — match_svg just comes
+        # back as "" which execute_search converts to None on the wire.
+        match_svg = render_substance_svg_with_highlight(
+            mol, sorted_indices, title=highlight_title
+        )
+        hits.append((substance_id, sorted_indices, match_svg))
     return hits, skipped
 
 
 async def _search_substructure(
     smarts: str, scope_eid: int | None, db: AsyncSession
-) -> tuple[list[Substance], dict[int, list[int]], int]:
-    """SRCH-04: CDK SMARTS over every candidate substance.
+) -> tuple[list[Substance], dict[int, list[int]], dict[int, str], int]:
+    """SRCH-04: CDK SMARTS over every candidate substance + highlight SVGs.
 
     Applies the ``MAX_SUBSTRUCT_SMILES_LEN`` polymer-SMILES ceiling via SQL
     prefilter so the candidate rows handed to CDK never include inputs
     that would deadlock the JVM. Over-length rows are counted as
     "skipped_oversize" so the response warnings surface the real total.
 
+    Plan 04: :func:`_substructure_sync` now also renders a tinted SVG per
+    hit (Apple Blue at 0x40 alpha per UI-SPEC §Color) in the same JVM
+    pass. The per-hit SVG is returned here as ``svg_by_substance_id`` so
+    :func:`execute_search` can set ``SearchResult.match_svg`` without a
+    second JVM-crossing round-trip.
+
     Returns:
-        ``(matched_substances, atom_index_by_substance_id, skipped_count)``
-        where ``skipped_count`` combines oversize-prefilter skips and CDK
-        parse skips into a single user-visible number.
+        ``(matched_substances, atom_index_by_substance_id,
+        svg_by_substance_id, skipped_count)`` where ``skipped_count``
+        combines oversize-prefilter skips and CDK parse skips into a
+        single user-visible number.
     """
     # Candidate rows for iteration — apply the polymer-SMILES guard here
     # (NOT in canonicalize, because substructure uses raw smiles, not the
@@ -385,11 +412,19 @@ async def _search_substructure(
 
     id_smi = [(int(s.id), s.smiles or "") for s in candidate_rows]
 
+    # :func:`_substructure_sync` now returns (id, atoms, match_svg) triples
+    # so we can thread the per-hit SVG directly into SearchResult.match_svg
+    # without a second JVM round-trip.
     hits, skipped = await run_in_jvm_thread(
         _substructure_sync, smarts, id_smi
     )
-    hit_ids = {sid for sid, _ in hits}
-    atom_map: dict[int, list[int]] = dict(hits)
+    hit_ids = {sid for sid, _, _ in hits}
+    atom_map: dict[int, list[int]] = {sid: atoms for sid, atoms, _ in hits}
+    # Only keep non-empty SVGs in the map — _to_substance_response default
+    # (match_svg=None) applies for hits whose render fell through to "".
+    svg_map: dict[int, str] = {
+        sid: svg for sid, _, svg in hits if svg
+    }
 
     # Preserve substance row order from the initial SELECT so downstream
     # pagination is deterministic across repeated queries.
@@ -408,7 +443,7 @@ async def _search_substructure(
             oversize_count,
             MAX_SUBSTRUCT_SMILES_LEN,
         )
-    return matched, atom_map, total_skipped
+    return matched, atom_map, svg_map, total_skipped
 
 
 async def _load_attribution(
@@ -505,6 +540,7 @@ async def execute_search(
 
     warnings: list[str] = []
     atom_map: dict[int, list[int]] = {}
+    svg_map: dict[int, str] = {}
     skipped_count = 0
 
     if effective_type == "inchi_key":
@@ -516,7 +552,7 @@ async def execute_search(
             payload.query, payload.match, scope_eid, db
         )
     elif effective_type == "substructure":
-        substances, atom_map, skipped_count = await _search_substructure(
+        substances, atom_map, svg_map, skipped_count = await _search_substructure(
             payload.query, scope_eid, db
         )
     else:
@@ -543,14 +579,18 @@ async def execute_search(
         sid = int(s.id)
         atoms = atom_map.get(sid, [])
         attributions = attribution.get(sid, [])
+        # Plan 04: match_svg is populated only on substructure hits. For
+        # every other search type the map is empty so .get() returns None,
+        # which is exactly what the response contract requires (per the
+        # SearchResult Pydantic model default + UI-SPEC §Match Highlighting:
+        # "the component prefers match_svg over the stored svg when present").
+        match_svg = svg_map.get(sid) if effective_type == "substructure" else None
         results.append(
             SearchResult(
                 substance=_to_substance_response(s),
                 extraction_count=len(attributions),
                 extractions=attributions[:_MAX_ATTRIBUTION_REFS],
-                # Plan 04 will populate match_svg for substructure hits;
-                # Plan 03 returns only match_atom_indices.
-                match_svg=None,
+                match_svg=match_svg,
                 match_atom_indices=atoms,
             )
         )
