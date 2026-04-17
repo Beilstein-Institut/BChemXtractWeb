@@ -21,13 +21,13 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.chemistry import ExportRequest
+from app.models.chemistry import ErrorResponse, ExportRequest
 from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.services.db import get_db
 from app.services.export import generate_export
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["export"])
+router = APIRouter()
 
 DbDep = Annotated[AsyncSession, Depends(get_db)]
 
@@ -116,7 +116,44 @@ async def _fetch_substances(payload: ExportRequest, db: AsyncSession) -> list[di
     ]
 
 
-@router.post("/export")
+@router.post(
+    "/export",
+    operation_id="exportSubstances",
+    summary="Export substances in the chosen chemical format",
+    description=(
+        "Generate a downloadable file containing one or more substances. "
+        "Supply either a `substance_ids` list (explicit selection per "
+        "D-01/D-02/D-04) or an `extraction_id` (D-03 Export All); setting "
+        "both restricts the selection to the intersection for IDOR safety "
+        "(CR-01). Supported formats: `sdf`, `json`, `csv`, `png`, `svg`, "
+        "`cml`, `v3000`, and `rxn` (stub until Phase 10 per D-11)."
+    ),
+    responses={
+        200: {
+            "description": (
+                "Export streamed back. Media type and `Content-Disposition` "
+                "filename depend on the chosen format."
+            ),
+        },
+        400: {
+            "model": ErrorResponse,
+            "description": (
+                "Neither `substance_ids` nor `extraction_id` was supplied, "
+                "or PNG export request exceeded the 200-structure cap."
+            ),
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "Extraction id or substances not found.",
+        },
+        422: {
+            "model": ErrorResponse,
+            "description": "Invalid format literal or malformed request body.",
+        },
+        500: {"model": ErrorResponse, "description": "Internal server error."},
+    },
+    tags=["export"],
+)
 async def export_substances(
     payload: ExportRequest,
     db: DbDep,

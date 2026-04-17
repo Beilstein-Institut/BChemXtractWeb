@@ -16,7 +16,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.errors import FileSizeError
-from app.models.chemistry import ExtractionResponse, PagedSubstancesResponse, SubstanceResponse
+from app.models.chemistry import (
+    ErrorResponse,
+    ExtractionResponse,
+    PagedSubstancesResponse,
+    SubstanceResponse,
+)
 from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.services.db import get_db
 from app.services.extractor import extract_substances_with_svg
@@ -58,12 +63,34 @@ def _check_extension_mismatch(filename: str, detected_format: str) -> list[str]:
     return []
 
 
-router = APIRouter(tags=["extract"])
+router = APIRouter()
 
 DbDep = Annotated[AsyncSession, Depends(get_db)]
 
 
-@router.post("/extract", response_model=ExtractionResponse)
+@router.post(
+    "/extract",
+    response_model=ExtractionResponse,
+    operation_id="extractFile",
+    summary="Extract substances from a CDX/CDXML file",
+    description=(
+        "Synchronous single-file extraction. The backend detects CDX vs "
+        "CDXML from the file's content (magic bytes `VjCD` for binary CDX) "
+        "and routes to the matching CDK reader. Returns the full "
+        "ExtractionResponse including inline SVG depictions. Auto-persists "
+        "to PostgreSQL — `extraction_id` is set on the response when the "
+        "save succeeds (best-effort; a save failure is logged but does "
+        "not fail the extraction)."
+    ),
+    responses={
+        200: {"description": "Extraction complete."},
+        413: {"model": ErrorResponse, "description": "File exceeds the upload size limit."},
+        415: {"model": ErrorResponse, "description": "Unrecognized file format (not CDX or CDXML)."},
+        422: {"model": ErrorResponse, "description": "CDK could not parse the file."},
+        500: {"model": ErrorResponse, "description": "Internal server error."},
+    },
+    tags=["extraction"],
+)
 async def extract_file(file: UploadFile, db: DbDep) -> ExtractionResponse:
     """Extract chemical substances from a CDX/CDXML file upload.
 
@@ -149,7 +176,24 @@ async def extract_file(file: UploadFile, db: DbDep) -> ExtractionResponse:
     return response
 
 
-@router.get("/extractions/{extraction_id}/substances", response_model=PagedSubstancesResponse)
+@router.get(
+    "/extractions/{extraction_id}/substances",
+    response_model=PagedSubstancesResponse,
+    operation_id="getExtractionSubstances",
+    summary="Paginated substances for one extraction",
+    description=(
+        "Return a paginated slice of substances belonging to a single "
+        "extraction (D-01, DISP-03). `page` is 1-based; `size` is clamped "
+        "to 1-48 (default 12). `sort` accepts `extraction_order` (default) "
+        "or `formula`."
+    ),
+    responses={
+        200: {"description": "Paginated substances returned."},
+        404: {"model": ErrorResponse, "description": "Extraction id not found."},
+        500: {"model": ErrorResponse, "description": "Internal server error."},
+    },
+    tags=["extraction"],
+)
 async def get_substances_page(
     extraction_id: int,
     db: DbDep,

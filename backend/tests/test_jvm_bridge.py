@@ -70,14 +70,22 @@ class TestBridgeErrorHierarchy:
             assert response.status_code == status, f"{cls.__name__} -> {status}"
 
     async def test_bridge_error_handler_returns_clean_json(self) -> None:
-        """Error response should contain only a clean message, no Java details."""
+        """Error response uses the unified {detail, code} shape (D-17).
+
+        Plan 09-05 rewrote bridge_error_handler to emit ErrorResponse —
+        ``detail`` carries the human-readable message and ``code`` carries
+        the machine-stable identifier (``EXTRACTION_FAILED`` here).
+        """
         mock_request = AsyncMock()
         exc = ExtractionError("Extraction failed for uploaded file")
         response = await bridge_error_handler(mock_request, exc)
         import json
 
         body = json.loads(response.body)
-        assert body == {"error": "Extraction failed for uploaded file"}
+        assert body["detail"] == "Extraction failed for uploaded file"
+        assert body["code"] == "EXTRACTION_FAILED"
+        # Legacy shape removed
+        assert "error" not in body
         # No Java class names or stack traces in the response
         assert "java" not in response.body.decode().lower()
 

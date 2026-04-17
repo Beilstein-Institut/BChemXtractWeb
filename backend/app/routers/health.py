@@ -12,12 +12,13 @@ import jpype
 from fastapi import APIRouter
 
 from app.config import settings
+from app.models.chemistry import ErrorResponse
 from app.models.health import HealthDetailResponse, HealthResponse
 from app.services.jvm_bridge import get_pool_stats, run_in_jvm_thread
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["health"])
+router = APIRouter()
 
 
 def _get_jar_version() -> str:
@@ -45,7 +46,30 @@ def _get_jar_version() -> str:
     return filename
 
 
-@router.get("/health", response_model=HealthResponse)
+@router.get(
+    "/health",
+    response_model=HealthResponse,
+    operation_id="healthCheck",
+    summary="Liveness check",
+    description=(
+        "Minimal health check suitable for Docker HEALTHCHECK probes. "
+        "Returns `\"ok\"` if the JVM is running, `\"degraded\"` otherwise. "
+        "No JVM calls — only reads the started flag — so it is fast and "
+        "cheap to poll."
+    ),
+    responses={
+        200: {
+            "description": "Health result computed.",
+            "content": {
+                "application/json": {
+                    "example": {"status": "ok"},
+                }
+            },
+        },
+        500: {"model": ErrorResponse, "description": "Internal server error."},
+    },
+    tags=["health"],
+)
 async def health_check() -> HealthResponse:
     """Minimal health check for Docker HEALTHCHECK.
 
@@ -80,7 +104,26 @@ def _collect_jvm_diagnostics() -> dict:
     }
 
 
-@router.get("/health/detail", response_model=HealthDetailResponse)
+@router.get(
+    "/health/detail",
+    response_model=HealthDetailResponse,
+    operation_id="healthDetail",
+    summary="Detailed JVM diagnostics",
+    description=(
+        "Return full diagnostics: JVM heap (max/used/free MB), available "
+        "processors, thread-pool workers/active counts, JVM version, and "
+        "JAR version parsed from the BChemXtract fat-JAR filename. JVM "
+        "diagnostic calls run in the thread pool to avoid blocking the "
+        "event loop. When the JVM is not running, returns `status=\"degraded\"` "
+        "with `jvm_running=false` and the remaining fields defaulted."
+    ),
+    responses={
+        200: {"description": "Diagnostics collected successfully."},
+        503: {"model": ErrorResponse, "description": "JVM unavailable or diagnostic call timed out."},
+        500: {"model": ErrorResponse, "description": "Internal server error."},
+    },
+    tags=["health"],
+)
 async def health_detail() -> HealthDetailResponse:
     """Detailed health diagnostics.
 

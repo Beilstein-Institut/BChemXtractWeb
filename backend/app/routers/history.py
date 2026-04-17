@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.chemistry import (
+    ErrorResponse,
     ExtractionResponse,
     HistoryListItem,
     HistoryListResponse,
@@ -29,7 +30,7 @@ from app.services.persistence import delete_extraction_by_id
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["history"])
+router = APIRouter()
 
 DbDep = Annotated[AsyncSession, Depends(get_db)]
 
@@ -86,7 +87,44 @@ def _extraction_to_response(e: Extraction) -> ExtractionResponse:
     )
 
 
-@router.get("/history", response_model=HistoryListResponse)
+@router.get(
+    "/history",
+    response_model=HistoryListResponse,
+    operation_id="listHistory",
+    summary="List recent extractions",
+    description=(
+        "Return a paginated list of past extractions ordered newest-first. "
+        "Pass `limit=all` to return every stored extraction (capped at 500 "
+        "per D-10). Integer limits are clamped to the DEFAULT_HISTORY_LIMIT "
+        "if invalid."
+    ),
+    responses={
+        200: {
+            "description": "List of extraction summaries (newest first).",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "items": [
+                            {
+                                "id": 42,
+                                "filename": "aromatics.cdx",
+                                "file_size": 4823,
+                                "format": "cdx",
+                                "structure_count": 12,
+                                "extraction_time_ms": 412.3,
+                                "warnings": [],
+                                "created_at": "2026-04-17T09:12:44+00:00",
+                            }
+                        ],
+                        "total": 42,
+                    }
+                }
+            },
+        },
+        500: {"model": ErrorResponse, "description": "Internal server error."},
+    },
+    tags=["history"],
+)
 async def list_history(
     db: DbDep,
     limit: str = str(DEFAULT_HISTORY_LIMIT),
@@ -124,7 +162,24 @@ async def list_history(
     )
 
 
-@router.get("/history/{extraction_id}", response_model=ExtractionResponse)
+@router.get(
+    "/history/{extraction_id}",
+    response_model=ExtractionResponse,
+    operation_id="getHistoryDetail",
+    summary="Full extraction detail by id",
+    description=(
+        "Return the full extraction result for one history entry, matching "
+        "the `POST /api/extract` response shape so the frontend can hand "
+        "it directly to StructureGrid / ExtractionSummary without format "
+        "translation (HIST-02, D-06)."
+    ),
+    responses={
+        200: {"description": "Extraction found; full detail returned."},
+        404: {"model": ErrorResponse, "description": "Extraction id not found."},
+        500: {"model": ErrorResponse, "description": "Internal server error."},
+    },
+    tags=["history"],
+)
 async def get_history_detail(extraction_id: int, db: DbDep) -> ExtractionResponse:
     """Return full extraction result for one history entry (HIST-02, D-06).
 
@@ -153,7 +208,23 @@ async def get_history_detail(extraction_id: int, db: DbDep) -> ExtractionRespons
     return _extraction_to_response(extraction)
 
 
-@router.delete("/history/{extraction_id}", status_code=204)
+@router.delete(
+    "/history/{extraction_id}",
+    status_code=204,
+    operation_id="deleteHistoryEntry",
+    summary="Delete an extraction",
+    description=(
+        "Delete one extraction record. Orphaned substances (those no longer "
+        "linked to any extraction) are cleaned up as well (D-07). Returns "
+        "204 No Content on success."
+    ),
+    responses={
+        204: {"description": "Extraction deleted."},
+        404: {"model": ErrorResponse, "description": "Extraction id not found."},
+        500: {"model": ErrorResponse, "description": "Internal server error."},
+    },
+    tags=["history"],
+)
 async def delete_history_entry(extraction_id: int, db: DbDep) -> None:
     """Delete one extraction record and clean up orphaned substances (D-07).
 
@@ -169,7 +240,34 @@ async def delete_history_entry(extraction_id: int, db: DbDep) -> None:
         raise HTTPException(status_code=404, detail="Extraction not found")
 
 
-@router.get("/stats", response_model=StatsResponse)
+@router.get(
+    "/stats",
+    response_model=StatsResponse,
+    operation_id="getStats",
+    summary="Aggregate statistics across all extractions",
+    description=(
+        "Return total extraction count, unique-substance count (by InChI "
+        "key), and the most frequently occurring molecular formula across "
+        "the entire store (HIST-04, D-08). `most_common_formula` is `\"\"` "
+        "when no substances exist."
+    ),
+    responses={
+        200: {
+            "description": "Aggregate statistics computed successfully.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "total_extractions": 120,
+                        "unique_structures": 842,
+                        "most_common_formula": "C6H6",
+                    }
+                }
+            },
+        },
+        500: {"model": ErrorResponse, "description": "Internal server error."},
+    },
+    tags=["history"],
+)
 async def get_stats(db: DbDep) -> StatsResponse:
     """Return aggregate statistics across all stored data (HIST-04, D-08).
 

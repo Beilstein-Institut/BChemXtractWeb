@@ -226,10 +226,12 @@ class TestFileSizeValidation:
         )
         assert response.status_code == 413
         data = response.json()
-        assert "error" in data
+        # D-17: unified ErrorResponse shape — ``detail`` + ``code``.
+        assert "detail" in data
+        assert data.get("code") == "FILE_TOO_LARGE"
         assert (
-            "50 MB" in data["error"]
-            or "size limit" in data["error"].lower()
+            "50 MB" in data["detail"]
+            or "size limit" in data["detail"].lower()
         )
 
 
@@ -253,7 +255,9 @@ class TestFormatRejection:
         )
         assert response.status_code == 415
         data = response.json()
-        assert "error" in data
+        # D-17: unified ErrorResponse shape — ``detail`` + ``code``.
+        assert "detail" in data
+        assert data.get("code") == "UNSUPPORTED_FORMAT"
 
 
 class TestExtensionMismatch:

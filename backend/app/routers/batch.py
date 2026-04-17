@@ -23,17 +23,38 @@ from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
 from app.celery_app import celery_app
 from app.config import settings
-from app.models.chemistry import BatchStartResponse
+from app.models.chemistry import BatchStartResponse, ErrorResponse
 from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.services.db import get_db
 from app.tasks.extraction import extract_file_task
 
-router = APIRouter(tags=["batch"])
+router = APIRouter()
 
 DbDep = Annotated[AsyncSession, Depends(get_db)]
 
 
-@router.post("/batch", response_model=BatchStartResponse, status_code=202)
+@router.post(
+    "/batch",
+    response_model=BatchStartResponse,
+    status_code=202,
+    operation_id="startBatch",
+    summary="Start a multi-file batch extraction",
+    description=(
+        "Queue up to 20 CDX/CDXML files for background extraction. Each "
+        "file becomes one independent Celery task; the Celery "
+        "GroupResult.id is returned as `group_id` and is the handle for "
+        "SSE progress, cancellation, and ZIP download. Per-file size cap "
+        "is `max_upload_size` (default 20 MB). Returns 202 Accepted with "
+        "ids for progress tracking."
+    ),
+    responses={
+        202: {"description": "Batch accepted; tasks enqueued."},
+        400: {"model": ErrorResponse, "description": "Batch exceeds the 20-file limit."},
+        422: {"model": ErrorResponse, "description": "One or more files exceed the upload size limit."},
+        500: {"model": ErrorResponse, "description": "Internal server error."},
+    },
+    tags=["batch"],
+)
 async def start_batch(files: list[UploadFile] = File(...)) -> BatchStartResponse:
     """Start a batch extraction. Returns batch_id for progress tracking.
 
@@ -77,7 +98,28 @@ async def start_batch(files: list[UploadFile] = File(...)) -> BatchStartResponse
     )
 
 
-@router.get("/batch/{group_id}/progress")
+@router.get(
+    "/batch/{group_id}/progress",
+    operation_id="streamBatchProgress",
+    summary="Server-Sent Event stream of per-file batch progress",
+    description=(
+        "Returns a `text/event-stream` that emits one SSE message per "
+        "state change (queued -> running -> completed/failed). Clients "
+        "should consume via `EventSource('/api/batch/{group_id}/progress')`. "
+        "The stream closes when all tasks are in a terminal state. "
+        "`group_id` is the Celery GroupResult.id returned by "
+        "`POST /api/batch` (NOT the custom `batch_id` used for DB/ZIP "
+        "lookups)."
+    ),
+    responses={
+        200: {
+            "description": "Progress stream opened. Media type is text/event-stream.",
+        },
+        404: {"model": ErrorResponse, "description": "Batch group_id not found."},
+        500: {"model": ErrorResponse, "description": "Internal server error."},
+    },
+    tags=["batch"],
+)
 async def batch_progress(group_id: str, request: Request) -> EventSourceResponse:
     """Stream SSE events for batch progress.
 
@@ -145,7 +187,24 @@ async def batch_progress(group_id: str, request: Request) -> EventSourceResponse
     return EventSourceResponse(event_generator())
 
 
-@router.delete("/batch/{group_id}", status_code=204)
+@router.delete(
+    "/batch/{group_id}",
+    status_code=204,
+    operation_id="cancelBatch",
+    summary="Cancel pending batch tasks",
+    description=(
+        "Revoke all pending tasks in the batch. The currently running "
+        "task (if any) finishes normally per D-10 — `terminate=False` "
+        "so no in-flight file is interrupted. `group_id` is the Celery "
+        "GroupResult.id returned by `POST /api/batch`."
+    ),
+    responses={
+        204: {"description": "Pending tasks cancelled."},
+        404: {"model": ErrorResponse, "description": "Batch group_id not found."},
+        500: {"model": ErrorResponse, "description": "Internal server error."},
+    },
+    tags=["batch"],
+)
 async def cancel_batch(group_id: str) -> None:
     """Cancel pending tasks in a batch.
 
@@ -166,7 +225,24 @@ async def cancel_batch(group_id: str) -> None:
             celery_app.control.revoke(async_result.id, terminate=False)
 
 
-@router.get("/batch/{batch_id}/zip")
+@router.get(
+    "/batch/{batch_id}/zip",
+    operation_id="downloadBatchZip",
+    summary="Download combined batch results as a ZIP",
+    description=(
+        "Build and stream a ZIP containing one JSON export per completed "
+        "extraction in the batch. Each entry is named "
+        "`{extraction.filename}.json`. Entry filenames are sanitized to "
+        "prevent zip-slip (T-07-07). `batch_id` is the UUID assigned at "
+        "batch start (NOT the Celery group_id)."
+    ),
+    responses={
+        200: {"description": "ZIP streamed back as `application/zip`."},
+        404: {"model": ErrorResponse, "description": "No extractions found for this batch."},
+        500: {"model": ErrorResponse, "description": "Internal server error."},
+    },
+    tags=["batch"],
+)
 async def download_batch_zip(batch_id: str, db: DbDep) -> StreamingResponse:
     """Build and stream a ZIP of per-file JSON exports for all completed files in the batch.
 
