@@ -30,6 +30,17 @@ from app.services.jvm_bridge import run_in_jvm_thread
 
 logger = logging.getLogger(__name__)
 
+# Hard upper bound on input length for canonicalization. Drug-like
+# molecules sit well under 200 chars; multi-residue peptides and macrocycles
+# typically <800 chars. ChemDraw extractions occasionally produce 1500+ char
+# polymeric/dendrimer SMILES; CDK's SMILES parser + Daylight aromaticity
+# perception can block indefinitely (10+ minutes, ignoring SIGALRM because
+# the JVM blocks signal delivery during native graph operations) on those
+# very large inputs. A 1500-char threshold covers all real chemistry while
+# stopping the deadlock — D-09 skip semantics: oversize → empty → row stays
+# literal SQL NULL (threat model T-09-02-02 + T-09-02-07).
+MAX_CANONICALIZE_LEN = 1500
+
 
 def _canonicalize_smiles_sync(smiles: str) -> str:
     """Return the canonical SMILES for ``smiles``, or ``""`` on failure.
@@ -50,6 +61,16 @@ def _canonicalize_smiles_sync(smiles: str) -> str:
         ``""`` when the input is empty or unparsable.
     """
     if not smiles:
+        return ""
+    if len(smiles) > MAX_CANONICALIZE_LEN:
+        # Deviation Rule 1 (bug): real production data contains polymeric
+        # SMILES strings (>4000 chars) that block CDK's parser indefinitely.
+        # Skip with empty-string output so the row stays NULL in the DB.
+        logger.warning(
+            "Skipping canonicalization of oversized SMILES (len=%d, max=%d)",
+            len(smiles),
+            MAX_CANONICALIZE_LEN,
+        )
         return ""
     try:
         SilentChemObjectBuilder = jpype.JClass(  # noqa: N806
