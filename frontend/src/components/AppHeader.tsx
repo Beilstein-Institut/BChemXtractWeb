@@ -1,8 +1,9 @@
-import { useState } from "react"
-import { MenuIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { ModeToggle } from "@/components/mode-toggle"
-import { TextScramble } from "@/components/ui/text-scramble"
+import { useState } from "react";
+import { MenuIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ModeToggle } from "@/components/mode-toggle";
+import { SearchInput } from "@/components/SearchInput";
+import { TextScramble } from "@/components/ui/text-scramble";
 import {
   Sheet,
   SheetTrigger,
@@ -10,14 +11,14 @@ import {
   SheetHeader,
   SheetTitle,
   SheetClose,
-} from "@/components/ui/nav-sheet"
-import { cn } from "@/lib/utils"
+} from "@/components/ui/nav-sheet";
+import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
   { label: "Extract", href: "#extract" },
   { label: "Browse", href: "#browse" },
   { label: "History", href: "#history" },
-] as const
+] as const;
 
 /**
  * AppHeader — Apple-inspired sticky navigation bar.
@@ -31,14 +32,14 @@ const NAV_LINKS = [
  * - ModeToggle always visible on the right
  */
 export function AppHeader() {
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <header
       className={cn(
         "sticky top-0 z-50 w-full",
         "nav-glass-light dark:nav-glass",
-        "border-b border-black/5 dark:border-white/5"
+        "border-b border-black/5 dark:border-white/5",
       )}
     >
       <div className="mx-auto flex h-12 max-w-[980px] items-center justify-between px-6">
@@ -51,8 +52,8 @@ export function AppHeader() {
           <TextScramble text="BChemXtractWeb" duration={1.0} />
         </a>
 
-        {/* Desktop nav links — hidden on mobile */}
-        <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
+        {/* Desktop nav links — drop at <lg so the SearchInput has room (UI-SPEC §1) */}
+        <nav className="hidden lg:flex items-center gap-1" aria-label="Main navigation">
           {NAV_LINKS.map((link) => (
             <a
               key={link.label}
@@ -61,13 +62,16 @@ export function AppHeader() {
                 "px-3 py-3 text-[12px] font-normal",
                 "text-black/80 dark:text-white/80",
                 "hover:underline underline-offset-4 transition-colors",
-                "rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]"
+                "rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]",
               )}
             >
               {link.label}
             </a>
           ))}
         </nav>
+
+        {/* Global search — inlined for md+, Sheet side="top" for <md (D-02) */}
+        <SearchInput className="mx-4" />
 
         {/* Right side: theme toggle + mobile hamburger */}
         <div className="flex items-center gap-2">
@@ -99,7 +103,7 @@ export function AppHeader() {
                         "text-[#1d1d1f] dark:text-white",
                         "border-b border-black/5 dark:border-white/5",
                         "hover:text-[#0071e3] transition-colors",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]"
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]",
                       )}
                     >
                       {link.label}
@@ -112,5 +116,5 @@ export function AppHeader() {
         </div>
       </div>
     </header>
-  )
+  );
 }
