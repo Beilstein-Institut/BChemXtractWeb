@@ -79,6 +79,10 @@ class Substance(Base):
     svg: Mapped[str] = mapped_column(Text, nullable=False, default="")
     svg_cdx: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     mdlv3000: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # D-04/D-05: CDK canonical SMILES for SRCH-03 exact-match queries.
+    # Nullable so rows with unparsable SMILES stay literal SQL NULL (never
+    # empty string) — see RESEARCH §Pattern 6 and threat model T-09-02-07.
+    canonical_smiles: Mapped[str | None] = mapped_column(Text, nullable=True)
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

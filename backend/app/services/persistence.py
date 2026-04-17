@@ -5,6 +5,7 @@ save_extraction() and delete_extraction_by_id() call db.commit() internally.
 enforce_cap() also commits internally as a housekeeping step.
 """
 
+import asyncio
 import hashlib
 import logging
 
@@ -14,11 +15,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.chemistry import ExtractionResponse
 from app.models.orm import Extraction, ExtractionSubstance, Substance
+from app.services.canonicalize import canonicalize_smiles
 
 logger = logging.getLogger(__name__)
 
 MAX_EXTRACTIONS = 500
 """Retention cap per D-10: oldest extraction auto-deleted when limit is reached."""
+
+CANONICAL_BATCH_SIZE = 32
+"""Per D-05 + threat model T-09-02-02: canonicalize substances in chunks of
+~32 via asyncio.gather so JVM-thread-pool waits overlap. Target: ≤ 1 s
+added latency per 100 substances, vs ~3 s for sequential (100 × 30 ms).
+Tune if the JVM pool size changes in jvm_bridge.py.
+"""
 
 
 async def save_extraction(
@@ -77,9 +86,45 @@ async def save_extraction(
                 "svg": s.svg,
                 "svg_cdx": s.svg_cdx,
                 "mdlv3000": s.mdlv3000,
+                # D-05: placeholder — overwritten by the chunked gather below.
+                "canonical_smiles": None,
             }
             for s in valid_substances
         ]
+
+        # D-05: canonical-SMILES write-through via CHUNKED asyncio.gather.
+        # Per-substance canonicalization is I/O-bound on the JVM thread pool
+        # (~30 ms each). Sequential awaits would add 30 ms × N seconds of
+        # latency (15 s for 500 substances). Chunked gather overlaps the
+        # waits so the total cost is ~(N / pool_size) × 30 ms (≤ 1 s per
+        # 100 substances — threat model T-09-02-02).
+        #
+        # Best-effort, log-and-continue per the D-03 auto-persist philosophy.
+        # Individual canonicalization failures must NEVER break extraction:
+        # return_exceptions=True keeps the gather alive even if one raises.
+        smiles_list = [item.get("smiles") or "" for item in substance_data]
+        canonical_results: list[str | BaseException] = []
+        for start in range(0, len(smiles_list), CANONICAL_BATCH_SIZE):
+            chunk = smiles_list[start : start + CANONICAL_BATCH_SIZE]
+            chunk_results = await asyncio.gather(
+                *(canonicalize_smiles(s) for s in chunk),
+                return_exceptions=True,
+            )
+            canonical_results.extend(chunk_results)
+
+        for item, result in zip(substance_data, canonical_results):
+            if isinstance(result, BaseException):
+                # Per-item failure — log and leave NULL. Do NOT re-raise.
+                logger.exception(
+                    "Canonicalization failed for substance %s; leaving NULL",
+                    (item.get("inchi_key") or "")[:20],
+                )
+                item["canonical_smiles"] = None
+                continue
+            # canonicalize_smiles returns "" on parse failure; store as NULL
+            # so unparsable rows match the backfill semantics (D-09 + fix #9).
+            item["canonical_smiles"] = result if result else None
+
         # ON CONFLICT DO NOTHING: first-seen metadata wins (D-02)
         await db.execute(
             pg_insert(Substance)

@@ -136,6 +136,7 @@ async def extract_file(file: UploadFile, db: DbDep) -> ExtractionResponse:
 
     # D-03: Auto-persist every extraction to PostgreSQL.
     # DB save is best-effort: failures are logged but never break extraction.
+    # D-05: canonical_smiles is populated by save_extraction's chunked write-through hook
     try:
         saved = await save_extraction(db, response)
         response.extraction_id = saved.id
