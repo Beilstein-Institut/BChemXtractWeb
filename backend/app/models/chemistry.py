@@ -151,3 +151,74 @@ class ExportRequest(BaseModel):
     format: ExportFormatLiteral
     substance_ids: list[int] = []
     extraction_id: int | None = None
+
+
+# ============================================================================
+# Phase 9: Search & API — search request/response + unified ErrorResponse
+# ============================================================================
+
+SearchType = Literal["auto", "inchi_key", "formula", "smiles", "substructure"]
+SearchMatch = Literal["canonical", "literal"]
+
+
+class SearchRequest(BaseModel):
+    """POST /api/search request body (D-14).
+
+    query: user input; 500-char cap bounds ReDoS + DoS.
+    type: 'auto' lets backend detect (D-01). Explicit values override.
+    scope: 'global' default; 'extraction:{id}' restricts to one extraction (D-20).
+    match: canonical (default) vs literal — only meaningful for type=smiles.
+    page/size: pagination; capped per D-14 response shape.
+    """
+
+    query: str = Field(..., min_length=1, max_length=500)
+    type: SearchType = "auto"
+    scope: str = Field("global", max_length=80)
+    match: SearchMatch = "canonical"
+    page: int = Field(1, ge=1, le=1000)
+    size: int = Field(24, ge=1, le=100)
+
+
+class SearchExtractionRef(BaseModel):
+    """One extraction where a matched substance was seen (D-10 attribution)."""
+
+    extraction_id: int
+    filename: str
+    created_at: str  # ISO 8601 UTC
+
+
+class SearchResult(BaseModel):
+    """One search hit — substance + attribution + optional match highlight."""
+
+    substance: SubstanceResponse
+    extraction_count: int = 0
+    extractions: list[SearchExtractionRef] = Field(default_factory=list)
+    # Populated only for type='substructure' hits (D-13).
+    # Plan 04 will wire match_svg (highlight depiction); Plan 03 leaves it None.
+    match_svg: str | None = None
+    match_atom_indices: list[int] = Field(default_factory=list)
+
+
+class SearchResponse(BaseModel):
+    """POST /api/search response (D-14)."""
+
+    results: list[SearchResult]
+    total: int = 0
+    page: int = 1
+    size: int = 24
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ErrorResponse(BaseModel):
+    """Unified error response shape across all /api/* endpoints (D-17).
+
+    detail: human-readable message, always present and always the first field
+      so the existing frontend apiClient (reads body.detail) keeps working.
+    code: machine-stable error code (UPPER_SNAKE_CASE). Clients key off this
+      for programmatic handling.
+    fields: optional per-field validation map (only populated for 422).
+    """
+
+    detail: str
+    code: str
+    fields: dict[str, list[str]] | None = None

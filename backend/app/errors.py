@@ -46,6 +46,27 @@ class FileSizeError(BridgeError):
     """Uploaded file exceeds the size limit."""
 
 
+# ----------------------------------------------------------------------------
+# Phase 9: Search-domain BridgeError subclasses (422 / stable codes wired
+# in Plan 05's unified exception handler). Raising them in Plan 03 currently
+# hits the generic 500 path below; callers of POST /api/search should assume
+# Plan 05 will ship before search goes to production. Pydantic 422 validation
+# still fires end-to-end for malformed request bodies.
+# ----------------------------------------------------------------------------
+
+
+class InvalidSmartsError(BridgeError):
+    """User-supplied SMARTS pattern is malformed (422 / INVALID_SMARTS)."""
+
+
+class InvalidInchiKeyError(BridgeError):
+    """User-supplied InChI key doesn't match the 14-10-1 shape (422 / INVALID_INCHI_KEY)."""
+
+
+class InvalidSmilesError(BridgeError):
+    """User-supplied SMILES can't be parsed by CDK (422 / INVALID_SMILES)."""
+
+
 async def bridge_error_handler(request: Request, exc: BridgeError) -> JSONResponse:
     """Map BridgeError subtypes to HTTP status codes.
 
