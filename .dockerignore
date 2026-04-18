@@ -1,0 +1,70 @@
+# Keep the Docker build context small and prevent host-built artifacts
+# (macOS node_modules, local venvs, caches) from overlaying clean installs
+# performed inside the image. Without this, `COPY frontend/ ./` clobbers
+# the container's `npm ci` with host binaries and breaks `node_modules/.bin/tsc`.
+
+# -----------------------------------------------------------------------------
+# VCS / planning / IDE
+# -----------------------------------------------------------------------------
+.git
+.gitignore
+.gitmodules
+.github
+.planning
+.claude
+.vscode
+.idea
+*.swp
+*.swo
+
+# -----------------------------------------------------------------------------
+# OS
+# -----------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+
+# -----------------------------------------------------------------------------
+# Node / frontend (the critical ones)
+# -----------------------------------------------------------------------------
+**/node_modules
+frontend/dist
+frontend/.vite
+frontend/coverage
+**/*.tsbuildinfo
+
+# -----------------------------------------------------------------------------
+# Python / backend
+# -----------------------------------------------------------------------------
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+backend/.venv
+backend/.pytest_cache
+backend/.ruff_cache
+backend/.mypy_cache
+backend/htmlcov
+backend/.coverage
+backend/coverage.xml
+
+# Built JAR (docker builds its own from the upstream repo)
+backend/jars/*.jar
+backend/lib/bchemxtract
+
+# -----------------------------------------------------------------------------
+# Env / secrets
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+.envrc
+
+# -----------------------------------------------------------------------------
+# Logs / test output
+# -----------------------------------------------------------------------------
+*.log
+test-results
+
+# -----------------------------------------------------------------------------
+# Docker artifacts
+# -----------------------------------------------------------------------------
+.docker
