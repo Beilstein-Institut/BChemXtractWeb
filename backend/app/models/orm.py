@@ -53,8 +53,19 @@ class Extraction(Base):
         String(36), nullable=True, index=True
     )
 
+    # Plan 10 D-16: reaction_count populated by save_reactions; 0 until user
+    # re-extracts reactions for this file.
+    reaction_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+
     substances: Mapped[list["Substance"]] = relationship(
         secondary="extraction_substances",
+        back_populates="extractions",
+        lazy="selectin",
+    )
+    reactions: Mapped[list["Reaction"]] = relationship(
+        secondary="extraction_reactions",
         back_populates="extractions",
         lazy="selectin",
     )
@@ -117,6 +128,80 @@ class ExtractionSubstance(Base):
     substance_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("substances.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class Reaction(Base):
+    """A unique chemical reaction, deduplicated by long_rinchi_key.
+
+    Plan 10 D-18 amended: upstream BChemXtract never populates rinchi_key
+    (ReactionXtractor.java:132 does not call setRinchiKey). We use
+    long_rinchi_key as the UNIQUE dedup column. Rows with empty
+    long_rinchi_key get a synthetic NO_RINCHI_{sha1(reaction_smiles)}
+    placeholder in the persistence layer.
+
+    INSERT ON CONFLICT (long_rinchi_key) DO NOTHING — first-seen wins
+    (mirrors Phase 5 D-02 for substances).
+    """
+
+    __tablename__ = "reactions"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, autoincrement=True
+    )
+    # D-18 amended: the real dedup key.
+    long_rinchi_key: Mapped[str] = mapped_column(
+        String(256), unique=True, nullable=False
+    )
+    # Forward-compat: upstream may populate in the future; always "" in v1.
+    rinchi_key: Mapped[str] = mapped_column(
+        Text, nullable=False, default="", server_default=""
+    )
+    rinchi: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    short_rinchi_key: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    web_rinchi_key: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    reaction_smiles: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    aux_info: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    svg: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # D-17: components live as JSONB on the reaction row (not a separate table)
+    components: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    extractions: Mapped[list["Extraction"]] = relationship(
+        secondary="extraction_reactions",
+        back_populates="reactions",
+        lazy="selectin",
+    )
+
+
+class ExtractionReaction(Base):
+    """M-to-N join table linking extractions to reactions.
+
+    Plan 10 D-21: CASCADE on both FKs so deleting an Extraction removes its
+    reaction join rows. Orphan Reaction cleanup runs inline in persistence.
+    """
+
+    __tablename__ = "extraction_reactions"
+    __table_args__ = (
+        UniqueConstraint(
+            "extraction_id", "reaction_id", name="uq_extraction_reaction"
+        ),
+    )
+
+    extraction_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("extractions.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    reaction_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("reactions.id", ondelete="CASCADE"),
         primary_key=True,
     )
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
