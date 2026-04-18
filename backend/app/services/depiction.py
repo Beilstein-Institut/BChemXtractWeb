@@ -156,10 +156,14 @@ def _inject_svg_title(svg: str, title: str) -> str:
     if not title or not svg:
         return svg
     safe = title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    # Insert after the first ">" of the <svg …> tag. CDK emits a single
-    # self-terminating opening tag at the top of its SVG output, so the
-    # first ">" in the document reliably closes <svg ...>.
-    idx = svg.find(">")
+    # CDK prefixes its output with `<?xml ...?>` and a DOCTYPE, so the first
+    # `>` in the document closes the XML prolog, NOT the root <svg>. Anchor
+    # to the literal "<svg" and find the first `>` after it — that is the
+    # real root opening tag's close.
+    svg_open = svg.find("<svg")
+    if svg_open < 0:
+        return svg
+    idx = svg.find(">", svg_open)
     if idx < 0:
         return svg
     return svg[: idx + 1] + f"<title>{safe}</title>" + svg[idx + 1 :]
