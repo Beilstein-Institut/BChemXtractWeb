@@ -267,4 +267,28 @@ describe("ExportMenu", () => {
     render(<ExportMenu onExport={vi.fn()} disabled />);
     expect(screen.getByRole("button", { name: /export/i })).toBeDisabled();
   });
+
+  // ==========================================================================
+  // Plan 10-05 Task 5.2 — D-22 / UI-SPEC §7: reactionsAvailable prop
+  // ==========================================================================
+
+  it("RXN item is aria-disabled when reactionsAvailable is false (default)", () => {
+    render(<ExportMenu onExport={vi.fn()} />);
+    const rxnItem = screen.getByText("RXN / RDfile");
+    expect(rxnItem.closest("[aria-disabled='true']")).toBeTruthy();
+  });
+
+  it("RXN item is NOT aria-disabled when reactionsAvailable=true", () => {
+    render(<ExportMenu onExport={vi.fn()} reactionsAvailable />);
+    const rxnItem = screen.getByText("RXN / RDfile");
+    // Should no longer be inside an aria-disabled wrapper
+    expect(rxnItem.closest("[aria-disabled='true']")).toBeNull();
+  });
+
+  it("clicking RXN item with reactionsAvailable=true fires onExport('rxn')", async () => {
+    const onExport = vi.fn();
+    render(<ExportMenu onExport={onExport} reactionsAvailable />);
+    await userEvent.click(screen.getByText("RXN / RDfile"));
+    expect(onExport).toHaveBeenCalledWith("rxn");
+  });
 });

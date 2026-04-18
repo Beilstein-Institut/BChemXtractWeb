@@ -66,6 +66,14 @@ export interface ExportMenuProps {
    * Used by StructureCard to call e.stopPropagation() before the dropdown opens.
    */
   onTriggerClick?: (e: React.MouseEvent) => void;
+  /**
+   * Plan 10 D-22 / UI-SPEC §7: when true, the RXN/RDfile item is enabled and
+   * its "Available after reaction extraction" tooltip is suppressed. Clicking
+   * the item fires onExport("rxn"). Default false — preserves Phase 8
+   * behavior for all existing call sites (StructureCard, StructureSheet,
+   * BrowseToolbar, StructureBrowser).
+   */
+  reactionsAvailable?: boolean;
 }
 
 /** Icon for each format item. RXN gets ArrowRightLeftIcon. */
@@ -104,6 +112,7 @@ export function ExportMenu({
   disabled = false,
   align = "end",
   onTriggerClick,
+  reactionsAvailable = false,
 }: ExportMenuProps) {
   const trigger =
     triggerVariant === "icon" ? (
@@ -157,21 +166,33 @@ export function ExportMenu({
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
-          {/* RXN/RDfile — disabled until Phase 10 (D-11) */}
-          <Tooltip>
-            <TooltipTrigger render={<span className="block" />}>
-              <DropdownMenuItem
-                className="px-3 py-2 gap-2 text-caption pointer-events-none opacity-50"
-                aria-disabled="true"
-              >
-                {FORMAT_ICONS["rxn"]}
-                {FORMAT_LABELS["rxn"]}
-              </DropdownMenuItem>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              Available after reaction extraction (Phase 10)
-            </TooltipContent>
-          </Tooltip>
+          {/* RXN/RDfile — enabled when reactionsAvailable=true (Plan 10 D-22),
+              otherwise rendered disabled with the pre-Phase-10 tooltip so
+              existing substance-only call sites retain their behavior. */}
+          {reactionsAvailable ? (
+            <DropdownMenuItem
+              className="px-3 py-2 gap-2 text-caption cursor-pointer"
+              onClick={() => onExport("rxn")}
+            >
+              {FORMAT_ICONS["rxn"]}
+              {FORMAT_LABELS["rxn"]}
+            </DropdownMenuItem>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger render={<span className="block" />}>
+                <DropdownMenuItem
+                  className="px-3 py-2 gap-2 text-caption pointer-events-none opacity-50"
+                  aria-disabled="true"
+                >
+                  {FORMAT_ICONS["rxn"]}
+                  {FORMAT_LABELS["rxn"]}
+                </DropdownMenuItem>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                Available after reaction extraction (Phase 10)
+              </TooltipContent>
+            </Tooltip>
+          )}
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>

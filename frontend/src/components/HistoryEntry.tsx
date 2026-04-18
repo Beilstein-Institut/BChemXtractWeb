@@ -75,7 +75,15 @@ export function HistoryEntry({ entry, onReload, onDelete }: HistoryEntryProps) {
             {entry.filename}
           </p>
           <p className="text-caption text-muted-foreground">
-            {entry.structure_count} structure{entry.structure_count !== 1 ? "s" : ""} · {relTime}
+            {entry.structure_count} substance{entry.structure_count !== 1 ? "s" : ""}
+            {entry.reaction_count > 0 && (
+              <>
+                {" · "}
+                {entry.reaction_count} reaction{entry.reaction_count !== 1 ? "s" : ""}
+              </>
+            )}
+            {" · "}
+            {relTime}
           </p>
         </div>
 
