@@ -9,12 +9,22 @@ import asyncio
 import hashlib
 import logging
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.chemistry import ExtractionResponse
-from app.models.orm import Extraction, ExtractionSubstance, Substance
+from app.models.chemistry import (
+    ExtractionResponse,
+    ReactionComponentResponse,
+    ReactionResponse,
+)
+from app.models.orm import (
+    Extraction,
+    ExtractionReaction,
+    ExtractionSubstance,
+    Reaction,
+    Substance,
+)
 from app.services.canonicalize import canonicalize_smiles
 
 logger = logging.getLogger(__name__)
@@ -200,10 +210,11 @@ async def enforce_cap(db: AsyncSession, max_count: int = MAX_EXTRACTIONS) -> Non
 
 
 async def delete_extraction_by_id(db: AsyncSession, extraction_id: int) -> bool:
-    """Delete a single extraction record and clean up orphaned substances.
+    """Delete a single extraction record and clean up orphaned substances + reactions.
 
-    The CASCADE FK on extraction_substances.extraction_id removes join rows.
-    After deletion, substances with no remaining links are removed (D-07).
+    The CASCADE FKs on extraction_substances.extraction_id and
+    extraction_reactions.extraction_id remove join rows. After deletion,
+    substances and reactions with no remaining links are removed (D-07, D-21).
 
     Args:
         db: AsyncSession from get_db() dependency.
@@ -226,5 +237,259 @@ async def delete_extraction_by_id(db: AsyncSession, extraction_id: int) -> bool:
         )
     )
 
+    # Plan 10 D-21: orphan Reaction cleanup (mirror orphan-substance cleanup above).
+    await db.execute(
+        delete(Reaction).where(
+            Reaction.id.not_in(select(ExtractionReaction.reaction_id))
+        )
+    )
+
     await db.commit()
     return True
+
+
+# ---------------------------------------------------------------------------
+# Plan 10: Reaction persistence (D-18 amended, D-19, D-21, D-23)
+# ---------------------------------------------------------------------------
+
+
+def _reaction_dedup_key(rxn: ReactionResponse) -> str:
+    """Compute the UNIQUE dedup value for a reaction row (Plan 10 D-18 amended).
+
+    Upstream BChemXtract never populates rinchi_key (verified in
+    ReactionXtractor.java:132 -- see 10-RESEARCH Critical Finding 1). We use
+    long_rinchi_key as the primary dedup column; fall back to
+    ``NO_RINCHI_{sha1(reaction_smiles)}`` when RInChI generation yielded
+    nothing. ``NO_RINCHI_EMPTY`` is a last-resort sentinel for reactions that
+    have neither a long_rinchi_key nor a reaction_smiles.
+    """
+    if rxn.long_rinchi_key:
+        return rxn.long_rinchi_key
+    if rxn.reaction_smiles:
+        h = hashlib.sha1(rxn.reaction_smiles.encode("utf-8")).hexdigest()
+        return f"NO_RINCHI_{h}"
+    return "NO_RINCHI_EMPTY"
+
+
+async def get_or_create_extraction_row(
+    db: AsyncSession,
+    *,
+    filename: str,
+    file_size: int,
+    format: str,
+    file_hash: str,
+) -> int:
+    """Find or create the Extraction row a reactions call should attach to.
+
+    Pitfall 9 mitigation: when user hits /api/reactions before /api/extract
+    ever ran for this file, there's no Extraction row. Create a minimal one
+    (structure_count=0, extraction_time_ms=0) so history stays consistent
+    with D-23's "{N} substances . {M} reactions" chip rule.
+
+    Idempotence (D-05): v1 uses (filename, file_size, format) tuple as the
+    fingerprint -- close-enough for common re-upload-identical-file flows.
+    Deferred Ideas in 10-CONTEXT.md captures the SHA-256-based upgrade path
+    (store a dedicated file_hash column and look up by it) -- for a
+    single-user app this is acceptable v1 scope. The ``file_hash`` parameter
+    is accepted but unused in v1; it's retained in the signature so callers
+    compute it once and the upgrade path is drop-in.
+
+    Args:
+        db: async session.
+        filename: original upload filename.
+        file_size: raw bytes length.
+        format: "cdx" or "cdxml".
+        file_hash: SHA-256 of file_bytes (reserved for v2 upgrade path).
+
+    Returns:
+        extraction_id of the matched-or-created row.
+    """
+    # Look up by filename + file_size + format as a fingerprint approximation.
+    result = await db.execute(
+        select(Extraction)
+        .where(
+            Extraction.filename == filename,
+            Extraction.file_size == file_size,
+            Extraction.format == format,
+        )
+        .order_by(Extraction.id.desc())
+        .limit(1)
+    )
+    existing = result.scalar_one_or_none()
+    if existing is not None:
+        return existing.id
+
+    # Create a new minimal Extraction row.
+    extraction = Extraction(
+        filename=filename,
+        file_size=file_size,
+        format=format,
+        structure_count=0,
+        extraction_time_ms=0.0,
+        warnings=[],
+    )
+    db.add(extraction)
+    await db.commit()
+    await db.refresh(extraction)
+    return extraction.id
+
+
+async def save_reactions(
+    db: AsyncSession,
+    extraction_id: int,
+    reactions: list[ReactionResponse],
+) -> int:
+    """Persist reactions for an extraction (Plan 10 D-18 amended, D-19).
+
+    Mirrors save_extraction (Phase 5 pattern):
+      1. Upsert each Reaction via ON CONFLICT (long_rinchi_key) DO NOTHING.
+      2. Fetch IDs for all reactions by dedup key.
+      3. Insert ExtractionReaction join rows with position.
+      4. Update Extraction.reaction_count (D-16, D-23).
+      5. Commit.
+
+    Failures are allowed to raise -- the router is responsible for catching
+    and logging (best-effort; D-19).
+
+    Args:
+        db: async session.
+        extraction_id: parent Extraction row id (must exist).
+        reactions: list of ReactionResponse; may be empty (still updates
+            reaction_count to 0).
+
+    Returns:
+        extraction_id unchanged on success.
+    """
+    if not reactions:
+        await db.execute(
+            update(Extraction)
+            .where(Extraction.id == extraction_id)
+            .values(reaction_count=0)
+        )
+        await db.commit()
+        return extraction_id
+
+    reaction_rows = [
+        {
+            "long_rinchi_key": _reaction_dedup_key(r),
+            "rinchi": r.rinchi,
+            "rinchi_key": r.rinchi_key,  # always "" in v1 -- forward-compat
+            "short_rinchi_key": r.short_rinchi_key,
+            "web_rinchi_key": r.web_rinchi_key,
+            "reaction_smiles": r.reaction_smiles,
+            "aux_info": r.aux_info,
+            "svg": r.svg,
+            "components": {
+                "reactants": [c.model_dump() for c in r.reactants],
+                "products": [c.model_dump() for c in r.products],
+                "agents": [c.model_dump() for c in r.agents],
+            },
+        }
+        for r in reactions
+    ]
+
+    # Dedup on long_rinchi_key (D-18 amended, first-seen wins)
+    await db.execute(
+        pg_insert(Reaction)
+        .values(reaction_rows)
+        .on_conflict_do_nothing(index_elements=["long_rinchi_key"])
+    )
+
+    # Fetch ids for both newly-inserted and pre-existing rows
+    dedup_keys = [row["long_rinchi_key"] for row in reaction_rows]
+    id_result = await db.execute(
+        select(Reaction.id, Reaction.long_rinchi_key).where(
+            Reaction.long_rinchi_key.in_(dedup_keys)
+        )
+    )
+    id_by_key = {key: rid for rid, key in id_result.all()}
+
+    join_rows = [
+        {
+            "extraction_id": extraction_id,
+            "reaction_id": id_by_key[row["long_rinchi_key"]],
+            "position": idx,
+        }
+        for idx, row in enumerate(reaction_rows)
+        if row["long_rinchi_key"] in id_by_key
+    ]
+    if join_rows:
+        await db.execute(
+            pg_insert(ExtractionReaction)
+            .values(join_rows)
+            .on_conflict_do_nothing()
+        )
+
+    # Update reaction_count on Extraction (D-16)
+    await db.execute(
+        update(Extraction)
+        .where(Extraction.id == extraction_id)
+        .values(reaction_count=len(reactions))
+    )
+    await db.commit()
+    return extraction_id
+
+
+async def get_extraction_reactions(
+    db: AsyncSession,
+    extraction_id: int,
+) -> tuple[Extraction, list[ReactionResponse]] | None:
+    """Fetch cached reactions for an extraction (Plan 10 D-23 history-hydration).
+
+    Returns ``(extraction_row, reactions)`` where reactions are the cached
+    ``Reaction`` rows joined through ``ExtractionReaction`` and ordered by
+    ``ExtractionReaction.position``. Each row is converted to a
+    ``ReactionResponse`` Pydantic instance so the router can return it
+    directly.
+
+    Returns None when the extraction_id doesn't exist -- router converts
+    this to a 404 ErrorResponse. An extraction that EXISTS but has zero
+    reactions returns ``(extraction_row, [])`` -- router returns 200 with
+    empty list.
+    """
+    ext_result = await db.execute(
+        select(Extraction).where(Extraction.id == extraction_id)
+    )
+    extraction = ext_result.scalar_one_or_none()
+    if extraction is None:
+        return None
+
+    rxn_result = await db.execute(
+        select(Reaction)
+        .join(
+            ExtractionReaction,
+            Reaction.id == ExtractionReaction.reaction_id,
+        )
+        .where(ExtractionReaction.extraction_id == extraction_id)
+        .order_by(ExtractionReaction.position)
+    )
+    rows = rxn_result.scalars().all()
+
+    reactions: list[ReactionResponse] = []
+    for row in rows:
+        components = row.components or {}
+        reactions.append(
+            ReactionResponse(
+                rinchi=row.rinchi or "",
+                rinchi_key=row.rinchi_key or "",
+                short_rinchi_key=row.short_rinchi_key or "",
+                long_rinchi_key=row.long_rinchi_key or "",
+                web_rinchi_key=row.web_rinchi_key or "",
+                reaction_smiles=row.reaction_smiles or "",
+                aux_info=row.aux_info or "",
+                reactants=[
+                    ReactionComponentResponse(**c)
+                    for c in components.get("reactants", [])
+                ],
+                products=[
+                    ReactionComponentResponse(**c)
+                    for c in components.get("products", [])
+                ],
+                agents=[
+                    ReactionComponentResponse(**c)
+                    for c in components.get("agents", [])
+                ],
+                svg=row.svg or "",
+            )
+        )
+    return extraction, reactions

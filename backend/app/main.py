@@ -22,7 +22,7 @@ from app.errors import (
     unhandled_exception_handler,
     validation_exception_handler,
 )
-from app.routers import batch, export, extract, health, history, search
+from app.routers import batch, export, extract, health, history, reactions, search
 from app.services.jvm_bridge import initialize_jvm, shutdown_pool
 
 logger = logging.getLogger(__name__)
@@ -73,8 +73,9 @@ _TAGS_METADATA = [
     {
         "name": "extraction",
         "description": (
-            "Upload CDX/CDXML files and extract chemical substances. "
-            "Synchronous path for single files."
+            "Upload CDX/CDXML files and extract chemical substances and "
+            "reactions. Synchronous path for single files. Reactions are "
+            "opt-in via a separate endpoint (Plan 10, experimental)."
         ),
     },
     {
@@ -162,6 +163,7 @@ def create_app() -> FastAPI:
     application.include_router(history.router, prefix="/api")
     application.include_router(batch.router, prefix="/api")
     application.include_router(export.router, prefix="/api")
+    application.include_router(reactions.router, prefix="/api")
     application.include_router(search.router, prefix="/api")
 
     # D-16 (Plan 09-05): Redoc at /redoc alongside the default Swagger
