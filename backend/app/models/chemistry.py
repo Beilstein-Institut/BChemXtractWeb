@@ -50,6 +50,7 @@ class ReactionResponse(BaseModel):
     reactants: list[ReactionComponentResponse] = Field(default_factory=list)
     products: list[ReactionComponentResponse] = Field(default_factory=list)
     agents: list[ReactionComponentResponse] = Field(default_factory=list)
+    svg: str = ""  # Plan 10 D-04 amended: CDK-rendered combined reaction SVG (D-12/D-15)
 
 
 class SubstanceInfoResponse(BaseModel):
@@ -72,6 +73,23 @@ class ExtractionResponse(BaseModel):
     filename: str
     file_size: int
     structure_count: int
+    extraction_time_ms: float
+    warnings: list[str] = Field(default_factory=list)
+    extraction_id: int | None = None
+
+
+class ReactionExtractionResponse(BaseModel):
+    """Full reaction extraction result for POST /api/reactions (Plan 10, D-04).
+
+    Parallels ExtractionResponse but reactions-centric. reaction_count replaces
+    structure_count; no SubstanceInfoResponse block.
+    """
+
+    reactions: list[ReactionResponse]
+    format: str
+    filename: str
+    file_size: int
+    reaction_count: int
     extraction_time_ms: float
     warnings: list[str] = Field(default_factory=list)
     extraction_id: int | None = None
@@ -146,11 +164,13 @@ class ExportRequest(BaseModel):
     substance_ids: explicit selection (D-01, D-02, D-04).
     extraction_id: export all from this extraction (D-03) — used when substance_ids is empty.
     format: one of the seven export formats plus rxn stub.
+    reaction_ids: explicit reaction selection for RXN export (Plan 10 D-22).
     """
 
     format: ExportFormatLiteral
     substance_ids: list[int] = []
     extraction_id: int | None = None
+    reaction_ids: list[int] = []
 
 
 # ============================================================================
