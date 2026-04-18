@@ -47,6 +47,13 @@ class Settings(BaseSettings):
     max_upload_size: int = 50 * 1024 * 1024
     """Max upload file size in bytes (D-05). Default 50 MB."""
 
+    reaction_timeout_secs: float = 30.0
+    """Hard timeout for POST /api/reactions JVM call (Plan 10 D-06).
+
+    On timeout, the endpoint returns HTTP 200 with reactions=[] and a
+    warning — NOT 408/503. Configurable via REACTION_TIMEOUT_SECS env var.
+    """
+
     celery_broker_url: str = "redis://redis:6379/0"
     """Celery broker URL. Configurable via CELERY_BROKER_URL env var."""
 

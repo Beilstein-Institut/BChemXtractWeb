@@ -49,6 +49,16 @@ _XTRACT_UNIQUE_TIMEOUT = 10.0
 # Timeout for the fragment-level fallback (typically completes in <1s).
 _FRAGMENT_FALLBACK_TIMEOUT = 90.0
 
+# Plan 10 Pitfall 6: CDK SmilesParser + DepictionGenerator can deadlock on
+# polymer/dendrimer SMILES > 1500 chars (same root cause as Phase 9
+# canonicalize.py MAX_CANONICALIZE_LEN). Guard with a hard cap — length
+# over this yields an empty SVG + per-reaction warning, never a hung JVM.
+MAX_REACTION_SMILES_LEN = 1500
+
+# Plan 10 D-12: reaction SVG is wider than substance SVG (600x400 vs 450x450).
+SVG_REACTION_TARGET_WIDTH = 600
+SVG_REACTION_TARGET_HEIGHT = 400
+
 
 # ---------------------------------------------------------------------------
 # Private null-coercion functions (D-09)
@@ -274,6 +284,49 @@ def _extract_reactions_sync(
         raise ExtractionError("Failed to extract reactions from file") from exc
 
 
+def _extract_reactions_with_svg_sync(
+    file_bytes: bytes, format_type: str
+) -> tuple[list[dict], list[str]]:
+    """Extract reactions AND render each reaction's SVG in one JVM attach.
+
+    Plan 10 D-12/D-13/D-15: SVG rendering happens inline with extraction
+    so thread attach/detach cost is paid once. Per-reaction render
+    failures produce `svg=""` + warning, never fail the whole call.
+
+    Returns:
+        Tuple of (list of reaction dicts with svg field populated,
+        list of per-reaction warnings — one per failed render).
+    """
+    try:
+        document = _read_document(file_bytes, format_type)
+
+        ReactionXtractor = jpype.JClass(  # noqa: N806
+            "org.beilstein.chemxtract.xtractor.ReactionXtractor"
+        )
+        xtractor = ReactionXtractor()
+        reactions = xtractor.xtract(document)
+
+        coerced: list[dict] = []
+        warnings: list[str] = []
+        for idx, r in enumerate(reactions):
+            d = _coerce_reaction(r)
+            svg, render_warning = _render_reaction_svg(d["reaction_smiles"])
+            d["svg"] = svg
+            if render_warning:
+                warnings.append(f"Reaction {idx + 1}: {render_warning}")
+            coerced.append(d)
+        return coerced, warnings
+    except jpype.JException as exc:
+        logger.error(
+            "Java reaction+SVG extraction failed: %s\n%s",
+            str(exc),
+            exc.stacktrace() if hasattr(exc, "stacktrace") else str(exc),
+        )
+        raise ExtractionError(
+            "Failed to extract reactions from file"
+        ) from exc
+
+
 def _render_atom_container_svg(container) -> str:
     """Render a CDK IAtomContainer to SVG with original coordinates.
 
@@ -291,6 +344,101 @@ def _render_atom_container_svg(container) -> str:
     except Exception as exc:
         logger.warning("SVG rendering failed for atom container: %s", exc)
         return ""
+
+
+def _render_reaction_svg(reaction_smiles: str) -> tuple[str, str]:
+    """Render a reaction SMILES to a combined CDK SVG (Plan 10 D-12/D-13/D-15).
+
+    Returns (svg, warning) tuple. Empty svg + non-empty warning signals
+    a per-reaction render failure; empty warning + empty svg signals a
+    guarded/skipped empty input. Never raises (D-13).
+
+    Must be called inside a JVM-attached thread (caller enforces via
+    run_in_jvm_thread). Pitfall 3: requires `>` in input. Pitfall 6:
+    hard-guards length > MAX_REACTION_SMILES_LEN.
+    """
+    if not reaction_smiles:
+        return "", ""
+    if ">" not in reaction_smiles:
+        # BChemXtract always emits `A.B>C>D.E` format; missing `>` means
+        # the reaction is malformed or empty.
+        return "", ""
+    if len(reaction_smiles) > MAX_REACTION_SMILES_LEN:
+        logger.warning(
+            "Reaction SMILES exceeds %d chars (%d) — skipping depiction "
+            "to avoid CDK deadlock.",
+            MAX_REACTION_SMILES_LEN,
+            len(reaction_smiles),
+        )
+        return "", (
+            f"Reaction depiction skipped: reaction SMILES exceeds "
+            f"{MAX_REACTION_SMILES_LEN} characters."
+        )
+    try:
+        SilentChemObjectBuilder = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.silent.SilentChemObjectBuilder"
+        )
+        SmilesParser = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.smiles.SmilesParser"
+        )
+        StructureDiagramGenerator = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.layout.StructureDiagramGenerator"
+        )
+        DepictionGenerator = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.depict.DepictionGenerator"
+        )
+
+        builder = SilentChemObjectBuilder.getInstance()
+        parser = SmilesParser(builder)
+        reaction = parser.parseReactionSmiles(reaction_smiles)
+
+        # Regenerate 2D coords per IAtomContainer for clean layout
+        sdg = StructureDiagramGenerator()
+        for container_set in (
+            reaction.getReactants(),
+            reaction.getProducts(),
+            reaction.getAgents(),
+        ):
+            for i in range(container_set.getAtomContainerCount()):
+                mol = container_set.getAtomContainer(i)
+                try:
+                    sdg.setMolecule(mol)
+                    sdg.generateCoordinates()
+                except Exception:
+                    # Per-component layout failure — skip, keep reaction
+                    logger.debug("SDG failed for a reaction component")
+
+        dg = (
+            DepictionGenerator()
+            .withAtomColors()
+            .withFillToFit()
+            .withSize(
+                float(SVG_REACTION_TARGET_WIDTH),
+                float(SVG_REACTION_TARGET_HEIGHT),
+            )
+        )
+        depiction = dg.depict(reaction)
+        svg_str = str(depiction.toSvgStr())
+        sized = _set_svg_dimensions(
+            svg_str,
+            SVG_REACTION_TARGET_WIDTH,
+            SVG_REACTION_TARGET_HEIGHT,
+        )
+        return sized, ""
+    except jpype.JException as exc:
+        logger.warning(
+            "CDK reaction depiction failed for %r: %s",
+            reaction_smiles[:80],
+            exc,
+        )
+        return "", "Reaction depiction failed — rendered as SMILES fallback."
+    except Exception as exc:
+        logger.warning(
+            "Unexpected reaction SVG error for %r: %s",
+            reaction_smiles[:80],
+            exc,
+        )
+        return "", "Reaction depiction failed — rendered as SMILES fallback."
 
 
 def _render_with_cdk_layout(container) -> str:
@@ -691,3 +839,35 @@ async def extract_reactions(
         _extract_reactions_sync, file_bytes, format_type
     )
     return [ReactionResponse(**d) for d in raw_reactions]
+
+
+async def extract_reactions_with_svg(
+    file_bytes: bytes,
+    format_type: str,
+    timeout: float = 30.0,
+) -> tuple[list[ReactionResponse], list[str]]:
+    """Extract reactions with rendered SVGs (Plan 10 D-12/D-15).
+
+    Args:
+        file_bytes: Raw CDX/CDXML content.
+        format_type: "cdx" or "cdxml".
+        timeout: Hard cap in seconds; raised as TimeoutError by
+            run_in_jvm_thread if exceeded.
+
+    Returns:
+        (list of ReactionResponse with svg populated, list of warnings).
+
+    Raises:
+        TimeoutError: run_in_jvm_thread exceeded `timeout`.
+        ExtractionError: Java-side extraction failure.
+    """
+    raw_reactions, warnings = await run_in_jvm_thread(
+        _extract_reactions_with_svg_sync,
+        file_bytes,
+        format_type,
+        timeout=timeout,
+    )
+    return (
+        [ReactionResponse(**d) for d in raw_reactions],
+        warnings,
+    )
