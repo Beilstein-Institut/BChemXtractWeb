@@ -44,4 +44,6 @@ export interface ExportRequest {
   substance_ids: number[];
   /** Export all substances from extraction (D-03). Used when substance_ids is empty. */
   extraction_id?: number;
+  /** Explicit reaction IDs for RXN export (Plan 10 D-22). Mirrors substance_ids. */
+  reaction_ids?: number[];
 }

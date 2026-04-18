@@ -1,4 +1,8 @@
-import type { ExtractionResponse, PagedSubstancesResponse } from "@/types/chemistry";
+import type {
+  ExtractionResponse,
+  PagedSubstancesResponse,
+  ReactionExtractionResponse,
+} from "@/types/chemistry";
 import type { HistoryListResponse, StatsResponse } from "@/types/history";
 import type { BatchStartResponse } from "@/types/batch";
 import type { ExportRequest } from "@/types/export";
@@ -296,4 +300,108 @@ export async function postSearch(payload: SearchRequest): Promise<SearchResponse
     throw new Error(`Search failed — ${detail}`);
   }
   return response.json() as Promise<SearchResponse>;
+}
+
+/**
+ * POST /api/reactions — experimental reaction extraction (Plan 10 D-02).
+ *
+ * Accepts a CDX/CDXML File + optional AbortSignal to cancel in-flight requests
+ * (mirrors useSearch AbortController pattern; mitigates Pitfall 10 react
+ * dev-mode warning about state updates on unmounted components).
+ *
+ * Per D-06: a 200 response may contain reactions=[] + warnings (timeout path).
+ * Callers treat timeout as a non-error success state.
+ */
+export async function postReactions(
+  file: File,
+  signal?: AbortSignal,
+): Promise<ReactionExtractionResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  let response: Response;
+  try {
+    response = await fetch("/api/reactions", {
+      method: "POST",
+      body: formData,
+      signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw err; // propagate; caller decides how to handle
+    }
+    throw new Error(
+      "Could not reach the reaction server — check your connection.",
+    );
+  }
+
+  if (!response.ok) {
+    let detail = "please try again";
+    try {
+      const body = await response.json();
+      if (typeof body?.detail === "string") detail = body.detail;
+    } catch {
+      // JSON parse failed — use default detail
+    }
+    throw new Error(`Reaction extraction failed — ${detail}`);
+  }
+
+  const body = await response.json();
+  if (!body || !Array.isArray(body.reactions)) {
+    throw new Error(
+      "Reaction extraction failed — unexpected response format.",
+    );
+  }
+  return body as ReactionExtractionResponse;
+}
+
+/**
+ * GET /api/extractions/{extractionId}/reactions — load cached reactions
+ * for a prior extraction (Plan 10 D-23 history hydration).
+ *
+ * Returns a ReactionExtractionResponse mirroring the POST shape — reactions
+ * are read from the DB rather than freshly extracted. When reaction_count
+ * is 0, the server returns `reactions: []` with a 200 (not 404).
+ * 404 is reserved for "extraction_id does not exist".
+ *
+ * Callers check `reaction_count > 0` on the HistoryListItem before firing
+ * this request so they don't waste round-trips for never-reacted extractions.
+ */
+export async function getExtractionReactions(
+  extractionId: number,
+  signal?: AbortSignal,
+): Promise<ReactionExtractionResponse> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/extractions/${extractionId}/reactions`, {
+      method: "GET",
+      signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw err;
+    }
+    throw new Error(
+      "Could not reach the reaction server — check your connection.",
+    );
+  }
+
+  if (!response.ok) {
+    let detail = "please try again";
+    try {
+      const body = await response.json();
+      if (typeof body?.detail === "string") detail = body.detail;
+    } catch {
+      // JSON parse failed — use default detail
+    }
+    throw new Error(`Loading cached reactions failed — ${detail}`);
+  }
+
+  const body = await response.json();
+  if (!body || !Array.isArray(body.reactions)) {
+    throw new Error(
+      "Loading cached reactions failed — unexpected response format.",
+    );
+  }
+  return body as ReactionExtractionResponse;
 }
