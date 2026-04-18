@@ -25,6 +25,13 @@ FIXTURES_DIR = (
     / "resources"
 )
 
+# --- Phase 10: local reaction fixtures dir ---
+# Phase 10 reaction fixtures are COPIED into backend/tests/fixtures/reactions/
+# rather than read from FIXTURES_DIR (the submodule). This insulates reaction
+# tests from submodule bumps that may add/remove/rename upstream fixture
+# files. Substance fixtures above continue to read from FIXTURES_DIR.
+REACTION_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "reactions"
+
 # --- Phase 5: test database URL ---
 TEST_DB_URL = "postgresql+psycopg://postgres:postgres@localhost:5432/bchemxtract_test"
 
@@ -88,6 +95,48 @@ def cdx_multi_file_bytes() -> bytes:
     Source: BChemXtract submodule test resources (D-12).
     """
     path = FIXTURES_DIR / "cdx" / "reader" / "test_fixture.cdx"
+    return path.read_bytes()
+
+
+# --- Phase 10: reaction fixtures (read from LOCAL REACTION_FIXTURES_DIR) ---
+
+
+@pytest.fixture(scope="session")
+def cdx_reaction_file_bytes() -> bytes:
+    """Simple single-reaction CDX fixture.
+
+    Source: copied from BChemXtract submodule integrationTests/reactions/
+    into backend/tests/fixtures/reactions/ (Phase 10 D-03).
+    """
+    path = REACTION_FIXTURES_DIR / "simple_reaction.cdx"
+    return path.read_bytes()
+
+
+@pytest.fixture(scope="session")
+def cdx_multi_reaction_file_bytes() -> bytes:
+    """Multi-reaction CDX fixture for RDF export tests."""
+    path = REACTION_FIXTURES_DIR / "multi_step_reaction.cdx"
+    return path.read_bytes()
+
+
+@pytest.fixture(scope="session")
+def cdxml_reaction_file_bytes() -> bytes:
+    """Single-reaction CDXML fixture for format-detection tests."""
+    path = REACTION_FIXTURES_DIR / "forward.cdxml"
+    return path.read_bytes()
+
+
+@pytest.fixture(scope="session")
+def cdx_reversible_reaction_file_bytes() -> bytes:
+    """Reversible reaction CDX fixture for reaction_smiles edge cases."""
+    path = REACTION_FIXTURES_DIR / "reversible.cdx"
+    return path.read_bytes()
+
+
+@pytest.fixture(scope="session")
+def cdxml_chemotion_reaction_file_bytes() -> bytes:
+    """Chemotion-authored CDXML reaction fixture (realistic lab file)."""
+    path = REACTION_FIXTURES_DIR / "chemotion_CRR-43.cdxml"
     return path.read_bytes()
 
 
