@@ -22,9 +22,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.chemistry import ErrorResponse, ExportRequest
-from app.models.orm import Extraction, ExtractionSubstance, Substance
+from app.models.orm import (
+    Extraction,
+    ExtractionReaction,
+    ExtractionSubstance,
+    Reaction,
+    Substance,
+)
 from app.services.db import get_db
-from app.services.export import generate_export
+from app.services.export import generate_export, generate_reactions_export
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -116,6 +122,76 @@ async def _fetch_substances(payload: ExportRequest, db: AsyncSession) -> list[di
     ]
 
 
+async def _fetch_reactions(
+    payload: ExportRequest, db: AsyncSession
+) -> list[dict]:
+    """Fetch reaction dicts for RXN export. IDOR-safe (Plan 10 T-10-04).
+
+    Mirrors _fetch_substances IDOR protection:
+      - Explicit reaction_ids + extraction_id -> JOIN through ExtractionReaction
+        with extraction_id scope
+      - extraction_id only -> all reactions linked to that extraction in position order
+      - Neither -> 400
+    """
+    if payload.reaction_ids:
+        stmt = (
+            select(Reaction)
+            .join(
+                ExtractionReaction,
+                Reaction.id == ExtractionReaction.reaction_id,
+            )
+            .where(Reaction.id.in_(payload.reaction_ids))
+            .distinct()
+        )
+        if payload.extraction_id is not None:
+            stmt = stmt.where(
+                ExtractionReaction.extraction_id == payload.extraction_id
+            )
+        result = await db.execute(stmt)
+        reactions = result.scalars().all()
+    elif payload.extraction_id is not None:
+        ext_result = await db.execute(
+            select(Extraction).where(Extraction.id == payload.extraction_id)
+        )
+        if ext_result.scalar_one_or_none() is None:
+            raise HTTPException(
+                status_code=404, detail="Extraction not found"
+            )
+        result = await db.execute(
+            select(Reaction)
+            .join(
+                ExtractionReaction,
+                Reaction.id == ExtractionReaction.reaction_id,
+            )
+            .where(ExtractionReaction.extraction_id == payload.extraction_id)
+            .order_by(ExtractionReaction.position)
+        )
+        reactions = result.scalars().all()
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide reaction_ids or extraction_id for RXN export.",
+        )
+
+    if not reactions:
+        raise HTTPException(
+            status_code=404, detail="No reactions found for export."
+        )
+
+    return [
+        {
+            "id": r.id,
+            "long_rinchi_key": r.long_rinchi_key,
+            "reaction_smiles": r.reaction_smiles,
+            "rinchi": r.rinchi,
+            "aux_info": r.aux_info,
+            "svg": r.svg,
+            "components": r.components,
+        }
+        for r in reactions
+    ]
+
+
 @router.post(
     "/export",
     operation_id="exportSubstances",
@@ -164,6 +240,12 @@ async def export_substances(
     payload.extraction_id: export all substances from extraction (D-03).
     payload.format: "sdf" | "json" | "csv" | "png" | "svg" | "cml" | "v3000" | "rxn"
 
+    Plan 10 EXPO-08: when payload.format == "rxn", dispatch to
+    _fetch_reactions + generate_reactions_export instead of the substance
+    pipeline. generate_export no longer has an "rxn" branch -- the router
+    intercepts rxn here, ensuring substance and reaction paths stay
+    disjoint.
+
     Returns StreamingResponse with appropriate Content-Type and Content-Disposition.
 
     Raises:
@@ -171,6 +253,36 @@ async def export_substances(
         HTTPException 404: Extraction/substances not found.
         HTTPException 422: Invalid format (Pydantic catches this before handler).
     """
+    # Plan 10 EXPO-08: rxn format routes through the reactions path.
+    # This dispatch MUST run before _fetch_substances / generate_export,
+    # because generate_export no longer has an "rxn" branch -- substance
+    # path is substance-only.
+    if payload.format == "rxn":
+        reaction_dicts = await _fetch_reactions(payload, db)
+        content, media_type, filename = await generate_reactions_export(
+            reaction_dicts, payload.format
+        )
+        if len(content) > _EXPORT_SIZE_WARN_BYTES:
+            logger.warning(
+                "Large export: format=%s size=%d bytes count=%d",
+                payload.format,
+                len(content),
+                len(reaction_dicts),
+            )
+        safe_name = filename.replace('"', "").replace("\n", "").replace("\r", "")
+        encoded_name = quote(filename, safe="")
+        return StreamingResponse(
+            io.BytesIO(content),
+            media_type=media_type,
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="{safe_name}"; '
+                    f"filename*=UTF-8''{encoded_name}"
+                )
+            },
+        )
+
+    # Existing substance path (unchanged -- generate_export is substance-only)
     substance_dicts = await _fetch_substances(payload, db)
 
     content, media_type, filename = await generate_export(substance_dicts, payload.format)

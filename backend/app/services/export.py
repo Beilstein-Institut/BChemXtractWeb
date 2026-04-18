@@ -259,6 +259,120 @@ def _generate_v3000_sync(smiles: str) -> bytes:
         return b""
 
 
+# Plan 10 Pitfall 6: same polymer-SMILES guard as extractor.py
+_MAX_EXPORT_REACTION_SMILES_LEN = 1500
+
+
+def _generate_rxn_sync(reactions: list[dict]) -> bytes:
+    """Generate RXN/multi-reaction bytes via CDK MDLRXNWriter (Plan 10 D-22 amended).
+
+    MUST run inside run_in_jvm_thread -- JPype calls are JVM-thread-attached.
+
+    CDK's MDLRXNWriter.write(IReactionSet) natively emits:
+      - 1 reaction  -> single $RXN record
+      - N reactions -> N records with $$$$ separator between them
+    This is the CDK-native multi-reaction container. MDLRDFWriter does
+    NOT exist in CDK 2.12 (verified via `unzip -l` -- see RESEARCH).
+
+    Filters: reactions with empty reaction_smiles, no ">" separator, or
+    reaction_smiles longer than _MAX_EXPORT_REACTION_SMILES_LEN (1500)
+    are skipped (Pitfalls 3 and 6). Unparseable SMILES are caught
+    per-reaction and logged at DEBUG, not raised.
+
+    Args:
+        reactions: list of reaction dicts with at minimum ``reaction_smiles``.
+
+    Returns:
+        UTF-8 encoded CTfile bytes. Empty bytes if no reactions parse.
+    """
+    import jpype
+
+    # Filter eligible reactions (">", non-empty, length guard)
+    eligible = []
+    for r in reactions:
+        smi = r.get("reaction_smiles") or ""
+        if not smi or ">" not in smi:
+            continue
+        if len(smi) > _MAX_EXPORT_REACTION_SMILES_LEN:
+            _logger.warning(
+                "RXN export: skipping oversized reaction (%d chars)",
+                len(smi),
+            )
+            continue
+        eligible.append(r)
+
+    if not eligible:
+        return b""
+
+    try:
+        SilentChemObjectBuilder = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.silent.SilentChemObjectBuilder"
+        )
+        SmilesParser = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.smiles.SmilesParser"
+        )
+        # Prefer silent ReactionSet; fall back to base class if missing.
+        try:
+            ReactionSet = jpype.JClass(  # noqa: N806
+                "org.openscience.cdk.silent.ReactionSet"
+            )
+        except Exception:  # pragma: no cover - depends on CDK variant
+            ReactionSet = jpype.JClass(  # noqa: N806
+                "org.openscience.cdk.ReactionSet"
+            )
+        StructureDiagramGenerator = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.layout.StructureDiagramGenerator"
+        )
+        MDLRXNWriter = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.io.MDLRXNWriter"
+        )
+        StringWriter = jpype.JClass("java.io.StringWriter")  # noqa: N806
+
+        builder = SilentChemObjectBuilder.getInstance()
+        parser = SmilesParser(builder)
+        sdg = StructureDiagramGenerator()
+        rxn_set = ReactionSet()
+
+        for r in eligible:
+            try:
+                reaction = parser.parseReactionSmiles(r["reaction_smiles"])
+                for cs in (
+                    reaction.getReactants(),
+                    reaction.getProducts(),
+                    reaction.getAgents(),
+                ):
+                    for i in range(cs.getAtomContainerCount()):
+                        mol = cs.getAtomContainer(i)
+                        try:
+                            sdg.setMolecule(mol)
+                            sdg.generateCoordinates()
+                        except Exception:
+                            # Per-component layout failure -- MDLRXNWriter
+                            # will still write what it has.
+                            pass
+                rxn_set.addReaction(reaction)
+            except Exception:
+                _logger.debug(
+                    "Skipping reaction during RXN export: unparseable smiles %r",
+                    r.get("reaction_smiles", "")[:80],
+                )
+                continue
+
+        if rxn_set.getReactionCount() == 0:
+            return b""
+
+        sw = StringWriter()
+        writer = MDLRXNWriter(sw)
+        try:
+            writer.write(rxn_set)
+        finally:
+            writer.close()
+        return str(sw.toString()).encode("utf-8")
+    except Exception as exc:
+        _logger.warning("RXN export failed: %s", exc)
+        return b""
+
+
 # ---------------------------------------------------------------------------
 # Pure Python generators (no JVM thread needed)
 # ---------------------------------------------------------------------------
@@ -481,9 +595,37 @@ async def generate_export(
         content = _build_zip(entries)
         return content, "application/zip", multi_name
 
-    elif fmt == "rxn":
-        content = _generate_rxn_stub()
-        return content, "chemical/x-mdl-rdfile", "reactions.rdf"
-
     else:
+        # Plan 10 EXPO-08: "rxn" is handled by generate_reactions_export.
+        # The router intercepts rxn before generate_export is called. If a
+        # caller reaches here with fmt=="rxn", that is a contract violation
+        # and the 422 path is the correct failure mode.
         raise HTTPException(status_code=422, detail=f"Unknown export format: {fmt}")
+
+
+async def generate_reactions_export(
+    reactions: list[dict], fmt: str
+) -> tuple[bytes, str, str]:
+    """Generate export content for reaction formats (Plan 10 EXPO-08).
+
+    Sibling to ``generate_export`` (which handles substance formats only).
+    The router dispatches to one or the other based on ``payload.format``;
+    the two functions have disjoint format sets and never share inputs.
+
+    Currently only 'rxn' is supported for reactions. When ``reactions`` has
+    a single eligible entry, the filename is ``reaction.rxn`` and the media
+    type is ``chemical/x-mdl-rxnfile``; multiple reactions produce
+    ``reactions.rdf`` with ``chemical/x-mdl-rdfile`` (the CDK-native multi
+    -record container -- MDLRDFWriter is absent from the bundled JAR per
+    D-22 amended). Empty or entirely-unparseable reaction lists fall back
+    to ``_generate_rxn_stub`` so clients always get a valid RDfile header.
+    """
+    if fmt == "rxn":
+        content = await run_in_jvm_thread(_generate_rxn_sync, reactions)
+        if not content:
+            # Fallback: zero eligible reactions -> original stub header
+            content = _generate_rxn_stub()
+        if len(reactions) <= 1:
+            return content, "chemical/x-mdl-rxnfile", "reaction.rxn"
+        return content, "chemical/x-mdl-rdfile", "reactions.rdf"
+    raise ValueError(f"Unsupported reaction export format: {fmt}")

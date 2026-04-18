@@ -10,6 +10,9 @@ APPROVED_OPERATION_IDS = {
     # extraction
     "extractFile",
     "getExtractionSubstances",
+    # extraction (Plan 10 -- experimental reactions)
+    "extractReactions",
+    "getExtractionReactions",
     # history
     "listHistory",
     "getHistoryDetail",
