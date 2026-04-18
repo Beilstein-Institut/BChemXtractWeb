@@ -13,8 +13,13 @@ import { StructureBrowser } from "@/components/StructureBrowser";
 import { StatCard } from "@/components/StatCard";
 import { HistoryList } from "@/components/HistoryList";
 import { SearchResults } from "@/components/SearchResults";
+import { ExtractionTabs } from "@/components/ExtractionTabs";
 import { searchInputRef } from "@/lib/searchFocus";
-import type { ExtractionResponse } from "@/types/chemistry";
+import { getExtractionReactions } from "@/lib/apiClient";
+import type {
+  ExtractionResponse,
+  ReactionExtractionResponse,
+} from "@/types/chemistry";
 
 function App() {
   const { state, result, errorMessage, extract, reset } = useExtract();
@@ -66,6 +71,14 @@ function App() {
   // Active extraction ID for paginated browsing (Phase 6).
   const [activeExtractionId, setActiveExtractionId] = useState<number | null>(null);
 
+  // Plan 10 D-23: cached reactions for the active extraction, populated from
+  // GET /api/extractions/{id}/reactions when the active view is historical
+  // (no File object held in browser) and the extraction has reaction_count > 0.
+  // On fresh uploads, this stays null — the Reactions tab user triggers a
+  // POST /api/reactions call via the pre-extract CTA.
+  const [cachedReactionsData, setCachedReactionsData] =
+    useState<ReactionExtractionResponse | null>(null);
+
   // Determine what to display in the results area:
   //   - historicalResult: user clicked "Reload extraction" on a history entry
   //   - result: fresh extraction just completed
@@ -113,6 +126,42 @@ function App() {
       refreshHistory();
     }
   }, [batchState, refreshHistory]);
+
+  // Plan 10 D-23: when the user reloads a historical extraction into the
+  // results view (no File object in memory), hydrate the Reactions tab from
+  // the cached /api/extractions/{id}/reactions endpoint so the tab renders
+  // the stored reactions directly instead of the pre-extract CTA. Freshly
+  // uploaded files skip this — the user kicks off /api/reactions via the
+  // in-tab button. Aborts on id-change / unmount. All setState calls land
+  // inside async .then()/.catch() handlers (never the effect body) so the
+  // react-hooks/set-state-in-effect lint passes.
+  useEffect(() => {
+    const extractionId = activeResult?.extraction_id;
+    // Only hydrate on historical views — when a fresh File is held, the
+    // user is expected to trigger reaction extraction from inside the tab.
+    if (!extractionId || selectedFile) {
+      // Fire-and-reset into a microtask to avoid the set-state-in-effect
+      // pattern; the React batcher still lands this before the next paint.
+      Promise.resolve().then(() => setCachedReactionsData(null));
+      return;
+    }
+
+    const controller = new AbortController();
+    getExtractionReactions(extractionId, controller.signal)
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        // Only surface the cache when there are reactions to show. Empty
+        // arrays (reaction_count === 0) fall through to the "Re-upload"
+        // idle flow so the user can opt into extraction.
+        setCachedReactionsData(data.reactions.length > 0 ? data : null);
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setCachedReactionsData(null);
+      });
+
+    return () => controller.abort();
+  }, [activeResult?.extraction_id, selectedFile]);
 
   const handleReloadSuccess = useCallback((response: ExtractionResponse) => {
     setHistoricalResult(response);
@@ -266,13 +315,30 @@ function App() {
                   <div className="mt-8">
                     <ExtractionSummary response={activeResult} onReset={handleReset} />
                   </div>
-                  <div id="browse" className="mt-8 scroll-mt-24">
-                    <StructureBrowser
-                      extractionId={activeExtractionId}
-                      onReset={handleReset}
-                      onSearchWithin={handleSearchWithin}
-                    />
-                  </div>
+                  <ExtractionTabs
+                    substanceCount={activeResult.structure_count}
+                    reactionsTabProps={{
+                      file: selectedFile,
+                      filename: activeResult.filename,
+                      // D-23: non-null only for historical extractions that
+                      // had reactions saved (reaction_count > 0 on the
+                      // returned ReactionExtractionResponse). Fresh uploads
+                      // leave this null so the user triggers POST /api/reactions
+                      // via the tab's pre-extract CTA.
+                      cachedReactions: cachedReactionsData?.reactions ?? null,
+                      cachedExtractionTimeMs:
+                        cachedReactionsData?.extraction_time_ms,
+                      cachedFormat: cachedReactionsData?.format,
+                    }}
+                  >
+                    <div id="browse" className="scroll-mt-24">
+                      <StructureBrowser
+                        extractionId={activeExtractionId}
+                        onReset={handleReset}
+                        onSearchWithin={handleSearchWithin}
+                      />
+                    </div>
+                  </ExtractionTabs>
                 </>
               )}
 
