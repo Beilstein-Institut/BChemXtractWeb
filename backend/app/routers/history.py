@@ -45,6 +45,7 @@ def _extraction_to_list_item(e: Extraction) -> HistoryListItem:
         file_size=e.file_size,
         format=e.format,
         structure_count=e.structure_count,
+        reaction_count=e.reaction_count,  # Plan 10 D-23 — bridges ORM column to wire
         extraction_time_ms=e.extraction_time_ms,
         warnings=e.warnings or [],
         created_at=e.created_at.isoformat(),
