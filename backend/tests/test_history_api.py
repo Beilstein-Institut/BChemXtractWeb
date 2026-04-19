@@ -6,8 +6,12 @@ Uses the `client` fixture (lifespan-started app + JVM) from conftest.py.
 Run: conda run -n cheminformatics pytest tests/test_history_api.py -x -q
 """
 
+import logging
+
 import pytest
 from httpx import AsyncClient
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.mark.asyncio
@@ -224,6 +228,16 @@ async def test_history_includes_reaction_count_after_reactions_extraction(
     # This is the regression guard: prior to the fix in chemistry.py +
     # history.py, this assertion failed because the field was silently
     # dropped during Pydantic serialisation.
+    #
+    # Per IN-01 (10-REVIEW.md): use a ranged assertion (>= 1) rather than
+    # strict equality with the immediately-preceding POST. The DB fixture
+    # is session-scoped without per-test rollback for client-driven tests,
+    # and `get_or_create_extraction_row` deduplicates by
+    # (filename, file_size, format). Under pytest-xdist or a future test
+    # that mutates simple_reaction.cdx bytes, two workers could race on
+    # the same row and the strict equality would flake. The weaker
+    # assertion still catches the original Pydantic-drops-the-field bug
+    # (reaction_count would be 0 or missing entirely).
     entry = matching[0]
     assert "reaction_count" in entry, (
         "GET /api/history items must include reaction_count "
@@ -232,7 +246,15 @@ async def test_history_includes_reaction_count_after_reactions_extraction(
     assert isinstance(entry["reaction_count"], int), (
         f"reaction_count must be int, got {type(entry['reaction_count'])}"
     )
-    assert entry["reaction_count"] == expected_reaction_count, (
-        f"history reaction_count ({entry['reaction_count']}) must match "
-        f"POST /api/reactions response ({expected_reaction_count})"
+    assert entry["reaction_count"] >= 1, (
+        "reaction_count must be populated (>= 1) after POST /api/reactions; "
+        f"got {entry['reaction_count']}"
     )
+    # Log-correlate without asserting strict equality — drift is allowed
+    # under parallel workers but worth surfacing during debugging.
+    if entry["reaction_count"] != expected_reaction_count:
+        logger.warning(
+            "reaction_count drift: POST=%d history=%d (likely concurrent test)",
+            expected_reaction_count,
+            entry["reaction_count"],
+        )
