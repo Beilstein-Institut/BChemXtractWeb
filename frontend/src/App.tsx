@@ -79,6 +79,14 @@ function App() {
   const [cachedReactionsData, setCachedReactionsData] =
     useState<ReactionExtractionResponse | null>(null);
 
+  // Live reaction count from the Reactions tab (Plan 10 D-22 wiring fix —
+  // ReactionsTab fires onReactionsCountChange whenever its visible reactions
+  // change). Used to enable the toolbar's RXN/RDfile export entry in lockstep
+  // with what the user sees in the Reactions tab. Reset when the active
+  // extraction changes (handled implicitly because the ReactionsTab re-mounts
+  // and re-fires the callback with the new count).
+  const [liveReactionCount, setLiveReactionCount] = useState(0);
+
   // Determine what to display in the results area:
   //   - historicalResult: user clicked "Reload extraction" on a history entry
   //   - result: fresh extraction just completed
@@ -329,6 +337,7 @@ function App() {
                       cachedExtractionTimeMs:
                         cachedReactionsData?.extraction_time_ms,
                       cachedFormat: cachedReactionsData?.format,
+                      onReactionsCountChange: setLiveReactionCount,
                     }}
                   >
                     <div id="browse" className="scroll-mt-24">
@@ -336,6 +345,7 @@ function App() {
                         extractionId={activeExtractionId}
                         onReset={handleReset}
                         onSearchWithin={handleSearchWithin}
+                        reactionsAvailable={liveReactionCount > 0}
                       />
                     </div>
                   </ExtractionTabs>

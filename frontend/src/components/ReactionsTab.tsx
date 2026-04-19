@@ -63,6 +63,13 @@ export interface ReactionsTabProps {
   cachedFormat?: string;
   /** Display filename override — used in the loading message. */
   filename?: string;
+  /**
+   * Fired whenever the visible reaction count changes (live extraction success,
+   * cached hydration, or reset to zero). Lets the parent thread a
+   * `reactionsAvailable` boolean down to siblings such as ExportMenu so the
+   * RXN/RDfile entry enables/disables in lockstep with what the user sees.
+   */
+  onReactionsCountChange?: (count: number) => void;
 }
 
 export function ReactionsTab({
@@ -71,6 +78,7 @@ export function ReactionsTab({
   cachedExtractionTimeMs,
   cachedFormat,
   filename,
+  onReactionsCountChange,
 }: ReactionsTabProps) {
   const { state, result, errorMessage, extract } = useReactions();
   const [sheetIndex, setSheetIndex] = useState<number | null>(null);
@@ -98,6 +106,10 @@ export function ReactionsTab({
   const reactions: ReactionResponse[] = isCached
     ? cachedReactions!
     : reactionsFromHook;
+
+  useEffect(() => {
+    onReactionsCountChange?.(reactions.length);
+  }, [reactions.length, onReactionsCountChange]);
 
   const displayFilename =
     filename ?? file?.name ?? result?.filename ?? "this file";

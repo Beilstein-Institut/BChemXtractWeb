@@ -45,6 +45,13 @@ export interface StructureBrowserProps {
    * focuses the header SearchInput via `searchInputRef`.
    */
   onSearchWithin?: () => void;
+  /**
+   * When true, the toolbar's ExportMenu enables the RXN/RDfile entry
+   * (Plan 10 D-22 / EXPO-08). True when reactions exist for the active
+   * extraction — either freshly extracted in the Reactions tab or
+   * hydrated from the D-23 cached path. Defaults to false.
+   */
+  reactionsAvailable?: boolean;
 }
 
 /**
@@ -71,6 +78,7 @@ export function StructureBrowser({
   extractionId,
   onReset: _onReset,
   onSearchWithin,
+  reactionsAvailable = false,
 }: StructureBrowserProps) {
   const {
     browseState,
@@ -120,6 +128,7 @@ export function StructureBrowser({
         extractionId={extractionId ?? null}
         disabled={browseState === "loading" && page === null}
         onSearchWithin={onSearchWithin}
+        reactionsAvailable={reactionsAvailable}
       />
 
       {/* Loading state — skeleton cards/rows (D-13) */}

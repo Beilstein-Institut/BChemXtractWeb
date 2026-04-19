@@ -48,6 +48,12 @@ export interface BrowseToolbarProps {
    * header SearchInput (via `searchInputRef` from `@/lib/searchFocus`).
    */
   onSearchWithin?: () => void;
+  /**
+   * When true, the ExportMenu enables the RXN/RDfile entry (Plan 10 D-22 /
+   * EXPO-08). True when reactions exist for the active extraction. Defaults
+   * to false (RXN entry stays disabled with the "no reactions" tooltip).
+   */
+  reactionsAvailable?: boolean;
 }
 
 /**
@@ -69,6 +75,7 @@ export function BrowseToolbar({
   selectedIds,
   extractionId,
   onSearchWithin,
+  reactionsAvailable = false,
 }: BrowseToolbarProps) {
   const [isExporting, setIsExporting] = useState(false);
 
@@ -253,6 +260,7 @@ export function BrowseToolbar({
             triggerVariant="label"
             align="end"
             disabled={isExporting || selectedCount === 0}
+            reactionsAvailable={reactionsAvailable}
           />
         </div>
       )}
@@ -265,6 +273,7 @@ export function BrowseToolbar({
           triggerVariant="label"
           align="end"
           disabled={isExporting}
+          reactionsAvailable={reactionsAvailable}
         />
       )}
 
