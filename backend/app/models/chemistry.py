@@ -117,6 +117,7 @@ class HistoryListItem(BaseModel):
     file_size: int
     format: str
     structure_count: int
+    reaction_count: int = 0  # Plan 10 D-23 — populated by save_reactions; 0 until reactions extracted
     extraction_time_ms: float
     warnings: list[str] = Field(default_factory=list)
     created_at: str  # ISO 8601 UTC string
