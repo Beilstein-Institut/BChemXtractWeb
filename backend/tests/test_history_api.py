@@ -166,3 +166,73 @@ async def test_auto_persist_extraction_appears_in_history(
         f"Auto-persist hook failed: history count did not increase "
         f"(before={before_total}, after={after_total})"
     )
+
+
+@pytest.mark.asyncio
+async def test_history_includes_reaction_count_after_reactions_extraction(
+    client: AsyncClient, cdx_reaction_file_bytes: bytes
+):
+    """Plan 10 D-23 / VERIFICATION Truth #10: GET /api/history items expose
+    reaction_count after a successful POST /api/reactions call.
+
+    Regression guard for the silently-dropped HistoryListItem.reaction_count
+    field (chemistry.py + history.py — see 10-VERIFICATION.md). Without this
+    test, the frontend HistoryEntry chip ('{N} substances · {M} reactions')
+    can revert to undefined again because no other test exercises the wire
+    contract end-to-end.
+
+    Steps:
+      1. POST simple_reaction.cdx to /api/reactions — creates extraction row
+         with reaction_count populated by save_reactions (Plan 10-02 D-19).
+      2. GET /api/history?limit=all — locate our entry by filename.
+      3. Assert reaction_count is present, is an int, and matches the
+         reaction_count returned by the POST response.
+    """
+    # Step 1: extract reactions (auto-persists with reaction_count populated)
+    post_resp = await client.post(
+        "/api/reactions",
+        files={
+            "file": (
+                "simple_reaction.cdx",
+                cdx_reaction_file_bytes,
+                "chemical/x-cdx",
+            ),
+        },
+    )
+    assert post_resp.status_code == 200, (
+        f"POST /api/reactions failed: {post_resp.text}"
+    )
+    post_data = post_resp.json()
+    expected_reaction_count = post_data["reaction_count"]
+    assert expected_reaction_count >= 1, (
+        "simple_reaction.cdx must yield at least one reaction"
+    )
+
+    # Step 2: list history and find our entry
+    history_resp = await client.get("/api/history?limit=all")
+    assert history_resp.status_code == 200
+    items = history_resp.json()["items"]
+    matching = [
+        item for item in items if item["filename"] == "simple_reaction.cdx"
+    ]
+    assert len(matching) >= 1, (
+        "POST /api/reactions did not produce a history entry — "
+        "auto-persist hook may be broken"
+    )
+
+    # Step 3: assert reaction_count flows through HistoryListItem to the wire.
+    # This is the regression guard: prior to the fix in chemistry.py +
+    # history.py, this assertion failed because the field was silently
+    # dropped during Pydantic serialisation.
+    entry = matching[0]
+    assert "reaction_count" in entry, (
+        "GET /api/history items must include reaction_count "
+        "(HistoryListItem schema field) — chip on HistoryEntry depends on it"
+    )
+    assert isinstance(entry["reaction_count"], int), (
+        f"reaction_count must be int, got {type(entry['reaction_count'])}"
+    )
+    assert entry["reaction_count"] == expected_reaction_count, (
+        f"history reaction_count ({entry['reaction_count']}) must match "
+        f"POST /api/reactions response ({expected_reaction_count})"
+    )
