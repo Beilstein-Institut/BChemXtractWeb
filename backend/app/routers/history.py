@@ -112,6 +112,7 @@ def _extraction_to_response(e: Extraction) -> ExtractionResponse:
                                 "file_size": 4823,
                                 "format": "cdx",
                                 "structure_count": 12,
+                                "reaction_count": 3,  # Plan 10 D-23 — populated by save_reactions
                                 "extraction_time_ms": 412.3,
                                 "warnings": [],
                                 "created_at": "2026-04-17T09:12:44+00:00",
