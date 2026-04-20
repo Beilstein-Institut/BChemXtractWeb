@@ -62,3 +62,59 @@ async def test_history_detail_backfills_missing_svg_cdx(
         )
     ).one()
     assert row[0] == sub["svg_cdx"]
+
+
+@pytest.mark.asyncio
+async def test_history_detail_skips_backfill_when_already_populated(
+    client, db_session, simple_v3000_block, monkeypatch
+):
+    """Once a row has svg + svg_cdx, the endpoint must NOT re-invoke the
+    JVM parser on subsequent reads — proves the `if s.svg and s.svg_cdx:
+    continue` short-circuit stays in place."""
+    # Seed a row with BOTH fields already populated.
+    await db_session.execute(
+        text(
+            "INSERT INTO extractions (id, filename, file_size, format, "
+            "  structure_count, reaction_count, extraction_time_ms, warnings, "
+            "  created_at) "
+            "VALUES (9101, 'hot.cdx', 1, 'cdx', 1, 0, 1.0, '[]'::jsonb, NOW())"
+        )
+    )
+    await db_session.execute(
+        text(
+            "INSERT INTO substances (id, inchi_key, inchi, smiles, "
+            "  extended_smiles, molecular_formula, svg, svg_cdx, mdlv3000, "
+            "  first_seen_at) "
+            "VALUES (9101, 'CCCCCCCCCCCCCC-CCCCCCCCCC-N', '', '', '', '', "
+            "  '<svg>cdk</svg>', '<svg>cdx</svg>', :mb, NOW())"
+        ),
+        {"mb": simple_v3000_block},
+    )
+    await db_session.execute(
+        text(
+            "INSERT INTO extraction_substances (extraction_id, substance_id, "
+            "  position) VALUES (9101, 9101, 0)"
+        )
+    )
+    await db_session.commit()
+
+    # Spy on render_svgs_from_mdlv3000 — the endpoint imports it from the
+    # router's own namespace, so patch THAT binding (not the source module).
+    from app.routers import history as history_module
+
+    call_count = 0
+    original = history_module.render_svgs_from_mdlv3000
+
+    async def spy(sub):
+        nonlocal call_count
+        call_count += 1
+        return await original(sub)
+
+    monkeypatch.setattr(history_module, "render_svgs_from_mdlv3000", spy)
+
+    response = await client.get("/api/history/9101")
+    assert response.status_code == 200
+    assert call_count == 0, (
+        f"render_svgs_from_mdlv3000 was called {call_count} times for a "
+        f"fully-populated row — the short-circuit must skip the JVM entirely."
+    )

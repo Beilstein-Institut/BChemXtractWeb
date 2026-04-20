@@ -56,6 +56,41 @@ def _extraction_to_list_item(e: Extraction) -> HistoryListItem:
     )
 
 
+async def _backfill_missing_svgs(
+    db: AsyncSession, substances: list[Substance]
+) -> None:
+    """Render + persist any substance rows with empty svg / svg_cdx.
+
+    Best-effort. Commits after each successful UPDATE so one broken row
+    doesn't block others. Failures are logged and swallowed so the
+    history view always returns.
+
+    Note: we do NOT touch ``s.svg`` / ``s.svg_cdx`` on the ORM object.
+    SQLAlchemy's autoflush would otherwise race-overwrite the raw-SQL
+    UPDATE's conditional ``CASE WHEN col = '' THEN :val ELSE col END``
+    guard (the ORM's dirty-attribute UPDATE has no such guard and would
+    unconditionally clobber a concurrent winner's value). Instead,
+    ``update_substance_svgs`` is the sole writer and ``db.refresh(s)``
+    pulls the authoritative post-transaction value back into the ORM
+    object for ``_extraction_to_response`` to serialize.
+    """
+    for s in substances:
+        if s.svg and s.svg_cdx:
+            continue
+        filled = await render_svgs_from_mdlv3000(s)
+        if not filled.changed:
+            continue
+        try:
+            await update_substance_svgs(db, s.id, filled.svg, filled.svg_cdx)
+            await db.commit()
+            await db.refresh(s)
+        except Exception:  # noqa: BLE001 — self-heal is best-effort
+            logger.exception(
+                "SVG backfill persist failed for substance %s", s.id
+            )
+            await db.rollback()
+
+
 def _extraction_to_response(e: Extraction) -> ExtractionResponse:
     """Convert an Extraction ORM row (with loaded substances) to ExtractionResponse.
 
@@ -194,6 +229,12 @@ async def get_history_detail(extraction_id: int, db: DbDep) -> ExtractionRespons
     The response shape matches POST /api/extract so the frontend can pass it
     directly to StructureGrid without any format translation.
 
+    Side-effect: rows whose ``svg`` or ``svg_cdx`` is empty get rendered
+    from the stored MDL V3000 molblock and persisted on first view
+    (self-healing for pre-dual-render rows). Best-effort — per-substance
+    backfill failures are logged and skipped so the response still
+    returns the extraction.
+
     Args:
         extraction_id: Primary key of the Extraction record.
         db: AsyncSession from get_db() dependency.
@@ -213,26 +254,7 @@ async def get_history_detail(extraction_id: int, db: DbDep) -> ExtractionRespons
     if extraction is None:
         raise HTTPException(status_code=404, detail="Extraction not found")
 
-    # Lazy backfill: any substance still missing a layout gets rendered
-    # from its stored MDL V3000 molblock, and the result is persisted so
-    # future reads are cheap. The conditional UPDATE inside
-    # update_substance_svgs prevents concurrent requests from racing
-    # (first writer wins; later writers see non-empty columns and no-op).
-    any_updated = False
-    for s in extraction.substances or []:
-        if s.svg and s.svg_cdx:
-            continue
-        filled = await render_svgs_from_mdlv3000(s)
-        if filled.changed:
-            s.svg = filled.svg
-            s.svg_cdx = filled.svg_cdx
-            await update_substance_svgs(db, s.id, filled.svg, filled.svg_cdx)
-            any_updated = True
-
-    if any_updated:
-        # update_substance_svgs intentionally does NOT commit (so callers
-        # can batch) — commit once here after the per-substance loop.
-        await db.commit()
+    await _backfill_missing_svgs(db, extraction.substances or [])
 
     return _extraction_to_response(extraction)
 
