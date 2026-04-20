@@ -13,6 +13,12 @@ os.environ.setdefault(
 )
 os.environ.setdefault("DEBUG", "false")
 os.environ.setdefault("EXPOSE_OPENAPI_DOCS", "true")
+# SEC H-04: DATABASE_URL has no default in Settings; tests always target
+# the dedicated bchemxtract_test DB.
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql+psycopg://postgres:postgres@localhost:5432/bchemxtract_test",
+)
 # Loosen rate limits for the general test suite — specific rate-limit
 # tests narrow the limit + reset counters explicitly.
 os.environ.setdefault("RATE_LIMIT_DEFAULT", "10000/minute")

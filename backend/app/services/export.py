@@ -25,7 +25,7 @@ import io
 import json
 import logging
 import zipfile
-from datetime import date
+from datetime import datetime, timezone
 
 from fastapi import HTTPException
 from lxml import etree
@@ -64,8 +64,13 @@ def _single_filename(substance: dict, fmt: str) -> str:
 
 
 def _zip_filename(fmt: str) -> str:
-    """Multi-structure ZIP filename: bchemxtract_export_{fmt}_{YYYYMMDD}.zip"""
-    return f"bchemxtract_export_{fmt}_{date.today().strftime('%Y%m%d')}.zip"
+    """Multi-structure ZIP filename: bchemxtract_export_{fmt}_{YYYYMMDD}.zip.
+
+    SEC L-01: use UTC rather than ``date.today()`` (container-local tz)
+    so filename dates are deterministic across host timezones.
+    """
+    today_utc = datetime.now(timezone.utc).date().strftime("%Y%m%d")
+    return f"bchemxtract_export_{fmt}_{today_utc}.zip"
 
 
 # ---------------------------------------------------------------------------
@@ -503,10 +508,12 @@ def _generate_rxn_stub() -> bytes:
     IN-01: $DATM is generated at call time so exported files are stamped with
     the actual download date rather than the hardcoded development date.
 
+    SEC L-01: use UTC so RDfile stamps are deterministic across host tz.
+
     Returns:
         Minimal RDF header bytes.
     """
-    datm = date.today().strftime("%Y/%m/%d")
+    datm = datetime.now(timezone.utc).date().strftime("%Y/%m/%d")
     return f"$RDFILE 1\n$DATM    {datm}\n".encode()
 
 

@@ -42,8 +42,17 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
 
-    database_url: str = (
-        "postgresql+psycopg://postgres:postgres@localhost:5432/bchemxtract"
+    # SEC H-04: database_url has no default — every deployment (dev, test,
+    # prod, CI) MUST supply it explicitly. Previously the default carried a
+    # well-known ``postgres:postgres`` credential pair that is also the
+    # fallback used by a naive ``docker-compose up`` so a misconfigured
+    # deployment could reach production with that pair intact.
+    database_url: str = Field(
+        ...,
+        description=(
+            "PostgreSQL DSN. Required at startup. Example: "
+            "``postgresql+psycopg://user:password@host:5432/dbname``"
+        ),
     )
     java_home: str | None = None
     jar_path: str = "jars"

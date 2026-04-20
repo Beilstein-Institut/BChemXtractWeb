@@ -1,17 +1,35 @@
+# SEC H-04 / H-05: every secret-bearing env var in this file is
+# explicitly sourced from the shell environment with a mandatory-marker
+# (``${VAR:?message}``) so ``docker compose up`` will FAIL FAST with a
+# clear message if the operator hasn't provisioned the value. No
+# credential, API key, or JWT secret has a default — running with the
+# dev defaults is physically impossible.
+#
+# Provision the required environment in a local ``.env`` file (gitignored)
+# alongside this compose file:
+#
+#   POSTGRES_PASSWORD=<32+ random chars>
+#   API_KEYS=["<secret-1>", "<secret-2>"]
+#
+# Or export them in the shell before ``docker compose up``.
 services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: bchemxtract
+      POSTGRES_USER: ${POSTGRES_USER:-bchemxtract}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set (32+ random chars)}
+      POSTGRES_DB: ${POSTGRES_DB:-bchemxtract}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    # SEC H-04: Postgres is only reachable on the internal Docker network.
+    # Port 5432 is NOT bound to the host — backend + celery connect via
+    # the service name. Remove the line below only in development when a
+    # local psql client needs direct access, and never in a deployment.
+    #   ports:
+    #     - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bchemxtract}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,10 +46,13 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/bchemxtract
+      DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-bchemxtract}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-bchemxtract}"
       JAR_PATH: /app/jars
       CORS_ORIGINS: '["http://localhost", "http://localhost:5173"]'
       DEBUG: "false"
+      # SEC C-02: API_KEYS must be set — Settings validator refuses to
+      # start without at least one key when DEBUG=false.
+      API_KEYS: ${API_KEYS:?API_KEYS must be set (JSON array of >=16-char secrets)}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
     ports:
@@ -91,6 +112,9 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     restart: unless-stopped
+    # SEC H-03: --pool=solo is mandatory — extraction tasks use
+    # asyncio.run() internally and will error on prefork/thread pools.
+    # The Celery app also asserts solo pool at worker_process_init.
     command: celery -A app.celery_app worker --pool=solo --concurrency=1 -l info
     depends_on:
       redis:
@@ -98,9 +122,10 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/bchemxtract
+      DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-bchemxtract}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-bchemxtract}"
       JAR_PATH: /app/jars
       JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
+      API_KEYS: ${API_KEYS:?API_KEYS must be set}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
 
