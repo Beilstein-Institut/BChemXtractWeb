@@ -79,52 +79,55 @@ export function BrowseToolbar({
 }: BrowseToolbarProps) {
   const [isExporting, setIsExporting] = useState(false);
 
-  async function handleExport(format: ExportFormat): Promise<void> {
-    if (isExporting) return;
+  async function runExport(
+    toastPrefix: string,
+    suggestedFilename: string,
+    payload: Parameters<typeof postExport>[0],
+  ): Promise<void> {
     setIsExporting(true);
-    const toastId = `export-${Date.now()}`;
+    const toastId = `${toastPrefix}-${Date.now()}`;
     toast.loading("Preparing export\u2026", { id: toastId });
     try {
-      await postExport(
-        { format, substance_ids: Array.from(selectedIds) },
-        `export.${FORMAT_EXT[format]}`,
-      );
-      toast.success("Export ready \u2014 downloading", { id: toastId, duration: 3000 });
+      await postExport(payload, suggestedFilename);
+      toast.success("Export ready \u2014 downloading", {
+        id: toastId,
+        duration: 3000,
+      });
     } catch (err) {
       const reason = err instanceof Error ? err.message : "Unknown error";
       toast.error(`Export failed \u2014 ${reason}. Try again.`, { id: toastId });
     } finally {
       setIsExporting(false);
     }
+  }
+
+  async function handleExport(format: ExportFormat): Promise<void> {
+    if (isExporting) return;
+    await runExport("export", `export.${FORMAT_EXT[format]}`, {
+      format,
+      substance_ids: Array.from(selectedIds),
+    });
   }
 
   async function handleExportAll(format: ExportFormat): Promise<void> {
     if (!extractionId || isExporting) return;
-    setIsExporting(true);
-    const toastId = `export-all-${Date.now()}`;
-    toast.loading("Preparing export\u2026", { id: toastId });
-    try {
-      await postExport(
-        { format, substance_ids: [], extraction_id: extractionId },
-        `export_all.${FORMAT_EXT[format]}`,
-      );
-      toast.success("Export ready \u2014 downloading", { id: toastId, duration: 3000 });
-    } catch (err) {
-      const reason = err instanceof Error ? err.message : "Unknown error";
-      toast.error(`Export failed \u2014 ${reason}. Try again.`, { id: toastId });
-    } finally {
-      setIsExporting(false);
-    }
+    await runExport("export-all", `export_all.${FORMAT_EXT[format]}`, {
+      format,
+      substance_ids: [],
+      extraction_id: extractionId,
+    });
   }
 
   const start = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const end = Math.min(currentPage * pageSize, total);
-  const countLabel =
-    total === 0
-      ? "No structures"
-      : total === 1
-        ? "Showing 1 of 1 structure"
-        : `Showing ${start}\u2013${end} of ${total} structures`;
+  let countLabel: string;
+  if (total === 0) {
+    countLabel = "No structures";
+  } else if (total === 1) {
+    countLabel = "Showing 1 of 1 structure";
+  } else {
+    countLabel = `Showing ${start}\u2013${end} of ${total} structures`;
+  }
 
   return (
     <div
@@ -170,33 +173,13 @@ export function BrowseToolbar({
       {/* Sort dropdown — hidden on mobile, shown in Options popover */}
       <div className="hidden sm:flex items-center gap-2">
         <span className="text-xs text-muted-foreground">Sort by</span>
-        <Select value={sort} onValueChange={(v) => v && onSortChange(v as BrowseSort)}>
-          <SelectTrigger className="h-8 w-[160px]" aria-label="Sort order">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="extraction_order">Extraction order</SelectItem>
-            <SelectItem value="formula">Molecular formula</SelectItem>
-          </SelectContent>
-        </Select>
+        {renderSortSelect(sort, onSortChange, "w-[160px]", "Sort order")}
       </div>
 
       {/* Page size dropdown — hidden on mobile */}
       <div className="hidden sm:flex items-center gap-2">
         <span className="text-xs text-muted-foreground">Per page</span>
-        <Select
-          value={String(pageSize)}
-          onValueChange={(v) => v && onPageSizeChange(parseInt(v, 10) as 12 | 24 | 48)}
-        >
-          <SelectTrigger className="h-8 w-[72px]" aria-label="Items per page">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="12">12</SelectItem>
-            <SelectItem value="24">24</SelectItem>
-            <SelectItem value="48">48</SelectItem>
-          </SelectContent>
-        </Select>
+        {renderPageSizeSelect(pageSize, onPageSizeChange, "w-[72px]", "Items per page")}
       </div>
 
       {/* Mobile Options popover — sort + size collapsed into one button */}
@@ -217,31 +200,11 @@ export function BrowseToolbar({
         <PopoverContent className="w-56 flex flex-col gap-3 p-3">
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">Sort by</span>
-            <Select value={sort} onValueChange={(v) => v && onSortChange(v as BrowseSort)}>
-              <SelectTrigger className="h-8 w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="extraction_order">Extraction order</SelectItem>
-                <SelectItem value="formula">Molecular formula</SelectItem>
-              </SelectContent>
-            </Select>
+            {renderSortSelect(sort, onSortChange, "w-full")}
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">Per page</span>
-            <Select
-              value={String(pageSize)}
-              onValueChange={(v) => v && onPageSizeChange(parseInt(v, 10) as 12 | 24 | 48)}
-            >
-              <SelectTrigger className="h-8 w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="12">12</SelectItem>
-                <SelectItem value="24">24</SelectItem>
-                <SelectItem value="48">48</SelectItem>
-              </SelectContent>
-            </Select>
+            {renderPageSizeSelect(pageSize, onPageSizeChange, "w-full")}
           </div>
         </PopoverContent>
       </Popover>
@@ -288,3 +251,46 @@ export function BrowseToolbar({
     </div>
   );
 }
+
+function renderSortSelect(
+  value: BrowseSort,
+  onChange: (v: BrowseSort) => void,
+  triggerWidth: string,
+  ariaLabel?: string,
+) {
+  return (
+    <Select value={value} onValueChange={(v) => v && onChange(v as BrowseSort)}>
+      <SelectTrigger className={cn("h-8", triggerWidth)} aria-label={ariaLabel}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="extraction_order">Extraction order</SelectItem>
+        <SelectItem value="formula">Molecular formula</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function renderPageSizeSelect(
+  value: 12 | 24 | 48,
+  onChange: (n: 12 | 24 | 48) => void,
+  triggerWidth: string,
+  ariaLabel?: string,
+) {
+  return (
+    <Select
+      value={String(value)}
+      onValueChange={(v) => v && onChange(parseInt(v, 10) as 12 | 24 | 48)}
+    >
+      <SelectTrigger className={cn("h-8", triggerWidth)} aria-label={ariaLabel}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="12">12</SelectItem>
+        <SelectItem value="24">24</SelectItem>
+        <SelectItem value="48">48</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+

@@ -8,27 +8,24 @@
  * SVG is rendered as a URL-encoded data URI in an <img> src — never as raw
  * innerHTML — to prevent XSS injection from backend-supplied SVG (T-04-04).
  */
-import { useState, useRef, useEffect } from "react";
-import { ClipboardIcon, CheckIcon, FlaskConicalIcon } from "lucide-react";
+import { useState } from "react";
+import { FlaskConicalIcon } from "lucide-react";
 import { toast } from "sonner";
-import { safeClipboardText, safeDownloadSlug } from "@/lib/safeStrings";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import {
   Tooltip,
-  TooltipTrigger,
   TooltipContent,
+  TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
-import { StructureDetail } from "@/components/StructureDetail";
-import type { SubstanceResponse } from "@/types/chemistry";
+import { CopyButton } from "@/components/internal/CopyButton";
 import { ExportMenu } from "@/components/ExportMenu";
+import { StructureDetail } from "@/components/StructureDetail";
 import { postExport } from "@/lib/apiClient";
+import { safeDownloadSlug } from "@/lib/safeStrings";
+import { cn } from "@/lib/utils";
+import type { SubstanceResponse } from "@/types/chemistry";
 import type { ExportFormat } from "@/types/export";
 import { FORMAT_EXT } from "@/types/export";
 
@@ -66,38 +63,12 @@ export function StructureCard({
   itemIndex,
 }: StructureCardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Clear any pending copy-reset timer on unmount to avoid setState on
-  // an unmounted component (WR-01).
-  useEffect(() => {
-    return () => {
-      if (copyTimerRef.current !== null) clearTimeout(copyTimerRef.current);
-    };
-  }, []);
 
   // URL-encode the SVG so it can be safely used as an img src attribute value.
   // This is the only approved rendering method per UI-SPEC.md (T-04-04).
   const svgSrc = substance.svg
     ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(substance.svg)}`
     : null;
-
-  /**
-   * Copy the SMILES string to the clipboard.
-   * Calls e.stopPropagation() to prevent the card-click action from firing.
-   */
-  async function handleCopySmiles(e: React.MouseEvent) {
-    e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(safeClipboardText(substance.smiles));
-      if (copyTimerRef.current !== null) clearTimeout(copyTimerRef.current);
-      setIsCopied(true);
-      copyTimerRef.current = setTimeout(() => setIsCopied(false), 2000);
-    } catch {
-      toast.error("Failed to copy — try selecting the text manually.");
-    }
-  }
 
   async function handleExport(format: ExportFormat): Promise<void> {
     // IN-02: guard against sending substance_ids:[0] when id is falsy (Pydantic
@@ -160,18 +131,12 @@ export function StructureCard({
             </TooltipTrigger>
             <TooltipContent>{substance.smiles}</TooltipContent>
           </Tooltip>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={isCopied ? "Copied!" : "Copy SMILES to clipboard"}
-            onClick={handleCopySmiles}
-          >
-            {isCopied ? (
-              <CheckIcon className="size-3.5 text-primary" />
-            ) : (
-              <ClipboardIcon className="size-3.5 text-muted-foreground" />
-            )}
-          </Button>
+          <CopyButton
+            value={substance.smiles}
+            label="SMILES"
+            stopPropagation
+            mutedIcon
+          />
         </div>
       </CardContent>
     </Card>

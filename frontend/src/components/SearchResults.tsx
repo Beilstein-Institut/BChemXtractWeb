@@ -15,7 +15,7 @@
  * Consumes the `useSearch` hook (Plan 06). Plan 07 does NOT modify
  * useSearch.ts — this component is a pure reader.
  */
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { AlertCircleIcon, SearchXIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -99,19 +99,10 @@ export function SearchResults() {
   }, [query, type, scope, page, submit]);
 
   const total = response?.total ?? 0;
-  const totalPages = Math.max(
-    1,
-    Math.ceil((response?.total ?? 0) / PAGE_SIZE)
-  );
-  const scopeLabel = useMemo(() => {
-    if (scope === "global" || !scope) return "All extractions";
-    if (scope.startsWith("extraction:")) {
-      return "In this extraction";
-    }
-    return "All extractions";
-  }, [scope]);
-
-  const effectiveType: SearchType = type;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const scopeLabel = scope?.startsWith("extraction:")
+    ? "In this extraction"
+    : "All extractions";
 
   const metadataRow = (
     <div className="flex items-center justify-between h-9">
@@ -119,7 +110,7 @@ export function SearchResults() {
         <span>{total}</span>{" "}
         <span>{total === 1 ? "result" : "results"} for </span>
         <code className="font-mono text-foreground">{query}</code>
-        <span> · {TYPE_LABEL[effectiveType]}</span>
+        <span> · {TYPE_LABEL[type]}</span>
         <span> · {scopeLabel}</span>
       </div>
       <Button variant="ghost" size="sm" onClick={() => clear()}>
@@ -127,6 +118,11 @@ export function SearchResults() {
       </Button>
     </div>
   );
+
+  // DidYouMean only supports non-"auto" search types; coerce "auto" to
+  // the "smiles" default the empty-state chip was written for.
+  const didYouMeanType: Exclude<SearchType, "auto"> =
+    type === "auto" ? "smiles" : type;
 
   return (
     <section
@@ -170,15 +166,7 @@ export function SearchResults() {
             size="large"
             action={
               <DidYouMean
-                type={
-                  effectiveType === "auto"
-                    ? "smiles"
-                    : (effectiveType as
-                        | "inchi_key"
-                        | "formula"
-                        | "smiles"
-                        | "substructure")
-                }
+                type={didYouMeanType}
                 query={query}
                 onSuggest={(upd) => {
                   if (upd.type) setType(upd.type);
@@ -198,7 +186,7 @@ export function SearchResults() {
                 <SearchResultCard
                   key={r.substance.id}
                   result={r}
-                  searchType={effectiveType}
+                  searchType={type}
                 />
               ))}
             </div>

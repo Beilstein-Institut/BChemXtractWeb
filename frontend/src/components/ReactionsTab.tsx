@@ -88,24 +88,22 @@ export function ReactionsTab({
   // Surface warnings (typically D-06 timeout) as a toast exactly once per
   // success cycle — resets to unshown whenever state leaves 'success'.
   useEffect(() => {
-    if (state === "success" && result && result.warnings.length > 0) {
-      if (!timeoutToastShown.current) {
-        result.warnings.forEach((w) => {
-          toast(w, { duration: 5000 });
-        });
-        timeoutToastShown.current = true;
-      }
-    }
     if (state !== "success") {
       timeoutToastShown.current = false;
+      return;
     }
+    if (timeoutToastShown.current) return;
+    if (!result || result.warnings.length === 0) return;
+    result.warnings.forEach((w) => toast(w, { duration: 5000 }));
+    timeoutToastShown.current = true;
   }, [state, result]);
 
   const isCached = cachedReactions !== null;
-  const reactionsFromHook = state === "success" ? result?.reactions ?? [] : [];
   const reactions: ReactionResponse[] = isCached
     ? cachedReactions!
-    : reactionsFromHook;
+    : state === "success"
+      ? result?.reactions ?? []
+      : [];
 
   useEffect(() => {
     onReactionsCountChange?.(reactions.length);
@@ -124,30 +122,19 @@ export function ReactionsTab({
     if (next) extract(next);
   }
 
-  // Branch selectors — exclusive at the render site. The order of checks
-  // mirrors the typical user flow: idle → loading → success (reactions
-  // OR zero) → error. Cached reactions collapse the idle branches.
-  const showLoading = state === "loading";
-  const showError = state === "error";
-
-  // Success with at least one reaction (either cached or fresh).
-  const showSuccessList = !showLoading && !showError && reactions.length > 0;
-
-  // Success with zero reactions — either a completed extraction that found
-  // none, or a cached-reactions path with an empty array.
-  const showZeroReactions =
-    !showLoading &&
-    !showError &&
-    !showSuccessList &&
-    ((state === "success" &&
-      result !== null &&
-      result.reactions.length === 0) ||
-      (isCached && reactions.length === 0));
-
-  // Idle — neither a completed call nor cached reactions. Split by file
-  // presence between the extract-trigger and re-upload variants.
-  const showIdle =
-    !showLoading && !showError && !showSuccessList && !showZeroReactions;
+  // Branch selector — exactly one branch renders per user flow:
+  //   idle → loading → (successList | zeroReactions) → error
+  // Cached reactions collapse directly into successList / zeroReactions.
+  type Branch = "loading" | "error" | "successList" | "zeroReactions" | "idle";
+  function pickBranch(): Branch {
+    if (state === "loading") return "loading";
+    if (state === "error") return "error";
+    if (reactions.length > 0) return "successList";
+    const completedWithZero = state === "success" && result !== null;
+    if (completedWithZero || isCached) return "zeroReactions";
+    return "idle";
+  }
+  const branch = pickBranch();
 
   const extractionTimeMs = isCached
     ? cachedExtractionTimeMs
@@ -159,7 +146,7 @@ export function ReactionsTab({
       <ExperimentalBanner />
 
       {/* Idle — pre-extract: file is in memory, user clicks CTA to trigger */}
-      {showIdle && file && (
+      {branch === "idle" && file && (
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -179,7 +166,7 @@ export function ReactionsTab({
       )}
 
       {/* Idle — re-upload: historical view, file bytes not in memory */}
-      {showIdle && !file && (
+      {branch === "idle" && !file && (
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -208,7 +195,7 @@ export function ReactionsTab({
       )}
 
       {/* Loading — extract in flight */}
-      {showLoading && (
+      {branch === "loading" && (
         <div
           className="flex flex-col items-center gap-4 py-16"
           role="status"
@@ -222,7 +209,7 @@ export function ReactionsTab({
       )}
 
       {/* Success — list of reactions */}
-      {showSuccessList && (
+      {branch === "successList" && (
         <>
           <p className="text-caption text-muted-foreground">
             {reactions.length} reaction{reactions.length === 1 ? "" : "s"}
@@ -266,7 +253,7 @@ export function ReactionsTab({
       )}
 
       {/* Success — zero reactions detected */}
-      {showZeroReactions && (
+      {branch === "zeroReactions" && (
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -282,7 +269,7 @@ export function ReactionsTab({
       )}
 
       {/* Error — extraction failed */}
-      {showError && (
+      {branch === "error" && (
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">

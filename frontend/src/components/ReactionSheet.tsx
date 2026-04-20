@@ -14,16 +14,13 @@
  *
  * SVG rendered as data URI in `<img src>` (T-10-05) — never innerHTML.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ClipboardIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -33,53 +30,11 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
-import { safeClipboardText } from "@/lib/safeStrings";
+import { CopyButton } from "@/components/internal/CopyButton";
 import type {
   ReactionComponentResponse,
   ReactionResponse,
 } from "@/types/chemistry";
-
-/**
- * CopyButton — copies `value` to the clipboard, flashing a check icon for
- * 2 seconds on success. Same pattern as StructureSheet.CopyButton.
- */
-function CopyButton({ value, label }: { value: string; label: string }) {
-  const [copied, setCopied] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current !== null) clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(safeClipboardText(value));
-      if (timerRef.current !== null) clearTimeout(timerRef.current);
-      setCopied(true);
-      timerRef.current = setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error("Failed to copy \u2014 try selecting the text manually.");
-    }
-  }
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label={copied ? "Copied!" : `Copy ${label} to clipboard`}
-      onClick={handleCopy}
-      className="shrink-0"
-    >
-      {copied ? (
-        <CheckIcon className="size-3.5 text-primary" aria-hidden="true" />
-      ) : (
-        <ClipboardIcon className="size-3.5" aria-hidden="true" />
-      )}
-    </Button>
-  );
-}
 
 /**
  * MetadataRow — label + monospace value + copy button. Suppressed when
@@ -179,25 +134,42 @@ export function ReactionSheet({
 }: ReactionSheetProps) {
   const [zoom, setZoom] = useState(1.0);
 
+  function zoomIn() {
+    setZoom((z) => Math.min(z + 0.25, 5));
+  }
+  function zoomOut() {
+    setZoom((z) => Math.max(z - 0.25, 0.25));
+  }
+  function zoomReset() {
+    setZoom(1);
+  }
+
   // Keyboard shortcuts — scoped to open (cleaned up when sheet closes).
   useEffect(() => {
     if (!open) return;
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        onPrev();
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        onNext();
-      } else if (e.key === "+" || e.key === "=") {
-        e.preventDefault();
-        setZoom((z) => Math.min(z + 0.25, 5));
-      } else if (e.key === "-") {
-        e.preventDefault();
-        setZoom((z) => Math.max(z - 0.25, 0.25));
-      } else if (e.key === "0") {
-        e.preventDefault();
-        setZoom(1);
+      switch (e.key) {
+        case "ArrowLeft":
+          e.preventDefault();
+          onPrev();
+          return;
+        case "ArrowRight":
+          e.preventDefault();
+          onNext();
+          return;
+        case "+":
+        case "=":
+          e.preventDefault();
+          zoomIn();
+          return;
+        case "-":
+          e.preventDefault();
+          zoomOut();
+          return;
+        case "0":
+          e.preventDefault();
+          zoomReset();
+          return;
       }
     }
     document.addEventListener("keydown", handleKeyDown);
@@ -293,14 +265,14 @@ export function ReactionSheet({
                 variant="ghost"
                 size="icon-sm"
                 aria-label="Zoom out"
-                onClick={() => setZoom((z) => Math.max(z - 0.25, 0.25))}
+                onClick={zoomOut}
                 disabled={zoom <= 0.25}
               >
                 <ZoomOutIcon className="size-4" aria-hidden="true" />
               </Button>
               <button
                 className="text-micro text-muted-foreground tabular-nums min-w-[40px] text-center hover:text-foreground transition-colors"
-                onClick={() => setZoom(1)}
+                onClick={zoomReset}
                 aria-label="Reset zoom"
               >
                 {Math.round(zoom * 100)}%
@@ -309,7 +281,7 @@ export function ReactionSheet({
                 variant="ghost"
                 size="icon-sm"
                 aria-label="Zoom in"
-                onClick={() => setZoom((z) => Math.min(z + 0.25, 5))}
+                onClick={zoomIn}
                 disabled={zoom >= 5}
               >
                 <ZoomInIcon className="size-4" aria-hidden="true" />

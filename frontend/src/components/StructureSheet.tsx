@@ -12,12 +12,10 @@
  * - T-06-09: SVG rendered as encodeURIComponent(svg) data URI in <img src>, never innerHTML
  * - T-06-10: keydown listener added only when open===true, cleaned up on effect return
  */
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
-  ClipboardIcon,
-  CheckIcon,
   FlaskConicalIcon,
   ZoomInIcon,
   ZoomOutIcon,
@@ -26,15 +24,16 @@ import { toast } from "sonner";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import type { SubstanceResponse } from "@/types/chemistry";
+import { CopyButton } from "@/components/internal/CopyButton";
 import { ExportMenu } from "@/components/ExportMenu";
 import { postExport } from "@/lib/apiClient";
-import { safeClipboardText, safeDownloadSlug } from "@/lib/safeStrings";
+import { safeDownloadSlug } from "@/lib/safeStrings";
+import type { SubstanceResponse } from "@/types/chemistry";
 import type { ExportFormat } from "@/types/export";
 import { FORMAT_EXT } from "@/types/export";
 
@@ -49,58 +48,16 @@ export interface StructureSheetProps {
   onNext: () => void;
 }
 
-/**
- * CopyButton — icon button that copies a value to the clipboard and shows a
- * 2-second confirmation state. Same pattern as StructureDetail.tsx (WR-01).
- */
-function CopyButton({ value, label }: { value: string; label: string }) {
-  const [copied, setCopied] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current !== null) clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(safeClipboardText(value));
-      if (timerRef.current !== null) clearTimeout(timerRef.current);
-      setCopied(true);
-      timerRef.current = setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error("Failed to copy — try selecting the text manually.");
-    }
-  }
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label={copied ? "Copied!" : `Copy ${label} to clipboard`}
-      onClick={handleCopy}
-    >
-      {copied ? (
-        <CheckIcon className="size-3.5 text-primary" />
-      ) : (
-        <ClipboardIcon className="size-3.5" />
-      )}
-    </Button>
-  );
-}
-
-/**
- * MetadataRow — a labeled field with its value and a copy button.
- * Same pattern as StructureDetail.tsx.
- */
+/** Labeled metadata field + CopyButton, rendered inside the side-sheet. */
 function MetadataRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-2">
       <span className="text-micro font-semibold text-muted-foreground uppercase tracking-widest min-w-[120px] shrink-0">
         {label}
       </span>
-      <span className="text-caption text-foreground font-mono break-all flex-1">{value}</span>
+      <span className="text-caption text-foreground font-mono break-all flex-1">
+        {value}
+      </span>
       <CopyButton value={value} label={label} />
     </div>
   );
@@ -130,9 +87,15 @@ export function StructureSheet({
     setUseCdxCoords(false);
   }, [substance]);
 
-  const zoomIn = useCallback(() => setZoom((z) => Math.min(z + 0.25, 5)), []);
-  const zoomOut = useCallback(() => setZoom((z) => Math.max(z - 0.25, 0.25)), []);
-  const zoomReset = useCallback(() => setZoom(1), []);
+  function zoomIn() {
+    setZoom((z) => Math.min(z + 0.25, 5));
+  }
+  function zoomOut() {
+    setZoom((z) => Math.max(z - 0.25, 0.25));
+  }
+  function zoomReset() {
+    setZoom(1);
+  }
 
   async function handleExport(format: ExportFormat): Promise<void> {
     if (!substance?.id) return;
@@ -154,25 +117,28 @@ export function StructureSheet({
   useEffect(() => {
     if (!open) return;
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        onPrev();
-      }
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        onNext();
-      }
-      if (e.key === "+" || e.key === "=") {
-        e.preventDefault();
-        setZoom((z) => Math.min(z + 0.25, 5));
-      }
-      if (e.key === "-") {
-        e.preventDefault();
-        setZoom((z) => Math.max(z - 0.25, 0.25));
-      }
-      if (e.key === "0") {
-        e.preventDefault();
-        setZoom(1);
+      switch (e.key) {
+        case "ArrowLeft":
+          e.preventDefault();
+          onPrev();
+          return;
+        case "ArrowRight":
+          e.preventDefault();
+          onNext();
+          return;
+        case "+":
+        case "=":
+          e.preventDefault();
+          zoomIn();
+          return;
+        case "-":
+          e.preventDefault();
+          zoomOut();
+          return;
+        case "0":
+          e.preventDefault();
+          zoomReset();
+          return;
       }
     }
     document.addEventListener("keydown", handleKeyDown);

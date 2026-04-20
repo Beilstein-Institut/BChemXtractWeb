@@ -54,6 +54,52 @@ interface RenderInputArgs {
   isHeader: boolean;
 }
 
+/**
+ * Trailing affordance inside the search input — one of:
+ *   loading spinner, clear-button, keyboard hint, or nothing.
+ */
+function renderTrailingAffordance(args: {
+  isPending: boolean;
+  hasContent: boolean;
+  isHeader: boolean;
+  showKbdHint: boolean;
+  clear: () => void;
+}) {
+  const { isPending, hasContent, isHeader, showKbdHint, clear } = args;
+  if (isPending) {
+    return (
+      <Spinner
+        className="size-4 text-muted-foreground"
+        aria-label="Searching\u2026"
+      />
+    );
+  }
+  if (hasContent) {
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-5"
+        aria-label="Clear search"
+        onClick={() => clear()}
+      >
+        <XIcon className="size-3.5" />
+      </Button>
+    );
+  }
+  if (isHeader && showKbdHint) {
+    return (
+      <Kbd
+        aria-hidden="true"
+        className="h-5 px-1.5 text-micro border-primary/40 text-primary/60"
+      >
+        /
+      </Kbd>
+    );
+  }
+  return null;
+}
+
 export function SearchInput({ className }: { className?: string }) {
   const { query, type, searchState, setQuery, setType, clear, submit } = useSearch();
 
@@ -186,26 +232,7 @@ export function SearchInput({ className }: { className?: string }) {
               </PopoverContent>
             </Popover>
           )}
-          {isPending ? (
-            <Spinner className="size-4 text-muted-foreground" aria-label="Searching…" />
-          ) : hasContent ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-5"
-              aria-label="Clear search"
-              onClick={() => clear()}
-            >
-              <XIcon className="size-3.5" />
-            </Button>
-          ) : isHeader && showKbdHint ? (
-            <Kbd
-              aria-hidden="true"
-              className="h-5 px-1.5 text-micro border-primary/40 text-primary/60"
-            >
-              /
-            </Kbd>
-          ) : null}
+          {renderTrailingAffordance({ isPending, hasContent, isHeader, showKbdHint, clear })}
         </div>
       </div>
     );

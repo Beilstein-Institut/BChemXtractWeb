@@ -1,7 +1,7 @@
 import {
+  CheckCircle2Icon,
   ClockIcon,
   LoaderIcon,
-  CheckCircle2Icon,
   XCircleIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,25 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { BatchFileStatus } from "@/types/batch";
+
+/** Icon shown at the start of a batch row, keyed by file state. */
+function StatusIcon({ state }: { state: BatchFileStatus["state"] }) {
+  switch (state) {
+    case "queued":
+      return <ClockIcon size={16} className="text-muted-foreground shrink-0" />;
+    case "processing":
+      return (
+        <LoaderIcon
+          size={16}
+          className="text-primary animate-spin shrink-0"
+        />
+      );
+    case "done":
+      return <CheckCircle2Icon size={16} className="text-primary shrink-0" />;
+    case "failed":
+      return <XCircleIcon size={16} className="text-destructive shrink-0" />;
+  }
+}
 
 export interface BatchProgressProps {
   /** Per-file statuses from the useBatch hook */
@@ -109,35 +128,10 @@ export function BatchProgress({
             key={f.filename}
             className="min-h-[48px] flex items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors"
           >
-            {/* Status icon */}
-            {f.state === "queued" && (
-              <ClockIcon size={16} className="text-muted-foreground shrink-0" />
-            )}
-            {f.state === "processing" && (
-              <LoaderIcon
-                size={16}
-                className="text-primary animate-spin shrink-0"
-              />
-            )}
-            {f.state === "done" && (
-              <CheckCircle2Icon
-                size={16}
-                className="text-primary shrink-0"
-              />
-            )}
-            {f.state === "failed" && (
-              <XCircleIcon
-                size={16}
-                className="text-destructive shrink-0"
-              />
-            )}
-
-            {/* Filename */}
+            <StatusIcon state={f.state} />
             <span className="text-body text-foreground truncate flex-1">
               {f.filename}
             </span>
-
-            {/* Right: result count or error */}
             {f.state === "done" && (
               <span className="text-micro text-muted-foreground shrink-0">
                 {f.structureCount} structures

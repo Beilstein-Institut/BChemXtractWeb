@@ -42,6 +42,9 @@ function validateExtension(file: File): string | null {
   return null;
 }
 
+const MAX_FILE_BYTES = 52_428_800; // 50 MB — backend enforces the same limit.
+const MAX_BATCH_FILES = 20;
+
 /**
  * Validates a file against allowed extensions and maximum size.
  * Returns an error string on violation, or null if the file is valid.
@@ -51,7 +54,7 @@ function validateExtension(file: File): string | null {
 function validateFile(file: File): string | null {
   const extError = validateExtension(file);
   if (extError) return extError;
-  if (file.size > 52_428_800) {
+  if (file.size > MAX_FILE_BYTES) {
     return "File exceeds the 50 MB limit.";
   }
   return null;
@@ -64,8 +67,6 @@ function formatBytes(bytes: number): string {
   if (bytes < 1_048_576) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1_048_576).toFixed(1)} MB`;
 }
-
-const MAX_BATCH_FILES = 20;
 
 /**
  * FileUpload — Drop zone component implementing D-01 through D-05.
@@ -96,34 +97,39 @@ export function FileUpload({
   // Batch-mode queue
   const [queuedFiles, setQueuedFiles] = useState<File[]>([]);
 
+  function getZoneColorClasses(): string {
+    if (isDragReject) return "border-destructive bg-destructive/5";
+    if (isDragOver) return "border-primary bg-primary/10 scale-[1.01]";
+    if (isHovering) return "border-primary bg-primary/5";
+    return "border-border bg-background";
+  }
+
+  function getIconColor(): string {
+    if (isDragReject) return "text-destructive";
+    if (isDragOver || isHovering) return "text-primary";
+    return "text-muted-foreground";
+  }
+
+  function getHeadlineText(): string {
+    const isActiveDrop = isDragOver && !isDragReject;
+    if (mode === "batch") {
+      return isActiveDrop
+        ? "Drop them here"
+        : "Drag & drop your CDX or CDXML files";
+    }
+    return isActiveDrop
+      ? "Drop it here"
+      : "Drag & drop your CDX or CDXML file";
+  }
+
   const zoneClasses = cn(
     "min-h-[220px] rounded-xl flex flex-col items-center justify-center gap-4 p-8",
     "cursor-pointer transition-all duration-200",
     "border-2 border-dashed",
-    isDragReject
-      ? "border-destructive bg-destructive/5"
-      : isDragOver
-      ? "border-primary bg-primary/10 scale-[1.01]"
-      : isHovering
-      ? "border-primary bg-primary/5"
-      : "border-border bg-background"
+    getZoneColorClasses(),
   );
-
-  const iconColor =
-    isDragReject
-      ? "text-destructive"
-      : isDragOver || isHovering
-      ? "text-primary"
-      : "text-muted-foreground";
-
-  const headlineText =
-    mode === "batch"
-      ? isDragOver && !isDragReject
-        ? "Drop them here"
-        : "Drag & drop your CDX or CDXML files"
-      : isDragOver && !isDragReject
-      ? "Drop it here"
-      : "Drag & drop your CDX or CDXML file";
+  const iconColor = getIconColor();
+  const headlineText = getHeadlineText();
 
   // ── Single-mode drop handler ───────────────────────────────────────────────
   function handleDropSingle(e: React.DragEvent<HTMLDivElement>) {
@@ -199,13 +205,7 @@ export function FileUpload({
     });
   }
 
-  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
-    if (mode === "batch") {
-      handleDropBatch(e);
-    } else {
-      handleDropSingle(e);
-    }
-  }
+  const handleDrop = mode === "batch" ? handleDropBatch : handleDropSingle;
 
   // ── File input change ──────────────────────────────────────────────────────
   function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -230,24 +230,23 @@ export function FileUpload({
 
   // ── Loading state (single mode only) ──────────────────────────────────────
   if (isLoading) {
+    const sizeSuffix =
+      loadingFileSize !== undefined ? ` (${formatBytes(loadingFileSize)})` : "";
+    const loadingMessage = loadingFilename
+      ? `Extracting structures from ${loadingFilename}${sizeSuffix}\u2026`
+      : "Extracting structures\u2026";
     return (
       <div className="flex flex-col items-center gap-4 py-16">
         <Spinner className="size-12 text-primary" />
         <p aria-live="polite" className="text-body text-muted-foreground">
-          {loadingFilename
-            ? `Extracting structures from ${loadingFilename}${
-                loadingFileSize !== undefined
-                  ? ` (${formatBytes(loadingFileSize)})`
-                  : ""
-              }…`
-            : "Extracting structures…"}
+          {loadingMessage}
         </p>
       </div>
     );
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  const hasOversizeFile = queuedFiles.some((f) => f.size > 52_428_800);
+  const hasOversizeFile = queuedFiles.some((f) => f.size > MAX_FILE_BYTES);
 
   return (
     <div>
@@ -335,7 +334,7 @@ export function FileUpload({
         <div className="mt-4">
           <ul className="space-y-1 rounded-xl bg-card shadow-[rgba(0,0,0,0.22)_3px_5px_30px_0px] overflow-hidden">
             {queuedFiles.map((file) => {
-              const oversize = file.size > 52_428_800;
+              const oversize = file.size > MAX_FILE_BYTES;
               return (
                 <li
                   key={`${file.name}-${file.size}`}

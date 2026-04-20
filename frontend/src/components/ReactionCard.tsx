@@ -9,67 +9,17 @@
  * innerHTML — to prevent XSS injection from backend-supplied SVG (T-10-05
  * mirrors Phase 4 T-04-04).
  */
-import { useEffect, useRef, useState } from "react";
-import { ArrowRightLeftIcon, CheckIcon, ClipboardIcon } from "lucide-react";
-import { toast } from "sonner";
-import { safeClipboardText } from "@/lib/safeStrings";
+import { ArrowRightLeftIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { CopyButton } from "@/components/internal/CopyButton";
 import { cn } from "@/lib/utils";
 import type { ReactionResponse } from "@/types/chemistry";
-
-/**
- * CopyButton — icon button that copies a value to the clipboard and flashes
- * a check icon for 2s. Mirrors the pattern in StructureSheet.tsx. Always
- * calls `e.stopPropagation()` so the enclosing card-click does not fire.
- */
-function CopyButton({ value, label }: { value: string; label: string }) {
-  const [copied, setCopied] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current !== null) clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  async function handleCopy(e: React.MouseEvent) {
-    e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(safeClipboardText(value));
-      if (timerRef.current !== null) clearTimeout(timerRef.current);
-      setCopied(true);
-      timerRef.current = setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error("Failed to copy \u2014 try selecting the text manually.");
-    }
-  }
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label={copied ? "Copied!" : `Copy ${label} to clipboard`}
-      onClick={handleCopy}
-      className="shrink-0"
-    >
-      {copied ? (
-        <CheckIcon className="size-3.5 text-primary" aria-hidden="true" />
-      ) : (
-        <ClipboardIcon
-          className="size-3.5 text-muted-foreground"
-          aria-hidden="true"
-        />
-      )}
-    </Button>
-  );
-}
 
 export interface ReactionCardProps {
   /** Extracted reaction data to display. */
@@ -101,17 +51,15 @@ export function ReactionCard({
 
   // D-10 component summary chip — "2 reactants · 1 products" with optional
   // "· N agent(s)" segment when agents.length > 0.
-  const agentsSegment =
-    reaction.agents.length > 0
-      ? `${reaction.agents.length} agent${reaction.agents.length === 1 ? "" : "s"}`
-      : null;
-  const componentSummary = [
+  const summarySegments: string[] = [
     `${reaction.reactants.length} reactants`,
     `${reaction.products.length} products`,
-    agentsSegment,
-  ]
-    .filter(Boolean)
-    .join(" \u00b7 ");
+  ];
+  if (reaction.agents.length > 0) {
+    const noun = reaction.agents.length === 1 ? "agent" : "agents";
+    summarySegments.push(`${reaction.agents.length} ${noun}`);
+  }
+  const componentSummary = summarySegments.join(" \u00b7 ");
 
   // Prefer the short key for display/copy; fall back to the (currently
   // unpopulated) rinchi_key for forward-compat.
@@ -188,6 +136,8 @@ export function ReactionCard({
           <CopyButton
             value={reaction.reaction_smiles}
             label="reaction SMILES"
+            stopPropagation
+            mutedIcon
           />
         </div>
 
@@ -204,6 +154,8 @@ export function ReactionCard({
           <CopyButton
             value={displayedRinchiKey}
             label="short RInChI key"
+            stopPropagation
+            mutedIcon
           />
         </div>
 

@@ -22,11 +22,14 @@ interface HistoryEntryProps {
 /** Format date per UI-SPEC: "just now" / "2 min ago" / "Apr 10" after 7 days. */
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr);
-  const daysAgo = differenceInDays(new Date(), date);
-  if (daysAgo >= 7) {
+  if (differenceInDays(new Date(), date) >= 7) {
     return format(date, "MMM d");
   }
   return formatDistanceToNow(date, { addSuffix: true });
+}
+
+function pluralize(count: number, singular: string): string {
+  return `${count} ${singular}${count === 1 ? "" : "s"}`;
 }
 
 /** Single extraction history row. */
@@ -75,14 +78,10 @@ export function HistoryEntry({ entry, onReload, onDelete }: HistoryEntryProps) {
             {entry.filename}
           </p>
           <p className="text-caption text-muted-foreground">
-            {entry.structure_count} substance{entry.structure_count !== 1 ? "s" : ""}
-            {entry.reaction_count > 0 && (
-              <>
-                {" · "}
-                {entry.reaction_count} reaction{entry.reaction_count !== 1 ? "s" : ""}
-              </>
-            )}
-            {" · "}
+            {pluralize(entry.structure_count, "substance")}
+            {entry.reaction_count > 0 &&
+              ` \u00b7 ${pluralize(entry.reaction_count, "reaction")}`}
+            {" \u00b7 "}
             {relTime}
           </p>
         </div>

@@ -10,14 +10,7 @@
  * InChI key is truncated to 27 chars (prefix) with a Tooltip. Column is hidden
  * on mobile (hidden md:table-cell) per UI-SPEC.
  */
-import { useState, useRef, useEffect } from "react";
-import {
-  ClipboardIcon,
-  CheckIcon,
-  FlaskConicalIcon,
-} from "lucide-react";
-import { toast } from "sonner";
-import { safeClipboardText } from "@/lib/safeStrings";
+import { FlaskConicalIcon } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -32,8 +25,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CopyButton } from "@/components/internal/CopyButton";
 import { cn } from "@/lib/utils";
 import type { SubstanceResponse } from "@/types/chemistry";
 
@@ -147,6 +140,10 @@ interface RowProps {
   onOpen: (index: number) => void;
 }
 
+function truncate(value: string, max: number): string {
+  return value.length > max ? value.slice(0, max) + "\u2026" : value;
+}
+
 function StructureTableRow({
   substance,
   index,
@@ -154,41 +151,13 @@ function StructureTableRow({
   onToggleSelect,
   onOpen,
 }: RowProps) {
-  const [isCopied, setIsCopied] = useState(false);
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (copyTimerRef.current !== null) clearTimeout(copyTimerRef.current);
-    };
-  }, []);
-
   // URL-encode SVG as data URI — never set innerHTML (T-04-04, T-06-06)
   const svgSrc = substance.svg
     ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(substance.svg)}`
     : null;
 
-  const smilesTruncated =
-    substance.smiles.length > SMILES_MAX
-      ? substance.smiles.slice(0, SMILES_MAX) + "…"
-      : substance.smiles;
-
-  const inchiKeyTruncated =
-    substance.inchi_key.length > INCHI_KEY_MAX
-      ? substance.inchi_key.slice(0, INCHI_KEY_MAX) + "…"
-      : substance.inchi_key;
-
-  async function handleCopy(e: React.MouseEvent) {
-    e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(safeClipboardText(substance.smiles));
-      if (copyTimerRef.current !== null) clearTimeout(copyTimerRef.current);
-      setIsCopied(true);
-      copyTimerRef.current = setTimeout(() => setIsCopied(false), 2000);
-    } catch {
-      toast.error("Failed to copy — try selecting the text manually.");
-    }
-  }
+  const smilesTruncated = truncate(substance.smiles, SMILES_MAX);
+  const inchiKeyTruncated = truncate(substance.inchi_key, INCHI_KEY_MAX);
 
   return (
     <TableRow
@@ -264,18 +233,12 @@ function StructureTableRow({
         onClick={(e) => e.stopPropagation()}
         className="w-10"
       >
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={isCopied ? "Copied!" : "Copy SMILES to clipboard"}
-          onClick={handleCopy}
-        >
-          {isCopied ? (
-            <CheckIcon className="size-3.5 text-primary" />
-          ) : (
-            <ClipboardIcon className="size-3.5 text-muted-foreground" />
-          )}
-        </Button>
+        <CopyButton
+          value={substance.smiles}
+          label="SMILES"
+          stopPropagation
+          mutedIcon
+        />
       </TableCell>
     </TableRow>
   );

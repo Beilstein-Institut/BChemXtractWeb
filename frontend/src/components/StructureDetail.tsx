@@ -5,18 +5,15 @@
  * Rendered inside a Dialog controlled by StructureCard. SVG is rendered via
  * URL-encoded data URI (T-04-04 threat mitigation — never as raw innerHTML).
  */
-import { useState, useRef, useEffect } from "react";
-import { ClipboardIcon, CheckIcon, FlaskConicalIcon } from "lucide-react";
-import { toast } from "sonner";
-import { safeClipboardText } from "@/lib/safeStrings";
+import { FlaskConicalIcon } from "lucide-react";
 import {
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { CopyButton } from "@/components/internal/CopyButton";
 import type { SubstanceResponse } from "@/types/chemistry";
 
 export interface StructureDetailProps {
@@ -24,52 +21,7 @@ export interface StructureDetailProps {
   substance: SubstanceResponse;
 }
 
-/**
- * CopyButton — icon button that copies a value to the clipboard and shows a
- * 2-second confirmation state.
- */
-function CopyButton({ value, label }: { value: string; label: string }) {
-  const [copied, setCopied] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Clear any pending reset timer on unmount to avoid setState on an
-  // unmounted component (WR-01).
-  useEffect(() => {
-    return () => {
-      if (timerRef.current !== null) clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(safeClipboardText(value));
-      if (timerRef.current !== null) clearTimeout(timerRef.current);
-      setCopied(true);
-      timerRef.current = setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error("Failed to copy — try selecting the text manually.");
-    }
-  }
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label={copied ? "Copied!" : `Copy ${label} to clipboard`}
-      onClick={handleCopy}
-    >
-      {copied ? (
-        <CheckIcon className="size-3.5 text-primary" />
-      ) : (
-        <ClipboardIcon className="size-3.5" />
-      )}
-    </Button>
-  );
-}
-
-/**
- * MetadataRow — a labeled field with its value and a copy button.
- */
+/** Labeled metadata field + CopyButton for the detail dialog. */
 function MetadataRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-2">
