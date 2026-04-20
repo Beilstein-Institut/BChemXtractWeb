@@ -47,6 +47,7 @@ import re
 from collections import defaultdict
 
 import jpype
+from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -131,18 +132,37 @@ def detect_search_type(raw: str) -> str:
 def _parse_scope(scope: str) -> int | None:
     """Return the extraction_id for ``'extraction:N'``, else ``None`` (global).
 
-    Malformed scope strings (``'extraction:abc'``, ``'extraction:'``) fall
-    back to ``None`` so the search executes globally rather than 400ing —
-    keeps error surface small and aligns with ``export.py`` permissiveness.
+    Previously malformed scope strings silently fell back to ``"global"``,
+    which is an IDOR-adjacent footgun once multi-tenant auth lands: a user
+    mistypes ``"extraction:"`` and gets results across every extraction
+    they never should have seen (SEC M-06). The guard now rejects malformed
+    scope explicitly with 400 so the failure is visible to the caller.
     """
     if scope == "global":
         return None
-    if scope.startswith("extraction:"):
-        try:
-            return int(scope.split(":", 1)[1])
-        except (ValueError, IndexError):
-            return None
-    return None
+    if not scope.startswith("extraction:"):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid scope. Must be 'global' or 'extraction:<integer id>'."
+            ),
+        )
+    try:
+        eid = int(scope.split(":", 1)[1])
+    except (ValueError, IndexError) as err:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid scope. 'extraction:' must be followed by a positive "
+                "integer extraction id."
+            ),
+        ) from err
+    if eid <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Scope extraction id must be a positive integer.",
+        )
+    return eid
 
 
 def _resolve_effective_type(payload: SearchRequest) -> str:

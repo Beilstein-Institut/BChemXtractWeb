@@ -5,6 +5,12 @@ containers. Uses CDK's DepictionGenerator (bundled in BChemXtract JAR)
 with the StandardGenerator for stereo wedges and atom labels.
 
 Must be called inside run_in_jvm_thread (JVM-attached thread).
+
+Security (SEC L-05): CDK's SVG writer is trusted, but any future CVE
+that causes it to emit ``<script>``, ``<foreignObject>``, or ``on*=``
+event-handler attributes would become a stored-XSS vector once the SVG
+is rendered inline. Every string returned by this module runs through
+:func:`sanitize_svg` which strips those constructs before storage.
 """
 
 from __future__ import annotations
@@ -20,6 +26,55 @@ logger = logging.getLogger(__name__)
 # Target SVG viewport size per D-02 (~400-500px publication quality)
 SVG_TARGET_WIDTH = 450
 SVG_TARGET_HEIGHT = 450
+
+# SEC L-05 SVG sanitiser ---------------------------------------------------
+# Defence in depth against a hypothetical CDK CVE that causes the SVG
+# writer to emit script-bearing content. Regex-based because (a) we own
+# both ends — CDK's output is well-formed by construction — and (b)
+# introducing an lxml round-trip would double SVG generation cost for
+# every depiction.
+
+_SCRIPT_RE = re.compile(
+    rb"<\s*script\b[^>]*>.*?<\s*/\s*script\s*>",
+    re.IGNORECASE | re.DOTALL,
+)
+_FOREIGN_OBJECT_RE = re.compile(
+    rb"<\s*foreignObject\b[^>]*>.*?<\s*/\s*foreignObject\s*>",
+    re.IGNORECASE | re.DOTALL,
+)
+_ON_EVENT_ATTR_RE = re.compile(
+    rb"\s+on[a-zA-Z]+\s*=\s*(?:\"[^\"]*\"|'[^']*'|[^\s/>]+)",
+    re.IGNORECASE,
+)
+_JAVASCRIPT_URL_RE = re.compile(
+    rb"(href|xlink:href|src)\s*=\s*([\"'])\s*javascript:[^\"']*\2",
+    re.IGNORECASE,
+)
+
+
+def sanitize_svg(svg: str) -> str:
+    """Strip scriptable constructs from an SVG string (SEC L-05).
+
+    Removes:
+      * ``<script>...</script>`` tags
+      * ``<foreignObject>...</foreignObject>`` blocks (they host HTML)
+      * ``on*="..."`` event-handler attributes
+      * ``href``/``xlink:href``/``src`` values with a ``javascript:`` scheme
+
+    Args:
+        svg: Raw SVG markup as produced by CDK.
+
+    Returns:
+        Sanitised SVG markup. Empty string if ``svg`` is empty or None.
+    """
+    if not svg:
+        return ""
+    raw = svg.encode("utf-8", errors="replace")
+    raw = _SCRIPT_RE.sub(b"", raw)
+    raw = _FOREIGN_OBJECT_RE.sub(b"", raw)
+    raw = _ON_EVENT_ATTR_RE.sub(b"", raw)
+    raw = _JAVASCRIPT_URL_RE.sub(rb"\1=\2#\2", raw)
+    return raw.decode("utf-8", errors="replace")
 
 
 def _make_depiction_generator():
@@ -88,6 +143,8 @@ def render_substance_svg(java_substance) -> str:
         svg_str = _set_svg_dimensions(
             svg_str, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT
         )
+        # SEC L-05: strip scriptable constructs before storage.
+        svg_str = sanitize_svg(svg_str)
 
         return svg_str
     except jpype.JException as exc:
@@ -221,6 +278,7 @@ def render_substance_svg_with_highlight(
             dg = _make_depiction_generator()
             svg = str(dg.depict(container).toSvgStr())
             svg = _set_svg_dimensions(svg, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
+            svg = sanitize_svg(svg)  # SEC L-05
             return _inject_svg_title(svg, title)
         except Exception as exc:  # noqa: BLE001 — last-resort guard
             logger.warning("Plain-depiction fallback failed: %s", exc)
@@ -268,6 +326,7 @@ def render_substance_svg_with_highlight(
         )
         svg = str(dg.depict(container).toSvgStr())
         svg = _set_svg_dimensions(svg, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
+        svg = sanitize_svg(svg)  # SEC L-05
         return _inject_svg_title(svg, title)
     except jpype.JException as exc:
         logger.warning(

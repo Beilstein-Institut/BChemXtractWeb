@@ -5,6 +5,7 @@ the format from content (D-06), extracts substances with SVG depictions,
 and returns ExtractionResponse JSON with metadata and optional warnings.
 """
 
+import asyncio
 import logging
 import math
 import time
@@ -155,15 +156,20 @@ async def extract_file(
     )
 
     # D-03: Auto-persist every extraction to PostgreSQL.
-    # DB save is best-effort: failures are logged but never break extraction.
-    # D-05: canonical_smiles is populated by save_extraction's chunked write-through hook
+    # DB save is best-effort: DB failures are logged but never break
+    # extraction. asyncio.CancelledError is re-raised so graceful
+    # shutdown and client-disconnect handling still work (SEC M-05).
+    # The filename in the log message is repr-wrapped and truncated
+    # to prevent log-injection via ``"x\n[CRITICAL] fake"`` filenames.
     try:
         saved = await save_extraction(db, response)
-        response.extraction_id = saved.id
+        response = response.model_copy(update={"extraction_id": saved.id})
+    except asyncio.CancelledError:
+        raise
     except Exception:
         logger.exception(
-            "Auto-persist failed for %s — extraction result still returned",
-            file.filename,
+            "Auto-persist failed for filename=%r — extraction result still returned",
+            (file.filename or "")[:100],
         )
 
     return response

@@ -15,6 +15,7 @@ Per D-19: auto-persist best-effort -- DB failures logged, never re-raised.
 Per D-25: ErrorResponse shapes for 413/415/422/500.
 """
 
+import asyncio
 import hashlib
 import logging
 import time
@@ -140,14 +141,14 @@ async def extract_reactions_endpoint(
         warnings.extend(extractor_warnings)
     except TimeoutError:
         logger.warning(
-            "Reaction extraction timed out after %.1fs on %s",
+            "Reaction extraction timed out after %.1fs on filename=%r",
             settings.reaction_timeout_secs,
-            file.filename,
+            (file.filename or "")[:100],
         )
         reactions = []
         warnings.append(
             f"Reaction extraction exceeded "
-            f"{int(settings.reaction_timeout_secs)}s timeout and was aborted."
+            f"{settings.reaction_timeout_secs:.1f}s timeout and was aborted."
         )
 
     elapsed_ms = (time.perf_counter() - start) * 1000
@@ -163,7 +164,10 @@ async def extract_reactions_endpoint(
     )
 
     # D-19: Auto-persist best-effort. Pitfall 9: create a minimal Extraction
-    # row when the file has never been substance-extracted first.
+    # row when the file has never been substance-extracted first. Re-raise
+    # CancelledError so graceful shutdown / client disconnects still abort
+    # the coroutine cleanly (SEC M-05). Filename truncated + repr-quoted in
+    # the log message to prevent log-injection via crafted filenames.
     try:
         file_hash = hashlib.sha256(file_bytes).hexdigest()
         extraction_id = await get_or_create_extraction_row(
@@ -174,11 +178,13 @@ async def extract_reactions_endpoint(
             file_hash=file_hash,
         )
         await save_reactions(db, extraction_id, reactions)
-        response.extraction_id = extraction_id
+        response = response.model_copy(update={"extraction_id": extraction_id})
+    except asyncio.CancelledError:
+        raise
     except Exception:
         logger.exception(
-            "Reaction auto-persist failed for %s -- result still returned",
-            file.filename,
+            "Reaction auto-persist failed for filename=%r -- result still returned",
+            (file.filename or "")[:100],
         )
 
     return response
