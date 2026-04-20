@@ -59,6 +59,14 @@ export interface UseSearchReturn {
   submit: () => void;
 }
 
+// SEC MED-06 — caps on user-controlled URL parameters. Backend already
+// enforces these (SearchRequest: query<=500, scope regex, page<=1000),
+// but mirroring them here stops a malformed link from driving
+// MAX_SAFE_INTEGER-sized pagination arithmetic in the UI.
+const _MAX_PAGE = 10_000;
+const _MAX_QUERY_LEN = 512;
+const _SCOPE_RE = /^(?:global|extraction:\d+)$/;
+
 function readUrlParams(): {
   q: string;
   type: SearchType;
@@ -70,16 +78,21 @@ function readUrlParams(): {
   const rawPage = parseInt(params.get("page") ?? "1", 10);
   const rawType = params.get("type") ?? "auto";
   const rawMatch = params.get("match") ?? "canonical";
+  const rawScope = params.get("scope") ?? "global";
+  const rawQuery = params.get("q") ?? "";
   return {
-    q: params.get("q") ?? "",
+    q: rawQuery.slice(0, _MAX_QUERY_LEN),
     type: VALID_TYPES.includes(rawType as SearchType)
       ? (rawType as SearchType)
       : "auto",
-    scope: params.get("scope") ?? "global",
+    scope: _SCOPE_RE.test(rawScope) ? rawScope : "global",
     match: VALID_MATCH.includes(rawMatch as SearchMatch)
       ? (rawMatch as SearchMatch)
       : "canonical",
-    page: isNaN(rawPage) || rawPage < 1 ? 1 : rawPage,
+    page:
+      isNaN(rawPage) || rawPage < 1
+        ? 1
+        : Math.min(rawPage, _MAX_PAGE),
   };
 }
 

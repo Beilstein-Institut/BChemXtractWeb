@@ -8,6 +8,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ClipboardIcon, CheckIcon, FlaskConicalIcon } from "lucide-react";
 import { toast } from "sonner";
+import { safeClipboardText } from "@/lib/safeStrings";
 import {
   DialogContent,
   DialogHeader,
@@ -41,7 +42,7 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(value);
+      await navigator.clipboard.writeText(safeClipboardText(value));
       if (timerRef.current !== null) clearTimeout(timerRef.current);
       setCopied(true);
       timerRef.current = setTimeout(() => setCopied(false), 2000);

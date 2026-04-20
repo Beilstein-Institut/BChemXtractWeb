@@ -12,6 +12,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowRightLeftIcon, CheckIcon, ClipboardIcon } from "lucide-react";
 import { toast } from "sonner";
+import { safeClipboardText } from "@/lib/safeStrings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -41,7 +42,7 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   async function handleCopy(e: React.MouseEvent) {
     e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(value);
+      await navigator.clipboard.writeText(safeClipboardText(value));
       if (timerRef.current !== null) clearTimeout(timerRef.current);
       setCopied(true);
       timerRef.current = setTimeout(() => setCopied(false), 2000);

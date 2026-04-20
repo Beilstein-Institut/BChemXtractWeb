@@ -8,6 +8,32 @@ import {
   cancelBatch as apiCancelBatch,
 } from "@/lib/apiClient";
 
+/**
+ * Runtime guard for the SSE ``file_complete`` payload (SEC MED-02).
+ *
+ * ``JSON.parse`` returns ``unknown``; a compile-time ``as`` cast is a
+ * promise to the reader, not a runtime check. A server-side protocol
+ * drift or malformed frame must not crash the handler or land
+ * unexpected types in React state.
+ */
+function isFileCompleteEvent(x: unknown): x is FileCompleteEvent {
+  if (!x || typeof x !== "object") return false;
+  const ev = x as Record<string, unknown>;
+  const r = ev.result;
+  if (!r || typeof r !== "object") return false;
+  const res = r as Record<string, unknown>;
+  return (
+    typeof res.filename === "string" &&
+    (res.error === null ||
+      res.error === undefined ||
+      typeof res.error === "string") &&
+    (res.extraction_id === null ||
+      res.extraction_id === undefined ||
+      typeof res.extraction_id === "number") &&
+    typeof res.structure_count === "number"
+  );
+}
+
 export type BatchState =
   | "idle"
   | "processing"
@@ -103,7 +129,18 @@ export function useBatch(): UseBatchReturn {
       esRef.current = es;
 
       es.addEventListener("file_complete", (e: MessageEvent) => {
-        const data = JSON.parse(e.data) as FileCompleteEvent;
+        // SEC MED-02: runtime-validate the SSE payload shape instead of
+        // relying on the `as FileCompleteEvent` compile-time promise.
+        // Malformed payloads are dropped silently — the UI stays on the
+        // last known good state rather than crashing the handler.
+        let data: unknown;
+        try {
+          data = JSON.parse(e.data);
+        } catch {
+          return;
+        }
+        if (!isFileCompleteEvent(data)) return;
+
         setFiles((prev) =>
           prev.map((f) => {
             if (f.filename !== data.result.filename) return f;

@@ -11,6 +11,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ClipboardIcon, CheckIcon, FlaskConicalIcon } from "lucide-react";
 import { toast } from "sonner";
+import { safeClipboardText, safeDownloadSlug } from "@/lib/safeStrings";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -89,7 +90,7 @@ export function StructureCard({
   async function handleCopySmiles(e: React.MouseEvent) {
     e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(substance.smiles);
+      await navigator.clipboard.writeText(safeClipboardText(substance.smiles));
       if (copyTimerRef.current !== null) clearTimeout(copyTimerRef.current);
       setIsCopied(true);
       copyTimerRef.current = setTimeout(() => setIsCopied(false), 2000);
@@ -111,7 +112,7 @@ export function StructureCard({
     try {
       await postExport(
         { format, substance_ids: [substance.id] },
-        `${substance.inchi_key?.slice(0, 8) ?? "structure"}_${format}.${FORMAT_EXT[format]}`
+        `${safeDownloadSlug(substance.inchi_key?.slice(0, 8))}_${format}.${FORMAT_EXT[format]}`
       );
       toast.success("Export ready \u2014 downloading", { id: toastId, duration: 3000 });
     } catch (err) {

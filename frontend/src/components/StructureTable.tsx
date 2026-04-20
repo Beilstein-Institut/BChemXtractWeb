@@ -17,6 +17,7 @@ import {
   FlaskConicalIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { safeClipboardText } from "@/lib/safeStrings";
 import {
   Table,
   TableBody,
@@ -180,7 +181,7 @@ function StructureTableRow({
   async function handleCopy(e: React.MouseEvent) {
     e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(substance.smiles);
+      await navigator.clipboard.writeText(safeClipboardText(substance.smiles));
       if (copyTimerRef.current !== null) clearTimeout(copyTimerRef.current);
       setIsCopied(true);
       copyTimerRef.current = setTimeout(() => setIsCopied(false), 2000);

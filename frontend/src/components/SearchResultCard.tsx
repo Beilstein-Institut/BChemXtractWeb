@@ -24,6 +24,7 @@ import { StructureCard } from "@/components/StructureCard";
 import type { SearchResult, SearchType } from "@/types/search";
 import type { SubstanceResponse } from "@/types/chemistry";
 import { cn } from "@/lib/utils";
+import { safeDisplayFilename, safePositiveInt } from "@/lib/safeStrings";
 
 export interface SearchResultCardProps {
   result: SearchResult;
@@ -94,25 +95,40 @@ function AttributionChip({ count, extractions }: AttributionChipProps) {
       </PopoverTrigger>
       <PopoverContent align="start" side="top" className="w-64 p-2">
         <ul className="flex flex-col gap-1">
-          {extractions.map((e) => (
-            <li key={e.extraction_id}>
-              <a
-                href={`/?extraction=${e.extraction_id}`}
-                className={cn(
-                  "block p-1 rounded hover:text-primary",
-                  "focus-visible:outline-none focus-visible:ring-2",
-                  "focus-visible:ring-primary"
+          {extractions.map((e) => {
+            // SEC MED-05: TypeScript types are compile-time; at runtime
+            // the server could return any JSON value. Guard with
+            // safePositiveInt so a non-numeric extraction_id cannot
+            // interpolate into the href. Invalid values render as plain
+            // text instead of a broken link.
+            const id = safePositiveInt(e.extraction_id, { fallback: 0 });
+            const href = id > 0 ? `/?extraction=${id}` : null;
+            return (
+              <li key={e.extraction_id}>
+                {href ? (
+                  <a
+                    href={href}
+                    className={cn(
+                      "block p-1 rounded hover:text-primary",
+                      "focus-visible:outline-none focus-visible:ring-2",
+                      "focus-visible:ring-primary"
+                    )}
+                  >
+                    <div className="text-caption text-foreground truncate">
+                      {safeDisplayFilename(e.filename)}
+                    </div>
+                    <div className="text-micro text-muted-foreground">
+                      {formatRelative(e.created_at)}
+                    </div>
+                  </a>
+                ) : (
+                  <div className="block p-1 text-caption text-muted-foreground">
+                    {safeDisplayFilename(e.filename)}
+                  </div>
                 )}
-              >
-                <div className="text-caption text-foreground truncate">
-                  {e.filename}
-                </div>
-                <div className="text-micro text-muted-foreground">
-                  {formatRelative(e.created_at)}
-                </div>
-              </a>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       </PopoverContent>
     </Popover>

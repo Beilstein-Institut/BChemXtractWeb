@@ -166,3 +166,6 @@ test-results/
 # Playwright MCP transient artefacts
 .playwright-mcp/
 nav-*.png
+
+# Runtime secrets — .env.example is committed, .env is not
+.env

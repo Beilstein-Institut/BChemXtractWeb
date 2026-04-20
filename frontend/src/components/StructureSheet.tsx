@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import type { SubstanceResponse } from "@/types/chemistry";
 import { ExportMenu } from "@/components/ExportMenu";
 import { postExport } from "@/lib/apiClient";
+import { safeClipboardText, safeDownloadSlug } from "@/lib/safeStrings";
 import type { ExportFormat } from "@/types/export";
 import { FORMAT_EXT } from "@/types/export";
 
@@ -64,7 +65,7 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(value);
+      await navigator.clipboard.writeText(safeClipboardText(value));
       if (timerRef.current !== null) clearTimeout(timerRef.current);
       setCopied(true);
       timerRef.current = setTimeout(() => setCopied(false), 2000);
@@ -140,7 +141,7 @@ export function StructureSheet({
     try {
       await postExport(
         { format, substance_ids: [substance.id] },
-        `${substance.inchi_key?.slice(0, 8) ?? "structure"}_${format}.${FORMAT_EXT[format]}`
+        `${safeDownloadSlug(substance.inchi_key?.slice(0, 8))}_${format}.${FORMAT_EXT[format]}`
       );
       toast.success("Export ready \u2014 downloading", { id: toastId, duration: 3000 });
     } catch (err) {

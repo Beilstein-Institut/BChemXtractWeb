@@ -33,6 +33,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
+import { safeClipboardText } from "@/lib/safeStrings";
 import type {
   ReactionComponentResponse,
   ReactionResponse,
@@ -54,7 +55,7 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(value);
+      await navigator.clipboard.writeText(safeClipboardText(value));
       if (timerRef.current !== null) clearTimeout(timerRef.current);
       setCopied(true);
       timerRef.current = setTimeout(() => setCopied(false), 2000);

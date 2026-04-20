@@ -131,7 +131,7 @@ export function AboutPage() {
             <a
               href="https://github.com/Beilstein-Institut/BChemXtract"
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="text-foreground underline decoration-[color:var(--color-link)]/50 underline-offset-4 hover:decoration-[color:var(--color-link)]"
             >
               BChemXtract
@@ -151,7 +151,7 @@ export function AboutPage() {
             <a
               href="https://github.com/Beilstein-Institut/BChemXtract"
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className={
                 buttonVariants({ variant: "outline", size: "lg" }) + " gap-2"
               }
@@ -328,7 +328,7 @@ export function AboutPage() {
           <a
             href="https://www.beilstein-institut.de/"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="text-foreground underline decoration-[color:var(--color-link)]/50 underline-offset-4 hover:decoration-[color:var(--color-link)]"
           >
             Beilstein-Institut
@@ -341,7 +341,7 @@ export function AboutPage() {
           <a
             href="https://github.com/Beilstein-Institut/BChemXtract"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className={
               buttonVariants({ variant: "outline", size: "lg" }) + " gap-2"
             }
@@ -352,7 +352,7 @@ export function AboutPage() {
           <a
             href="https://www.beilstein-institut.de/"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className={
               buttonVariants({ variant: "outline", size: "lg" }) + " gap-2"
             }
