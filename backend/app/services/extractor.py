@@ -36,6 +36,7 @@ from app.services.depiction import (
     _make_depiction_generator,
     _set_svg_dimensions,
     render_substance_svg,
+    render_substance_svg_cdk_layout,
 )
 from app.services.format_detector import detect_format
 from app.services.jvm_bridge import run_in_jvm_thread
@@ -544,7 +545,13 @@ def _extract_with_fallback_sync(
             results = []
             for s in substances:
                 d = _coerce_substance(s)
-                d["svg"] = render_substance_svg(s)
+                # Canonical semantics: svg = fresh CDK layout, svg_cdx =
+                # ChemDraw original coords. Each render is independent —
+                # empty results stay empty (no cross-fallback), so the
+                # frontend can disable the corresponding button with an
+                # accurate tooltip.
+                d["svg"] = render_substance_svg_cdk_layout(s)
+                d["svg_cdx"] = render_substance_svg(s)
                 results.append(d)
 
             return results, _coerce_substance_info(info)
