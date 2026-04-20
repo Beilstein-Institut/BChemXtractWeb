@@ -6,8 +6,8 @@
  * back to Extract and History.
  */
 import { FileUpIcon, HistoryIcon } from "lucide-react";
-import { StructureBrowser } from "@/components/StructureBrowser";
 import { ExtractionTabs } from "@/components/ExtractionTabs";
+import { StructureBrowser } from "@/components/StructureBrowser";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Link } from "@/lib/Link";
@@ -41,6 +41,8 @@ export function BrowsePage({
   onSearchWithin,
   onReactionsCountChange,
 }: BrowsePageProps) {
+  const hasExtraction = activeExtractionId !== null && activeResult !== null;
+
   return (
     <>
       <header className="pt-2">
@@ -52,7 +54,7 @@ export function BrowsePage({
         </p>
       </header>
 
-      {activeExtractionId === null || activeResult === null ? (
+      {!hasExtraction ? (
         <div className="mt-16">
           <EmptyState
             icon={FileUpIcon}

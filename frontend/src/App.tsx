@@ -1,22 +1,29 @@
-import { useState, useEffect, useCallback } from "react";
-import { ThemeProvider } from "@/components/theme-provider";
-import { AppHeader } from "@/components/AppHeader";
+import { useCallback, useEffect, useState } from "react";
 import { Toaster, toast } from "sonner";
+import { AppHeader } from "@/components/AppHeader";
+import { SearchResults } from "@/components/SearchResults";
+import { ThemeProvider } from "@/components/theme-provider";
+import { useBatch } from "@/hooks/useBatch";
 import { useExtract } from "@/hooks/useExtract";
 import { useHistory } from "@/hooks/useHistory";
-import { useBatch } from "@/hooks/useBatch";
-import { SearchResults } from "@/components/SearchResults";
-import { ExtractPage } from "@/pages/ExtractPage";
-import { BrowsePage } from "@/pages/BrowsePage";
-import { HistoryPage } from "@/pages/HistoryPage";
-import { AboutPage } from "@/pages/AboutPage";
-import { searchInputRef } from "@/lib/searchFocus";
 import { getExtractionReactions } from "@/lib/apiClient";
 import { navigate, useRoute } from "@/lib/router";
+import { searchInputRef } from "@/lib/searchFocus";
+import { AboutPage } from "@/pages/AboutPage";
+import { BrowsePage } from "@/pages/BrowsePage";
+import { ExtractPage } from "@/pages/ExtractPage";
+import { HistoryPage } from "@/pages/HistoryPage";
 import type {
   ExtractionResponse,
   ReactionExtractionResponse,
 } from "@/types/chemistry";
+
+/** Events that can change whether `?q=` is present in the URL. */
+const SEARCH_URL_EVENTS = ["popstate", "searchurlchange", "routechange"] as const;
+
+function hasSearchQuery(): boolean {
+  return new URLSearchParams(window.location.search).has("q");
+}
 
 function App() {
   const route = useRoute();
@@ -47,71 +54,50 @@ function App() {
     reset: resetBatch,
   } = useBatch();
 
-  useEffect(() => {
-    if (state === "error" && errorMessage) {
-      toast.error(errorMessage);
-    }
-  }, [state, errorMessage]);
-
-  useEffect(() => {
-    if (batchState === "error" && batchErrorMessage) {
-      toast.error(batchErrorMessage);
-    }
-  }, [batchState, batchErrorMessage]);
-
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [historicalResult, setHistoricalResult] = useState<ExtractionResponse | null>(null);
   const [activeExtractionId, setActiveExtractionId] = useState<number | null>(null);
   const [cachedReactionsData, setCachedReactionsData] =
     useState<ReactionExtractionResponse | null>(null);
   const [liveReactionCount, setLiveReactionCount] = useState(0);
+  const [searchActive, setSearchActive] = useState<boolean>(hasSearchQuery);
 
   const activeResult = historicalResult ?? result;
   const isHistoricalView = historicalResult !== null;
 
-  function handleExtract(file: File) {
-    setSelectedFile(file);
-    setHistoricalResult(null);
-    extract(file);
-  }
-
-  function handleReset() {
-    setSelectedFile(null);
-    setHistoricalResult(null);
-    setActiveExtractionId(null);
-    reset();
-  }
-
-  function handleBackToLatest() {
-    setHistoricalResult(null);
-    setActiveExtractionId(result?.extraction_id ?? null);
-  }
+  // Surface extract / batch error messages as toasts.
+  useEffect(() => {
+    if (state === "error" && errorMessage) toast.error(errorMessage);
+  }, [state, errorMessage]);
 
   useEffect(() => {
-    if (state === "success") {
-      refreshHistory();
-    }
-  }, [state, refreshHistory]);
+    if (batchState === "error" && batchErrorMessage) toast.error(batchErrorMessage);
+  }, [batchState, batchErrorMessage]);
 
+  // On successful single-file extraction: refresh history + pin the new
+  // extraction as active so the Browse page knows what to show.
   useEffect(() => {
-    if (state === "success" && result?.extraction_id) {
-      setActiveExtractionId(result.extraction_id);
-    }
-  }, [state, result]);
+    if (state !== "success") return;
+    refreshHistory();
+    if (result?.extraction_id) setActiveExtractionId(result.extraction_id);
+  }, [state, result, refreshHistory]);
 
+  // Batch completion refreshes the history list too.
   useEffect(() => {
-    if (batchState === "complete") {
-      refreshHistory();
-    }
+    if (batchState === "complete") refreshHistory();
   }, [batchState, refreshHistory]);
 
+  // Hydrate cached reactions for a loaded extraction. We skip the fetch
+  // if the user is actively uploading a new file (selectedFile !== null)
+  // since the Reactions tab will extract fresh data for that flow.
   useEffect(() => {
     const extractionId = activeResult?.extraction_id;
     if (!extractionId || selectedFile) {
+      // Defer the reset one microtask so the effect body doesn't
+      // synchronously push state (react-hooks/set-state-in-effect).
       Promise.resolve().then(() => setCachedReactionsData(null));
       return;
     }
-
     const controller = new AbortController();
     getExtractionReactions(extractionId, controller.signal)
       .then((data) => {
@@ -122,9 +108,39 @@ function App() {
         if (err instanceof DOMException && err.name === "AbortError") return;
         setCachedReactionsData(null);
       });
-
     return () => controller.abort();
   }, [activeResult?.extraction_id, selectedFile]);
+
+  // URL-gated SearchResults routing — `?q=` in the URL replaces the
+  // current page with <SearchResults> regardless of the pathname.
+  useEffect(() => {
+    const sync = () => setSearchActive(hasSearchQuery());
+    for (const evt of SEARCH_URL_EVENTS) window.addEventListener(evt, sync);
+    return () => {
+      for (const evt of SEARCH_URL_EVENTS) window.removeEventListener(evt, sync);
+    };
+  }, []);
+
+  const handleExtract = useCallback(
+    (file: File) => {
+      setSelectedFile(file);
+      setHistoricalResult(null);
+      extract(file);
+    },
+    [extract],
+  );
+
+  const handleReset = useCallback(() => {
+    setSelectedFile(null);
+    setHistoricalResult(null);
+    setActiveExtractionId(null);
+    reset();
+  }, [reset]);
+
+  const handleBackToLatest = useCallback(() => {
+    setHistoricalResult(null);
+    setActiveExtractionId(result?.extraction_id ?? null);
+  }, [result?.extraction_id]);
 
   const handleReloadSuccess = useCallback((response: ExtractionResponse) => {
     setHistoricalResult(response);
@@ -137,26 +153,7 @@ function App() {
     navigate("/browse");
   }, []);
 
-  // URL-gated SearchResults routing — ?q= in the URL replaces the current
-  // page with <SearchResults> on every route.
-  const [hasSearchQuery, setHasSearchQuery] = useState<boolean>(() =>
-    new URLSearchParams(window.location.search).has("q"),
-  );
-  useEffect(() => {
-    function check() {
-      setHasSearchQuery(new URLSearchParams(window.location.search).has("q"));
-    }
-    window.addEventListener("popstate", check);
-    window.addEventListener("searchurlchange", check);
-    window.addEventListener("routechange", check);
-    return () => {
-      window.removeEventListener("popstate", check);
-      window.removeEventListener("searchurlchange", check);
-      window.removeEventListener("routechange", check);
-    };
-  }, []);
-
-  function handleSearchWithin() {
+  const handleSearchWithin = useCallback(() => {
     if (!activeExtractionId) return;
     const params = new URLSearchParams(window.location.search);
     params.set("q", "");
@@ -164,64 +161,73 @@ function App() {
     window.history.replaceState(null, "", `?${params.toString()}`);
     window.dispatchEvent(new CustomEvent("searchurlchange"));
     searchInputRef.current?.focus();
+  }, [activeExtractionId]);
+
+  function renderRoute() {
+    if (searchActive) return <SearchResults />;
+    switch (route) {
+      case "/about":
+        return <AboutPage />;
+      case "/browse":
+        return (
+          <BrowsePage
+            activeExtractionId={activeExtractionId}
+            activeResult={activeResult}
+            isHistoricalView={isHistoricalView}
+            selectedFile={selectedFile}
+            cachedReactionsData={cachedReactionsData}
+            liveReactionCount={liveReactionCount}
+            onReset={handleReset}
+            onBackToLatest={handleBackToLatest}
+            onSearchWithin={handleSearchWithin}
+            onReactionsCountChange={setLiveReactionCount}
+          />
+        );
+      case "/history":
+        return (
+          <HistoryPage
+            historyState={historyState}
+            entries={entries}
+            total={total}
+            showAll={showAll}
+            stats={stats}
+            statsLoading={statsLoading}
+            onToggleShowAll={toggleShowAll}
+            onReload={reloadEntry}
+            onDelete={deleteEntry}
+            onReloadSuccess={handleReloadSuccess}
+          />
+        );
+      default:
+        return (
+          <ExtractPage
+            state={state}
+            selectedFile={selectedFile}
+            result={result}
+            historicalResult={historicalResult}
+            onExtract={handleExtract}
+            onReset={handleReset}
+            batchState={batchState}
+            batchFiles={batchFiles}
+            batchId={batchId}
+            batchCompletedCount={completedCount}
+            batchFailedCount={failedCount}
+            batchTotalStructures={batchTotalStructures}
+            onStartBatch={startBatch}
+            onCancelBatch={cancelBatchFn}
+            onResetBatch={resetBatch}
+            onViewExtraction={handleViewExtraction}
+          />
+        );
+    }
   }
 
   return (
     <ThemeProvider defaultTheme="system" storageKey="bchemxtract-theme">
       <div className="min-h-screen bg-background text-foreground">
         <AppHeader />
-
         <main className="mx-auto max-w-[980px] px-6 pt-24 pb-24">
-          {hasSearchQuery ? (
-            <SearchResults />
-          ) : route === "/about" ? (
-            <AboutPage />
-          ) : route === "/browse" ? (
-            <BrowsePage
-              activeExtractionId={activeExtractionId}
-              activeResult={activeResult}
-              isHistoricalView={isHistoricalView}
-              selectedFile={selectedFile}
-              cachedReactionsData={cachedReactionsData}
-              liveReactionCount={liveReactionCount}
-              onReset={handleReset}
-              onBackToLatest={handleBackToLatest}
-              onSearchWithin={handleSearchWithin}
-              onReactionsCountChange={setLiveReactionCount}
-            />
-          ) : route === "/history" ? (
-            <HistoryPage
-              historyState={historyState}
-              entries={entries}
-              total={total}
-              showAll={showAll}
-              stats={stats}
-              statsLoading={statsLoading}
-              onToggleShowAll={toggleShowAll}
-              onReload={reloadEntry}
-              onDelete={deleteEntry}
-              onReloadSuccess={handleReloadSuccess}
-            />
-          ) : (
-            <ExtractPage
-              state={state}
-              selectedFile={selectedFile}
-              result={result}
-              historicalResult={historicalResult}
-              onExtract={handleExtract}
-              onReset={handleReset}
-              batchState={batchState}
-              batchFiles={batchFiles}
-              batchId={batchId}
-              batchCompletedCount={completedCount}
-              batchFailedCount={failedCount}
-              batchTotalStructures={batchTotalStructures}
-              onStartBatch={startBatch}
-              onCancelBatch={cancelBatchFn}
-              onResetBatch={resetBatch}
-              onViewExtraction={handleViewExtraction}
-            />
-          )}
+          {renderRoute()}
         </main>
       </div>
       <Toaster richColors />

@@ -1,9 +1,9 @@
 /**
  * Client-side string hardening helpers (SEC MED-03 / MED-04 / LOW-07).
  *
- * All three exports are thin slug/sanitise utilities that take untrusted
- * backend strings (filenames, InChI prefixes, clipboard values) and
- * return a form safe for the specific downstream sink:
+ * All four exports are thin slug/sanitise utilities that take untrusted
+ * backend strings (filenames, InChI prefixes, clipboard values, URL
+ * parameters) and return a form safe for the specific downstream sink:
  *
  *  - {@link safeDisplayFilename}: render a filename as JSX text children
  *    without control characters that would confuse screen readers or
@@ -14,13 +14,18 @@
  *  - {@link safeClipboardText}: strip CR/LF/NUL from user-triggered
  *    clipboard writes so pasting the result into a shell or another app
  *    can't silently execute an injected line.
+ *  - {@link safePositiveInt}: clamp an unknown value to a positive integer
+ *    for URL params and backend-supplied IDs.
  */
 
 // Strips every ASCII control character except tab (0x09). CR + LF are
 // stripped because they'd confuse screen readers, CSV export parsers,
 // and terminal paste targets.
+// eslint-disable-next-line no-control-regex
 const CONTROL_CHARS_RE = /[\u0000-\u0008\u000A-\u001F\u007F]/g;
 const SLUG_RE = /[^A-Za-z0-9_-]+/g;
+// eslint-disable-next-line no-control-regex
+const CLIPBOARD_RE = /[\r\n\u0000]/g;
 
 export const MAX_DISPLAY_FILENAME_LEN = 255;
 export const MAX_DOWNLOAD_SLUG_LEN = 32;
@@ -66,7 +71,7 @@ export function safeDownloadSlug(
  */
 export function safeClipboardText(value: string | null | undefined): string {
   if (!value) return "";
-  return value.replace(/[\r\n\u0000]/g, "");
+  return value.replace(CLIPBOARD_RE, "");
 }
 
 /**
@@ -76,7 +81,10 @@ export function safeClipboardText(value: string | null | undefined): string {
  */
 export function safePositiveInt(
   value: unknown,
-  { fallback = 1, max = Number.MAX_SAFE_INTEGER }: { fallback?: number; max?: number } = {},
+  {
+    fallback = 1,
+    max = Number.MAX_SAFE_INTEGER,
+  }: { fallback?: number; max?: number } = {},
 ): number {
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) return fallback;

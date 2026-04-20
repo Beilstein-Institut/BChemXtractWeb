@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ReactionExtractionResponse } from "@/types/chemistry";
 import { postReactions } from "@/lib/apiClient";
+import type { ReactionExtractionResponse } from "@/types/chemistry";
 
 export type ReactionsState = "idle" | "loading" | "success" | "error";
 
@@ -31,7 +31,8 @@ export function useReactions(): UseReactionsReturn {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Clean up on unmount: abort any in-flight request.
+  // Abort any in-flight request on unmount so state doesn't settle
+  // after the hook instance is gone.
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
@@ -40,8 +41,8 @@ export function useReactions(): UseReactionsReturn {
   }, []);
 
   const extract = useCallback(async (file: File) => {
-    // Cancel any prior in-flight request so results from stale calls don't
-    // race the latest one.
+    // Cancel any prior in-flight request so stale results never
+    // supersede the latest call.
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -51,24 +52,16 @@ export function useReactions(): UseReactionsReturn {
     setErrorMessage(null);
     try {
       const data = await postReactions(file, controller.signal);
-      // If still the active controller (not superseded), commit result.
-      if (abortRef.current === controller) {
-        setResult(data);
-        setState("success");
-      }
+      if (abortRef.current !== controller) return;
+      setResult(data);
+      setState("success");
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        // Aborted by newer extract() call or unmount — do NOT set error state.
-        return;
-      }
-      if (abortRef.current === controller) {
-        const msg =
-          err instanceof Error
-            ? err.message
-            : "An unexpected error occurred.";
-        setErrorMessage(msg);
-        setState("error");
-      }
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (abortRef.current !== controller) return;
+      setErrorMessage(
+        err instanceof Error ? err.message : "An unexpected error occurred.",
+      );
+      setState("error");
     }
   }, []);
 

@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
-import type { ExtractionResponse } from "@/types/chemistry";
+import { useCallback, useState } from "react";
 import { postExtract } from "@/lib/apiClient";
+import type { ExtractionResponse } from "@/types/chemistry";
 
 export type ExtractState = "idle" | "loading" | "success" | "error";
 
@@ -35,9 +35,9 @@ export function useExtract(): UseExtractReturn {
       setResult(data);
       setState("success");
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "An unexpected error occurred.";
-      setErrorMessage(msg);
+      setErrorMessage(
+        err instanceof Error ? err.message : "An unexpected error occurred.",
+      );
       setState("error");
     }
   }, []);

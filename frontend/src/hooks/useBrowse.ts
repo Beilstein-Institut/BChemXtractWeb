@@ -5,55 +5,69 @@
  * Mirrors useHistory.ts pattern: explicit state enum, useCallback for stable refs.
  * URL state: window.history.replaceState (not pushState) to avoid flooding history.
  */
-import { useState, useCallback, useEffect } from "react";
-import type { PagedSubstancesResponse } from "@/types/chemistry";
+import { useCallback, useEffect, useState } from "react";
 import { getSubstancesPage } from "@/lib/apiClient";
+import type { PagedSubstancesResponse } from "@/types/chemistry";
 
 export type BrowseState = "idle" | "loading" | "success" | "error";
 export type BrowseView = "grid" | "table";
 export type BrowseSort = "extraction_order" | "formula";
+export type BrowsePageSize = 12 | 24 | 48;
 
 export interface UseBrowseReturn {
   browseState: BrowseState;
   page: PagedSubstancesResponse | null;
   view: BrowseView;
   sort: BrowseSort;
-  pageSize: 12 | 24 | 48;
+  pageSize: BrowsePageSize;
   currentPage: number;
   selectedIds: Set<number>;
   setView: (v: BrowseView) => void;
   setSort: (s: BrowseSort) => void;
-  setPageSize: (n: 12 | 24 | 48) => void;
+  setPageSize: (n: BrowsePageSize) => void;
   goToPage: (n: number) => void;
   toggleSelect: (id: number) => void;
   selectAll: () => void;
   clearSelection: () => void;
 }
 
-function readUrlParams(): {
+const PAGE_SIZES: readonly BrowsePageSize[] = [12, 24, 48];
+const VIEWS: readonly BrowseView[] = ["grid", "table"];
+const SORTS: readonly BrowseSort[] = ["extraction_order", "formula"];
+
+interface UrlParams {
   page: number;
-  size: 12 | 24 | 48;
+  size: BrowsePageSize;
   view: BrowseView;
   sort: BrowseSort;
-} {
+}
+
+function readUrlParams(): UrlParams {
   const params = new URLSearchParams(window.location.search);
   const rawPage = parseInt(params.get("page") ?? "1", 10);
-  const rawSize = parseInt(params.get("size") ?? "12", 10);
-  const rawView = params.get("view") ?? "grid";
-  const rawSort = params.get("sort") ?? "extraction_order";
+  const rawSize = parseInt(params.get("size") ?? "12", 10) as BrowsePageSize;
+  const rawView = params.get("view") as BrowseView | null;
+  const rawSort = params.get("sort") as BrowseSort | null;
 
   return {
     page: isNaN(rawPage) || rawPage < 1 ? 1 : rawPage,
-    size: ([12, 24, 48] as const).includes(rawSize as 12 | 24 | 48)
-      ? (rawSize as 12 | 24 | 48)
-      : 12,
-    view: (["grid", "table"] as const).includes(rawView as BrowseView)
-      ? (rawView as BrowseView)
-      : "grid",
-    sort: (["extraction_order", "formula"] as const).includes(rawSort as BrowseSort)
-      ? (rawSort as BrowseSort)
-      : "extraction_order",
+    size: PAGE_SIZES.includes(rawSize) ? rawSize : 12,
+    view: rawView && VIEWS.includes(rawView) ? rawView : "grid",
+    sort: rawSort && SORTS.includes(rawSort) ? rawSort : "extraction_order",
   };
+}
+
+function writeUrlParams(
+  extractionId: number | null | undefined,
+  { page, size, view, sort }: UrlParams,
+): void {
+  const params = new URLSearchParams();
+  if (extractionId) params.set("extraction", String(extractionId));
+  params.set("page", String(page));
+  params.set("size", String(size));
+  params.set("view", view);
+  params.set("sort", sort);
+  window.history.replaceState(null, "", `?${params.toString()}`);
 }
 
 export function useBrowse(extractionId: number | null | undefined): UseBrowseReturn {
@@ -62,72 +76,54 @@ export function useBrowse(extractionId: number | null | undefined): UseBrowseRet
   const [page, setPage] = useState<PagedSubstancesResponse | null>(null);
   const [view, setViewState] = useState<BrowseView>(initial.view);
   const [sort, setSortState] = useState<BrowseSort>(initial.sort);
-  const [pageSize, setPageSizeState] = useState<12 | 24 | 48>(initial.size);
+  const [pageSize, setPageSizeState] = useState<BrowsePageSize>(initial.size);
   const [currentPage, setCurrentPage] = useState<number>(initial.page);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-  // Sync URL search params on state change (D-15)
   const syncUrl = useCallback(
-    (
-      eid: number | null | undefined,
-      pg: number,
-      sz: number,
-      vw: BrowseView,
-      sr: BrowseSort
-    ) => {
-      const params = new URLSearchParams();
-      if (eid) params.set("extraction", String(eid));
-      params.set("page", String(pg));
-      params.set("size", String(sz));
-      params.set("view", vw);
-      params.set("sort", sr);
-      window.history.replaceState(null, "", `?${params.toString()}`);
-    },
-    []
+    (next: UrlParams) => writeUrlParams(extractionId, next),
+    [extractionId],
   );
 
   const setView = useCallback(
     (v: BrowseView) => {
       setViewState(v);
-      syncUrl(extractionId, currentPage, pageSize, v, sort);
+      syncUrl({ page: currentPage, size: pageSize, view: v, sort });
     },
-    [extractionId, currentPage, pageSize, sort, syncUrl]
+    [currentPage, pageSize, sort, syncUrl],
   );
 
   const setSort = useCallback(
     (s: BrowseSort) => {
       setSortState(s);
       setCurrentPage(1);
-      syncUrl(extractionId, 1, pageSize, view, s);
+      syncUrl({ page: 1, size: pageSize, view, sort: s });
     },
-    [extractionId, pageSize, view, syncUrl]
+    [pageSize, view, syncUrl],
   );
 
   const setPageSize = useCallback(
-    (n: 12 | 24 | 48) => {
+    (n: BrowsePageSize) => {
       setPageSizeState(n);
       setCurrentPage(1);
-      syncUrl(extractionId, 1, n, view, sort);
+      syncUrl({ page: 1, size: n, view, sort });
     },
-    [extractionId, view, sort, syncUrl]
+    [view, sort, syncUrl],
   );
 
   const goToPage = useCallback(
     (n: number) => {
       setCurrentPage(n);
-      syncUrl(extractionId, n, pageSize, view, sort);
+      syncUrl({ page: n, size: pageSize, view, sort });
     },
-    [extractionId, pageSize, view, sort, syncUrl]
+    [pageSize, view, sort, syncUrl],
   );
 
   const toggleSelect = useCallback((id: number) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }, []);
@@ -141,7 +137,7 @@ export function useBrowse(extractionId: number | null | undefined): UseBrowseRet
     setSelectedIds(new Set());
   }, []);
 
-  // Fetch when extractionId, currentPage, pageSize, or sort changes
+  // Fetch when extractionId, currentPage, pageSize, or sort changes.
   useEffect(() => {
     if (!extractionId) {
       setBrowseState("idle");
@@ -152,10 +148,9 @@ export function useBrowse(extractionId: number | null | undefined): UseBrowseRet
     setBrowseState("loading");
     getSubstancesPage(extractionId, currentPage, pageSize, sort)
       .then((data) => {
-        if (!cancelled) {
-          setPage(data);
-          setBrowseState("success");
-        }
+        if (cancelled) return;
+        setPage(data);
+        setBrowseState("success");
       })
       .catch(() => {
         if (!cancelled) setBrowseState("error");

@@ -9,6 +9,95 @@ import type { ExportRequest } from "@/types/export";
 import type { SearchRequest, SearchResponse } from "@/types/search";
 
 /**
+ * Wrapper around ``fetch`` that centralises the patterns every endpoint
+ * in this module needs:
+ *
+ *  - A `TypeError` / network failure becomes a user-facing connection
+ *    error. `AbortError` is re-thrown unwrapped so callers can tell
+ *    "user cancelled" apart from "backend down".
+ *  - A non-2xx response is inspected for the unified ``ErrorResponse``
+ *    shape (``{ detail, code }``) and translated into a typed Error.
+ *    Backends that return non-JSON on error fall back to a supplied
+ *    default detail.
+ *
+ * Keeping one implementation means the JSON-envelope contract and
+ * rate-limit / API-key behaviour only live in one place. Per-endpoint
+ * helpers below only deal in URL, body, and response-shape validation.
+ */
+interface ApiFetchOptions extends Omit<RequestInit, "body"> {
+  body?: BodyInit | null;
+  /** Human-readable connection error (TypeError path). */
+  connectionError?: string;
+  /** Prefix for non-2xx errors, e.g. "Extraction failed". */
+  errorPrefix: string;
+}
+
+const DEFAULT_CONNECTION_ERROR =
+  "Could not reach the server — check your connection.";
+
+function isAbortError(err: unknown): err is DOMException {
+  return err instanceof DOMException && err.name === "AbortError";
+}
+
+async function extractErrorDetail(response: Response): Promise<string> {
+  try {
+    const body = await response.json();
+    if (typeof body?.detail === "string") return body.detail;
+  } catch {
+    // Fall through — response wasn't JSON.
+  }
+  return "please try again";
+}
+
+async function apiFetch(
+  url: string,
+  { connectionError, errorPrefix, ...init }: ApiFetchOptions,
+): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(url, init);
+  } catch (err) {
+    if (isAbortError(err)) throw err;
+    throw new Error(connectionError ?? DEFAULT_CONNECTION_ERROR);
+  }
+  if (!response.ok) {
+    const detail = await extractErrorDetail(response);
+    throw new Error(`${errorPrefix} — ${detail}`);
+  }
+  return response;
+}
+
+/**
+ * Parses a JSON response and validates the envelope shape. The
+ * ``validate`` callback must return ``true`` for an acceptable body
+ * (e.g. ``"substances" in b``); anything else becomes an
+ * ``unexpected response format`` error.
+ */
+async function parseJsonEnvelope<T>(
+  response: Response,
+  errorPrefix: string,
+  validate: (body: unknown) => boolean,
+): Promise<T> {
+  const body = await response.json();
+  if (!body || !validate(body)) {
+    throw new Error(`${errorPrefix} — unexpected response format from server.`);
+  }
+  return body as T;
+}
+
+/** Trigger a browser download for a binary blob via a hidden anchor. */
+function triggerDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
  * POSTs a CDX/CDXML file to POST /api/extract using multipart/form-data.
  * Throws a descriptive Error on HTTP errors or network failure.
  *
@@ -20,49 +109,30 @@ export async function postExtract(file: File): Promise<ExtractionResponse> {
   const formData = new FormData();
   formData.append("file", file);
 
-  let response: Response;
-  try {
-    response = await fetch("/api/extract", {
-      method: "POST",
-      body: formData,
-    });
-  } catch {
-    throw new Error("Could not reach the extraction server — check your connection.");
-  }
-
-  if (!response.ok) {
-    let detail = "please try again";
-    try {
-      const body = await response.json();
-      if (typeof body?.detail === "string") detail = body.detail;
-    } catch {
-      // JSON parse failed — use default detail
-    }
-    throw new Error(`Extraction failed — ${detail}`);
-  }
-
-  const body = await response.json();
-  if (!body || !Array.isArray(body.substances)) {
-    throw new Error("Extraction failed — unexpected response format from server.");
-  }
-  return body as ExtractionResponse;
+  const response = await apiFetch("/api/extract", {
+    method: "POST",
+    body: formData,
+    connectionError:
+      "Could not reach the extraction server — check your connection.",
+    errorPrefix: "Extraction failed",
+  });
+  return parseJsonEnvelope<ExtractionResponse>(
+    response,
+    "Extraction failed",
+    (b) => Array.isArray((b as { substances?: unknown }).substances),
+  );
 }
 
 /**
  * Fetch extraction history list.
  * @param limit - Number of entries to fetch. Use "all" for no limit.
  */
-export async function getHistory(limit: number | "all" = 10): Promise<HistoryListResponse> {
-  const url = `/api/history?limit=${limit}`;
-  let response: Response;
-  try {
-    response = await fetch(url);
-  } catch {
-    throw new Error("Could not reach the server — check your connection.");
-  }
-  if (!response.ok) {
-    throw new Error(`Failed to load history (${response.status})`);
-  }
+export async function getHistory(
+  limit: number | "all" = 10,
+): Promise<HistoryListResponse> {
+  const response = await apiFetch(`/api/history?limit=${limit}`, {
+    errorPrefix: "Failed to load history",
+  });
   return response.json() as Promise<HistoryListResponse>;
 }
 
@@ -71,16 +141,9 @@ export async function getHistory(limit: number | "all" = 10): Promise<HistoryLis
  * Returns the same ExtractionResponse shape as POST /api/extract.
  */
 export async function getHistoryDetail(id: number): Promise<ExtractionResponse> {
-  let response: Response;
-  try {
-    response = await fetch(`/api/history/${id}`);
-  } catch {
-    throw new Error("Could not reach the server — check your connection.");
-  }
-  if (!response.ok) {
-    if (response.status === 404) throw new Error("Extraction not found.");
-    throw new Error(`Failed to load extraction (${response.status})`);
-  }
+  const response = await apiFetch(`/api/history/${id}`, {
+    errorPrefix: "Failed to load extraction",
+  });
   return response.json() as Promise<ExtractionResponse>;
 }
 
@@ -93,10 +156,10 @@ export async function deleteHistoryEntry(id: number): Promise<void> {
   try {
     response = await fetch(`/api/history/${id}`, { method: "DELETE" });
   } catch {
-    throw new Error("Could not reach the server — check your connection.");
+    throw new Error(DEFAULT_CONNECTION_ERROR);
   }
   if (!response.ok && response.status !== 204) {
-    throw new Error(`Could not delete extraction. Try again.`);
+    throw new Error("Could not delete extraction. Try again.");
   }
 }
 
@@ -104,15 +167,9 @@ export async function deleteHistoryEntry(id: number): Promise<void> {
  * Fetch aggregate statistics (HIST-04, D-08).
  */
 export async function getStats(): Promise<StatsResponse> {
-  let response: Response;
-  try {
-    response = await fetch("/api/stats");
-  } catch {
-    throw new Error("Could not reach the server — check your connection.");
-  }
-  if (!response.ok) {
-    throw new Error(`Failed to load statistics (${response.status})`);
-  }
+  const response = await apiFetch("/api/stats", {
+    errorPrefix: "Failed to load statistics",
+  });
   return response.json() as Promise<StatsResponse>;
 }
 
@@ -130,16 +187,9 @@ export async function getSubstancesPage(
   sort: "extraction_order" | "formula",
 ): Promise<PagedSubstancesResponse> {
   const url = `/api/extractions/${extractionId}/substances?page=${page}&size=${size}&sort=${sort}`;
-  let response: Response;
-  try {
-    response = await fetch(url);
-  } catch {
-    throw new Error("Could not reach the server — check your connection.");
-  }
-  if (!response.ok) {
-    if (response.status === 404) throw new Error("Extraction not found.");
-    throw new Error(`Failed to load structures (${response.status})`);
-  }
+  const response = await apiFetch(url, {
+    errorPrefix: "Failed to load structures",
+  });
   return response.json() as Promise<PagedSubstancesResponse>;
 }
 
@@ -153,28 +203,11 @@ export async function postBatchStart(files: File[]): Promise<BatchStartResponse>
   for (const file of files) {
     formData.append("files", file);
   }
-
-  let response: Response;
-  try {
-    response = await fetch("/api/batch", {
-      method: "POST",
-      body: formData,
-    });
-  } catch {
-    throw new Error("Could not reach the server — check your connection.");
-  }
-
-  if (!response.ok) {
-    let detail = "please try again";
-    try {
-      const body = await response.json();
-      if (typeof body?.detail === "string") detail = body.detail;
-    } catch {
-      // use default
-    }
-    throw new Error(`Batch start failed — ${detail}`);
-  }
-
+  const response = await apiFetch("/api/batch", {
+    method: "POST",
+    body: formData,
+    errorPrefix: "Batch start failed",
+  });
   return response.json() as Promise<BatchStartResponse>;
 }
 
@@ -190,17 +223,10 @@ export function getBatchSSEUrl(batchId: string): string {
  * DELETE /api/batch/{batchId} — cancel pending tasks (current task finishes, D-10).
  */
 export async function cancelBatch(batchId: string): Promise<void> {
-  let response: Response;
-  try {
-    response = await fetch(`/api/batch/${encodeURIComponent(batchId)}`, {
-      method: "DELETE",
-    });
-  } catch {
-    throw new Error("Could not reach the server — check your connection.");
-  }
-  if (!response.ok) {
-    throw new Error(`Could not cancel batch (${response.status})`);
-  }
+  await apiFetch(`/api/batch/${encodeURIComponent(batchId)}`, {
+    method: "DELETE",
+    errorPrefix: "Could not cancel batch",
+  });
 }
 
 /**
@@ -209,24 +235,10 @@ export async function cancelBatch(batchId: string): Promise<void> {
  * Throws if the fetch fails or returns non-ok.
  */
 export async function downloadBatchZip(batchId: string): Promise<void> {
-  let response: Response;
-  try {
-    response = await fetch(`/api/batch/${encodeURIComponent(batchId)}/zip`);
-  } catch {
-    throw new Error("Could not reach the server — check your connection.");
-  }
-  if (!response.ok) {
-    throw new Error(`ZIP download failed (${response.status})`);
-  }
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `batch_${batchId.slice(0, 8)}.zip`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const response = await apiFetch(`/api/batch/${encodeURIComponent(batchId)}/zip`, {
+    errorPrefix: "ZIP download failed",
+  });
+  triggerDownload(await response.blob(), `batch_${batchId.slice(0, 8)}.zip`);
 }
 
 /**
@@ -239,36 +251,17 @@ export async function downloadBatchZip(batchId: string): Promise<void> {
  * @param payload - ExportRequest with format and substance_ids or extraction_id
  * @param suggestedFilename - Browser download filename (backend also sends Content-Disposition)
  */
-export async function postExport(payload: ExportRequest, suggestedFilename: string): Promise<void> {
-  let response: Response;
-  try {
-    response = await fetch("/api/export", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-  } catch {
-    throw new Error("Could not reach the server — check your connection.");
-  }
-  if (!response.ok) {
-    let detail = "please try again";
-    try {
-      const body = await response.json();
-      if (typeof body?.detail === "string") detail = body.detail;
-    } catch {
-      // use default
-    }
-    throw new Error(`Export failed — ${detail}`);
-  }
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = suggestedFilename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+export async function postExport(
+  payload: ExportRequest,
+  suggestedFilename: string,
+): Promise<void> {
+  const response = await apiFetch("/api/export", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    errorPrefix: "Export failed",
+  });
+  triggerDownload(await response.blob(), suggestedFilename);
 }
 
 /**
@@ -279,26 +272,12 @@ export async function postExport(payload: ExportRequest, suggestedFilename: stri
  * ErrorResponse shape (Plan 05, D-17).
  */
 export async function postSearch(payload: SearchRequest): Promise<SearchResponse> {
-  let response: Response;
-  try {
-    response = await fetch("/api/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-  } catch {
-    throw new Error("Could not reach the server — check your connection.");
-  }
-  if (!response.ok) {
-    let detail = "please try again";
-    try {
-      const body = await response.json();
-      if (typeof body?.detail === "string") detail = body.detail;
-    } catch {
-      // fall through to default
-    }
-    throw new Error(`Search failed — ${detail}`);
-  }
+  const response = await apiFetch("/api/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    errorPrefix: "Search failed",
+  });
   return response.json() as Promise<SearchResponse>;
 }
 
@@ -319,40 +298,19 @@ export async function postReactions(
   const formData = new FormData();
   formData.append("file", file);
 
-  let response: Response;
-  try {
-    response = await fetch("/api/reactions", {
-      method: "POST",
-      body: formData,
-      signal,
-    });
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") {
-      throw err; // propagate; caller decides how to handle
-    }
-    throw new Error(
+  const response = await apiFetch("/api/reactions", {
+    method: "POST",
+    body: formData,
+    signal,
+    connectionError:
       "Could not reach the reaction server — check your connection.",
-    );
-  }
-
-  if (!response.ok) {
-    let detail = "please try again";
-    try {
-      const body = await response.json();
-      if (typeof body?.detail === "string") detail = body.detail;
-    } catch {
-      // JSON parse failed — use default detail
-    }
-    throw new Error(`Reaction extraction failed — ${detail}`);
-  }
-
-  const body = await response.json();
-  if (!body || !Array.isArray(body.reactions)) {
-    throw new Error(
-      "Reaction extraction failed — unexpected response format.",
-    );
-  }
-  return body as ReactionExtractionResponse;
+    errorPrefix: "Reaction extraction failed",
+  });
+  return parseJsonEnvelope<ReactionExtractionResponse>(
+    response,
+    "Reaction extraction failed",
+    (b) => Array.isArray((b as { reactions?: unknown }).reactions),
+  );
 }
 
 /**
@@ -371,37 +329,16 @@ export async function getExtractionReactions(
   extractionId: number,
   signal?: AbortSignal,
 ): Promise<ReactionExtractionResponse> {
-  let response: Response;
-  try {
-    response = await fetch(`/api/extractions/${extractionId}/reactions`, {
-      method: "GET",
-      signal,
-    });
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") {
-      throw err;
-    }
-    throw new Error(
+  const response = await apiFetch(`/api/extractions/${extractionId}/reactions`, {
+    method: "GET",
+    signal,
+    connectionError:
       "Could not reach the reaction server — check your connection.",
-    );
-  }
-
-  if (!response.ok) {
-    let detail = "please try again";
-    try {
-      const body = await response.json();
-      if (typeof body?.detail === "string") detail = body.detail;
-    } catch {
-      // JSON parse failed — use default detail
-    }
-    throw new Error(`Loading cached reactions failed — ${detail}`);
-  }
-
-  const body = await response.json();
-  if (!body || !Array.isArray(body.reactions)) {
-    throw new Error(
-      "Loading cached reactions failed — unexpected response format.",
-    );
-  }
-  return body as ReactionExtractionResponse;
+    errorPrefix: "Loading cached reactions failed",
+  });
+  return parseJsonEnvelope<ReactionExtractionResponse>(
+    response,
+    "Loading cached reactions failed",
+    (b) => Array.isArray((b as { reactions?: unknown }).reactions),
+  );
 }

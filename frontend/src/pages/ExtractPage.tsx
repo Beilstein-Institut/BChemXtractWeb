@@ -6,16 +6,16 @@
  * State stays in App.tsx; this page is a presentational slice.
  */
 import { ArrowRightIcon } from "lucide-react";
-import { FileUpload } from "@/components/FileUpload";
 import { BatchProgress } from "@/components/BatchProgress";
 import { BatchSummary } from "@/components/BatchSummary";
 import { ExtractionSummary } from "@/components/ExtractionSummary";
+import { FileUpload } from "@/components/FileUpload";
 import { buttonVariants } from "@/components/ui/button";
-import { Link } from "@/lib/Link";
-import type { ExtractionResponse } from "@/types/chemistry";
-import type { BatchFileStatus } from "@/types/batch";
-import type { ExtractState } from "@/hooks/useExtract";
 import type { BatchState } from "@/hooks/useBatch";
+import type { ExtractState } from "@/hooks/useExtract";
+import { Link } from "@/lib/Link";
+import type { BatchFileStatus } from "@/types/batch";
+import type { ExtractionResponse } from "@/types/chemistry";
 
 export interface ExtractPageProps {
   state: ExtractState;
@@ -57,7 +57,10 @@ export function ExtractPage({
   onViewExtraction,
 }: ExtractPageProps) {
   const activeResult = historicalResult ?? result;
-  const showSummary = (state === "success" && result !== null) || historicalResult !== null;
+  const showSummary =
+    (state === "success" && result !== null) || historicalResult !== null;
+  const showUpload = batchState !== "processing" && state !== "success";
+  const isLoading = state === "loading";
 
   return (
     <>
@@ -70,28 +73,16 @@ export function ExtractPage({
         </p>
       </header>
 
-      {(state === "idle" || state === "error") && batchState !== "processing" && (
+      {showUpload && (
         <div className="mt-12">
           <FileUpload
             mode="batch"
             onExtract={onExtract}
             onStartBatch={onStartBatch}
-            isLoading={false}
+            isLoading={isLoading}
             isBatchProcessing={false}
-          />
-        </div>
-      )}
-
-      {state === "loading" && (
-        <div className="mt-12">
-          <FileUpload
-            mode="batch"
-            onExtract={onExtract}
-            onStartBatch={onStartBatch}
-            isLoading={true}
-            isBatchProcessing={false}
-            loadingFilename={selectedFile?.name}
-            loadingFileSize={selectedFile?.size}
+            loadingFilename={isLoading ? selectedFile?.name : undefined}
+            loadingFileSize={isLoading ? selectedFile?.size : undefined}
           />
         </div>
       )}

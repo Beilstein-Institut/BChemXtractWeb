@@ -9,15 +9,15 @@
  *  - stats fetch
  */
 
-import { useState, useCallback, useEffect } from "react";
-import type { ExtractionResponse } from "@/types/chemistry";
-import type { HistoryListItem, StatsResponse } from "@/types/history";
+import { useCallback, useEffect, useState } from "react";
 import {
+  deleteHistoryEntry,
   getHistory,
   getHistoryDetail,
-  deleteHistoryEntry,
   getStats,
 } from "@/lib/apiClient";
+import type { ExtractionResponse } from "@/types/chemistry";
+import type { HistoryListItem, StatsResponse } from "@/types/history";
 
 export type HistoryState = "idle" | "loading" | "success" | "error";
 
@@ -57,42 +57,43 @@ export function useHistory(): UseHistoryReturn {
   const fetchStats = useCallback(async () => {
     setStatsLoading(true);
     try {
-      const data = await getStats();
-      setStats(data);
+      setStats(await getStats());
     } catch {
-      // Stats failure is non-fatal — keep existing stats or null
+      // Stats failure is non-fatal — keep existing stats or null.
     } finally {
       setStatsLoading(false);
     }
   }, []);
 
-  // Initial fetch on mount
+  // Initial fetch on mount.
   useEffect(() => {
     fetchHistory(false);
     fetchStats();
   }, [fetchHistory, fetchStats]);
 
   const toggleShowAll = useCallback(() => {
-    const next = !showAll;
-    setShowAll(next);
-    fetchHistory(next);
-  }, [showAll, fetchHistory]);
+    setShowAll((prev) => {
+      const next = !prev;
+      fetchHistory(next);
+      return next;
+    });
+  }, [fetchHistory]);
 
   const deleteEntry = useCallback(
     async (id: number) => {
       await deleteHistoryEntry(id);
-      // Optimistic update: remove from local list
+      // Optimistic update: remove from local list and refresh aggregate stats.
       setEntries((prev) => prev.filter((e) => e.id !== id));
       setTotal((prev) => Math.max(0, prev - 1));
-      // Refresh stats after deletion
       await fetchStats();
     },
-    [fetchStats]
+    [fetchStats],
   );
 
-  const reloadEntry = useCallback(async (id: number): Promise<ExtractionResponse> => {
-    return getHistoryDetail(id);
-  }, []);
+  const reloadEntry = useCallback(
+    (id: number): Promise<ExtractionResponse> => getHistoryDetail(id),
+    [],
+  );
 
   const refresh = useCallback(() => {
     fetchHistory(showAll);

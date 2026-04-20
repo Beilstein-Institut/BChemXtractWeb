@@ -1,12 +1,11 @@
-import { useState, useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { BatchFileStatus } from "@/types/batch";
-import type { FileCompleteEvent } from "@/types/batch";
 import {
-  postBatchStart,
-  getBatchSSEUrl,
   cancelBatch as apiCancelBatch,
+  getBatchSSEUrl,
+  postBatchStart,
 } from "@/lib/apiClient";
+import type { BatchFileStatus, FileCompleteEvent } from "@/types/batch";
 
 /**
  * Runtime guard for the SSE ``file_complete`` payload (SEC MED-02).
@@ -18,8 +17,7 @@ import {
  */
 function isFileCompleteEvent(x: unknown): x is FileCompleteEvent {
   if (!x || typeof x !== "object") return false;
-  const ev = x as Record<string, unknown>;
-  const r = ev.result;
+  const r = (x as { result?: unknown }).result;
   if (!r || typeof r !== "object") return false;
   const res = r as Record<string, unknown>;
   return (
@@ -85,14 +83,48 @@ export function useBatch(): UseBatchReturn {
   const failedCount = files.filter((f) => f.state === "failed").length;
   const totalStructures = files.reduce(
     (sum, f) => sum + (f.state === "done" ? f.structureCount : 0),
-    0
+    0,
   );
 
-  const _closeSSE = useCallback(() => {
-    if (esRef.current) {
-      esRef.current.close();
-      esRef.current = null;
+  const closeSSE = useCallback(() => {
+    esRef.current?.close();
+    esRef.current = null;
+  }, []);
+
+  const handleFileComplete = useCallback((event: MessageEvent) => {
+    // SEC MED-02: runtime-validate the SSE payload shape rather than
+    // trusting the compile-time `as FileCompleteEvent` cast. Malformed
+    // payloads are dropped silently — the UI stays on the last known
+    // good state rather than crashing the handler.
+    let data: unknown;
+    try {
+      data = JSON.parse(event.data);
+    } catch {
+      return;
     }
+    if (!isFileCompleteEvent(data)) return;
+
+    const { filename, error, structure_count, extraction_id } = data.result;
+    setFiles((prev) =>
+      prev.map((f) => {
+        if (f.filename !== filename) return f;
+        if (error) {
+          return {
+            state: "failed",
+            filename: f.filename,
+            fileSize: f.fileSize,
+            error,
+          };
+        }
+        return {
+          state: "done",
+          filename: f.filename,
+          fileSize: f.fileSize,
+          structureCount: structure_count,
+          extractionId: extraction_id,
+        };
+      }),
+    );
   }, []);
 
   const startBatch = useCallback(
@@ -100,22 +132,20 @@ export function useBatch(): UseBatchReturn {
       setState("processing");
       setErrorMessage(null);
 
-      // Initialize per-file status list in queued state
+      // Initialise per-file status list in queued state.
       setFiles(
         inputFiles.map((f) => ({
-          state: "queued" as const,
+          state: "queued",
           filename: f.name,
           fileSize: f.size,
-        }))
+        })),
       );
 
       let startResponse;
       try {
         startResponse = await postBatchStart(inputFiles);
       } catch (err) {
-        const msg =
-          err instanceof Error ? err.message : "Batch start failed.";
-        setErrorMessage(msg);
+        setErrorMessage(err instanceof Error ? err.message : "Batch start failed.");
         setState("error");
         return;
       }
@@ -123,81 +153,45 @@ export function useBatch(): UseBatchReturn {
       setBatchId(startResponse.batch_id);
       setGroupId(startResponse.group_id);
 
-      // Open SSE connection using browser-native EventSource
-      // SSE and cancel use group_id (Celery GroupResult), ZIP uses batch_id (DB UUID)
+      // SSE and cancel use group_id (Celery GroupResult), ZIP uses
+      // batch_id (DB UUID).
       const es = new EventSource(getBatchSSEUrl(startResponse.group_id));
       esRef.current = es;
-
-      es.addEventListener("file_complete", (e: MessageEvent) => {
-        // SEC MED-02: runtime-validate the SSE payload shape instead of
-        // relying on the `as FileCompleteEvent` compile-time promise.
-        // Malformed payloads are dropped silently — the UI stays on the
-        // last known good state rather than crashing the handler.
-        let data: unknown;
-        try {
-          data = JSON.parse(e.data);
-        } catch {
-          return;
-        }
-        if (!isFileCompleteEvent(data)) return;
-
-        setFiles((prev) =>
-          prev.map((f) => {
-            if (f.filename !== data.result.filename) return f;
-            if (data.result.error) {
-              return {
-                state: "failed" as const,
-                filename: f.filename,
-                fileSize: f.fileSize,
-                error: data.result.error,
-              };
-            }
-            return {
-              state: "done" as const,
-              filename: f.filename,
-              fileSize: f.fileSize,
-              structureCount: data.result.structure_count,
-              extractionId: data.result.extraction_id,
-            };
-          })
-        );
-      });
-
+      es.addEventListener("file_complete", handleFileComplete);
       es.addEventListener("batch_complete", () => {
-        _closeSSE();
+        closeSSE();
         setState("complete");
       });
-
       es.addEventListener("error", () => {
-        _closeSSE();
+        closeSSE();
         setErrorMessage("Connection lost.");
         setState("error");
         toast.error("Connection lost. Reconnecting…");
       });
     },
-    [_closeSSE]
+    [closeSSE, handleFileComplete],
   );
 
   const cancelBatch = useCallback(async () => {
-    _closeSSE();
+    closeSSE();
     if (groupId) {
       try {
         await apiCancelBatch(groupId);
       } catch {
-        // Best-effort cancel
+        // Best-effort cancel.
       }
     }
     setState("cancelled");
-  }, [groupId, _closeSSE]);
+  }, [groupId, closeSSE]);
 
   const reset = useCallback(() => {
-    _closeSSE();
+    closeSSE();
     setState("idle");
     setFiles([]);
     setBatchId(null);
     setGroupId(null);
     setErrorMessage(null);
-  }, [_closeSSE]);
+  }, [closeSSE]);
 
   return {
     state,
