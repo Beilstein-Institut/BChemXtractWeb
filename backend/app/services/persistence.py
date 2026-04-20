@@ -112,17 +112,17 @@ async def save_extraction(
         # Best-effort, log-and-continue per the D-03 auto-persist philosophy.
         # Individual canonicalization failures must NEVER break extraction:
         # return_exceptions=True keeps the gather alive even if one raises.
-        smiles_list = [item.get("smiles") or "" for item in substance_data]
         canonical_results: list[str | BaseException] = []
-        for start in range(0, len(smiles_list), CANONICAL_BATCH_SIZE):
-            chunk = smiles_list[start : start + CANONICAL_BATCH_SIZE]
-            chunk_results = await asyncio.gather(
-                *(canonicalize_smiles(s) for s in chunk),
-                return_exceptions=True,
+        for start in range(0, len(substance_data), CANONICAL_BATCH_SIZE):
+            chunk = substance_data[start : start + CANONICAL_BATCH_SIZE]
+            canonical_results.extend(
+                await asyncio.gather(
+                    *(canonicalize_smiles(item.get("smiles") or "") for item in chunk),
+                    return_exceptions=True,
+                )
             )
-            canonical_results.extend(chunk_results)
 
-        for item, result in zip(substance_data, canonical_results):
+        for item, result in zip(substance_data, canonical_results, strict=True):
             if isinstance(result, BaseException):
                 # Per-item failure — log and leave NULL. Do NOT re-raise.
                 logger.exception(
@@ -133,7 +133,7 @@ async def save_extraction(
                 continue
             # canonicalize_smiles returns "" on parse failure; store as NULL
             # so unparsable rows match the backfill semantics (D-09 + fix #9).
-            item["canonical_smiles"] = result if result else None
+            item["canonical_smiles"] = result or None
 
         # ON CONFLICT DO NOTHING: first-seen metadata wins (D-02)
         await db.execute(

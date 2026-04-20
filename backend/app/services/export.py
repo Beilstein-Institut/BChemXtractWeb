@@ -25,11 +25,12 @@ import io
 import json
 import logging
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import HTTPException
 from lxml import etree
 
+from app.services.filenames import safe_filename
 from app.services.jvm_bridge import run_in_jvm_thread
 
 _logger = logging.getLogger(__name__)
@@ -69,7 +70,7 @@ def _zip_filename(fmt: str) -> str:
     SEC L-01: use UTC rather than ``date.today()`` (container-local tz)
     so filename dates are deterministic across host timezones.
     """
-    today_utc = datetime.now(timezone.utc).date().strftime("%Y%m%d")
+    today_utc = datetime.now(UTC).date().strftime("%Y%m%d")
     return f"bchemxtract_export_{fmt}_{today_utc}.zip"
 
 
@@ -86,10 +87,6 @@ def _build_zip(entries: list[tuple[str, bytes]]) -> bytes:
     separators, null bytes, CR/LF, or other unprintables that might
     surprise a ZIP consumer (SEC M-03, T-08-04).
     """
-    from app.services.filenames import (  # local import avoids cycle
-        safe_filename,
-    )
-
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for name, content in entries:
@@ -117,18 +114,17 @@ def _generate_sdf_sync(substances: list[dict]) -> bytes:
     """
     import jpype
 
-    SDFWriter = jpype.JClass("org.openscience.cdk.io.SDFWriter")
-    StringWriter = jpype.JClass("java.io.StringWriter")
-    SmilesParser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")
-    SilentChemObjectBuilder = jpype.JClass(
+    SDFWriter = jpype.JClass("org.openscience.cdk.io.SDFWriter")  # noqa: N806
+    StringWriter = jpype.JClass("java.io.StringWriter")  # noqa: N806
+    SmilesParser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")  # noqa: N806
+    SilentChemObjectBuilder = jpype.JClass(  # noqa: N806
         "org.openscience.cdk.silent.SilentChemObjectBuilder"
     )
-    StructureDiagramGenerator = jpype.JClass(
+    StructureDiagramGenerator = jpype.JClass(  # noqa: N806
         "org.openscience.cdk.layout.StructureDiagramGenerator"
     )
 
-    builder = SilentChemObjectBuilder.getInstance()
-    parser = SmilesParser(builder)
+    parser = SmilesParser(SilentChemObjectBuilder.getInstance())
     sdg = StructureDiagramGenerator()
     sw = StringWriter()
     writer = SDFWriter(sw)
@@ -141,7 +137,7 @@ def _generate_sdf_sync(substances: list[dict]) -> bytes:
                 sdg.setMolecule(mol)
                 sdg.generateCoordinates()
                 writer.write(sdg.getMolecule())
-            except Exception:
+            except Exception:  # noqa: BLE001
                 # T-08-03: Skip unparseable SMILES — never crash the whole export
                 _logger.debug(
                     "Skipping substance id=%s during SDF export: unparseable SMILES",
@@ -177,25 +173,26 @@ def _generate_png_sync(smiles: str, width: int = 450, height: int = 450) -> byte
     import jpype
 
     try:
-        SmilesParser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")
-        SilentChemObjectBuilder = jpype.JClass(
+        SmilesParser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")  # noqa: N806
+        SilentChemObjectBuilder = jpype.JClass(  # noqa: N806
             "org.openscience.cdk.silent.SilentChemObjectBuilder"
         )
-        DepictionGenerator = jpype.JClass("org.openscience.cdk.depict.DepictionGenerator")
-        StandardGenerator = jpype.JClass(
+        DepictionGenerator = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.depict.DepictionGenerator"
+        )
+        StandardGenerator = jpype.JClass(  # noqa: N806
             "org.openscience.cdk.renderer.generators.standard.StandardGenerator"
         )
-        SymbolVisibility = jpype.JClass(
+        SymbolVisibility = jpype.JClass(  # noqa: N806
             "org.openscience.cdk.renderer.SymbolVisibility"
         )
-        StructureDiagramGenerator = jpype.JClass(
+        StructureDiagramGenerator = jpype.JClass(  # noqa: N806
             "org.openscience.cdk.layout.StructureDiagramGenerator"
         )
-        ByteArrayOutputStream = jpype.JClass("java.io.ByteArrayOutputStream")
-        ImageIO = jpype.JClass("javax.imageio.ImageIO")
+        ByteArrayOutputStream = jpype.JClass("java.io.ByteArrayOutputStream")  # noqa: N806
+        ImageIO = jpype.JClass("javax.imageio.ImageIO")  # noqa: N806
 
-        builder = SilentChemObjectBuilder.getInstance()
-        mol = SmilesParser(builder).parseSmiles(smiles)
+        mol = SmilesParser(SilentChemObjectBuilder.getInstance()).parseSmiles(smiles)
         sdg = StructureDiagramGenerator()
         sdg.setMolecule(mol)
         sdg.generateCoordinates()
@@ -210,11 +207,10 @@ def _generate_png_sync(smiles: str, width: int = 450, height: int = 450) -> byte
             )
             .withSize(float(width), float(height))
         )
-        img = dg.depict(sdg.getMolecule()).toImg()
         baos = ByteArrayOutputStream()
-        ImageIO.write(img, "PNG", baos)
+        ImageIO.write(dg.depict(sdg.getMolecule()).toImg(), "PNG", baos)
         return bytes(baos.toByteArray())
-    except Exception:
+    except Exception:  # noqa: BLE001
         _logger.debug(
             "PNG generation failed for SMILES %r — returning empty bytes", smiles[:40]
         )
@@ -239,18 +235,17 @@ def _generate_v3000_sync(smiles: str) -> bytes:
     import jpype
 
     try:
-        SmilesParser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")
-        SilentChemObjectBuilder = jpype.JClass(
+        SmilesParser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")  # noqa: N806
+        SilentChemObjectBuilder = jpype.JClass(  # noqa: N806
             "org.openscience.cdk.silent.SilentChemObjectBuilder"
         )
-        StructureDiagramGenerator = jpype.JClass(
+        StructureDiagramGenerator = jpype.JClass(  # noqa: N806
             "org.openscience.cdk.layout.StructureDiagramGenerator"
         )
-        MDLV3000Writer = jpype.JClass("org.openscience.cdk.io.MDLV3000Writer")
-        StringWriter = jpype.JClass("java.io.StringWriter")
+        MDLV3000Writer = jpype.JClass("org.openscience.cdk.io.MDLV3000Writer")  # noqa: N806
+        StringWriter = jpype.JClass("java.io.StringWriter")  # noqa: N806
 
-        builder = SilentChemObjectBuilder.getInstance()
-        mol = SmilesParser(builder).parseSmiles(smiles)
+        mol = SmilesParser(SilentChemObjectBuilder.getInstance()).parseSmiles(smiles)
         sdg = StructureDiagramGenerator()
         sdg.setMolecule(mol)
         sdg.generateCoordinates()
@@ -263,7 +258,7 @@ def _generate_v3000_sync(smiles: str) -> bytes:
             # even if an unexpected exception escapes writer.write().
             writer.close()
         return str(sw.toString()).encode("utf-8")
-    except Exception:
+    except Exception:  # noqa: BLE001
         _logger.debug(
             "V3000 generation failed for SMILES %r — returning empty bytes", smiles[:40]
         )
@@ -327,20 +322,15 @@ def _generate_rxn_sync(reactions: list[dict]) -> bytes:
             ReactionSet = jpype.JClass(  # noqa: N806
                 "org.openscience.cdk.silent.ReactionSet"
             )
-        except Exception:  # pragma: no cover - depends on CDK variant
-            ReactionSet = jpype.JClass(  # noqa: N806
-                "org.openscience.cdk.ReactionSet"
-            )
+        except Exception:  # noqa: BLE001  # pragma: no cover - depends on CDK variant
+            ReactionSet = jpype.JClass("org.openscience.cdk.ReactionSet")  # noqa: N806
         StructureDiagramGenerator = jpype.JClass(  # noqa: N806
             "org.openscience.cdk.layout.StructureDiagramGenerator"
         )
-        MDLRXNWriter = jpype.JClass(  # noqa: N806
-            "org.openscience.cdk.io.MDLRXNWriter"
-        )
+        MDLRXNWriter = jpype.JClass("org.openscience.cdk.io.MDLRXNWriter")  # noqa: N806
         StringWriter = jpype.JClass("java.io.StringWriter")  # noqa: N806
 
-        builder = SilentChemObjectBuilder.getInstance()
-        parser = SmilesParser(builder)
+        parser = SmilesParser(SilentChemObjectBuilder.getInstance())
         sdg = StructureDiagramGenerator()
         rxn_set = ReactionSet()
 
@@ -354,20 +344,19 @@ def _generate_rxn_sync(reactions: list[dict]) -> bytes:
                 ):
                     for i in range(cs.getAtomContainerCount()):
                         mol = cs.getAtomContainer(i)
+                        # Per-component layout failure is non-fatal --
+                        # MDLRXNWriter writes whatever coordinates exist.
                         try:
                             sdg.setMolecule(mol)
                             sdg.generateCoordinates()
-                        except Exception:
-                            # Per-component layout failure -- MDLRXNWriter
-                            # will still write what it has.
+                        except Exception:  # noqa: BLE001, S110
                             pass
                 rxn_set.addReaction(reaction)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 _logger.debug(
                     "Skipping reaction during RXN export: unparseable smiles %r",
                     r.get("reaction_smiles", "")[:80],
                 )
-                continue
 
         if rxn_set.getReactionCount() == 0:
             return b""
@@ -379,7 +368,7 @@ def _generate_rxn_sync(reactions: list[dict]) -> bytes:
         finally:
             writer.close()
         return str(sw.toString()).encode("utf-8")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         _logger.warning("RXN export failed: %s", exc)
         return b""
 
@@ -513,7 +502,7 @@ def _generate_rxn_stub() -> bytes:
     Returns:
         Minimal RDF header bytes.
     """
-    datm = datetime.now(timezone.utc).date().strftime("%Y/%m/%d")
+    datm = datetime.now(UTC).date().strftime("%Y/%m/%d")
     return f"$RDFILE 1\n$DATM    {datm}\n".encode()
 
 
@@ -547,34 +536,39 @@ async def generate_export(
 
     if fmt == "sdf":
         content = await run_in_jvm_thread(_generate_sdf_sync, substances)
-        if len(substances) == 1:
-            filename = _single_filename(substances[0], "sdf")
-        else:
-            filename = multi_name.replace(".zip", ".sdf")
+        filename = (
+            _single_filename(substances[0], "sdf")
+            if len(substances) == 1
+            else multi_name.replace(".zip", ".sdf")
+        )
         return content, "chemical/x-mdl-sdfile", filename
 
-    elif fmt == "json":
-        content = _generate_json(substances)
-        return content, "application/json", multi_name.replace(".zip", ".json")
+    if fmt == "json":
+        return (
+            _generate_json(substances),
+            "application/json",
+            multi_name.replace(".zip", ".json"),
+        )
 
-    elif fmt == "csv":
-        content = _generate_csv(substances)
-        return content, "text/csv", multi_name.replace(".zip", ".csv")
+    if fmt == "csv":
+        return (
+            _generate_csv(substances),
+            "text/csv",
+            multi_name.replace(".zip", ".csv"),
+        )
 
-    elif fmt == "svg":
-        content = _generate_svg_zip(substances)
-        return content, "application/zip", multi_name
+    if fmt == "svg":
+        return _generate_svg_zip(substances), "application/zip", multi_name
 
-    elif fmt == "cml":
+    if fmt == "cml":
         entries = [
             (_single_filename(s, "cml"), _generate_cml_single(s))
             for s in substances
             if s.get("smiles") or s.get("inchi")
         ]
-        content = _build_zip(entries)
-        return content, "application/zip", multi_name
+        return _build_zip(entries), "application/zip", multi_name
 
-    elif fmt == "png":
+    if fmt == "png":
         if len(substances) > _PNG_LIMIT:
             raise HTTPException(
                 status_code=400,
@@ -583,7 +577,7 @@ async def generate_export(
                     "Select fewer structures or use SDF/SVG for bulk export."
                 ),
             )
-        entries = []
+        entries: list[tuple[str, bytes]] = []
         for s in substances:
             png_bytes = await run_in_jvm_thread(
                 _generate_png_sync, s.get("smiles", "")
@@ -592,10 +586,9 @@ async def generate_export(
                 entries.append((_single_filename(s, "png"), png_bytes))
         if len(entries) == 1:
             return entries[0][1], "image/png", entries[0][0]
-        content = _build_zip(entries)
-        return content, "application/zip", multi_name
+        return _build_zip(entries), "application/zip", multi_name
 
-    elif fmt == "v3000":
+    if fmt == "v3000":
         entries = []
         for s in substances:
             mol_bytes = await run_in_jvm_thread(
@@ -605,15 +598,12 @@ async def generate_export(
                 entries.append((_single_filename(s, "v3000"), mol_bytes))
         if len(entries) == 1:
             return entries[0][1], "chemical/x-mdl-molfile", entries[0][0]
-        content = _build_zip(entries)
-        return content, "application/zip", multi_name
+        return _build_zip(entries), "application/zip", multi_name
 
-    else:
-        # Plan 10 EXPO-08: "rxn" is handled by generate_reactions_export.
-        # The router intercepts rxn before generate_export is called. If a
-        # caller reaches here with fmt=="rxn", that is a contract violation
-        # and the 422 path is the correct failure mode.
-        raise HTTPException(status_code=422, detail=f"Unknown export format: {fmt}")
+    # Plan 10 EXPO-08: "rxn" is handled by generate_reactions_export. The
+    # router intercepts rxn before generate_export is called; reaching here
+    # with fmt=="rxn" is a contract violation handled via the 422 path.
+    raise HTTPException(status_code=422, detail=f"Unknown export format: {fmt}")
 
 
 async def generate_reactions_export(

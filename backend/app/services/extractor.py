@@ -19,8 +19,8 @@ with a 30s timeout. On timeout, it transparently falls back to the
 fragment path and adds a warning to the response.
 """
 
+import contextlib
 import logging
-import re
 
 import jpype
 
@@ -67,6 +67,18 @@ SVG_REACTION_TARGET_HEIGHT = 400
 
 _MAX_ABBREV_ENTRIES = 100
 _MAX_ABBREV_VALUE_LEN = 10_000
+
+_EMPTY_SUBSTANCE_INFO: dict[str, int] = {
+    "no_fragments": 0,
+    "no_inchis": 0,
+    "no_substances": 0,
+}
+
+
+def _java_stacktrace(exc: jpype.JException) -> str:
+    """Return the Java stack trace for a JException, falling back to ``str``."""
+    getter = getattr(exc, "stacktrace", None)
+    return getter() if callable(getter) else str(exc)
 
 
 def _coerce_substance(java_sub) -> dict:
@@ -255,9 +267,7 @@ def _extract_substances_sync(
         )
     except jpype.JException as exc:
         logger.error(
-            "Java substance extraction failed: %s\n%s",
-            str(exc),
-            exc.stacktrace() if hasattr(exc, "stacktrace") else str(exc),
+            "Java substance extraction failed: %s\n%s", exc, _java_stacktrace(exc)
         )
         raise ExtractionError("Failed to extract substances from file") from exc
 
@@ -290,9 +300,7 @@ def _extract_reactions_sync(
         return [_coerce_reaction(r) for r in reactions]
     except jpype.JException as exc:
         logger.error(
-            "Java reaction extraction failed: %s\n%s",
-            str(exc),
-            exc.stacktrace() if hasattr(exc, "stacktrace") else str(exc),
+            "Java reaction extraction failed: %s\n%s", exc, _java_stacktrace(exc)
         )
         raise ExtractionError("Failed to extract reactions from file") from exc
 
@@ -331,13 +339,9 @@ def _extract_reactions_with_svg_sync(
         return coerced, warnings
     except jpype.JException as exc:
         logger.error(
-            "Java reaction+SVG extraction failed: %s\n%s",
-            str(exc),
-            exc.stacktrace() if hasattr(exc, "stacktrace") else str(exc),
+            "Java reaction+SVG extraction failed: %s\n%s", exc, _java_stacktrace(exc)
         )
-        raise ExtractionError(
-            "Failed to extract reactions from file"
-        ) from exc
+        raise ExtractionError("Failed to extract reactions from file") from exc
 
 
 def _render_atom_container_svg(container) -> str:
@@ -405,7 +409,9 @@ def _render_reaction_svg(reaction_smiles: str) -> tuple[str, str]:
         parser = SmilesParser(builder)
         reaction = parser.parseReactionSmiles(reaction_smiles)
 
-        # Regenerate 2D coords per IAtomContainer for clean layout
+        # Regenerate 2D coords per IAtomContainer for clean layout. Per-
+        # component layout failure is non-fatal — DepictionGenerator will
+        # still render whatever coordinates are present.
         sdg = StructureDiagramGenerator()
         for container_set in (
             reaction.getReactants(),
@@ -417,8 +423,7 @@ def _render_reaction_svg(reaction_smiles: str) -> tuple[str, str]:
                 try:
                     sdg.setMolecule(mol)
                     sdg.generateCoordinates()
-                except Exception:
-                    # Per-component layout failure — skip, keep reaction
+                except Exception:  # noqa: BLE001
                     logger.debug("SDG failed for a reaction component")
 
         dg = (
@@ -430,26 +435,14 @@ def _render_reaction_svg(reaction_smiles: str) -> tuple[str, str]:
                 float(SVG_REACTION_TARGET_HEIGHT),
             )
         )
-        depiction = dg.depict(reaction)
-        svg_str = str(depiction.toSvgStr())
+        svg_str = str(dg.depict(reaction).toSvgStr())
         sized = _set_svg_dimensions(
-            svg_str,
-            SVG_REACTION_TARGET_WIDTH,
-            SVG_REACTION_TARGET_HEIGHT,
+            svg_str, SVG_REACTION_TARGET_WIDTH, SVG_REACTION_TARGET_HEIGHT
         )
         return sized, ""
-    except jpype.JException as exc:
+    except Exception as exc:  # noqa: BLE001 — D-13: never raise from depiction
         logger.warning(
-            "CDK reaction depiction failed for %r: %s",
-            reaction_smiles[:80],
-            exc,
-        )
-        return "", "Reaction depiction failed — rendered as SMILES fallback."
-    except Exception as exc:
-        logger.warning(
-            "Unexpected reaction SVG error for %r: %s",
-            reaction_smiles[:80],
-            exc,
+            "Reaction depiction failed for %r: %s", reaction_smiles[:80], exc
         )
         return "", "Reaction depiction failed — rendered as SMILES fallback."
 
@@ -559,10 +552,8 @@ def _extract_with_fallback_sync(
             logger.warning("xtractUnique failed: %s", str(exc)[:100])
             return None
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 jpype.java.lang.Thread.detach()
-            except Exception:
-                pass
 
     pool = concurrent.futures.ThreadPoolExecutor(
         max_workers=1, thread_name_prefix="xtract-enrich"
@@ -626,9 +617,7 @@ def _extract_fragments_from_document(document) -> tuple[list[dict], dict]:
 
         fragments = CDDocumentUtils.getListOfFragments(document)
         if not fragments:
-            return [], {
-                "no_fragments": 0, "no_inchis": 0, "no_substances": 0,
-            }
+            return [], dict(_EMPTY_SUBSTANCE_INFO)
 
         builder = SilentChemObjectBuilder.getInstance()
         converter = FragmentConverter(builder)
@@ -684,7 +673,7 @@ def _extract_fragments_from_document(document) -> tuple[list[dict], dict]:
                         continue
 
                     formula = ""
-                    try:
+                    with contextlib.suppress(Exception):
                         mf = MolecularFormulaManipulator.getMolecularFormula(
                             component
                         )
@@ -692,8 +681,6 @@ def _extract_fragments_from_document(document) -> tuple[list[dict], dict]:
                             formula = str(
                                 MolecularFormulaManipulator.getString(mf)
                             )
-                    except Exception:
-                        pass
 
                     svg_cdx = _render_atom_container_svg(component)
                     svg = _render_with_cdk_layout(component) or svg_cdx
@@ -734,12 +721,10 @@ def _extract_fragments_from_document(document) -> tuple[list[dict], dict]:
     except jpype.JException as exc:
         logger.error(
             "Fragment fallback extraction failed: %s\n%s",
-            str(exc),
-            exc.stacktrace() if hasattr(exc, "stacktrace") else str(exc),
+            exc,
+            _java_stacktrace(exc),
         )
-        raise ExtractionError(
-            "Failed to extract substances from file"
-        ) from exc
+        raise ExtractionError("Failed to extract substances from file") from exc
 
 
 # ---------------------------------------------------------------------------

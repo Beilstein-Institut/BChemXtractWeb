@@ -20,8 +20,8 @@ whose ``smiles`` cannot be parsed by CDK stay literal SQL NULL (the
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 import jpype
 from sqlalchemy import text

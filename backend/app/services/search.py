@@ -346,13 +346,11 @@ def _substructure_sync(
             mol = parser.parseSmiles(smi)
             # Apply aromaticity perception so aromatic SMARTS (c1ccccc1)
             # match stored Kekulé SMILES after CDK's default parse — same
-            # recipe used in Plan 02's canonicalize service.
+            # recipe used in Plan 02's canonicalize service. Aromaticity
+            # can raise non-JException, so guard with a broad except.
             AtomContainerManipulator.percieveAtomTypesAndConfigureAtoms(mol)
             aromaticity.apply(mol)
-        except jpype.JException:
-            skipped.append(substance_id)
-            continue
-        except Exception:  # noqa: BLE001 — defensive: aromaticity can raise non-JException
+        except Exception:  # noqa: BLE001
             skipped.append(substance_id)
             continue
         try:
@@ -421,18 +419,10 @@ async def _search_substructure(
         func.length(Substance.smiles) > MAX_SUBSTRUCT_SMILES_LEN
     )
     if scope_eid is not None:
-        oversize_stmt = (
-            select(func.count())
-            .select_from(Substance)
-            .join(
-                ExtractionSubstance,
-                Substance.id == ExtractionSubstance.substance_id,
-            )
-            .where(
-                ExtractionSubstance.extraction_id == scope_eid,
-                func.length(Substance.smiles) > MAX_SUBSTRUCT_SMILES_LEN,
-            )
-        )
+        oversize_stmt = oversize_stmt.join(
+            ExtractionSubstance,
+            Substance.id == ExtractionSubstance.substance_id,
+        ).where(ExtractionSubstance.extraction_id == scope_eid)
     oversize_count = int(
         (await db.execute(oversize_stmt)).scalar_one() or 0
     )
@@ -570,6 +560,9 @@ async def execute_search(
     svg_map: dict[int, str] = {}
     skipped_count = 0
 
+    # Dispatch per D-14. Pydantic Literal validation rejects unknown
+    # types before we reach this point, so the final else is purely
+    # defensive against a future type addition landing without a handler.
     if effective_type == "inchi_key":
         substances = await _search_inchi_key(payload.query, scope_eid, db)
     elif effective_type == "formula":
@@ -582,9 +575,7 @@ async def execute_search(
         substances, atom_map, svg_map, skipped_count = await _search_substructure(
             payload.query, scope_eid, db
         )
-    else:
-        # Should be unreachable — Pydantic Literal validation rejects
-        # unknown types with 422 before we get here.
+    else:  # pragma: no cover
         raise ExtractionError(f"Unknown search type {effective_type!r}")
 
     if skipped_count:
@@ -601,24 +592,22 @@ async def execute_search(
 
     attribution = await _load_attribution(page_ids, db)
 
+    # Plan 04: ``svg_map`` is populated only on substructure hits — non-
+    # substructure branches leave it empty so ``.get()`` returns None,
+    # satisfying the SearchResult Pydantic default (UI-SPEC §Match
+    # Highlighting: "component prefers match_svg over the stored svg
+    # when present").
     results: list[SearchResult] = []
     for s in page_subs:
         sid = int(s.id)
-        atoms = atom_map.get(sid, [])
         attributions = attribution.get(sid, [])
-        # Plan 04: match_svg is populated only on substructure hits. For
-        # every other search type the map is empty so .get() returns None,
-        # which is exactly what the response contract requires (per the
-        # SearchResult Pydantic model default + UI-SPEC §Match Highlighting:
-        # "the component prefers match_svg over the stored svg when present").
-        match_svg = svg_map.get(sid) if effective_type == "substructure" else None
         results.append(
             SearchResult(
                 substance=_to_substance_response(s),
                 extraction_count=len(attributions),
                 extractions=attributions[:_MAX_ATTRIBUTION_REFS],
-                match_svg=match_svg,
-                match_atom_indices=atoms,
+                match_svg=svg_map.get(sid),
+                match_atom_indices=atom_map.get(sid, []),
             )
         )
 

@@ -82,37 +82,30 @@ def _canonicalize_smiles_sync(smiles: str) -> str:
         SmilesGenerator = jpype.JClass(  # noqa: N806
             "org.openscience.cdk.smiles.SmilesGenerator"
         )
-        SmiFlavor = jpype.JClass(  # noqa: N806
-            "org.openscience.cdk.smiles.SmiFlavor"
-        )
+        SmiFlavor = jpype.JClass("org.openscience.cdk.smiles.SmiFlavor")  # noqa: N806
         Aromaticity = jpype.JClass(  # noqa: N806
             "org.openscience.cdk.aromaticity.Aromaticity"
         )
         ElectronDonation = jpype.JClass(  # noqa: N806
             "org.openscience.cdk.aromaticity.ElectronDonation"
         )
-        Cycles = jpype.JClass(  # noqa: N806
-            "org.openscience.cdk.graph.Cycles"
-        )
+        Cycles = jpype.JClass("org.openscience.cdk.graph.Cycles")  # noqa: N806
         AtomContainerManipulator = jpype.JClass(  # noqa: N806
             "org.openscience.cdk.tools.manipulator.AtomContainerManipulator"
         )
 
-        builder = SilentChemObjectBuilder.getInstance()
-        parser = SmilesParser(builder)
-        mol = parser.parseSmiles(smiles)
+        mol = SmilesParser(SilentChemObjectBuilder.getInstance()).parseSmiles(smiles)
 
         # CDK SmilesParser does NOT auto-perceive aromaticity. Without the
         # explicit Daylight aromaticity pass below, Kekulé input
         # (`C1=CC=CC=C1`) stays Kekulé in the output and fails to collapse
         # with `c1ccccc1`. See RESEARCH Pattern 2 Edge Cases.
+        # jpype renames `or` -> `or_` (Python keyword collision).
         AtomContainerManipulator.percieveAtomTypesAndConfigureAtoms(mol)
-        aromaticity = Aromaticity(
+        Aromaticity(
             ElectronDonation.daylight(),
-            # noqa: jpype renames `or` → `or_` (Python keyword collision)
             Cycles.or_(Cycles.all(), Cycles.cdkAromaticSet()),
-        )
-        aromaticity.apply(mol)
+        ).apply(mol)
 
         # D-04: canonical + preserve stereo + aromatic lowercase so
         # `c1ccccc1` and `C1=CC=CC=C1` collide on the same canonical form.
@@ -121,18 +114,10 @@ def _canonicalize_smiles_sync(smiles: str) -> str:
             | int(SmiFlavor.Isomeric)
             | int(SmiFlavor.UseAromaticSymbols)
         )
-        sg = SmilesGenerator(flavor)
-        return str(sg.create(mol))
-    except jpype.JException as exc:
+        return str(SmilesGenerator(flavor).create(mol))
+    except Exception as exc:  # noqa: BLE001 — D-09: never raise on parse failure
         logger.warning(
             "Canonicalization failed for SMILES %r: %s", smiles[:120], exc
-        )
-        return ""
-    except Exception as exc:
-        logger.warning(
-            "Unexpected canonicalization error for SMILES %r: %s",
-            smiles[:120],
-            exc,
         )
         return ""
 

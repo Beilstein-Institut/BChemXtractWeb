@@ -114,6 +114,19 @@ def _make_depiction_generator():
     )
 
 
+def _depict_container_to_svg(container, dg=None) -> str:
+    """Depict ``container``, resize to target dims, sanitise, and return.
+
+    Shared tail for every substance-depiction path so sizing + sanitising
+    are applied identically. ``dg`` lets callers inject a highlight-
+    enabled generator; when ``None``, builds the default one.
+    """
+    depict_gen = dg if dg is not None else _make_depiction_generator()
+    svg = str(depict_gen.depict(container).toSvgStr())
+    svg = _set_svg_dimensions(svg, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
+    return sanitize_svg(svg)  # SEC L-05
+
+
 def render_substance_svg(java_substance) -> str:
     """Render a BCXSubstance to SVG via CDK DepictionGenerator.
 
@@ -133,31 +146,9 @@ def render_substance_svg(java_substance) -> str:
         container = java_substance.getAtomContainer()
         if container is None:
             return ""
-
-        dg = _make_depiction_generator()
-        depiction = dg.depict(container)
-        svg_str = str(depiction.toSvgStr())
-
-        # Post-process SVG to set target dimensions per D-02
-        # CDK outputs mm-based dimensions; replace with pixel targets
-        svg_str = _set_svg_dimensions(
-            svg_str, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT
-        )
-        # SEC L-05: strip scriptable constructs before storage.
-        svg_str = sanitize_svg(svg_str)
-
-        return svg_str
-    except jpype.JException as exc:
-        logger.warning(
-            "CDK SVG rendering failed for substance: %s",
-            str(exc),
-        )
-        return ""
-    except Exception as exc:
-        logger.warning(
-            "Unexpected error during SVG rendering: %s",
-            str(exc),
-        )
+        return _depict_container_to_svg(container)
+    except Exception as exc:  # noqa: BLE001 — D-03: never raise from SVG render
+        logger.warning("CDK SVG rendering failed for substance: %s", exc)
         return ""
 
 
@@ -275,11 +266,7 @@ def render_substance_svg_with_highlight(
     def _plain() -> str:
         """Local fallback: plain depiction with only the optional title."""
         try:
-            dg = _make_depiction_generator()
-            svg = str(dg.depict(container).toSvgStr())
-            svg = _set_svg_dimensions(svg, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
-            svg = sanitize_svg(svg)  # SEC L-05
-            return _inject_svg_title(svg, title)
+            return _inject_svg_title(_depict_container_to_svg(container), title)
         except Exception as exc:  # noqa: BLE001 — last-resort guard
             logger.warning("Plain-depiction fallback failed: %s", exc)
             return ""
@@ -320,23 +307,11 @@ def render_substance_svg_with_highlight(
         # per RESEARCH §Pitfall 5. Four-arg form (r, g, b, a) — NOT the
         # packed-int single-arg form — so the alpha channel is honored.
         highlight_color = Color(0x00, 0x71, 0xE3, 0x40)
-
-        dg = _make_depiction_generator().withHighlight(
-            chem_objs, highlight_color
-        )
-        svg = str(dg.depict(container).toSvgStr())
-        svg = _set_svg_dimensions(svg, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
-        svg = sanitize_svg(svg)  # SEC L-05
-        return _inject_svg_title(svg, title)
-    except jpype.JException as exc:
-        logger.warning(
-            "Highlight SVG rendering failed (%s) — falling back to plain depiction",
-            exc,
-        )
-        return _plain()
+        dg = _make_depiction_generator().withHighlight(chem_objs, highlight_color)
+        return _inject_svg_title(_depict_container_to_svg(container, dg), title)
     except Exception as exc:  # noqa: BLE001 — never raise to search caller
         logger.warning(
-            "Unexpected highlight error (%s) — falling back to plain depiction",
+            "Highlight SVG rendering failed (%s) — falling back to plain depiction",
             exc,
         )
         return _plain()
