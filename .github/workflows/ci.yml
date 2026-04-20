@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - run: uv sync --frozen
+      - run: uv sync --locked
       - run: uv run ruff check .
       - run: uv run ruff format --check .
 
@@ -45,7 +45,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - run: uv sync --frozen
+      - run: uv sync --locked
       - run: uv run pytest -v
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/bchemxtract_test
