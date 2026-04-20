@@ -9,7 +9,7 @@ import asyncio
 import hashlib
 import logging
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -246,6 +246,31 @@ async def delete_extraction_by_id(db: AsyncSession, extraction_id: int) -> bool:
 
     await db.commit()
     return True
+
+
+async def update_substance_svgs(
+    db: AsyncSession,
+    substance_id: int,
+    svg: str,
+    svg_cdx: str,
+) -> None:
+    """Conditionally persist backfilled SVGs.
+
+    Only writes each column when the current DB value is empty — so two
+    concurrent detail-view requests don't race-overwrite each other's
+    work, and a successful prior backfill is never clobbered by a
+    later-failed re-render.
+    """
+    await db.execute(
+        text(
+            "UPDATE substances SET "
+            "  svg = CASE WHEN svg = '' THEN :svg ELSE svg END, "
+            "  svg_cdx = CASE WHEN svg_cdx = '' THEN :svg_cdx ELSE svg_cdx END "
+            "WHERE id = :id AND (svg = '' OR svg_cdx = '')"
+        ),
+        {"id": substance_id, "svg": svg, "svg_cdx": svg_cdx},
+    )
+    await db.commit()
 
 
 # ---------------------------------------------------------------------------

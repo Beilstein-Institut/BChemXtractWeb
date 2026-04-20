@@ -164,6 +164,28 @@ def cdx_file_bytes() -> bytes:
     return path.read_bytes()
 
 
+@pytest.fixture
+def simple_v3000_block() -> str:
+    """Minimal valid MDL V3000 molblock (single chloride ion).
+
+    Used by the lazy-SVG backfill tests to exercise the parse-and-render
+    path without depending on a full CDX/CDXML fixture.
+    """
+    return (
+        "\n"
+        "  BChemXtract\n"
+        "\n"
+        "  0  0  0  0  0  0  0  0  0  0999 V3000\n"
+        "M  V30 BEGIN CTAB\n"
+        "M  V30 COUNTS 1 0 0 0 0\n"
+        "M  V30 BEGIN ATOM\n"
+        "M  V30 1 Cl 0.0 0.0 0.0 0 CHG=-1\n"
+        "M  V30 END ATOM\n"
+        "M  V30 END CTAB\n"
+        "M  END\n"
+    )
+
+
 @pytest.fixture(scope="session")
 def cdxml_file_bytes() -> bytes:
     """test_fixture.cdxml -- multi-substance CDXML file.
