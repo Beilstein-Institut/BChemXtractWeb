@@ -152,6 +152,38 @@ def render_substance_svg(java_substance) -> str:
         return ""
 
 
+def render_substance_svg_cdk_layout(java_substance) -> str:
+    """Render a BCXSubstance to SVG with a fresh CDK 2D layout.
+
+    Unlike :func:`render_substance_svg` (which depicts the container's
+    existing ChemDraw coordinates), this function runs the atom container
+    through :class:`StructureDiagramGenerator.generateCoordinates` first,
+    so the result is CDK's canonical layout — often cleaner for complex
+    structures where the ChemDraw layout has long crossing bonds.
+
+    Contract matches the sibling renderer: returns empty string on any
+    failure, never raises. Must be called inside a JVM-attached thread.
+    """
+    try:
+        if java_substance is None:
+            return ""
+        container = java_substance.getAtomContainer()
+        if container is None:
+            return ""
+
+        StructureDiagramGenerator = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.layout.StructureDiagramGenerator"
+        )
+        sdg = StructureDiagramGenerator()
+        sdg.setMolecule(container)
+        sdg.generateCoordinates()
+        laid_out = sdg.getMolecule()
+        return _depict_container_to_svg(laid_out)
+    except Exception as exc:  # noqa: BLE001 — contract: never raise
+        logger.warning("CDK-layout SVG rendering failed for substance: %s", exc)
+        return ""
+
+
 def _set_svg_dimensions(svg: str, width: int, height: int) -> str:
     """Replace width/height attributes on the root SVG element.
 
