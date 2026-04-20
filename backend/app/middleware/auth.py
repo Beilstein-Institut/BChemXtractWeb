@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hmac
 import logging
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -39,18 +40,20 @@ _bearer_scheme = HTTPBearer(
     ),
 )
 
+_BearerCreds = Annotated[
+    HTTPAuthorizationCredentials | None, Depends(_bearer_scheme)
+]
+
 
 def _check_key(presented: str) -> bool:
     """Constant-time lookup of ``presented`` against :attr:`Settings.api_keys`."""
-    for candidate in settings.api_keys:
-        if hmac.compare_digest(candidate, presented):
-            return True
-    return False
+    return any(
+        hmac.compare_digest(candidate, presented)
+        for candidate in settings.api_keys
+    )
 
 
-async def require_api_key(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
-) -> None:
+async def require_api_key(credentials: _BearerCreds) -> None:
     """FastAPI dependency enforcing a valid bearer API key.
 
     Raises:

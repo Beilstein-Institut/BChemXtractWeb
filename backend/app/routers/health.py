@@ -5,8 +5,8 @@ Two-tier health system (D-08):
 - GET /health/detail -- Full diagnostics: heap, thread pool, JAR version
 """
 
-import glob
 import logging
+from pathlib import Path
 
 import jpype
 from fastapi import APIRouter, Depends
@@ -21,29 +21,28 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+_JAR_NAME_PREFIX = "bchemxtract-"
+_JAR_NAME_SUFFIX = "-jar-with-dependencies.jar"
+
 
 def _get_jar_version() -> str:
-    """Extract JAR version from the BChemXtract JAR filename.
+    """Extract the BChemXtract version from the fat-JAR filename.
 
-    Scans the configured jar_path for the fat JAR and extracts
-    the version string from the filename pattern:
-    bchemxtract-{version}-jar-with-dependencies.jar
-
-    Returns:
-        Version string (e.g., "1.0"), or "" if JAR not found.
+    Scans the configured ``jar_path`` for any
+    ``bchemxtract-{version}-jar-with-dependencies.jar`` and returns
+    ``{version}``. Returns ``""`` when no matching JAR exists and the
+    full filename when the JAR is present but doesn't match the pattern.
     """
-    jars = glob.glob(
-        f"{settings.jar_path}/bchemxtract-*-jar-with-dependencies.jar"
-    )
-    if not jars:
+    matches = sorted(Path(settings.jar_path).glob(
+        f"{_JAR_NAME_PREFIX}*{_JAR_NAME_SUFFIX}"
+    ))
+    if not matches:
         return ""
-    # Extract version from filename: bchemxtract-1.0-jar-with-dependencies.jar
-    filename = jars[0].rsplit("/", 1)[-1]
-    # Strip prefix and suffix to get version
-    prefix = "bchemxtract-"
-    suffix = "-jar-with-dependencies.jar"
-    if filename.startswith(prefix) and filename.endswith(suffix):
-        return filename[len(prefix) : -len(suffix)]
+    filename = matches[0].name
+    if filename.startswith(_JAR_NAME_PREFIX) and filename.endswith(
+        _JAR_NAME_SUFFIX
+    ):
+        return filename[len(_JAR_NAME_PREFIX) : -len(_JAR_NAME_SUFFIX)]
     return filename
 
 
@@ -123,8 +122,14 @@ def _collect_jvm_diagnostics() -> dict:
     ),
     responses={
         200: {"description": "Diagnostics collected successfully."},
-        401: {"model": ErrorResponse, "description": "Missing or invalid API key."},
-        503: {"model": ErrorResponse, "description": "JVM unavailable or diagnostic call timed out."},
+        401: {
+            "model": ErrorResponse,
+            "description": "Missing or invalid API key.",
+        },
+        503: {
+            "model": ErrorResponse,
+            "description": "JVM unavailable or diagnostic call timed out.",
+        },
         500: {"model": ErrorResponse, "description": "Internal server error."},
     },
     tags=["health"],

@@ -88,7 +88,9 @@ class Substance(Base):
         String(255), nullable=False, default=""
     )
     svg: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    svg_cdx: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    svg_cdx: Mapped[str] = mapped_column(
+        Text, nullable=False, default="", server_default=""
+    )
     mdlv3000: Mapped[str] = mapped_column(Text, nullable=False, default="")
     # D-04/D-05: CDK canonical SMILES for SRCH-03 exact-match queries.
     # Nullable so rows with unparsable SMILES stay literal SQL NULL (never

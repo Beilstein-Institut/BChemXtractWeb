@@ -11,6 +11,7 @@ batch continues processing remaining files.
 Import note: service imports are at module level (not deferred) so tests
 can patch them at the correct namespace (app.tasks.extraction.*).
 """
+
 import asyncio
 import base64
 import logging
@@ -19,7 +20,11 @@ import time
 from celery.exceptions import SoftTimeLimitExceeded
 
 from app.celery_app import celery_app
-from app.models.chemistry import ExtractionResponse, SubstanceInfoResponse, SubstanceResponse
+from app.models.chemistry import (
+    ExtractionResponse,
+    SubstanceInfoResponse,
+    SubstanceResponse,
+)
 from app.services.db import AsyncSessionLocal
 from app.services.extractor import _extract_with_fallback_sync
 from app.services.format_detector import detect_format
@@ -41,7 +46,10 @@ def extract_file_task(self, file_b64: str, filename: str, batch_id: str) -> dict
         dict with keys: filename, structure_count, extraction_id, error.
         error is None on success, a string on failure (D-09 skip-and-continue).
     """
-    self.update_state(state="STARTED", meta={"filename": filename, "status": "processing"})
+    self.update_state(
+        state="STARTED",
+        meta={"filename": filename, "status": "processing"},
+    )
     start = time.perf_counter()
 
     try:

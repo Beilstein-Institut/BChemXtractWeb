@@ -80,7 +80,7 @@ class InvalidSmartsError(BridgeError):
 
 
 class InvalidInchiKeyError(BridgeError):
-    """User-supplied InChI key doesn't match the 14-10-1 shape (422 / INVALID_INCHI_KEY)."""
+    """User-supplied InChI key fails the 14-10-1 shape (422 / INVALID_INCHI_KEY)."""
 
 
 class InvalidSmilesError(BridgeError):
@@ -107,6 +107,23 @@ _HTTP_STATUS_CODE_MAP: dict[int, str] = {
     500: "INTERNAL_ERROR",
     503: "SERVICE_UNAVAILABLE",
 }
+
+
+# Ordered map of BridgeError subtype -> (HTTP status, stable code). Order
+# matters: :class:`InvalidSmartsError`/:class:`InvalidInchiKeyError`/
+# :class:`InvalidSmilesError` (Plan 03) must be tested before
+# :class:`ExtractionError` because they are peer classes, not subclasses
+# — ``isinstance`` walks in insertion order and the first match wins.
+_BRIDGE_ERROR_MAP: list[tuple[type[BridgeError], int, str]] = [
+    (FileSizeError, 413, "FILE_TOO_LARGE"),
+    (JVMStartupError, 503, "JVM_UNAVAILABLE"),
+    (FormatDetectionError, 415, "UNSUPPORTED_FORMAT"),
+    (InvalidSmartsError, 422, "INVALID_SMARTS"),
+    (InvalidInchiKeyError, 422, "INVALID_INCHI_KEY"),
+    (InvalidSmilesError, 422, "INVALID_SMILES"),
+    (ExtractionError, 422, "EXTRACTION_FAILED"),
+    (NullFieldError, 500, "NULL_FIELD"),
+]
 
 
 async def http_exception_handler(
@@ -163,27 +180,12 @@ async def bridge_error_handler(
     """Map :class:`BridgeError` subtypes to :class:`ErrorResponse` (D-17).
 
     Replaces the legacy ``{"error": str(exc)}`` shape. Status + stable
-    code come from the ordered ``status_and_code`` tuple list.
-
-    Ordering matters: :class:`InvalidSmartsError` / :class:`InvalidInchiKeyError`
-    / :class:`InvalidSmilesError` (Plan 03) appear before :class:`ExtractionError`
-    because they are not subclasses of each other — :func:`isinstance` walks
-    the tuple in order and the first match wins.
+    code come from :data:`_BRIDGE_ERROR_MAP` (ordered, first-match wins).
     """
-    status_and_code: list[tuple[type, int, str]] = [
-        (FileSizeError, 413, "FILE_TOO_LARGE"),
-        (JVMStartupError, 503, "JVM_UNAVAILABLE"),
-        (FormatDetectionError, 415, "UNSUPPORTED_FORMAT"),
-        (InvalidSmartsError, 422, "INVALID_SMARTS"),
-        (InvalidInchiKeyError, 422, "INVALID_INCHI_KEY"),
-        (InvalidSmilesError, 422, "INVALID_SMILES"),
-        (ExtractionError, 422, "EXTRACTION_FAILED"),
-        (NullFieldError, 500, "NULL_FIELD"),
-    ]
     status, code = 500, "INTERNAL_ERROR"
-    for exc_type, st, co in status_and_code:
+    for exc_type, mapped_status, mapped_code in _BRIDGE_ERROR_MAP:
         if isinstance(exc, exc_type):
-            status, code = st, co
+            status, code = mapped_status, mapped_code
             break
     return JSONResponse(
         status_code=status,

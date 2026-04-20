@@ -25,12 +25,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.errors import FileSizeError
 from app.middleware.rate_limit import limiter
-from app.models.chemistry import (
-    ErrorResponse,
-    ReactionExtractionResponse,
-)
+from app.models.chemistry import ErrorResponse, ReactionExtractionResponse
+from app.routers._shared import check_extension_mismatch
 from app.services.db import get_db
 from app.services.extractor import extract_reactions_with_svg
 from app.services.format_detector import detect_format
@@ -42,28 +39,6 @@ from app.services.persistence import (
 from app.services.upload_guard import read_upload_bounded
 
 logger = logging.getLogger(__name__)
-
-EXTENSION_FORMAT_MAP: dict[str, str] = {
-    ".cdx": "cdx",
-    ".cdxml": "cdxml",
-}
-
-
-def _check_extension_mismatch(filename: str, detected_format: str) -> list[str]:
-    """Warn if file extension doesn't match detected format (copy from extract.py)."""
-    ext = ""
-    if "." in filename:
-        ext = "." + filename.rsplit(".", 1)[-1].lower()
-    expected = EXTENSION_FORMAT_MAP.get(ext)
-    if expected is not None and expected != detected_format:
-        ext_label = "CDX binary" if expected == "cdx" else "CDXML"
-        detected_label = "CDX binary" if detected_format == "cdx" else "CDXML"
-        return [
-            f"File extension suggests {ext_label} but content detected as "
-            f"{detected_label}. Processing as {detected_label}."
-        ]
-    return []
-
 
 router = APIRouter()
 DbDep = Annotated[AsyncSession, Depends(get_db)]
@@ -104,9 +79,18 @@ DbDep = Annotated[AsyncSession, Depends(get_db)]
                 }
             },
         },
-        413: {"model": ErrorResponse, "description": "File exceeds upload size limit."},
-        415: {"model": ErrorResponse, "description": "Unrecognized file format."},
-        422: {"model": ErrorResponse, "description": "CDK could not parse the file."},
+        413: {
+            "model": ErrorResponse,
+            "description": "File exceeds upload size limit.",
+        },
+        415: {
+            "model": ErrorResponse,
+            "description": "Unrecognized file format.",
+        },
+        422: {
+            "model": ErrorResponse,
+            "description": "CDK could not parse the file.",
+        },
         500: {"model": ErrorResponse, "description": "Internal server error."},
     },
     tags=["extraction"],
@@ -125,13 +109,14 @@ async def extract_reactions_endpoint(
     file_bytes = await read_upload_bounded(file, settings.max_upload_size)
 
     start = time.perf_counter()
-    format_type = detect_format(file_bytes)  # raises FormatDetectionError -> 415
+    # raises FormatDetectionError -> 415
+    format_type = detect_format(file_bytes)
 
     warnings: list[str] = []
     if file.filename:
-        warnings.extend(_check_extension_mismatch(file.filename, format_type))
+        warnings.extend(check_extension_mismatch(file.filename, format_type))
 
-    # D-06: timeout becomes warning, NOT 503
+    # D-06: timeout becomes warning, NOT 503.
     try:
         reactions, extractor_warnings = await extract_reactions_with_svg(
             file_bytes,
@@ -163,11 +148,12 @@ async def extract_reactions_endpoint(
         warnings=warnings,
     )
 
-    # D-19: Auto-persist best-effort. Pitfall 9: create a minimal Extraction
-    # row when the file has never been substance-extracted first. Re-raise
-    # CancelledError so graceful shutdown / client disconnects still abort
-    # the coroutine cleanly (SEC M-05). Filename truncated + repr-quoted in
-    # the log message to prevent log-injection via crafted filenames.
+    # D-19: auto-persist best-effort. Pitfall 9: create a minimal
+    # Extraction row when the file has never been substance-extracted
+    # first. Re-raise CancelledError so graceful shutdown / client
+    # disconnects still abort the coroutine cleanly (SEC M-05).
+    # Filename truncated + repr-quoted in the log message to prevent
+    # log-injection via crafted filenames.
     try:
         file_hash = hashlib.sha256(file_bytes).hexdigest()
         extraction_id = await get_or_create_extraction_row(
@@ -190,7 +176,7 @@ async def extract_reactions_endpoint(
     return response
 
 
-# D-23: History-hydration endpoint -- frontend ReactionsTab reads cached
+# D-23: history-hydration endpoint -- frontend ReactionsTab reads cached
 # reactions when a user loads an extraction from History and reaction_count > 0.
 @router.get(
     "/extractions/{extraction_id}/reactions",

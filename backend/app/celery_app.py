@@ -45,36 +45,41 @@ celery_app.conf.update(
 )
 
 
+def _parse_pool_flag(argv: list[str]) -> str | None:
+    """Return the value of ``--pool=<x>`` / ``--pool <x>`` from ``argv``.
+
+    Returns ``None`` when no ``--pool`` flag is present.
+    """
+    for i, arg in enumerate(argv):
+        if arg.startswith("--pool="):
+            return arg.split("=", 1)[1].strip().lower()
+        if arg == "--pool" and i + 1 < len(argv):
+            return argv[i + 1].strip().lower()
+    return None
+
+
 def _assert_solo_pool() -> None:
     """Refuse to start the worker if --pool is anything other than solo.
 
-    Checks the CLI arguments because ``--pool=<value>`` takes precedence
-    over ``worker_pool`` in config. A mismatch means a future operator
-    typed ``--pool=prefork``; the worker must refuse rather than silently
-    run tasks that will deadlock.
+    CLI ``--pool=<value>`` overrides ``worker_pool`` in config, so a
+    future operator could type ``--pool=prefork`` and silently break
+    the deployment. We re-read argv and refuse any non-solo setting.
     """
-    argv = list(sys.argv)
-    for i, arg in enumerate(argv):
-        if arg.startswith("--pool="):
-            chosen = arg.split("=", 1)[1].strip().lower()
-        elif arg == "--pool" and i + 1 < len(argv):
-            chosen = argv[i + 1].strip().lower()
-        else:
-            continue
-        if chosen != "solo":
-            raise RuntimeError(
-                f"Celery worker started with --pool={chosen}, but this "
-                "service requires --pool=solo. JVM/JPype is not fork-safe "
-                "and extraction tasks use asyncio.run() which deadlocks "
-                "on prefork/threads. Refusing to start."
-            )
+    chosen = _parse_pool_flag(list(sys.argv))
+    if chosen is not None and chosen != "solo":
+        raise RuntimeError(
+            f"Celery worker started with --pool={chosen}, but this "
+            "service requires --pool=solo. JVM/JPype is not fork-safe "
+            "and extraction tasks use asyncio.run() which deadlocks "
+            "on prefork/threads. Refusing to start."
+        )
 
 
 @worker_process_init.connect
 def init_jvm_for_worker(**kwargs: object) -> None:
-    """Initialize JVM in Celery worker process via solo pool worker_process_init signal."""
+    """Initialize JVM in Celery worker via the solo-pool init signal."""
     _assert_solo_pool()
-    from app.services.jvm_bridge import initialize_jvm
+    from app.services.jvm_bridge import initialize_jvm  # noqa: PLC0415
     initialize_jvm(settings)
     logger.info(
         "Celery worker ready (pool=solo, concurrency=%d, pid=%d)",

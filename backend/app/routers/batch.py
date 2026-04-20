@@ -5,13 +5,14 @@ GET  /api/batch/{id}/progress — SSE stream of per-file completion events
 DELETE /api/batch/{id}   — cancel pending tasks (after current file)
 GET  /api/batch/{id}/zip — on-demand ZIP of per-file JSON exports
 """
+
 import asyncio
 import base64
 import io
 import json
 import uuid
 import zipfile
-from typing import Annotated
+from typing import Annotated, Any
 
 from celery import group
 from celery.result import AsyncResult, GroupResult
@@ -35,10 +36,65 @@ from app.tasks.extraction import extract_file_task
 # client can still submit many separate batches; rate limiting (SEC C-02)
 # bounds the per-IP per-minute ceiling.
 _BATCH_FILE_LIMIT = 20
+_SSE_POLL_SECONDS = 0.5
+_ERROR_DETAIL_MAX_CHARS = 200
+
 
 router = APIRouter()
 
 DbDep = Annotated[AsyncSession, Depends(get_db)]
+UploadFiles = Annotated[list[UploadFile], File(...)]
+
+
+def _substance_to_dict(s: Substance) -> dict[str, Any]:
+    """Serialise a Substance ORM row for inclusion in the ZIP JSON export."""
+    return {
+        "inchi_key": s.inchi_key,
+        "inchi": s.inchi,
+        "smiles": s.smiles,
+        "extended_smiles": s.extended_smiles,
+        "molecular_formula": s.molecular_formula,
+        "svg": s.svg,
+        "mdlv3000": s.mdlv3000,
+    }
+
+
+def _task_completion_event(async_result: AsyncResult) -> ServerSentEvent:
+    """Build the SSE payload for one completed Celery task.
+
+    Falls back to a serialisable error dict when the task result is
+    either an Exception (FAILURE state with broker/worker error) or not
+    JSON-encodable (shape drift from future task changes).
+    """
+    raw_result = async_result.result
+    if isinstance(raw_result, BaseException):
+        # Task entered FAILURE state via broker/worker error.
+        serializable = {
+            "error": str(raw_result)[:_ERROR_DETAIL_MAX_CHARS]
+        }
+    else:
+        serializable = raw_result
+    try:
+        data = json.dumps(
+            {
+                "task_id": async_result.id,
+                "state": async_result.state,
+                "result": serializable,
+            }
+        )
+    except (TypeError, ValueError) as exc:
+        data = json.dumps(
+            {
+                "task_id": async_result.id,
+                "state": "FAILURE",
+                "result": {
+                    "error": (
+                        f"Result not serializable: {exc!s}"
+                    )[:_ERROR_DETAIL_MAX_CHARS]
+                },
+            }
+        )
+    return ServerSentEvent(data=data, event="file_complete")
 
 
 @router.post(
@@ -57,20 +113,27 @@ DbDep = Annotated[AsyncSession, Depends(get_db)]
     ),
     responses={
         202: {"description": "Batch accepted; tasks enqueued."},
-        400: {"model": ErrorResponse, "description": "Batch exceeds the 20-file limit."},
-        422: {"model": ErrorResponse, "description": "One or more files exceed the upload size limit."},
+        400: {
+            "model": ErrorResponse,
+            "description": "Batch exceeds the 20-file limit.",
+        },
+        422: {
+            "model": ErrorResponse,
+            "description": "One or more files exceed the upload size limit.",
+        },
         500: {"model": ErrorResponse, "description": "Internal server error."},
     },
     tags=["batch"],
 )
 @limiter.limit(settings.rate_limit_batch)
 async def start_batch(
-    request: Request, files: list[UploadFile] = File(...)
+    request: Request, files: UploadFiles
 ) -> BatchStartResponse:
     """Start a batch extraction. Returns batch_id for progress tracking.
 
     Validates file count (<= 20) and file size (<= 50 MB) before enqueueing.
-    Each file becomes one independent Celery task. The GroupResult.id IS the batch_id.
+    Each file becomes one independent Celery task. The GroupResult.id IS
+    the batch_id.
 
     Raises:
         HTTPException 400: Batch exceeds 20-file limit.
@@ -83,30 +146,24 @@ async def start_batch(
         )
 
     # SEC H-02 preflight: fail fast using the Content-Length-derived
-    # ``UploadFile.size`` BEFORE reading any bytes, so oversize submissions
-    # don't drain RAM. The bounded streaming read below is still the
-    # authoritative gate for clients that omit Content-Length.
+    # ``UploadFile.size`` BEFORE reading any bytes, so oversize
+    # submissions don't drain RAM. The bounded streaming read below is
+    # still the authoritative gate for clients that omit Content-Length.
+    max_mb = settings.max_upload_size // (1024 * 1024)
     for f in files:
         if f.size is not None and f.size > settings.max_upload_size:
             raise HTTPException(
                 status_code=422,
-                detail=(
-                    f"{f.filename or 'unnamed'} exceeds the "
-                    f"{settings.max_upload_size // (1024 * 1024)} MB limit"
-                ),
+                detail=f"{f.filename or 'unnamed'} exceeds the {max_mb} MB limit",
             )
 
-    task_signatures = []
     batch_id = str(uuid.uuid4())
-
+    task_signatures = []
     for f in files:
-        try:
-            file_bytes = await read_upload_bounded(f, settings.max_upload_size)
-        except Exception as exc:  # FileSizeError → 413 via BridgeError handler
-            # Preserve the unified error shape by re-raising; 413/FILE_TOO_LARGE
-            # is the correct semantic here because the client attempted to
-            # upload a payload larger than the documented limit.
-            raise exc
+        # FileSizeError -> 413 via BridgeError handler; any other error
+        # propagates unchanged (bounded streaming read is the sole source
+        # of enforcement for clients that omit Content-Length).
+        file_bytes = await read_upload_bounded(f, settings.max_upload_size)
         task_signatures.append(
             extract_file_task.s(
                 base64.b64encode(file_bytes).decode("ascii"),
@@ -115,9 +172,9 @@ async def start_batch(
             )
         )
 
-    task_group = group(task_signatures)
-    group_result = task_group.apply_async()
-    group_result.save()  # persist GroupResult to Redis so SSE endpoint can restore it
+    group_result = group(task_signatures).apply_async()
+    # Persist GroupResult to Redis so SSE endpoint can restore it.
+    group_result.save()
 
     return BatchStartResponse(
         batch_id=batch_id,
@@ -142,9 +199,14 @@ async def start_batch(
     ),
     responses={
         200: {
-            "description": "Progress stream opened. Media type is text/event-stream.",
+            "description": (
+                "Progress stream opened. Media type is text/event-stream."
+            ),
         },
-        404: {"model": ErrorResponse, "description": "Batch group_id not found."},
+        404: {
+            "model": ErrorResponse,
+            "description": "Batch group_id not found.",
+        },
         500: {"model": ErrorResponse, "description": "Internal server error."},
     },
     tags=["batch"],
@@ -152,12 +214,13 @@ async def start_batch(
 async def batch_progress(group_id: str, request: Request) -> EventSourceResponse:
     """Stream SSE events for batch progress.
 
-    group_id is the Celery GroupResult.id (NOT the custom batch_id used for DB/ZIP lookups).
-    The frontend sends group_id from BatchStartResponse to this endpoint.
+    group_id is the Celery GroupResult.id returned by POST /api/batch —
+    NOT the custom batch_id used for DB/ZIP lookups.
 
-    Sends one file_complete event per completed task, then batch_complete when all done.
-    Disconnects cleanly when client closes the connection.
-    Polls every 0.5 seconds (D-14: non-blocking SSE polling pattern).
+    Emits one ``file_complete`` event per completed task, then
+    ``batch_complete`` when all are terminal. Disconnects cleanly when
+    the client closes the connection. Polls every 0.5 s (D-14:
+    non-blocking SSE polling pattern).
     """
 
     async def event_generator():
@@ -178,40 +241,22 @@ async def batch_progress(group_id: str, request: Request) -> EventSourceResponse
             for async_result in group_result.results:
                 task_id = async_result.id
                 result = AsyncResult(task_id, app=celery_app)
-
-                if task_id not in reported and result.ready():
-                    reported.add(task_id)
-                    raw_result = result.result
-                    if isinstance(raw_result, BaseException):
-                        # Task entered FAILURE state via broker/worker error — result is an
-                        # Exception object, not a dict. Serialize to a safe string form.
-                        serializable_result = {"error": str(raw_result)[:200]}
-                    else:
-                        serializable_result = raw_result
-                    try:
-                        event_data = json.dumps({
-                            "task_id": task_id,
-                            "state": result.state,
-                            "result": serializable_result,
-                        })
-                    except (TypeError, ValueError) as exc:
-                        event_data = json.dumps({
-                            "task_id": task_id,
-                            "state": "FAILURE",
-                            "result": {"error": f"Result not serializable: {exc!s}"[:200]},
-                        })
-                    yield ServerSentEvent(data=event_data, event="file_complete")
-
                 if not result.ready():
                     all_done = False
+                    continue
+                if task_id in reported:
+                    continue
+                reported.add(task_id)
+                yield _task_completion_event(result)
 
             if all_done:
                 yield ServerSentEvent(
-                    data=json.dumps({"group_id": group_id}), event="batch_complete"
+                    data=json.dumps({"group_id": group_id}),
+                    event="batch_complete",
                 )
                 break
 
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(_SSE_POLL_SECONDS)
 
     return EventSourceResponse(event_generator())
 
@@ -229,7 +274,10 @@ async def batch_progress(group_id: str, request: Request) -> EventSourceResponse
     ),
     responses={
         204: {"description": "Pending tasks cancelled."},
-        404: {"model": ErrorResponse, "description": "Batch group_id not found."},
+        404: {
+            "model": ErrorResponse,
+            "description": "Batch group_id not found.",
+        },
         500: {"model": ErrorResponse, "description": "Internal server error."},
     },
     tags=["batch"],
@@ -237,9 +285,9 @@ async def batch_progress(group_id: str, request: Request) -> EventSourceResponse
 async def cancel_batch(group_id: str) -> None:
     """Cancel pending tasks in a batch.
 
-    group_id is the Celery GroupResult.id (NOT the custom batch_id used for DB/ZIP lookups).
-    Running task completes (D-10: cancel after current).
-    terminate=False means the currently executing task finishes normally.
+    group_id is the Celery GroupResult.id (NOT the custom batch_id used
+    for DB/ZIP lookups). The currently-executing task finishes normally
+    because ``terminate=False`` (D-10: cancel after current).
 
     Raises:
         HTTPException 404: Batch not found.
@@ -267,17 +315,20 @@ async def cancel_batch(group_id: str) -> None:
     ),
     responses={
         200: {"description": "ZIP streamed back as `application/zip`."},
-        404: {"model": ErrorResponse, "description": "No extractions found for this batch."},
+        404: {
+            "model": ErrorResponse,
+            "description": "No extractions found for this batch.",
+        },
         500: {"model": ErrorResponse, "description": "Internal server error."},
     },
     tags=["batch"],
 )
 async def download_batch_zip(batch_id: str, db: DbDep) -> StreamingResponse:
-    """Build and stream a ZIP of per-file JSON exports for all completed files in the batch.
+    """Stream a ZIP of per-file JSON exports for all completed batch files.
 
-    Each ZIP entry is named "{extraction.filename}.json".
-    ZIP filename is "batch_{batch_id[:8]}.zip" (short UUID prefix for readability).
-    Filename sanitized to prevent zip-slip (T-07-07).
+    Each ZIP entry is named ``{extraction.filename}.json`` (sanitised to
+    prevent zip-slip, T-07-07). The archive filename is
+    ``batch_{batch_id[:8]}.zip`` (short UUID prefix for readability).
 
     Raises:
         HTTPException 404: No extractions found for this batch_id.
@@ -288,14 +339,20 @@ async def download_batch_zip(batch_id: str, db: DbDep) -> StreamingResponse:
     extractions = result.scalars().all()
 
     if not extractions:
-        raise HTTPException(status_code=404, detail="No extractions found for this batch")
+        raise HTTPException(
+            status_code=404,
+            detail="No extractions found for this batch",
+        )
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for extraction in extractions:
             substance_result = await db.execute(
                 select(Substance)
-                .join(ExtractionSubstance, Substance.id == ExtractionSubstance.substance_id)
+                .join(
+                    ExtractionSubstance,
+                    Substance.id == ExtractionSubstance.substance_id,
+                )
                 .where(ExtractionSubstance.extraction_id == extraction.id)
                 .order_by(ExtractionSubstance.position)
             )
@@ -309,23 +366,14 @@ async def download_batch_zip(batch_id: str, db: DbDep) -> StreamingResponse:
                 "extraction_time_ms": extraction.extraction_time_ms,
                 "warnings": extraction.warnings,
                 "extraction_id": extraction.id,
-                "substances": [
-                    {
-                        "inchi_key": s.inchi_key,
-                        "inchi": s.inchi,
-                        "smiles": s.smiles,
-                        "extended_smiles": s.extended_smiles,
-                        "molecular_formula": s.molecular_formula,
-                        "svg": s.svg,
-                        "mdlv3000": s.mdlv3000,
-                    }
-                    for s in substances
-                ],
+                "substances": [_substance_to_dict(s) for s in substances],
             }
             # SEC M-03: centralised allowlist-based sanitisation covers
             # path traversal, control chars, null bytes, and unprintables.
             safe_name = safe_filename(extraction.filename)
-            zf.writestr(f"{safe_name}.json", json.dumps(response_dict, indent=2))
+            zf.writestr(
+                f"{safe_name}.json", json.dumps(response_dict, indent=2)
+            )
 
     buf.seek(0)
     zip_filename = f"batch_{safe_filename(batch_id)[:8]}.zip"

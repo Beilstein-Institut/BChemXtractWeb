@@ -126,13 +126,9 @@ class Settings(BaseSettings):
         "no auth" deployment — the single most common way security middleware
         gets accidentally disabled.
         """
-        cleaned = [k.strip() for k in self.api_keys if k and k.strip()]
-        seen: set[str] = set()
-        unique: list[str] = []
-        for k in cleaned:
-            if k not in seen:
-                seen.add(k)
-                unique.append(k)
+        cleaned = (k.strip() for k in self.api_keys if k and k.strip())
+        # dict.fromkeys preserves first-seen order while de-duplicating.
+        unique = list(dict.fromkeys(cleaned))
         if any(len(k) < 16 for k in unique):
             raise ValueError(
                 "API_KEYS entries must be at least 16 characters "

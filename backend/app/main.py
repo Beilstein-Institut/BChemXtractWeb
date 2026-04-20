@@ -190,27 +190,12 @@ def create_app() -> FastAPI:
     # routers/health.py.
     #
     # Every other router requires a valid bearer API key.
-    protected = [Depends(require_api_key)]
-
     application.include_router(health.router, prefix="/api")
-    application.include_router(
-        extract.router, prefix="/api", dependencies=protected
-    )
-    application.include_router(
-        history.router, prefix="/api", dependencies=protected
-    )
-    application.include_router(
-        batch.router, prefix="/api", dependencies=protected
-    )
-    application.include_router(
-        export.router, prefix="/api", dependencies=protected
-    )
-    application.include_router(
-        reactions.router, prefix="/api", dependencies=protected
-    )
-    application.include_router(
-        search.router, prefix="/api", dependencies=protected
-    )
+    protected = [Depends(require_api_key)]
+    for router in (extract, history, batch, export, reactions, search):
+        application.include_router(
+            router.router, prefix="/api", dependencies=protected
+        )
 
     # Redoc is served only when OpenAPI docs are exposed. It requires
     # openapi_url to be non-None, so we gate both behind the same flag.

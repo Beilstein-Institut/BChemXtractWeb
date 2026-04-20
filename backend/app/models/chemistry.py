@@ -50,7 +50,8 @@ class ReactionResponse(BaseModel):
     reactants: list[ReactionComponentResponse] = Field(default_factory=list)
     products: list[ReactionComponentResponse] = Field(default_factory=list)
     agents: list[ReactionComponentResponse] = Field(default_factory=list)
-    svg: str = ""  # Plan 10 D-04 amended: CDK-rendered combined reaction SVG (D-12/D-15)
+    # Plan 10 D-04 amended: CDK-rendered combined reaction SVG (D-12/D-15).
+    svg: str = ""
 
 
 class SubstanceInfoResponse(BaseModel):
@@ -117,7 +118,8 @@ class HistoryListItem(BaseModel):
     file_size: int
     format: str
     structure_count: int
-    reaction_count: int = 0  # Plan 10 D-23 — populated by save_reactions; 0 until reactions extracted
+    # Plan 10 D-23 — populated by save_reactions; 0 until reactions extracted.
+    reaction_count: int = 0
     extraction_time_ms: float
     warnings: list[str] = Field(default_factory=list)
     created_at: str  # ISO 8601 UTC string

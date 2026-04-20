@@ -16,7 +16,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.errors import FileSizeError
 from app.middleware.rate_limit import limiter
 from app.models.chemistry import (
     ErrorResponse,
@@ -25,6 +24,7 @@ from app.models.chemistry import (
     SubstanceResponse,
 )
 from app.models.orm import Extraction, ExtractionSubstance, Substance
+from app.routers._shared import check_extension_mismatch
 from app.services.db import get_db
 from app.services.extractor import extract_substances_with_svg
 from app.services.format_detector import detect_format
@@ -32,39 +32,6 @@ from app.services.persistence import save_extraction
 from app.services.upload_guard import read_upload_bounded
 
 logger = logging.getLogger(__name__)
-
-EXTENSION_FORMAT_MAP: dict[str, str] = {
-    ".cdx": "cdx",
-    ".cdxml": "cdxml",
-}
-
-
-def _check_extension_mismatch(filename: str, detected_format: str) -> list[str]:
-    """Return warnings if file extension doesn't match detected format.
-
-    Per D-07: extension mismatch is a warning, not an error. The content-based
-    detection (D-06) is authoritative.
-
-    Args:
-        filename: Original upload filename.
-        detected_format: Format detected from content ("cdx" or "cdxml").
-
-    Returns:
-        List of warning strings (empty if no mismatch).
-    """
-    ext = ""
-    if "." in filename:
-        ext = "." + filename.rsplit(".", 1)[-1].lower()
-    expected = EXTENSION_FORMAT_MAP.get(ext)
-    if expected is not None and expected != detected_format:
-        ext_label = "CDX binary" if expected == "cdx" else "CDXML"
-        detected_label = "CDX binary" if detected_format == "cdx" else "CDXML"
-        return [
-            f"File extension suggests {ext_label} but content detected as "
-            f"{detected_label}. Processing as {detected_label}."
-        ]
-    return []
-
 
 router = APIRouter()
 
@@ -87,9 +54,18 @@ DbDep = Annotated[AsyncSession, Depends(get_db)]
     ),
     responses={
         200: {"description": "Extraction complete."},
-        413: {"model": ErrorResponse, "description": "File exceeds the upload size limit."},
-        415: {"model": ErrorResponse, "description": "Unrecognized file format (not CDX or CDXML)."},
-        422: {"model": ErrorResponse, "description": "CDK could not parse the file."},
+        413: {
+            "model": ErrorResponse,
+            "description": "File exceeds the upload size limit.",
+        },
+        415: {
+            "model": ErrorResponse,
+            "description": "Unrecognized file format (not CDX or CDXML).",
+        },
+        422: {
+            "model": ErrorResponse,
+            "description": "CDK could not parse the file.",
+        },
         500: {"model": ErrorResponse, "description": "Internal server error."},
     },
     tags=["extraction"],
@@ -103,17 +79,6 @@ async def extract_file(
     Accepts a single file via multipart/form-data. Detects format from
     content (D-06), extracts substances with SVG depictions, and returns
     a structured response with metadata and optional warnings.
-
-    Args:
-        file: The uploaded CDX or CDXML file.
-
-    Returns:
-        ExtractionResponse with substances, SVGs, metadata, and warnings.
-
-    Raises:
-        FileSizeError: If file exceeds max_upload_size (D-05, HTTP 413).
-        FormatDetectionError: If file is not CDX or CDXML (HTTP 415).
-        ExtractionError: If Java extraction fails (HTTP 422).
     """
     # D-05 + SEC M-02: bounded streaming read aborts the body scan the
     # moment accumulated bytes exceed ``max_upload_size`` even when the
@@ -122,16 +87,15 @@ async def extract_file(
 
     start = time.perf_counter()
 
-    # D-06: Content-based format detection is authoritative
+    # D-06: Content-based format detection is authoritative.
     format_type = detect_format(file_bytes)
 
-    # D-07: Extension mismatch warning (not error)
+    # D-07: Extension mismatch is a warning, not an error.
     warnings: list[str] = []
     if file.filename:
-        warnings.extend(_check_extension_mismatch(file.filename, format_type))
+        warnings.extend(check_extension_mismatch(file.filename, format_type))
 
-    # D-08: Substances only (reactions are Phase 10)
-    # D-01: SVGs inline in response
+    # D-08/D-01: substances only (reactions are Phase 10); SVGs inline.
     # extract_substances_with_svg handles fallback internally and returns
     # extraction-level warnings (e.g. fallback mode, no InChI).
     substances, info, extraction_warnings = await extract_substances_with_svg(
@@ -141,9 +105,6 @@ async def extract_file(
 
     elapsed_ms = (time.perf_counter() - start) * 1000
 
-    # D-04: Synchronous response with timing metadata
-    # D-09: File metadata in response
-    # D-10: Full response shape
     response = ExtractionResponse(
         substances=substances,
         info=info,
@@ -155,12 +116,11 @@ async def extract_file(
         warnings=warnings,
     )
 
-    # D-03: Auto-persist every extraction to PostgreSQL.
-    # DB save is best-effort: DB failures are logged but never break
-    # extraction. asyncio.CancelledError is re-raised so graceful
-    # shutdown and client-disconnect handling still work (SEC M-05).
-    # The filename in the log message is repr-wrapped and truncated
-    # to prevent log-injection via ``"x\n[CRITICAL] fake"`` filenames.
+    # D-03: auto-persist every extraction. Best-effort — DB failures are
+    # logged but never break extraction. CancelledError re-raises so
+    # graceful shutdown and client-disconnect handling still work
+    # (SEC M-05). Filename is repr-wrapped + truncated to prevent
+    # log-injection via crafted names (e.g. ``"x\n[CRITICAL] fake"``).
     try:
         saved = await save_extraction(db, response)
         response = response.model_copy(update={"extraction_id": saved.id})
@@ -200,29 +160,15 @@ async def get_substances_page(
     size: int = Query(12, ge=1, le=48),
     sort: str = Query("extraction_order"),
 ) -> PagedSubstancesResponse:
-    """Paginated substances for one extraction (D-01, DISP-03).
-
-    Args:
-        extraction_id: Primary key of the Extraction record.
-        db: AsyncSession from get_db() dependency.
-        page: 1-based page number (ge=1).
-        size: Page size (1–48, default 12).
-        sort: "extraction_order" (default) or "formula".
-
-    Returns:
-        PagedSubstancesResponse with items, total, page, size, pages.
-
-    Raises:
-        HTTPException 404: If extraction_id does not exist.
-    """
-    # 404 if extraction doesn't exist
+    """Paginated substances for one extraction (D-01, DISP-03)."""
     exists = await db.scalar(
-        select(func.count()).select_from(Extraction).where(Extraction.id == extraction_id)
+        select(func.count())
+        .select_from(Extraction)
+        .where(Extraction.id == extraction_id)
     )
     if not exists:
         raise HTTPException(status_code=404, detail="Extraction not found")
 
-    # Total count of substances for this extraction
     total = await db.scalar(
         select(func.count())
         .select_from(Substance)
@@ -230,14 +176,12 @@ async def get_substances_page(
         .where(ExtractionSubstance.extraction_id == extraction_id)
     ) or 0
 
-    # Ordering
     order_col = (
         Substance.molecular_formula.asc()
         if sort == "formula"
         else ExtractionSubstance.position.asc()
     )
 
-    # Paginated SELECT
     result = await db.execute(
         select(Substance)
         .join(ExtractionSubstance, Substance.id == ExtractionSubstance.substance_id)
