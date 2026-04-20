@@ -88,23 +88,13 @@ export function StructureSheet({
   const [zoom, setZoom] = useState(1);
   const [useCdxCoords, setUseCdxCoords] = useState(false);
 
-  // Reset zoom and toggle when substance changes
+  // Reset zoom and pick initial layout when substance changes. Default to CDK;
+  // fall back to ChemDraw when CDK isn't available. Computed once per substance
+  // change so there's only a single commit (no cascading effects).
   useEffect(() => {
     setZoom(1);
-    setUseCdxCoords(false);
+    setUseCdxCoords(substance ? !substance.svg && !!substance.svg_cdx : false);
   }, [substance]);
-
-  // Clamp selection to whichever layout is available. Runs after the reset
-  // effect above: if the new substance has no CDK layout (svg), flip to
-  // ChemDraw; likewise flip back to CDK if ChemDraw is missing but CDK exists.
-  useEffect(() => {
-    if (!substance) return;
-    if (useCdxCoords && !substance.svg_cdx && substance.svg) {
-      setUseCdxCoords(false);
-    } else if (!useCdxCoords && !substance.svg && substance.svg_cdx) {
-      setUseCdxCoords(true);
-    }
-  }, [substance, useCdxCoords]);
 
   function zoomIn() {
     setZoom((z) => Math.min(z + 0.25, 5));
@@ -304,7 +294,7 @@ export function StructureSheet({
                       />
                       <TooltipContent className="max-w-[280px]">
                         {substance?.svg_cdx
-                          ? "Original 2D coordinates from the uploaded ChemDraw file. Matches what you drew."
+                          ? "Original 2D coordinates from the uploaded ChemDraw file. Matches the uploaded file."
                           : "Original coordinates unavailable for this structure."}
                       </TooltipContent>
                     </Tooltip>
