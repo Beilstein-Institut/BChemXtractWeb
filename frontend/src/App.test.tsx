@@ -1,8 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { useExtract, type UseExtractReturn } from "./hooks/useExtract";
+import type { ExtractionResponse } from "./types/chemistry";
 
-vi.mock("./hooks/useExtract");
+vi.mock("./hooks/useExtract", () => ({ useExtract: vi.fn() }));
 vi.mock("./hooks/useBatch", () => ({
   useBatch: () => ({
     state: "idle",
@@ -52,12 +54,10 @@ vi.mock("./components/AppHeader", () => ({
 }));
 vi.mock("sonner", () => ({ Toaster: () => null, toast: { error: vi.fn() } }));
 
-const { useExtract } = await import("./hooks/useExtract");
-
-const SUCCESS_RESULT = {
+const SUCCESS_RESULT: ExtractionResponse = {
   substances: [],
   info: { no_fragments: 0, no_inchis: 0, no_substances: 0 },
-  format: "cdx" as const,
+  format: "cdx",
   filename: "test.cdx",
   file_size: 100,
   structure_count: 0,
@@ -70,16 +70,21 @@ function setPathname(pathname: string) {
   window.history.replaceState(null, "", pathname);
 }
 
+function mockExtract(overrides: Partial<UseExtractReturn> = {}) {
+  vi.mocked(useExtract).mockReturnValue({
+    state: "idle",
+    result: null,
+    errorMessage: null,
+    extract: vi.fn(),
+    reset: vi.fn(),
+    ...overrides,
+  });
+}
+
 describe("App", () => {
   beforeEach(() => {
     setPathname("/");
-    vi.mocked(useExtract).mockReturnValue({
-      state: "idle",
-      result: null,
-      errorMessage: null,
-      extract: vi.fn(),
-      reset: vi.fn(),
-    });
+    mockExtract();
   });
 
   afterEach(() => {
@@ -97,26 +102,14 @@ describe("App", () => {
   });
 
   it("shows FileUpload with data-loading=true in loading state", () => {
-    vi.mocked(useExtract).mockReturnValue({
-      state: "loading",
-      result: null,
-      errorMessage: null,
-      extract: vi.fn(),
-      reset: vi.fn(),
-    });
+    mockExtract({ state: "loading" });
     render(<App />);
     expect(screen.getByTestId("file-upload")).toHaveAttribute("data-loading", "true");
   });
 
   it("auto-navigates to /browse when extraction succeeds on /", () => {
     const pushSpy = vi.spyOn(window.history, "pushState");
-    vi.mocked(useExtract).mockReturnValue({
-      state: "success",
-      result: SUCCESS_RESULT,
-      errorMessage: null,
-      extract: vi.fn(),
-      reset: vi.fn(),
-    });
+    mockExtract({ state: "success", result: SUCCESS_RESULT });
     render(<App />);
     expect(pushSpy).toHaveBeenCalledWith(null, "", "/browse");
   });
@@ -124,13 +117,7 @@ describe("App", () => {
   it("does NOT auto-navigate when user is on /history during success", () => {
     setPathname("/history");
     const pushSpy = vi.spyOn(window.history, "pushState");
-    vi.mocked(useExtract).mockReturnValue({
-      state: "success",
-      result: SUCCESS_RESULT,
-      errorMessage: null,
-      extract: vi.fn(),
-      reset: vi.fn(),
-    });
+    mockExtract({ state: "success", result: SUCCESS_RESULT });
     render(<App />);
     const browseCalls = pushSpy.mock.calls.filter(
       (call) => call[2] === "/browse",
