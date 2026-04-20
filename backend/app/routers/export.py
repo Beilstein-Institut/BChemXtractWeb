@@ -14,7 +14,6 @@ Per security:
 import io
 import logging
 from typing import Annotated
-from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -24,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.middleware.rate_limit import limiter
 from app.models.chemistry import ErrorResponse, ExportRequest
+from app.services.filenames import build_content_disposition
 from app.models.orm import (
     Extraction,
     ExtractionReaction,
@@ -288,17 +288,10 @@ async def export_substances(
                 len(content),
                 len(reaction_dicts),
             )
-        safe_name = filename.replace('"', "").replace("\n", "").replace("\r", "")
-        encoded_name = quote(filename, safe="")
         return StreamingResponse(
             io.BytesIO(content),
             media_type=media_type,
-            headers={
-                "Content-Disposition": (
-                    f'attachment; filename="{safe_name}"; '
-                    f"filename*=UTF-8''{encoded_name}"
-                )
-            },
+            headers={"Content-Disposition": build_content_disposition(filename)},
         )
 
     # Existing substance path (unchanged -- generate_export is substance-only)
@@ -323,18 +316,8 @@ async def export_substances(
             len(substance_dicts),
         )
 
-    # WR-01: RFC 6266-compliant Content-Disposition — strip control characters
-    # from the ASCII fallback and provide a percent-encoded filename* parameter
-    # so filenames with non-ASCII or special characters are handled correctly.
-    safe_name = filename.replace('"', "").replace("\n", "").replace("\r", "")
-    encoded_name = quote(filename, safe="")
     return StreamingResponse(
         io.BytesIO(content),
         media_type=media_type,
-        headers={
-            "Content-Disposition": (
-                f'attachment; filename="{safe_name}"; '
-                f"filename*=UTF-8''{encoded_name}"
-            )
-        },
+        headers={"Content-Disposition": build_content_disposition(filename)},
     )

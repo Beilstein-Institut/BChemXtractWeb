@@ -76,13 +76,19 @@ def _zip_filename(fmt: str) -> str:
 def _build_zip(entries: list[tuple[str, bytes]]) -> bytes:
     """Build in-memory ZIP from (filename, content) pairs.
 
-    Sanitizes filenames to prevent zip-slip path traversal (T-08-04).
+    Sanitises every entry name through :func:`safe_filename` (allowlist
+    ``[A-Za-z0-9._-]`` + 128-char cap) so no entry can carry path
+    separators, null bytes, CR/LF, or other unprintables that might
+    surprise a ZIP consumer (SEC M-03, T-08-04).
     """
+    from app.services.filenames import (  # local import avoids cycle
+        safe_filename,
+    )
+
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for name, content in entries:
-            safe = name.replace("/", "_").replace("\\", "_")
-            zf.writestr(safe, content)
+            zf.writestr(safe_filename(name), content)
     buf.seek(0)
     return buf.read()
 

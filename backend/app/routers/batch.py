@@ -27,6 +27,7 @@ from app.middleware.rate_limit import limiter
 from app.models.chemistry import BatchStartResponse, ErrorResponse
 from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.services.db import get_db
+from app.services.filenames import build_content_disposition, safe_filename
 from app.services.upload_guard import read_upload_bounded
 from app.tasks.extraction import extract_file_task
 
@@ -321,14 +322,17 @@ async def download_batch_zip(batch_id: str, db: DbDep) -> StreamingResponse:
                     for s in substances
                 ],
             }
-            # Sanitize filename to prevent zip-slip (T-07-07)
-            safe_name = extraction.filename.replace("/", "_").replace("\\", "_")
+            # SEC M-03: centralised allowlist-based sanitisation covers
+            # path traversal, control chars, null bytes, and unprintables.
+            safe_name = safe_filename(extraction.filename)
             zf.writestr(f"{safe_name}.json", json.dumps(response_dict, indent=2))
 
     buf.seek(0)
-    zip_filename = f"batch_{batch_id[:8]}.zip"
+    zip_filename = f"batch_{safe_filename(batch_id)[:8]}.zip"
     return StreamingResponse(
         buf,
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{zip_filename}"'},
+        headers={
+            "Content-Disposition": build_content_disposition(zip_filename),
+        },
     )

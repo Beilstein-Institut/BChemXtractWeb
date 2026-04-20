@@ -71,11 +71,18 @@ from app.services.jvm_bridge import run_in_jvm_thread
 logger = logging.getLogger(__name__)
 
 # Per RESEARCH §Pattern 9 — precedence: inchi_key > formula > smiles.
-# Anchored to prevent ReDoS. The formula pattern has a nested quantifier,
-# but the 500-char Pydantic cap on SearchRequest.query bounds input length
-# so worst-case backtracking stays well under a second.
-_INCHI_KEY_RE = re.compile(r"^[A-Z]{14}-[A-Z]{10}-[A-Z]$")
-_FORMULA_RE = re.compile(r"^([A-Z][a-z]?\d*)+$")
+# Anchored to prevent ReDoS.
+#
+# The formula pattern is linear-time even on pathological CPython `re`
+# input because (a) there is no ambiguity between the repeat group and
+# what comes after it (the trailing ``\Z`` anchors the match), (b) the
+# inner digit run is capped via ``{0,5}`` (no element in the periodic
+# table has >5 significant repeat digits in a realistic formula), and
+# (c) the outer repeat is capped via ``{1,60}`` so even adversarial
+# inputs cannot drive backtracking. Regression covered by
+# ``tests/test_formula_regex_redos.py``.
+_INCHI_KEY_RE = re.compile(r"\A[A-Z]{14}-[A-Z]{10}-[A-Z]\Z")
+_FORMULA_RE = re.compile(r"\A(?:[A-Z][a-z]?\d{0,5}){1,60}\Z")
 
 # Polymer-SMILES deadlock ceiling. Same threshold Plan 02 applies inside
 # :func:`canonicalize._canonicalize_smiles_sync` — CDK's ``SmartsPattern``
