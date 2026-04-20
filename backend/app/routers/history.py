@@ -26,7 +26,11 @@ from app.models.chemistry import (
 )
 from app.models.orm import Extraction, Substance
 from app.services.db import get_db
-from app.services.persistence import delete_extraction_by_id
+from app.services.persistence import (
+    delete_extraction_by_id,
+    update_substance_svgs,
+)
+from app.services.svg_backfill import render_svgs_from_mdlv3000
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +212,27 @@ async def get_history_detail(extraction_id: int, db: DbDep) -> ExtractionRespons
     extraction = result.scalar_one_or_none()
     if extraction is None:
         raise HTTPException(status_code=404, detail="Extraction not found")
+
+    # Lazy backfill: any substance still missing a layout gets rendered
+    # from its stored MDL V3000 molblock, and the result is persisted so
+    # future reads are cheap. The conditional UPDATE inside
+    # update_substance_svgs prevents concurrent requests from racing
+    # (first writer wins; later writers see non-empty columns and no-op).
+    any_updated = False
+    for s in extraction.substances or []:
+        if s.svg and s.svg_cdx:
+            continue
+        filled = await render_svgs_from_mdlv3000(s)
+        if filled.changed:
+            s.svg = filled.svg
+            s.svg_cdx = filled.svg_cdx
+            await update_substance_svgs(db, s.id, filled.svg, filled.svg_cdx)
+            any_updated = True
+
+    if any_updated:
+        # update_substance_svgs intentionally does NOT commit (so callers
+        # can batch) — commit once here after the per-substance loop.
+        await db.commit()
 
     return _extraction_to_response(extraction)
 
