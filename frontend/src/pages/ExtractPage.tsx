@@ -1,29 +1,21 @@
 /**
  * ExtractPage — file upload + extraction flow (route: `/`).
  *
- * Owns the upload UI and post-extraction summary. After a successful
- * extraction, shows a "Browse structures" CTA that routes to /browse.
- * State stays in App.tsx; this page is a presentational slice.
+ * Owns the upload UI. On successful extraction the user is redirected to
+ * `/browse` by App's success-useEffect, so this page only renders the
+ * upload states (idle, loading, batch processing, batch complete).
  */
-import { ArrowRightIcon } from "lucide-react";
 import { BatchProgress } from "@/components/BatchProgress";
 import { BatchSummary } from "@/components/BatchSummary";
-import { ExtractionSummary } from "@/components/ExtractionSummary";
 import { FileUpload } from "@/components/FileUpload";
-import { buttonVariants } from "@/components/ui/button";
 import type { BatchState } from "@/hooks/useBatch";
 import type { ExtractState } from "@/hooks/useExtract";
-import { Link } from "@/lib/Link";
 import type { BatchFileStatus } from "@/types/batch";
-import type { ExtractionResponse } from "@/types/chemistry";
 
 export interface ExtractPageProps {
   state: ExtractState;
   selectedFile: File | null;
-  result: ExtractionResponse | null;
-  historicalResult: ExtractionResponse | null;
   onExtract: (file: File) => void;
-  onReset: () => void;
 
   batchState: BatchState;
   batchFiles: BatchFileStatus[];
@@ -41,10 +33,7 @@ export interface ExtractPageProps {
 export function ExtractPage({
   state,
   selectedFile,
-  result,
-  historicalResult,
   onExtract,
-  onReset,
   batchState,
   batchFiles,
   batchId,
@@ -56,9 +45,6 @@ export function ExtractPage({
   onResetBatch,
   onViewExtraction,
 }: ExtractPageProps) {
-  const activeResult = historicalResult ?? result;
-  const showSummary =
-    (state === "success" && result !== null) || historicalResult !== null;
   const showUpload = batchState !== "processing" && state !== "success";
   const isLoading = state === "loading";
 
@@ -110,29 +96,6 @@ export function ExtractPage({
             onViewExtraction={onViewExtraction}
             onReset={onResetBatch}
           />
-        </div>
-      )}
-
-      {showSummary && activeResult !== null && (
-        <div className="mt-8 space-y-4">
-          <ExtractionSummary response={activeResult} onReset={onReset} />
-          {activeResult.extraction_id && (
-            <div className="flex flex-wrap gap-3">
-              <Link
-                to="/browse"
-                className={buttonVariants({ size: "lg" }) + " gap-2"}
-              >
-                Browse structures
-                <ArrowRightIcon className="size-4" />
-              </Link>
-              <Link
-                to="/history"
-                className={buttonVariants({ variant: "outline", size: "lg" })}
-              >
-                Open history
-              </Link>
-            </div>
-          )}
         </div>
       )}
     </>

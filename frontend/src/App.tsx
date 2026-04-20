@@ -206,10 +206,7 @@ function App() {
           <ExtractPage
             state={state}
             selectedFile={selectedFile}
-            result={result}
-            historicalResult={historicalResult}
             onExtract={handleExtract}
-            onReset={handleReset}
             batchState={batchState}
             batchFiles={batchFiles}
             batchId={batchId}
