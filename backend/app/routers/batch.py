@@ -27,7 +27,13 @@ from app.middleware.rate_limit import limiter
 from app.models.chemistry import BatchStartResponse, ErrorResponse
 from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.services.db import get_db
+from app.services.upload_guard import read_upload_bounded
 from app.tasks.extraction import extract_file_task
+
+# Hard cap on concurrent files accepted per batch request. A malicious
+# client can still submit many separate batches; rate limiting (SEC C-02)
+# bounds the per-IP per-minute ceiling.
+_BATCH_FILE_LIMIT = 20
 
 router = APIRouter()
 
@@ -69,19 +75,37 @@ async def start_batch(
         HTTPException 400: Batch exceeds 20-file limit.
         HTTPException 422: Individual file exceeds max_upload_size.
     """
-    if len(files) > 20:
-        raise HTTPException(status_code=400, detail="Batch exceeds 20-file limit")
+    if len(files) > _BATCH_FILE_LIMIT:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Batch exceeds the {_BATCH_FILE_LIMIT}-file limit",
+        )
+
+    # SEC H-02 preflight: fail fast using the Content-Length-derived
+    # ``UploadFile.size`` BEFORE reading any bytes, so oversize submissions
+    # don't drain RAM. The bounded streaming read below is still the
+    # authoritative gate for clients that omit Content-Length.
+    for f in files:
+        if f.size is not None and f.size > settings.max_upload_size:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"{f.filename or 'unnamed'} exceeds the "
+                    f"{settings.max_upload_size // (1024 * 1024)} MB limit"
+                ),
+            )
 
     task_signatures = []
     batch_id = str(uuid.uuid4())
 
     for f in files:
-        file_bytes = await f.read()
-        if len(file_bytes) > settings.max_upload_size:
-            raise HTTPException(
-                status_code=422,
-                detail=f"{f.filename} exceeds the {settings.max_upload_size // (1024 * 1024)} MB limit",
-            )
+        try:
+            file_bytes = await read_upload_bounded(f, settings.max_upload_size)
+        except Exception as exc:  # FileSizeError → 413 via BridgeError handler
+            # Preserve the unified error shape by re-raising; 413/FILE_TOO_LARGE
+            # is the correct semantic here because the client attempted to
+            # upload a payload larger than the documented limit.
+            raise exc
         task_signatures.append(
             extract_file_task.s(
                 base64.b64encode(file_bytes).decode("ascii"),

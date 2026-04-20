@@ -40,6 +40,12 @@ router = APIRouter()
 DbDep = Annotated[AsyncSession, Depends(get_db)]
 
 _EXPORT_SIZE_WARN_BYTES = 50 * 1024 * 1024  # 50 MB log threshold
+# SEC H-06: enforced output cap. One request cannot stream more than
+# 500 MB regardless of how many IDs are requested — if an attacker finds
+# a way past the Pydantic ``max_length`` bounds on ``substance_ids``, the
+# generator output is still gated here. 500 MB leaves ample headroom for
+# a legitimate 1000-structure SDF + SVG export.
+_EXPORT_SIZE_HARD_LIMIT_BYTES = 500 * 1024 * 1024
 
 
 async def _fetch_substances(payload: ExportRequest, db: AsyncSession) -> list[dict]:
@@ -266,6 +272,15 @@ async def export_substances(
         content, media_type, filename = await generate_reactions_export(
             reaction_dicts, payload.format
         )
+        if len(content) > _EXPORT_SIZE_HARD_LIMIT_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    f"Export payload exceeds the "
+                    f"{_EXPORT_SIZE_HARD_LIMIT_BYTES // (1024 * 1024)} MB "
+                    f"limit. Narrow the selection and retry."
+                ),
+            )
         if len(content) > _EXPORT_SIZE_WARN_BYTES:
             logger.warning(
                 "Large export: format=%s size=%d bytes count=%d",
@@ -291,6 +306,15 @@ async def export_substances(
 
     content, media_type, filename = await generate_export(substance_dicts, payload.format)
 
+    if len(content) > _EXPORT_SIZE_HARD_LIMIT_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"Export payload exceeds the "
+                f"{_EXPORT_SIZE_HARD_LIMIT_BYTES // (1024 * 1024)} MB "
+                f"limit. Narrow the selection and retry."
+            ),
+        )
     if len(content) > _EXPORT_SIZE_WARN_BYTES:
         logger.warning(
             "Large export: format=%s size=%d bytes count=%d",

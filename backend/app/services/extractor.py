@@ -65,11 +65,18 @@ SVG_REACTION_TARGET_HEIGHT = 400
 # ---------------------------------------------------------------------------
 
 
+_MAX_ABBREV_ENTRIES = 100
+_MAX_ABBREV_VALUE_LEN = 10_000
+
+
 def _coerce_substance(java_sub) -> dict:
     """Convert a BCXSubstance Java object to a dict with no nulls.
 
     All nullable String fields are coerced to empty string.
-    The abbreviations Map is converted to a Python dict.
+    The abbreviations Map is converted to a Python dict, bounded to
+    :const:`_MAX_ABBREV_ENTRIES` entries and :const:`_MAX_ABBREV_VALUE_LEN`
+    characters per key/value pair so a crafted ChemDraw file cannot drive
+    unbounded memory growth through this field (SEC L-06).
 
     Args:
         java_sub: A Java BCXSubstance instance.
@@ -77,6 +84,15 @@ def _coerce_substance(java_sub) -> dict:
     Returns:
         Dict ready for SubstanceResponse(**d) construction.
     """
+    java_abbrevs = java_sub.getAbbreviations() or {}
+    abbreviations: dict[str, str] = {}
+    for k, v in java_abbrevs.items():
+        if len(abbreviations) >= _MAX_ABBREV_ENTRIES:
+            break
+        sk = str(k)[:_MAX_ABBREV_VALUE_LEN]
+        sv = str(v)[:_MAX_ABBREV_VALUE_LEN]
+        abbreviations[sk] = sv
+
     return {
         "inchi": str(java_sub.getInchi() or ""),
         "inchi_key": str(java_sub.getInchiKey() or ""),
@@ -86,10 +102,7 @@ def _coerce_substance(java_sub) -> dict:
         "molecular_formula": str(java_sub.getMolecularFormula() or ""),
         "aux_info": str(java_sub.getAuxInfo() or ""),
         "mdlv3000": "",
-        "abbreviations": {
-            str(k): str(v)
-            for k, v in (java_sub.getAbbreviations() or {}).items()
-        },
+        "abbreviations": abbreviations,
     }
 
 

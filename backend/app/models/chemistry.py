@@ -162,16 +162,19 @@ ExportFormatLiteral = Literal["sdf", "json", "csv", "png", "svg", "cml", "v3000"
 class ExportRequest(BaseModel):
     """Request body for POST /api/export (D-08).
 
-    substance_ids: explicit selection (D-01, D-02, D-04).
-    extraction_id: export all from this extraction (D-03) — used when substance_ids is empty.
+    substance_ids: explicit selection (D-01, D-02, D-04). Capped at 1000
+        entries to bound JVM thread-pool fan-out and response size (SEC H-06).
+    extraction_id: export all from this extraction (D-03) — used when
+        substance_ids is empty.
     format: one of the seven export formats plus rxn stub.
     reaction_ids: explicit reaction selection for RXN export (Plan 10 D-22).
+        Capped at 500 entries for the same reason as ``substance_ids``.
     """
 
     format: ExportFormatLiteral
-    substance_ids: list[int] = []
+    substance_ids: list[int] = Field(default_factory=list, max_length=1000)
     extraction_id: int | None = None
-    reaction_ids: list[int] = []
+    reaction_ids: list[int] = Field(default_factory=list, max_length=500)
 
 
 # ============================================================================

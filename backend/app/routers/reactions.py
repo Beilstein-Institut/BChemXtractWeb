@@ -38,6 +38,7 @@ from app.services.persistence import (
     get_or_create_extraction_row,
     save_reactions,
 )
+from app.services.upload_guard import read_upload_bounded
 
 logger = logging.getLogger(__name__)
 
@@ -119,19 +120,8 @@ async def extract_reactions_endpoint(
     Per D-19: auto-persists; DB failures logged but never raised.
     Per Pitfall 9: creates a minimal Extraction row when /api/extract never ran.
     """
-    # Size guard -- mirror extract.py
-    if file.size is not None and file.size > settings.max_upload_size:
-        raise FileSizeError(
-            f"File exceeds the {settings.max_upload_size // (1024 * 1024)} MB "
-            f"size limit. Please upload a smaller file."
-        )
-
-    file_bytes = await file.read()
-    if len(file_bytes) > settings.max_upload_size:
-        raise FileSizeError(
-            f"File exceeds the {settings.max_upload_size // (1024 * 1024)} MB "
-            f"size limit. Please upload a smaller file."
-        )
+    # SEC M-02: bounded streaming read — mirrors extract.py.
+    file_bytes = await read_upload_bounded(file, settings.max_upload_size)
 
     start = time.perf_counter()
     format_type = detect_format(file_bytes)  # raises FormatDetectionError -> 415

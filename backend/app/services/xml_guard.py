@@ -44,10 +44,15 @@ _DOCTYPE_RE = re.compile(rb"<!DOCTYPE\b", re.IGNORECASE)
 _ENTITY_RE = re.compile(rb"<!ENTITY\b", re.IGNORECASE)
 _SYSTEM_OR_PUBLIC_RE = re.compile(rb"\b(?:SYSTEM|PUBLIC)\b", re.IGNORECASE)
 
-# The only SYSTEM identifier we allow inside a DOCTYPE — the local
-# catalogued DTD shipped with BChemXtract. Anything else (file:/, http:/,
-# jar:/, ftp:/, etc.) is rejected.
-_ALLOWED_SYSTEM_ID = b"cdxml.dtd"
+# Exact SYSTEM identifiers accepted by the upstream ``XMLEntityCatalog``
+# (see ``backend/lib/bchemxtract/.../CDXMLConstants.java``). Either of these
+# is resolved to a bundled local DTD; every other SYSTEM id causes the
+# catalog to return ``null`` which tells the SAX parser to fetch externally
+# — the XXE primitive. Our guard therefore permits only these two values.
+_ALLOWED_SYSTEM_IDS: tuple[bytes, ...] = (
+    b"http://www.cambridgesoft.com/xml/cdxml.dtd",
+    b"https://static.chemistry.revvitycloud.com/cdxml/CDXML.dtd",
+)
 
 
 def reject_xml_external_entities(file_bytes: bytes) -> None:
@@ -88,10 +93,11 @@ def reject_xml_external_entities(file_bytes: bytes) -> None:
     doctype_window = head[doctype_match.start() : window_end]
 
     if _SYSTEM_OR_PUBLIC_RE.search(doctype_window):
-        # A SYSTEM/PUBLIC id is present — allow only if it matches the
-        # catalogued cdxml.dtd entry.
-        if _ALLOWED_SYSTEM_ID not in doctype_window:
+        # A SYSTEM/PUBLIC id is present — allow only if one of the two
+        # catalogued URLs appears verbatim in the DOCTYPE window.
+        if not any(allowed in doctype_window for allowed in _ALLOWED_SYSTEM_IDS):
             raise FormatDetectionError(
-                "CDXML DOCTYPE references an external identifier other "
-                "than the permitted cdxml.dtd catalog entry."
+                "CDXML DOCTYPE references an external identifier that is "
+                "not in the permitted catalog. Only the bundled CDXML DTD "
+                "URLs are allowed."
             )

@@ -24,9 +24,16 @@ BENIGN_CDXML = (
     b"<CDXML><page><fragment>C</fragment></page></CDXML>"
 )
 
-ALLOWED_DOCTYPE_CDXML = (
-    b'<?xml version="1.0"?>\n'
-    b'<!DOCTYPE CDXML SYSTEM "cdxml.dtd">\n'
+ALLOWED_DOCTYPE_CDXML_REVVITY = (
+    b'<?xml version="1.0" encoding="UTF-8"?>\n'
+    b'<!DOCTYPE CDXML SYSTEM '
+    b'"https://static.chemistry.revvitycloud.com/cdxml/CDXML.dtd">\n'
+    b"<CDXML><page><fragment>C</fragment></page></CDXML>"
+)
+
+ALLOWED_DOCTYPE_CDXML_CAMBRIDGESOFT = (
+    b'<?xml version="1.0" encoding="UTF-8"?>\n'
+    b'<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd">\n'
     b"<CDXML><page><fragment>C</fragment></page></CDXML>"
 )
 
@@ -42,9 +49,16 @@ def test_benign_cdxml_accepted() -> None:
     assert detect_format(BENIGN_CDXML) == "cdxml"
 
 
-def test_allowed_doctype_cdxml_accepted() -> None:
-    reject_xml_external_entities(ALLOWED_DOCTYPE_CDXML)
-    assert detect_format(ALLOWED_DOCTYPE_CDXML) == "cdxml"
+def test_allowed_doctype_revvity_accepted() -> None:
+    """Real ChemDraw 25+ CDXML files use the revvitycloud URL."""
+    reject_xml_external_entities(ALLOWED_DOCTYPE_CDXML_REVVITY)
+    assert detect_format(ALLOWED_DOCTYPE_CDXML_REVVITY) == "cdxml"
+
+
+def test_allowed_doctype_cambridgesoft_accepted() -> None:
+    """Legacy ChemDraw files use the cambridgesoft URL."""
+    reject_xml_external_entities(ALLOWED_DOCTYPE_CDXML_CAMBRIDGESOFT)
+    assert detect_format(ALLOWED_DOCTYPE_CDXML_CAMBRIDGESOFT) == "cdxml"
 
 
 def test_utf8_bom_prefixed_benign_cdxml_accepted() -> None:
@@ -181,7 +195,20 @@ UNKNOWN_SYSTEM_ID = (
 def test_unknown_system_id_rejected() -> None:
     with pytest.raises(FormatDetectionError) as exc_info:
         reject_xml_external_entities(UNKNOWN_SYSTEM_ID)
-    assert "cdxml.dtd" in str(exc_info.value)
+    assert "catalog" in str(exc_info.value).lower()
+
+
+def test_attacker_spoofed_cdxml_filename_rejected() -> None:
+    """An attacker cannot bypass the guard by naming their malicious DTD
+    ``cdxml.dtd`` and hosting it at a different URL — the guard requires
+    the exact catalogued URL, not just the filename suffix."""
+    payload = (
+        b'<?xml version="1.0"?>\n'
+        b'<!DOCTYPE CDXML SYSTEM "http://attacker.example/cdxml.dtd">\n'
+        b"<CDXML/>"
+    )
+    with pytest.raises(FormatDetectionError):
+        reject_xml_external_entities(payload)
 
 
 # ---------------------------------------------------------------------------

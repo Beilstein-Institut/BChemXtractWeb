@@ -28,6 +28,7 @@ from app.services.db import get_db
 from app.services.extractor import extract_substances_with_svg
 from app.services.format_detector import detect_format
 from app.services.persistence import save_extraction
+from app.services.upload_guard import read_upload_bounded
 
 logger = logging.getLogger(__name__)
 
@@ -113,22 +114,10 @@ async def extract_file(
         FormatDetectionError: If file is not CDX or CDXML (HTTP 415).
         ExtractionError: If Java extraction fails (HTTP 422).
     """
-    # D-05: Size check before JVM processing
-    # file.size comes from Content-Length header (may be None for streaming)
-    if file.size is not None and file.size > settings.max_upload_size:
-        raise FileSizeError(
-            f"File exceeds the {settings.max_upload_size // (1024 * 1024)} MB "
-            f"size limit. Please upload a smaller file."
-        )
-
-    file_bytes = await file.read()
-
-    # Fallback size check after reading (in case Content-Length was absent)
-    if len(file_bytes) > settings.max_upload_size:
-        raise FileSizeError(
-            f"File exceeds the {settings.max_upload_size // (1024 * 1024)} MB "
-            f"size limit. Please upload a smaller file."
-        )
+    # D-05 + SEC M-02: bounded streaming read aborts the body scan the
+    # moment accumulated bytes exceed ``max_upload_size`` even when the
+    # client omits Content-Length or uses chunked transfer encoding.
+    file_bytes = await read_upload_bounded(file, settings.max_upload_size)
 
     start = time.perf_counter()
 
