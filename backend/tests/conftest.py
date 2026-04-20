@@ -184,6 +184,20 @@ def cdx_multi_file_bytes() -> bytes:
     return path.read_bytes()
 
 
+@pytest.fixture(scope="session")
+def complex_cdx_bytes() -> bytes:
+    """Complex CDX file that forces the fragment fallback path.
+
+    This file reliably triggers the fragment-level extraction path in
+    ``extract_substances_with_svg`` because ``xtractUnique`` times out on
+    its complex structures (typical of dendrimers/R-groups where InChI
+    computation stalls). Used by tests that must exercise the fragment
+    path rather than the xtractUnique fast path.
+    """
+    path = Path(__file__).parent / "fixtures" / "complex_fragment_path.cdx"
+    return path.read_bytes()
+
+
 # --- Phase 10: reaction fixtures (read from LOCAL REACTION_FIXTURES_DIR) ---
 
 
