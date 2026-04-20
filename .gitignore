@@ -162,3 +162,7 @@ CLAUDE.md
 DESIGN.md
 .planning/
 test-results/
+
+# Playwright MCP transient artefacts
+.playwright-mcp/
+nav-*.png
