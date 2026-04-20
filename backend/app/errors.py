@@ -97,10 +97,13 @@ logger = logging.getLogger(__name__)
 
 _HTTP_STATUS_CODE_MAP: dict[int, str] = {
     400: "BAD_REQUEST",
+    401: "UNAUTHENTICATED",
+    403: "FORBIDDEN",
     404: "NOT_FOUND",
     413: "FILE_TOO_LARGE",
     415: "UNSUPPORTED_FORMAT",
     422: "VALIDATION_ERROR",
+    429: "RATE_LIMITED",
     500: "INTERNAL_ERROR",
     503: "SERVICE_UNAVAILABLE",
 }
@@ -115,11 +118,16 @@ async def http_exception_handler(
     with a plain string. The handler derives ``code`` from the status-code
     lookup table so legacy call sites keep working unchanged while every
     4xx/5xx body converges on ``{detail, code}``.
+
+    Any ``headers`` attached to the raised :class:`HTTPException` are
+    propagated onto the response — critical for 401 responses, which
+    must carry a ``WWW-Authenticate`` challenge per RFC 6750.
     """
     detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
     code = _HTTP_STATUS_CODE_MAP.get(exc.status_code, "ERROR")
     return JSONResponse(
         status_code=exc.status_code,
+        headers=exc.headers,
         content=ErrorResponse(detail=detail, code=code).model_dump(),
     )
 
@@ -180,6 +188,48 @@ async def bridge_error_handler(
     return JSONResponse(
         status_code=status,
         content=ErrorResponse(detail=str(exc), code=code).model_dump(),
+    )
+
+
+async def rate_limit_exceeded_handler(
+    request: Request, exc: Exception
+) -> JSONResponse:
+    """Normalise slowapi's RateLimitExceeded into the unified ErrorResponse.
+
+    slowapi ships its own ``_rate_limit_exceeded_handler`` which returns a
+    plain text body — this wrapper replaces it so ``429`` shares the same
+    ``{detail, code}`` JSON contract as every other 4xx.
+
+    Retry-After is derived from the tripped ``RateLimitItem.get_expiry()``
+    (period in seconds) so clients can back off deterministically. Falling
+    back to 60 s keeps the header present even if the limit object doesn't
+    expose an expiry.
+    """
+    # Late import to keep slowapi optional at import time.
+    from slowapi.errors import RateLimitExceeded  # noqa: PLC0415
+
+    if not isinstance(exc, RateLimitExceeded):
+        # Defensive — registered only for RateLimitExceeded, but fall
+        # through to the unhandled handler on shape mismatch.
+        return await unhandled_exception_handler(request, exc)
+
+    retry_after_secs: int = 60
+    try:
+        limit_item = exc.limit.limit  # RequestLimit → RateLimitItem
+        if hasattr(limit_item, "get_expiry"):
+            retry_after_secs = max(1, int(limit_item.get_expiry()))
+    except AttributeError:
+        # Shape drift in future slowapi release — keep the 60 s fallback.
+        pass
+
+    detail = getattr(exc, "detail", None) or "limit reached"
+    return JSONResponse(
+        status_code=429,
+        headers={"Retry-After": str(retry_after_secs)},
+        content=ErrorResponse(
+            detail=f"Rate limit exceeded: {detail}",
+            code="RATE_LIMITED",
+        ).model_dump(),
     )
 
 

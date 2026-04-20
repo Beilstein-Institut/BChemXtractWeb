@@ -16,11 +16,13 @@ import logging
 from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
+from app.middleware.rate_limit import limiter
 from app.models.chemistry import ErrorResponse, ExportRequest
 from app.models.orm import (
     Extraction,
@@ -230,7 +232,9 @@ async def _fetch_reactions(
     },
     tags=["export"],
 )
+@limiter.limit(settings.rate_limit_export)
 async def export_substances(
+    request: Request,
     payload: ExportRequest,
     db: DbDep,
 ) -> StreamingResponse:

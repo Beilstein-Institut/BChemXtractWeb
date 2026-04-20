@@ -17,9 +17,11 @@ request bodies (out-of-range ``page``, empty ``query``, unknown ``type``).
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
+from app.middleware.rate_limit import limiter
 from app.models.chemistry import ErrorResponse, SearchRequest, SearchResponse
 from app.services.db import get_db
 from app.services.search import execute_search
@@ -101,6 +103,9 @@ DbDep = Annotated[AsyncSession, Depends(get_db)]
         },
     },
 )
-async def post_search(payload: SearchRequest, db: DbDep) -> SearchResponse:
+@limiter.limit(settings.rate_limit_search)
+async def post_search(
+    request: Request, payload: SearchRequest, db: DbDep
+) -> SearchResponse:
     """Execute a search and return paginated results + attribution."""
     return await execute_search(payload, db)

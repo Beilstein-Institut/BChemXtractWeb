@@ -1,20 +1,48 @@
 """Shared pytest fixtures for backend tests."""
 
-from pathlib import Path
+# Configure security-related environment BEFORE importing the app so the
+# Settings validator sees a valid configuration. The default test suite
+# runs with permissive rate limits (effectively disabled) and a fixed
+# API key; focused security tests override these via monkeypatch +
+# limiter resets.
+import os
 
-import pytest
-import pytest_asyncio
-from asgi_lifespan import LifespanManager
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import (
+os.environ.setdefault(
+    "API_KEYS",
+    '["test-api-key-for-test-suite-with-sufficient-length-0123456789"]',
+)
+os.environ.setdefault("DEBUG", "false")
+os.environ.setdefault("EXPOSE_OPENAPI_DOCS", "true")
+# Loosen rate limits for the general test suite — specific rate-limit
+# tests narrow the limit + reset counters explicitly.
+os.environ.setdefault("RATE_LIMIT_DEFAULT", "10000/minute")
+os.environ.setdefault("RATE_LIMIT_UPLOAD", "10000/minute")
+os.environ.setdefault("RATE_LIMIT_BATCH", "10000/minute")
+os.environ.setdefault("RATE_LIMIT_SEARCH", "10000/minute")
+os.environ.setdefault("RATE_LIMIT_EXPORT", "10000/minute")
+
+from pathlib import Path  # noqa: E402
+
+import pytest  # noqa: E402
+import pytest_asyncio  # noqa: E402
+from asgi_lifespan import LifespanManager  # noqa: E402
+from httpx import ASGITransport, AsyncClient  # noqa: E402
+from sqlalchemy.ext.asyncio import (  # noqa: E402
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool  # noqa: E402
 
-from app.main import app
-from app.models.orm import Base
+from app.config import settings  # noqa: E402
+from app.main import app  # noqa: E402
+from app.models.orm import Base  # noqa: E402
+
+# Single canonical test API key — exposed to tests that need to construct
+# ad-hoc clients (e.g. unauth_client -> 401 assertion, then adds header
+# and re-asserts 200).
+TEST_API_KEY = settings.api_keys[0]
+TEST_AUTH_HEADERS = {"Authorization": f"Bearer {TEST_API_KEY}"}
 
 FIXTURES_DIR = (
     Path(__file__).parent.parent
@@ -48,20 +76,46 @@ async def started_app():
 
 @pytest.fixture
 async def client(started_app) -> AsyncClient:
-    """Async HTTP client connected to lifespan-started app.
+    """Authenticated async HTTP client connected to the lifespan-started app.
 
     Use for integration tests that need JVM (health detail, extraction, etc.).
+    The ``Authorization: Bearer <test-key>`` header is set on the underlying
+    AsyncClient so every request in the suite authenticates transparently.
+    Tests that need to probe the unauthenticated surface use
+    ``unauth_client`` instead.
     """
     transport = ASGITransport(app=started_app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers=TEST_AUTH_HEADERS,
+    ) as ac:
         yield ac
 
 
 @pytest.fixture
 async def client_no_jvm() -> AsyncClient:
-    """Async HTTP client WITHOUT lifespan (no JVM).
+    """Authenticated async HTTP client WITHOUT lifespan (no JVM).
 
     Use for pure-Python unit tests (format detection, config validation, etc.).
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers=TEST_AUTH_HEADERS,
+    ) as ac:
+        yield ac
+
+
+@pytest.fixture
+async def unauth_client() -> AsyncClient:
+    """Un-authenticated async HTTP client for auth-failure tests only.
+
+    No ``Authorization`` header set. Used by ``test_auth.py`` to assert
+    that protected endpoints return 401 when called without a bearer
+    token. Do NOT use for general integration tests — every route except
+    ``/api/health`` requires an API key.
     """
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:

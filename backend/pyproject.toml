@@ -15,6 +15,7 @@ dependencies = [
     "celery[redis]>=5.4.0",
     "sse-starlette>=2.0.0",
     "lxml>=5.3.0",
+    "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]

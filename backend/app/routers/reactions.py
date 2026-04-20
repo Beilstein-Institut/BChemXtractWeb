@@ -20,11 +20,12 @@ import logging
 import time
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.errors import FileSizeError
+from app.middleware.rate_limit import limiter
 from app.models.chemistry import (
     ErrorResponse,
     ReactionExtractionResponse,
@@ -108,8 +109,9 @@ DbDep = Annotated[AsyncSession, Depends(get_db)]
     },
     tags=["extraction"],
 )
+@limiter.limit(settings.rate_limit_upload)
 async def extract_reactions_endpoint(
-    file: UploadFile, db: DbDep
+    request: Request, file: UploadFile, db: DbDep
 ) -> ReactionExtractionResponse:
     """Extract reactions from a CDX/CDXML file upload (experimental, Plan 10).
 

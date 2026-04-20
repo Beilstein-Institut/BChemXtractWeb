@@ -1,6 +1,8 @@
 """Tests for ZIP download endpoint."""
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from tests.conftest import TEST_AUTH_HEADERS
+
 
 def test_batch_zip_returns_404_for_unknown_batch():
     """ZIP endpoint returns 404 when no extractions found for batch_id."""
@@ -14,7 +16,9 @@ def test_batch_zip_returns_404_for_unknown_batch():
     client = TestClient(app, raise_server_exceptions=False)
     with patch("app.routers.batch.select"), \
          patch("sqlalchemy.ext.asyncio.AsyncSession.execute", new_callable=AsyncMock, return_value=mock_result):
-        response = client.get("/api/batch/nonexistent-id/zip")
+        response = client.get(
+            "/api/batch/nonexistent-id/zip", headers=TEST_AUTH_HEADERS
+        )
 
     # 404 when no extractions match, 422 if path param validation fails
     assert response.status_code in (404, 422)

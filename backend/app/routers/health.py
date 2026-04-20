@@ -9,9 +9,10 @@ import glob
 import logging
 
 import jpype
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.config import settings
+from app.middleware.auth import require_api_key
 from app.models.chemistry import ErrorResponse
 from app.models.health import HealthDetailResponse, HealthResponse
 from app.services.jvm_bridge import get_pool_stats, run_in_jvm_thread
@@ -108,21 +109,26 @@ def _collect_jvm_diagnostics() -> dict:
     "/health/detail",
     response_model=HealthDetailResponse,
     operation_id="healthDetail",
-    summary="Detailed JVM diagnostics",
+    summary="Detailed JVM diagnostics (authenticated)",
     description=(
         "Return full diagnostics: JVM heap (max/used/free MB), available "
         "processors, thread-pool workers/active counts, JVM version, and "
         "JAR version parsed from the BChemXtract fat-JAR filename. JVM "
         "diagnostic calls run in the thread pool to avoid blocking the "
         "event loop. When the JVM is not running, returns `status=\"degraded\"` "
-        "with `jvm_running=false` and the remaining fields defaulted."
+        "with `jvm_running=false` and the remaining fields defaulted.\n\n"
+        "Requires an API key — unlike `/health`, this endpoint discloses "
+        "internal JVM/CDK/BChemXtract versions useful for targeted CVE "
+        "lookup and is therefore protected (H-05)."
     ),
     responses={
         200: {"description": "Diagnostics collected successfully."},
+        401: {"model": ErrorResponse, "description": "Missing or invalid API key."},
         503: {"model": ErrorResponse, "description": "JVM unavailable or diagnostic call timed out."},
         500: {"model": ErrorResponse, "description": "Internal server error."},
     },
     tags=["health"],
+    dependencies=[Depends(require_api_key)],
 )
 async def health_detail() -> HealthDetailResponse:
     """Detailed health diagnostics.

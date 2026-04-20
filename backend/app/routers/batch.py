@@ -23,6 +23,7 @@ from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
 from app.celery_app import celery_app
 from app.config import settings
+from app.middleware.rate_limit import limiter
 from app.models.chemistry import BatchStartResponse, ErrorResponse
 from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.services.db import get_db
@@ -55,7 +56,10 @@ DbDep = Annotated[AsyncSession, Depends(get_db)]
     },
     tags=["batch"],
 )
-async def start_batch(files: list[UploadFile] = File(...)) -> BatchStartResponse:
+@limiter.limit(settings.rate_limit_batch)
+async def start_batch(
+    request: Request, files: list[UploadFile] = File(...)
+) -> BatchStartResponse:
     """Start a batch extraction. Returns batch_id for progress tracking.
 
     Validates file count (<= 20) and file size (<= 50 MB) before enqueueing.

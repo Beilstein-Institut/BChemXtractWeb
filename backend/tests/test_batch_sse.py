@@ -1,6 +1,8 @@
 """Tests for SSE batch progress endpoint."""
 from unittest.mock import MagicMock, patch
 
+from tests.conftest import TEST_AUTH_HEADERS
+
 
 def test_batch_progress_returns_error_event_for_unknown_batch():
     """SSE endpoint: GroupResult.restore returning None triggers error event (not HTTP 404).
@@ -16,7 +18,7 @@ def test_batch_progress_returns_error_event_for_unknown_batch():
         client = TestClient(app, raise_server_exceptions=False)
         response = client.get(
             "/api/batch/nonexistent-id/progress",
-            headers={"Accept": "text/event-stream"},
+            headers={"Accept": "text/event-stream", **TEST_AUTH_HEADERS},
         )
 
     # EventSourceResponse returns 200 even for error events (SSE protocol)

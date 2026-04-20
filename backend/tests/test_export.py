@@ -23,6 +23,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from app.main import create_app
+from tests.conftest import TEST_AUTH_HEADERS
 
 # ---------------------------------------------------------------------------
 # Test fixture data
@@ -64,14 +65,20 @@ _MOCK_V3000_BYTES = b"\n     RDKit          2D\n\n  0  0  0  0  0  0  0  0  0  0
 
 @pytest_asyncio.fixture
 async def client() -> AsyncClient:
-    """HTTP client connected to the app without triggering lifespan (no JVM).
+    """Authenticated HTTP client connected to the app without lifespan.
 
     The export router is registered and the DB dependency is overridden so
-    _fetch_substances() never actually hits the database.
+    _fetch_substances() never actually hits the database. The
+    ``Authorization: Bearer <test-key>`` header is attached so the
+    API-key middleware (C-02) does not short-circuit requests.
     """
     app = create_app()
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers=TEST_AUTH_HEADERS,
+    ) as ac:
         yield ac
 
 

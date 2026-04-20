@@ -10,12 +10,13 @@ import math
 import time
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.errors import FileSizeError
+from app.middleware.rate_limit import limiter
 from app.models.chemistry import (
     ErrorResponse,
     ExtractionResponse,
@@ -91,7 +92,10 @@ DbDep = Annotated[AsyncSession, Depends(get_db)]
     },
     tags=["extraction"],
 )
-async def extract_file(file: UploadFile, db: DbDep) -> ExtractionResponse:
+@limiter.limit(settings.rate_limit_upload)
+async def extract_file(
+    request: Request, file: UploadFile, db: DbDep
+) -> ExtractionResponse:
     """Extract chemical substances from a CDX/CDXML file upload.
 
     Accepts a single file via multipart/form-data. Detects format from
