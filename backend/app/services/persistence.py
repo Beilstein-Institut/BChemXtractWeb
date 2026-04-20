@@ -260,6 +260,11 @@ async def update_substance_svgs(
     concurrent detail-view requests don't race-overwrite each other's
     work, and a successful prior backfill is never clobbered by a
     later-failed re-render.
+
+    Caller is responsible for committing the transaction. This helper is
+    called from the GET /api/history/{id} read path in a per-substance
+    loop; committing here would turn a single read into N transactions
+    and foist a commit side-effect on callers that only wanted an UPDATE.
     """
     await db.execute(
         text(
@@ -270,7 +275,6 @@ async def update_substance_svgs(
         ),
         {"id": substance_id, "svg": svg, "svg_cdx": svg_cdx},
     )
-    await db.commit()
 
 
 # ---------------------------------------------------------------------------

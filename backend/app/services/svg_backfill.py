@@ -51,14 +51,10 @@ def _parse_mdlv3000_to_container(molblock: str):
     MDLV3000Reader = jpype.JClass(  # noqa: N806
         "org.openscience.cdk.io.MDLV3000Reader"
     )
-    SilentChemObjectBuilder = jpype.JClass(  # noqa: N806
-        "org.openscience.cdk.silent.SilentChemObjectBuilder"
-    )
     AtomContainer = jpype.JClass(  # noqa: N806
         "org.openscience.cdk.silent.AtomContainer"
     )
 
-    builder = SilentChemObjectBuilder.getInstance()
     reader = MDLV3000Reader(jpype.java.io.StringReader(molblock))
     try:
         container = AtomContainer()
@@ -105,6 +101,11 @@ async def render_svgs_from_mdlv3000(sub: _SubstanceLike) -> BackfilledSvgs:
         new_svg_cdx = sub.svg_cdx or render_substance_svg(holder)
         return new_svg, new_svg_cdx
 
-    new_svg, new_svg_cdx = await run_in_jvm_thread(_do_render)
+    try:
+        new_svg, new_svg_cdx = await run_in_jvm_thread(_do_render)
+    except Exception as exc:  # noqa: BLE001 — contract: never raise
+        logger.warning("SVG backfill failed for substance: %s", exc)
+        return BackfilledSvgs(svg=sub.svg, svg_cdx=sub.svg_cdx, changed=False)
+
     changed = new_svg != sub.svg or new_svg_cdx != sub.svg_cdx
     return BackfilledSvgs(svg=new_svg, svg_cdx=new_svg_cdx, changed=changed)

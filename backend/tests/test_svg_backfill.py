@@ -56,3 +56,14 @@ async def test_backfill_no_molblock_returns_unchanged():
     assert result.changed is False
     assert result.svg == ""
     assert result.svg_cdx == ""
+
+
+@pytest.mark.asyncio
+async def test_backfill_malformed_molblock_returns_originals(started_app):
+    """Parse failure must return the original values with changed=False —
+    the 'never raises' contract demands graceful degradation."""
+    sub = _Sub(svg="", svg_cdx="", mdlv3000="NOT A VALID MOLBLOCK")
+    result = await render_svgs_from_mdlv3000(sub)
+    assert result.changed is False
+    assert result.svg == ""
+    assert result.svg_cdx == ""
