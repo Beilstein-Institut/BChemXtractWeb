@@ -29,6 +29,12 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { CopyButton } from "@/components/internal/CopyButton";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
@@ -87,6 +93,18 @@ export function StructureSheet({
     setZoom(1);
     setUseCdxCoords(false);
   }, [substance]);
+
+  // Clamp selection to whichever layout is available. Runs after the reset
+  // effect above: if the new substance has no CDK layout (svg), flip to
+  // ChemDraw; likewise flip back to CDK if ChemDraw is missing but CDK exists.
+  useEffect(() => {
+    if (!substance) return;
+    if (useCdxCoords && !substance.svg_cdx && substance.svg) {
+      setUseCdxCoords(false);
+    } else if (!useCdxCoords && !substance.svg && substance.svg_cdx) {
+      setUseCdxCoords(true);
+    }
+  }, [substance, useCdxCoords]);
 
   function zoomIn() {
     setZoom((z) => Math.min(z + 0.25, 5));
@@ -149,7 +167,6 @@ export function StructureSheet({
   // Render SVG via a Blob URL — never set innerHTML (T-06-09)
   const activeSvg = useCdxCoords && substance?.svg_cdx ? substance.svg_cdx : substance?.svg;
   const svgSrc = useSvgObjectUrl(activeSvg);
-  const hasBothSvgs = Boolean(substance?.svg && substance?.svg_cdx);
 
   // WR-05: guard against "1 of 0" when totalSubstances is momentarily 0
   // during a page transition (new page substances array is briefly empty).
@@ -237,57 +254,92 @@ export function StructureSheet({
                 </div>
               )}
 
-              {/* Controls — bottom of image area */}
-              {svgSrc && (
-                <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-                  {/* Layout toggle — only shown when both CDK and ChemDraw SVGs exist */}
-                  {hasBothSvgs ? (
-                    <div className="flex items-center gap-1 bg-card/90 backdrop-blur-sm rounded-full px-2 py-1 ring-1 ring-foreground/10">
-                      <button
-                        className={`text-micro px-2 py-0.5 rounded-full transition-colors ${!useCdxCoords ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
-                        onClick={() => setUseCdxCoords(false)}
-                      >
-                        CDK
-                      </button>
-                      <button
-                        className={`text-micro px-2 py-0.5 rounded-full transition-colors ${useCdxCoords ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
-                        onClick={() => setUseCdxCoords(true)}
-                      >
-                        ChemDraw
-                      </button>
-                    </div>
-                  ) : (
-                    <div />
-                  )}
-
-                  {/* Zoom controls */}
+              {/* Layout toggle — always visible so users see disabled
+                  states and tooltips explaining when a layout is missing. */}
+              <div className="absolute bottom-3 left-3">
+                <TooltipProvider>
                   <div className="flex items-center gap-1 bg-card/90 backdrop-blur-sm rounded-full px-2 py-1 ring-1 ring-foreground/10">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Zoom out"
-                      onClick={zoomOut}
-                      disabled={zoom <= 0.25}
-                    >
-                      <ZoomOutIcon className="size-4" />
-                    </Button>
-                    <button
-                      className="text-micro text-muted-foreground tabular-nums min-w-[40px] text-center hover:text-foreground transition-colors"
-                      onClick={zoomReset}
-                      aria-label="Reset zoom"
-                    >
-                      {Math.round(zoom * 100)}%
-                    </button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Zoom in"
-                      onClick={zoomIn}
-                      disabled={zoom >= 5}
-                    >
-                      <ZoomInIcon className="size-4" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <button
+                            type="button"
+                            onClick={() => substance?.svg && setUseCdxCoords(false)}
+                            disabled={!substance?.svg}
+                            aria-pressed={!useCdxCoords}
+                            className={`text-micro px-2 py-0.5 rounded-full transition-colors ${
+                              !useCdxCoords && substance?.svg
+                                ? "bg-primary text-white"
+                                : "text-muted-foreground hover:text-foreground"
+                            } disabled:opacity-50 disabled:hover:text-muted-foreground disabled:cursor-not-allowed`}
+                          >
+                            CDK
+                          </button>
+                        }
+                      />
+                      <TooltipContent className="max-w-[280px]">
+                        {substance?.svg
+                          ? "Canonical 2D layout regenerated by the Chemistry Development Kit. Often cleaner for complex molecules \u2014 no crossing bonds, consistent spacing."
+                          : "CDK layout unavailable \u2014 the coordinate generator could not lay out this structure."}
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <button
+                            type="button"
+                            onClick={() => substance?.svg_cdx && setUseCdxCoords(true)}
+                            disabled={!substance?.svg_cdx}
+                            aria-pressed={useCdxCoords}
+                            className={`text-micro px-2 py-0.5 rounded-full transition-colors ${
+                              useCdxCoords && substance?.svg_cdx
+                                ? "bg-primary text-white"
+                                : "text-muted-foreground hover:text-foreground"
+                            } disabled:opacity-50 disabled:hover:text-muted-foreground disabled:cursor-not-allowed`}
+                          >
+                            ChemDraw
+                          </button>
+                        }
+                      />
+                      <TooltipContent className="max-w-[280px]">
+                        {substance?.svg_cdx
+                          ? "Original 2D coordinates from the uploaded ChemDraw file. Matches what you drew."
+                          : "Original coordinates unavailable for this structure."}
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
+                </TooltipProvider>
+              </div>
+
+              {/* Zoom controls — only meaningful when we have something to zoom. */}
+              {svgSrc && (
+                <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-card/90 backdrop-blur-sm rounded-full px-2 py-1 ring-1 ring-foreground/10">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Zoom out"
+                    onClick={zoomOut}
+                    disabled={zoom <= 0.25}
+                  >
+                    <ZoomOutIcon className="size-4" />
+                  </Button>
+                  <button
+                    className="text-micro text-muted-foreground tabular-nums min-w-[40px] text-center hover:text-foreground transition-colors"
+                    onClick={zoomReset}
+                    aria-label="Reset zoom"
+                  >
+                    {Math.round(zoom * 100)}%
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Zoom in"
+                    onClick={zoomIn}
+                    disabled={zoom >= 5}
+                  >
+                    <ZoomInIcon className="size-4" />
+                  </Button>
                 </div>
               )}
             </div>

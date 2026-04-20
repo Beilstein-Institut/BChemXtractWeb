@@ -109,6 +109,48 @@ vi.mock("@base-ui/react/button", () => {
   };
 });
 
+// Mock @base-ui/react/tooltip to avoid portal/positioning complexity in jsdom.
+vi.mock("@base-ui/react/tooltip", () => {
+  const React = require("react");
+  return {
+    Tooltip: {
+      Provider: ({ children }: { children: React.ReactNode }) =>
+        React.createElement(React.Fragment, null, children),
+      Root: ({ children }: { children: React.ReactNode }) =>
+        React.createElement(React.Fragment, null, children),
+      Trigger: ({
+        children,
+        render: renderProp,
+        ...rest
+      }: {
+        children?: React.ReactNode;
+        render?: React.ReactElement;
+        [key: string]: unknown;
+      }) => {
+        if (renderProp) {
+          // Preserve the render element's own children when TooltipTrigger
+          // has no children of its own (e.g. self-closing usage).
+          return children === undefined
+            ? React.cloneElement(renderProp, rest)
+            : React.cloneElement(renderProp, rest, children);
+        }
+        return React.createElement(React.Fragment, null, children);
+      },
+      Portal: ({ children }: { children: React.ReactNode }) =>
+        React.createElement(React.Fragment, null, children),
+      Positioner: ({ children }: { children: React.ReactNode }) =>
+        React.createElement(React.Fragment, null, children),
+      Popup: ({ children }: { children: React.ReactNode }) =>
+        React.createElement(
+          "div",
+          { "data-testid": "tooltip-content" },
+          children
+        ),
+      Arrow: () => null,
+    },
+  };
+});
+
 // Mock sonner
 vi.mock("sonner", () => ({
   toast: {
@@ -256,5 +298,70 @@ describe("StructureSheet component", () => {
       />
     );
     expect(screen.queryByText("1 of 10")).not.toBeInTheDocument();
+  });
+
+  it("shows both CDK and ChemDraw buttons even when svg_cdx is empty", () => {
+    render(
+      <StructureSheet
+        open={true}
+        onOpenChange={vi.fn()}
+        substance={{ ...mockSubstance, svg: "<svg>cdk</svg>", svg_cdx: "" }}
+        substanceIndex={0}
+        totalSubstances={1}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /^CDK$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^ChemDraw$/i })).toBeInTheDocument();
+  });
+
+  it("disables the ChemDraw button when svg_cdx is empty", () => {
+    render(
+      <StructureSheet
+        open={true}
+        onOpenChange={vi.fn()}
+        substance={{ ...mockSubstance, svg: "<svg>cdk</svg>", svg_cdx: "" }}
+        substanceIndex={0}
+        totalSubstances={1}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /^ChemDraw$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^CDK$/i })).toBeEnabled();
+  });
+
+  it("disables the CDK button when svg is empty", () => {
+    render(
+      <StructureSheet
+        open={true}
+        onOpenChange={vi.fn()}
+        substance={{ ...mockSubstance, svg: "", svg_cdx: "<svg>cdx</svg>" }}
+        substanceIndex={0}
+        totalSubstances={1}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /^CDK$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^ChemDraw$/i })).toBeEnabled();
+  });
+
+  it("auto-selects ChemDraw when svg (CDK) is empty so the image area is not blank", () => {
+    render(
+      <StructureSheet
+        open={true}
+        onOpenChange={vi.fn()}
+        substance={{ ...mockSubstance, svg: "", svg_cdx: "<svg>cdx</svg>" }}
+        substanceIndex={0}
+        totalSubstances={1}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+      />,
+    );
+    const img = document.querySelector("img[alt*='structure']") as HTMLImageElement;
+    expect(img).not.toBeNull();
+    expect(img.src).toMatch(/^blob:/);
   });
 });
