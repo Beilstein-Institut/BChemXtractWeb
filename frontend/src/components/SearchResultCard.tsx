@@ -10,8 +10,8 @@
  * internals are untouched).
  *
  * SVG rendering: both match_svg and the fallback substance.svg are rendered
- * via StructureCard's existing `data:image/svg+xml;charset=utf-8,{encodeURIComponent(svg)}`
- * <img src> pattern — never dangerouslySetInnerHTML (T-04-04, T-09-07-01 XSS mitigation).
+ * via StructureCard's existing Blob-URL `<img src>` pattern (see
+ * useSvgObjectUrl) — never dangerouslySetInnerHTML (T-04-04, T-09-07-01).
  */
 import { BoxesIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

@@ -226,7 +226,7 @@ describe("StructureSheet component", () => {
     expect(onNext).toHaveBeenCalledTimes(1);
   });
 
-  it("renders SVG as data URI in an img element", () => {
+  it("renders SVG via a Blob URL in an img element", () => {
     render(
       <StructureSheet
         open={true}
@@ -240,7 +240,7 @@ describe("StructureSheet component", () => {
     );
     const imgs = document.querySelectorAll("img");
     expect(imgs.length).toBeGreaterThan(0);
-    expect(imgs[0].src).toMatch(/^data:image\/svg\+xml;charset=utf-8,/);
+    expect(imgs[0].src).toMatch(/^blob:/);
   });
 
   it("does not render content when open is false", () => {

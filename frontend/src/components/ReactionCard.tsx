@@ -5,9 +5,9 @@
  * buttons copies the underlying value and calls `e.stopPropagation()` so
  * the card-click does not fire.
  *
- * SVG is rendered as a URL-encoded data URI in `<img src>` — never as raw
- * innerHTML — to prevent XSS injection from backend-supplied SVG (T-10-05
- * mirrors Phase 4 T-04-04).
+ * SVG is rendered via a Blob URL in `<img src>` — never as raw innerHTML —
+ * to prevent XSS injection from backend-supplied SVG (T-10-05 mirrors
+ * Phase 4 T-04-04).
  */
 import { ArrowRightLeftIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { CopyButton } from "@/components/internal/CopyButton";
+import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { cn } from "@/lib/utils";
 import type { ReactionResponse } from "@/types/chemistry";
 
@@ -44,10 +45,8 @@ export function ReactionCard({
   onOpen,
   isActive = false,
 }: ReactionCardProps) {
-  // T-10-05: SVG via encodeURIComponent data URI only — never innerHTML.
-  const svgSrc = reaction.svg
-    ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(reaction.svg)}`
-    : null;
+  // T-10-05: SVG rendered via a Blob URL — never innerHTML.
+  const svgSrc = useSvgObjectUrl(reaction.svg);
 
   // D-10 component summary chip — "2 reactants · 1 products" with optional
   // "· N agent(s)" segment when agents.length > 0.

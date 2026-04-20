@@ -9,7 +9,7 @@
  * a different card while the sheet is open.
  *
  * STRIDE mitigations applied via child components:
- * - T-06-09: SVG data URI in StructureSheet and StructureCard (encodeURIComponent)
+ * - T-06-09: SVG rendered via Blob URL (useSvgObjectUrl) in StructureSheet and StructureCard
  * - T-06-10: Keyboard listener scoped to open state in StructureSheet
  * - T-06-11: onPrev/onNext clamped with Math.max/Math.min to [0, substances.length-1]
  */

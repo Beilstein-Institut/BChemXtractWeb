@@ -5,8 +5,9 @@
  * Clicking the card body opens a StructureDetail dialog. Clicking the copy
  * button copies the SMILES string without opening the dialog (stopPropagation).
  *
- * SVG is rendered as a URL-encoded data URI in an <img> src — never as raw
- * innerHTML — to prevent XSS injection from backend-supplied SVG (T-04-04).
+ * SVG is rendered via a Blob URL in an <img> src — never as raw innerHTML —
+ * to prevent XSS injection from backend-supplied SVG (T-04-04). See
+ * useSvgObjectUrl for why Blob URLs replaced data URIs here.
  */
 import { useState } from "react";
 import { FlaskConicalIcon } from "lucide-react";
@@ -22,6 +23,7 @@ import {
 import { CopyButton } from "@/components/internal/CopyButton";
 import { ExportMenu } from "@/components/ExportMenu";
 import { StructureDetail } from "@/components/StructureDetail";
+import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { postExport } from "@/lib/apiClient";
 import { safeDownloadSlug } from "@/lib/safeStrings";
 import { cn } from "@/lib/utils";
@@ -64,11 +66,7 @@ export function StructureCard({
 }: StructureCardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // URL-encode the SVG so it can be safely used as an img src attribute value.
-  // This is the only approved rendering method per UI-SPEC.md (T-04-04).
-  const svgSrc = substance.svg
-    ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(substance.svg)}`
-    : null;
+  const svgSrc = useSvgObjectUrl(substance.svg);
 
   async function handleExport(format: ExportFormat): Promise<void> {
     // IN-02: guard against sending substance_ids:[0] when id is falsy (Pydantic

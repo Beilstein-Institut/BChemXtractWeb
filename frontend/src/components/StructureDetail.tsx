@@ -3,7 +3,8 @@
  * for an extracted chemical substance.
  *
  * Rendered inside a Dialog controlled by StructureCard. SVG is rendered via
- * URL-encoded data URI (T-04-04 threat mitigation — never as raw innerHTML).
+ * a Blob URL in an <img> src (T-04-04 threat mitigation — never as raw
+ * innerHTML).
  */
 import { FlaskConicalIcon } from "lucide-react";
 import {
@@ -14,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CopyButton } from "@/components/internal/CopyButton";
+import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import type { SubstanceResponse } from "@/types/chemistry";
 
 export interface StructureDetailProps {
@@ -38,15 +40,11 @@ function MetadataRow({ label, value }: { label: string; value: string }) {
  * StructureDetail — full metadata view for a substance, designed to be placed
  * inside a Dialog (DialogContent) opened by StructureCard.
  *
- * SVG is rendered exclusively as a URL-encoded data URI in an <img> src
- * attribute — never as raw innerHTML — to prevent XSS (T-04-04).
+ * SVG is rendered via a Blob URL in an <img> src attribute — never as raw
+ * innerHTML — to prevent XSS (T-04-04).
  */
 export function StructureDetail({ substance }: StructureDetailProps) {
-  // URL-encode the SVG so it can be safely used as an img src attribute value.
-  // This is the only approved rendering method per UI-SPEC.md (T-04-04).
-  const svgSrc = substance.svg
-    ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(substance.svg)}`
-    : null;
+  const svgSrc = useSvgObjectUrl(substance.svg);
 
   return (
     <DialogContent className="sm:max-w-2xl w-full" showCloseButton={true}>

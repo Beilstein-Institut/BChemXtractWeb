@@ -12,7 +12,7 @@
  * - 0          — reset zoom to 1.0
  * - Escape     — close (handled by shadcn Sheet primitive default)
  *
- * SVG rendered as data URI in `<img src>` (T-10-05) — never innerHTML.
+ * SVG rendered via a Blob URL in `<img src>` (T-10-05) — never innerHTML.
  */
 import { useEffect, useState } from "react";
 import {
@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { CopyButton } from "@/components/internal/CopyButton";
+import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import type {
   ReactionComponentResponse,
   ReactionResponse,
@@ -181,12 +182,11 @@ export function ReactionSheet({
     setZoom(1);
   }, [reactionIndex]);
 
-  if (!reaction) return null;
+  // T-10-05: SVG rendered via a Blob URL — never innerHTML. Hook must be
+  // called before the early return so its order is stable across renders.
+  const svgSrc = useSvgObjectUrl(reaction?.svg);
 
-  // T-10-05: SVG via encodeURIComponent data URI only — never innerHTML.
-  const svgSrc = reaction.svg
-    ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(reaction.svg)}`
-    : null;
+  if (!reaction) return null;
 
   const isPrevDisabled = reactionIndex <= 0;
   const isNextDisabled = reactionIndex >= totalCount - 1;

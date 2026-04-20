@@ -223,7 +223,7 @@ describe("StructureTable", () => {
     expect(onOpen).toHaveBeenCalledWith(1);
   });
 
-  it("renders SVG as data URI (T-04-04, T-06-06 mitigation)", () => {
+  it("renders SVG via a Blob URL (T-04-04, T-06-06 mitigation)", () => {
     const substances = [makeSubstance(1)];
 
     const { container } = render(
@@ -239,7 +239,7 @@ describe("StructureTable", () => {
 
     const img = container.querySelector("img");
     expect(img).not.toBeNull();
-    expect(img!.src).toMatch(/^data:image\/svg\+xml;charset=utf-8,/);
+    expect(img!.src).toMatch(/^blob:/);
   });
 
   it("renders FlaskConicalIcon fallback when svg is empty string", () => {

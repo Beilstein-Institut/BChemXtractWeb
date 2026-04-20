@@ -5,7 +5,7 @@
  * Plan 10-04 — full-width horizontal card with combined reaction SVG,
  * reaction SMILES, short RInChI key, and component chip. Click opens sheet.
  *
- * SVG rendered via `<img src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}">`
+ * SVG rendered via `<img src="blob:...">` produced by useSvgObjectUrl
  * (T-10-05 XSS mitigation) — never innerHTML.
  */
 import { render, screen, fireEvent } from "@testing-library/react";
@@ -151,7 +151,7 @@ describe("ReactionCard component", () => {
     expect(btn).toHaveAttribute("tabIndex", "0");
   });
 
-  it("renders SVG via encodeURIComponent data URI (T-10-05)", () => {
+  it("renders SVG via a Blob URL (T-10-05)", () => {
     render(
       <ReactionCard
         reaction={mkReaction()}
@@ -160,8 +160,7 @@ describe("ReactionCard component", () => {
       />,
     );
     const img = screen.getByRole("img") as HTMLImageElement;
-    expect(img.src).toMatch(/^data:image\/svg\+xml;charset=utf-8,/);
-    expect(img.src).toContain(encodeURIComponent("<svg"));
+    expect(img.src).toMatch(/^blob:/);
   });
 
   it("renders 'Depiction unavailable' fallback when svg is empty (D-13)", () => {

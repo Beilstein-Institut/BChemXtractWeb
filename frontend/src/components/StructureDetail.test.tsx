@@ -87,11 +87,11 @@ describe("StructureDetail component", () => {
     expect(title).toHaveTextContent("C6H6");
   });
 
-  it("renders an img with src starting with data:image/svg+xml;charset=utf-8,", () => {
+  it("renders an img with a Blob URL src", () => {
     render(<StructureDetail substance={mockSubstance} />);
     const img = document.querySelector("img") as HTMLImageElement;
     expect(img).not.toBeNull();
-    expect(img.src).toMatch(/^data:image\/svg\+xml;charset=utf-8,/);
+    expect(img.src).toMatch(/^blob:/);
   });
 
   it("renders SMILES label and value text", () => {

@@ -137,12 +137,12 @@ describe("StructureCard component", () => {
     expect(smilesSpan!.className).toMatch(/truncate/);
   });
 
-  it("renders an img element with src starting with data:image/svg+xml;charset=utf-8,", () => {
+  it("renders an img element with a Blob URL src", () => {
     render(<StructureCard substance={mockSubstance} />);
     // At least one img element (the card thumbnail)
     const imgs = document.querySelectorAll("img");
     expect(imgs.length).toBeGreaterThan(0);
-    expect(imgs[0].src).toMatch(/^data:image\/svg\+xml;charset=utf-8,/);
+    expect(imgs[0].src).toMatch(/^blob:/);
   });
 
   it("renders FlaskConical fallback (no img element) when svg prop is empty string", () => {

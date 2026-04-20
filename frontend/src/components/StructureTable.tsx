@@ -3,7 +3,7 @@
  *
  * Columns: [checkbox] [thumbnail] [formula] [SMILES] [InChI key] [copy]
  *
- * SVG thumbnails are rendered as URL-encoded data URIs (T-04-04 mitigation — same
+ * SVG thumbnails are rendered via Blob URLs (T-04-04 mitigation — same
  * pattern as StructureCard). Never set innerHTML with backend SVG strings.
  *
  * SMILES is truncated at 40 chars with a Tooltip showing the full string.
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CopyButton } from "@/components/internal/CopyButton";
+import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { cn } from "@/lib/utils";
 import type { SubstanceResponse } from "@/types/chemistry";
 
@@ -151,10 +152,7 @@ function StructureTableRow({
   onToggleSelect,
   onOpen,
 }: RowProps) {
-  // URL-encode SVG as data URI — never set innerHTML (T-04-04, T-06-06)
-  const svgSrc = substance.svg
-    ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(substance.svg)}`
-    : null;
+  const svgSrc = useSvgObjectUrl(substance.svg);
 
   const smilesTruncated = truncate(substance.smiles, SMILES_MAX);
   const inchiKeyTruncated = truncate(substance.inchi_key, INCHI_KEY_MAX);

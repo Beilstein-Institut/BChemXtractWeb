@@ -6,10 +6,10 @@
  * not the open state.
  *
  * Keyboard shortcuts (D-18): ArrowLeft/Right scoped to when sheet is open.
- * SVG rendered as data URI (T-04-04 — never as innerHTML).
+ * SVG rendered via Blob URL (T-04-04 — never as innerHTML).
  *
  * STRIDE mitigations:
- * - T-06-09: SVG rendered as encodeURIComponent(svg) data URI in <img src>, never innerHTML
+ * - T-06-09: SVG rendered via a Blob URL in <img src>, never innerHTML
  * - T-06-10: keydown listener added only when open===true, cleaned up on effect return
  */
 import { useEffect, useState } from "react";
@@ -31,6 +31,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/internal/CopyButton";
 import { ExportMenu } from "@/components/ExportMenu";
+import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { postExport } from "@/lib/apiClient";
 import { safeDownloadSlug } from "@/lib/safeStrings";
 import type { SubstanceResponse } from "@/types/chemistry";
@@ -145,11 +146,9 @@ export function StructureSheet({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, onPrev, onNext]);
 
-  // URL-encode SVG as data URI — never set innerHTML (T-06-09)
+  // Render SVG via a Blob URL — never set innerHTML (T-06-09)
   const activeSvg = useCdxCoords && substance?.svg_cdx ? substance.svg_cdx : substance?.svg;
-  const svgSrc = activeSvg
-    ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(activeSvg)}`
-    : null;
+  const svgSrc = useSvgObjectUrl(activeSvg);
   const hasBothSvgs = Boolean(substance?.svg && substance?.svg_cdx);
 
   // WR-05: guard against "1 of 0" when totalSubstances is momentarily 0
