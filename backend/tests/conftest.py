@@ -70,6 +70,32 @@ REACTION_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "reactions"
 TEST_DB_URL = "postgresql+psycopg://postgres:postgres@localhost:5432/bchemxtract_test"
 
 
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def _ensure_test_schema():
+    """Create the ORM schema on the integration test DB before any test runs.
+
+    The backend lifespan used to ``alembic upgrade head`` on startup — per
+    SEC M-08 that's now the operator's job. Tests therefore can't rely on
+    the lifespan to initialise the schema, and any test that hits
+    ``client`` without also depending on ``db_session`` would otherwise
+    see "relation does not exist" from a pristine test DB.
+
+    This autouse session fixture creates tables once per pytest run via
+    ``Base.metadata.create_all`` against the same test DB the app points
+    at. It is idempotent (``create_all`` ignores existing tables) and
+    drops the schema at the end so the next run starts clean.
+    """
+    # ``settings.database_url`` was set in module-init from DATABASE_URL;
+    # conftest defaults that to the bchemxtract_test DB above.
+    engine = create_async_engine(settings.database_url, poolclass=NullPool)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+    await engine.dispose()
+
+
 @pytest.fixture(scope="session")
 async def started_app():
     """App with lifespan events triggered (JVM started).
