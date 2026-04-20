@@ -79,7 +79,10 @@ function App() {
   useEffect(() => {
     if (state !== "success") return;
     refreshHistory();
-    if (result?.extraction_id) setActiveExtractionId(result.extraction_id);
+    if (result?.extraction_id) {
+      setActiveExtractionId(result.extraction_id);
+      if (window.location.pathname === "/") navigate("/browse");
+    }
   }, [state, result, refreshHistory]);
 
   // Batch completion refreshes the history list too.
