@@ -33,40 +33,33 @@ from app.services.jvm_bridge import initialize_jvm, shutdown_pool
 logger = logging.getLogger(__name__)
 
 
-async def _run_migrations() -> None:
-    """Run Alembic migrations at startup to ensure schema is current.
-
-    Alembic's env.py uses asyncio.run() internally, so we must run the
-    synchronous command.upgrade() in a thread to avoid nested event loops.
-    """
-    import asyncio
-    from functools import partial
-
-    from alembic import command
-    from alembic.config import Config
-
-    def _upgrade() -> None:
-        alembic_cfg = Config("alembic.ini")
-        alembic_cfg.set_main_option("sqlalchemy.url", settings.database_url)
-        command.upgrade(alembic_cfg, "head")
-
-    await asyncio.get_event_loop().run_in_executor(None, _upgrade)
-    logger.info("Alembic migrations applied (upgrade to head)")
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler.
 
-    Startup: Initialize JVM with BChemXtract JAR and create thread pool,
-             then run Alembic migrations to ensure DB schema is current.
-    Shutdown: Shut down thread pool (JVM shutdown is skipped -- irreversible).
+    Startup: initialise the JVM with the BChemXtract JAR and create the
+             thread pool.
+    Shutdown: shut down the thread pool (JVM shutdown is skipped — it is
+              irreversible per JPype).
+
+    Alembic migrations are NO LONGER run from the request-path process
+    (SEC M-08). Operators must apply migrations via the standalone
+    ``migrate`` service in docker-compose (``alembic upgrade head``)
+    before bringing the backend up. Rationale:
+
+      * Concurrent ``upgrade`` races are impossible when only one
+        container runs migrations.
+      * The application DB role no longer needs DDL privileges for the
+        lifetime of every request.
+      * A broken migration fails the one-shot migrate container with a
+        clear exit code rather than silently crashlooping the backend
+        until Docker gives up.
 
     Raises:
-        JVMStartupError: If JVM fails to start (fatal -- app exits, Docker restarts).
+        JVMStartupError: If JVM fails to start (fatal — app exits,
+            Docker restarts).
     """
     initialize_jvm(settings)
-    await _run_migrations()
     yield
     shutdown_pool()
 

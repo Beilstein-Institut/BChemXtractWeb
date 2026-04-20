@@ -35,6 +35,31 @@ services:
       retries: 5
       start_period: 30s
 
+  # SEC M-08: one-shot schema-migration container. Runs `alembic upgrade
+  # head` once and exits. The backend depends on it via
+  # `condition: service_completed_successfully` so a failed migration
+  # aborts deployment cleanly instead of crash-looping the backend.
+  #
+  # Data backfills (notably `canonical_smiles`) are NOT run here — they
+  # are JVM-backed and shipped as a standalone management command
+  # (`python -m scripts.backfill_canonical_smiles`). Operators invoke it
+  # manually after a first-time deploy.
+  migrate:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: alembic upgrade head
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-bchemxtract}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-bchemxtract}"
+      JAR_PATH: /app/jars
+      # API_KEYS is still required because app.config.Settings is imported
+      # during alembic env.py bootstrap; a missing value would error out.
+      API_KEYS: ${API_KEYS:?API_KEYS must be set}
+    restart: "no"
+
   backend:
     build:
       context: .
@@ -45,6 +70,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      # SEC M-08: backend refuses to start until migrations complete.
+      migrate:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-bchemxtract}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-bchemxtract}"
       JAR_PATH: /app/jars

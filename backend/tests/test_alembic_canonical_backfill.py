@@ -1,21 +1,20 @@
-"""D-05: Alembic migration + JVM-backed backfill.
+"""D-05 + SEC M-09: alembic schema + standalone canonical-smiles backfill.
 
-These tests verify revision ``c3d4e5f6a7b8`` end-to-end:
+After splitting schema migration from data backfill the two concerns are
+tested independently:
 
-  1. ``upgrade()`` adds the column + indexes and populates canonical_smiles
-     for rows with non-empty ``smiles`` via CDK.
-  2. Running ``upgrade()`` twice is a no-op (idempotent — alembic revision
-     table tracks completion; ``WHERE canonical_smiles IS NULL`` predicate
-     skips already-processed rows).
-  3. Rows whose ``smiles`` can't be parsed by CDK stay literal SQL NULL
-     (not empty string) per threat model T-09-02-07.
+  * ``test_upgrade_adds_schema_only``: alembic ``upgrade head`` adds the
+    column + indexes but does NOT populate canonical_smiles.
+  * ``test_backfill_*``: the standalone backfill command populates
+    canonical_smiles, is idempotent, and leaves unparsable SMILES as
+    literal NULL.
 
 Implementation note: alembic's async env.py calls ``asyncio.run()``
 internally, which deadlocks when invoked from inside a pytest-asyncio
-event loop — even from ``run_in_executor``. The cleanest portable fix
-is to invoke ``alembic upgrade`` via a subprocess that gets
-``DATABASE_URL`` from the environment (pydantic-settings loads it). This
-also exercises the exact CLI path production deployments use.
+event loop — even from ``run_in_executor``. The cleanest portable fix is
+to invoke ``alembic upgrade`` via a subprocess that gets
+``DATABASE_URL`` from the environment. This also exercises the exact
+CLI path production deployments use.
 
 A dedicated PostgreSQL database ``bchemxtract_alembic_test`` is dropped
 and recreated fresh so migrations always start from zero state.
@@ -31,23 +30,24 @@ import psycopg
 import pytest
 from sqlalchemy import create_engine, text
 
-# Dedicated test DB — isolated from bchemxtract_test which is created via
-# Base.metadata.create_all and already contains canonical_smiles.
+from app.services.canonicalize_backfill import backfill_canonical_smiles
+
+# Dedicated test DB — isolated from bchemxtract_test which is created
+# via Base.metadata.create_all and already contains canonical_smiles.
 ALEMBIC_TEST_DB = "bchemxtract_alembic_test"
 ALEMBIC_DB_URL = (
     f"postgresql+psycopg://postgres:postgres@localhost:5432/{ALEMBIC_TEST_DB}"
 )
+# Sync engine URL. psycopg3 supports sync + async under the same driver
+# suffix — no need to strip ``+psycopg`` (psycopg2 is not installed and
+# stripping would fall back to it).
+ALEMBIC_SYNC_URL = ALEMBIC_DB_URL
 
 _BACKEND_DIR = Path(__file__).parent.parent
 
 
 def _reset_alembic_db() -> None:
-    """Drop and recreate the isolated alembic-backfill test database.
-
-    Uses the postgres-admin connection because you can't drop a DB you're
-    connected to. Runs with autocommit so DROP/CREATE aren't wrapped in a
-    transaction.
-    """
+    """Drop and recreate the isolated alembic-backfill test database."""
     with psycopg.connect(
         dbname="postgres",
         user="postgres",
@@ -66,14 +66,7 @@ def _reset_alembic_db() -> None:
 
 
 def _run_alembic(*args: str) -> None:
-    """Invoke ``alembic`` CLI against the isolated test DB.
-
-    Sets ``DATABASE_URL`` in the subprocess env so ``app.config.Settings``
-    picks it up and env.py routes to the isolated DB.
-
-    Runs with ``check=True`` so a migration failure surfaces as a pytest
-    error with the full subprocess stderr in the traceback.
-    """
+    """Invoke ``alembic`` CLI against the isolated test DB."""
     result = subprocess.run(
         ["alembic", *args],
         cwd=str(_BACKEND_DIR),
@@ -92,27 +85,23 @@ def _run_alembic(*args: str) -> None:
 
 @pytest.fixture
 def fresh_alembic_db() -> str:
-    """Drop + recreate the isolated alembic test DB for this test function.
-
-    Yields the connection URL so the test can seed rows and assert state.
-    """
+    """Drop + recreate the isolated alembic test DB for this test."""
     _reset_alembic_db()
     return ALEMBIC_DB_URL
 
 
-def test_backfill_populates_canonical_smiles(fresh_alembic_db: str) -> None:
-    """Upgrading with seeded Kekulé smiles populates canonical_smiles.
+# ---------------------------------------------------------------------------
+# Schema migration (pure DDL, no JVM)
+# ---------------------------------------------------------------------------
 
-    Flow mirrors a real deployment migrating from the prior revision
-    (``850c00d963f1``) up to ``c3d4e5f6a7b8``: seed the row first, then
-    run the migration, then confirm the backfill fired.
-    """
-    # Step 1: upgrade to the revision BEFORE ours so the table exists
-    # without canonical_smiles.
+
+def test_upgrade_adds_schema_only(fresh_alembic_db: str) -> None:
+    """alembic ``upgrade head`` must add canonical_smiles + indexes and
+    NOT populate data. Seeded rows keep canonical_smiles IS NULL until
+    the backfill command runs explicitly."""
+    # Seed at the prior revision — no canonical_smiles column yet.
     _run_alembic("upgrade", "850c00d963f1")
-
-    # Step 2: seed a row with Kekulé benzene via raw SQL.
-    sync_engine = create_engine(fresh_alembic_db)
+    sync_engine = create_engine(ALEMBIC_SYNC_URL)
     with sync_engine.begin() as conn:
         conn.execute(
             text(
@@ -125,57 +114,105 @@ def test_backfill_populates_canonical_smiles(fresh_alembic_db: str) -> None:
         )
     sync_engine.dispose()
 
-    # Step 3: now run the full upgrade → c3d4e5f6a7b8 (includes backfill).
+    # Upgrade to the canonical_smiles revision — DDL only.
     _run_alembic("upgrade", "head")
 
-    # Step 4: assert the backfill populated canonical_smiles and aromaticity
-    # perception converted Kekulé → aromatic.
-    sync_engine = create_engine(fresh_alembic_db)
+    sync_engine = create_engine(ALEMBIC_SYNC_URL)
     with sync_engine.begin() as conn:
+        # Column exists.
         row = conn.execute(
             text(
-                "SELECT canonical_smiles FROM substances "
-                "WHERE inchi_key = :k"
+                "SELECT canonical_smiles FROM substances WHERE inchi_key = :k"
+            ),
+            {"k": "TESTBENZENEAAA-UHFFFAOYSA-N"},
+        ).first()
+        # Index exists.
+        indexes = conn.execute(
+            text(
+                "SELECT indexname FROM pg_indexes WHERE tablename = 'substances'"
+            )
+        ).fetchall()
+    sync_engine.dispose()
+
+    assert row is not None
+    assert row[0] is None, (
+        "schema-only migration should not populate canonical_smiles; "
+        f"got {row[0]!r}. Backfill must run as a separate CLI step."
+    )
+    index_names = {r[0] for r in indexes}
+    assert "ix_substances_canonical_smiles" in index_names
+    assert "ix_substances_molecular_formula" in index_names
+
+
+# ---------------------------------------------------------------------------
+# Standalone backfill (JVM-backed)
+# ---------------------------------------------------------------------------
+
+
+def test_backfill_populates_canonical_smiles(fresh_alembic_db: str) -> None:
+    """After alembic upgrade + backfill, Kekulé input becomes aromatic."""
+    _run_alembic("upgrade", "head")
+
+    sync_engine = create_engine(ALEMBIC_SYNC_URL, isolation_level="AUTOCOMMIT")
+    with sync_engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO substances "
+                "(inchi_key, smiles, inchi, extended_smiles, "
+                "molecular_formula, svg, svg_cdx, mdlv3000) VALUES "
+                "(:k, :s, '', '', 'C6H6', '', '', '')"
+            ),
+            {"k": "TESTBENZENEAAA-UHFFFAOYSA-N", "s": "C1=CC=CC=C1"},
+        )
+
+    with sync_engine.connect() as conn:
+        result = backfill_canonical_smiles(conn, batch_size=100)
+
+    assert result.updated == 1
+    assert result.unparseable == 0
+
+    with sync_engine.connect() as conn:
+        row = conn.execute(
+            text(
+                "SELECT canonical_smiles FROM substances WHERE inchi_key = :k"
             ),
             {"k": "TESTBENZENEAAA-UHFFFAOYSA-N"},
         ).first()
     sync_engine.dispose()
 
     assert row is not None
-    assert row[0] is not None and row[0] != "", (
-        f"expected canonical_smiles populated, got {row[0]!r}"
-    )
-    # Aromaticity perception in canonicalize.py converts Kekulé → aromatic.
     assert row[0] == "c1ccccc1", (
         f"expected canonical benzene 'c1ccccc1', got {row[0]!r}"
     )
 
 
 def test_backfill_is_idempotent(fresh_alembic_db: str) -> None:
-    """Running upgrade twice is safe — second run is a no-op on backfill.
+    """Re-running the backfill is a safe no-op."""
+    _run_alembic("upgrade", "head")
+    sync_engine = create_engine(ALEMBIC_SYNC_URL, isolation_level="AUTOCOMMIT")
+    with sync_engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO substances "
+                "(inchi_key, smiles, inchi, extended_smiles, "
+                "molecular_formula, svg, svg_cdx, mdlv3000) VALUES "
+                "(:k, :s, '', '', 'C6H6', '', '', '')"
+            ),
+            {"k": "TESTBENZENEAAA-UHFFFAOYSA-N", "s": "C1=CC=CC=C1"},
+        )
+    with sync_engine.connect() as conn:
+        first = backfill_canonical_smiles(conn, batch_size=100)
+        second = backfill_canonical_smiles(conn, batch_size=100)
+    sync_engine.dispose()
 
-    The alembic revision table already tracks completion, and the
-    ``WHERE canonical_smiles IS NULL`` predicate means the backfill loop
-    finishes immediately on the second pass. Both invocations must
-    return exit code 0.
-    """
-    _run_alembic("upgrade", "head")
-    # Second call must not raise.
-    _run_alembic("upgrade", "head")
+    assert first.updated == 1
+    assert second.updated == 0, "re-run must be a no-op"
 
 
 def test_backfill_leaves_unparsable_as_null(fresh_alembic_db: str) -> None:
-    """A row with garbage SMILES keeps canonical_smiles IS NULL after backfill.
-
-    TIGHTENED per fix #9: must be literal SQL NULL, not empty string.
-    The migration's ``if canon:`` guard must never fire the UPDATE with
-    an empty result.
-    """
-    # Upgrade to revision before ours (no canonical_smiles column yet).
-    _run_alembic("upgrade", "850c00d963f1")
-
-    # Seed a row with unparsable SMILES.
-    sync_engine = create_engine(fresh_alembic_db)
+    """Unparsable SMILES rows must keep canonical_smiles IS NULL."""
+    _run_alembic("upgrade", "head")
+    sync_engine = create_engine(ALEMBIC_SYNC_URL, isolation_level="AUTOCOMMIT")
     with sync_engine.begin() as conn:
         conn.execute(
             text(
@@ -189,26 +226,18 @@ def test_backfill_leaves_unparsable_as_null(fresh_alembic_db: str) -> None:
                 "s": "this-is-not-a-smiles-XYZ!!",
             },
         )
-    sync_engine.dispose()
+    with sync_engine.connect() as conn:
+        result = backfill_canonical_smiles(conn, batch_size=100)
 
-    # Run the full migration → c3d4e5f6a7b8 (includes backfill).
-    _run_alembic("upgrade", "head")
-
-    # Verify the unparsable row kept NULL (not empty string).
-    sync_engine = create_engine(fresh_alembic_db)
-    with sync_engine.begin() as conn:
         row = conn.execute(
             text(
-                "SELECT canonical_smiles FROM substances "
-                "WHERE inchi_key = :k"
+                "SELECT canonical_smiles FROM substances WHERE inchi_key = :k"
             ),
             {"k": "BADSMILESKEYAA-UHFFFAOYSA-N"},
         ).first()
     sync_engine.dispose()
 
+    assert result.updated == 0
+    assert result.unparseable == 1
     assert row is not None
-    # TIGHTENED assertion per fix #9: literal SQL NULL, not empty string.
-    assert row[0] is None, (
-        f"expected canonical_smiles IS NULL for unparsable SMILES, "
-        f"got {row[0]!r} (empty string would indicate the guard failed)"
-    )
+    assert row[0] is None
