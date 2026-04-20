@@ -67,6 +67,7 @@ def _extraction_to_response(e: Extraction) -> ExtractionResponse:
             extended_smiles=s.extended_smiles,
             molecular_formula=s.molecular_formula,
             svg=s.svg,
+            svg_cdx=s.svg_cdx,
             mdlv3000=s.mdlv3000,
         )
         for s in (e.substances or [])
