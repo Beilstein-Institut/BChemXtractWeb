@@ -163,6 +163,11 @@ DESIGN.md
 .planning/
 test-results/
 
+# Local-only workflow documents (GSD plans, Superpowers specs/plans).
+# These capture in-progress Claude-session reasoning and must never
+# reach the public remote — commit only user-facing docs.
+docs/superpowers/
+
 # Playwright MCP transient artefacts
 .playwright-mcp/
 nav-*.png
