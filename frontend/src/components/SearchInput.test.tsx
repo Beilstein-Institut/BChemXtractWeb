@@ -10,7 +10,7 @@
  * Mocks base-ui primitives used by shadcn wrappers to avoid portal/animation
  * complexity in jsdom (same pattern as BrowseToolbar.test.tsx).
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 // Stub postSearch — we're testing UI behavior, not network.
@@ -171,8 +171,15 @@ vi.mock("@base-ui/react/merge-props", () => ({
 // Import AFTER the mocks so the module graph picks them up.
 import { SearchInput } from "@/components/SearchInput";
 import { searchInputRef } from "@/lib/searchFocus";
+import { postSearch } from "@/lib/apiClient";
 
 describe("SearchInput", () => {
+  beforeEach(() => {
+    // Reset URL state — useSearch seeds itself from `?q=` which otherwise
+    // leaks the previous test's query into the next render.
+    window.history.replaceState(null, "", "/");
+  });
+
   it("renders placeholder", () => {
     render(<SearchInput />);
     expect(
@@ -231,5 +238,36 @@ describe("SearchInput", () => {
     )[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "C6H6" } });
     expect(screen.getAllByText("Formula").length).toBeGreaterThan(0);
+  });
+
+  it("does not render Submit search button when query is empty", () => {
+    render(<SearchInput />);
+    expect(
+      screen.queryByRole("button", { name: "Submit search" })
+    ).toBeNull();
+  });
+
+  it("renders Submit search button once query has content", () => {
+    render(<SearchInput />);
+    const input = screen.getAllByPlaceholderText(
+      "Search structures…"
+    )[0] as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "C" } });
+    expect(
+      screen.getAllByRole("button", { name: "Submit search" }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("clicking Submit search fires a search request", () => {
+    const mockPost = vi.mocked(postSearch);
+    render(<SearchInput />);
+    const input = screen.getAllByPlaceholderText(
+      "Search structures…"
+    )[0] as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "C6H6" } });
+    mockPost.mockClear();
+    const btn = screen.getAllByRole("button", { name: "Submit search" })[0];
+    fireEvent.click(btn);
+    expect(mockPost).toHaveBeenCalled();
   });
 });

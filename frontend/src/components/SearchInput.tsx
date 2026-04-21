@@ -188,7 +188,10 @@ export function SearchInput({ className }: { className?: string }) {
           onKeyDown={handleKeyDown}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          className="h-9 pl-8 pr-16 text-body"
+          className={cn(
+            "h-9 pl-8 text-body transition-[padding]",
+            hasContent ? "pr-[7.5rem]" : "pr-16",
+          )}
         />
         <span id={describedById} className="sr-only">
           Press slash to focus search from anywhere. Press Escape to clear.
@@ -231,6 +234,23 @@ export function SearchInput({ className }: { className?: string }) {
                 </button>
               </PopoverContent>
             </Popover>
+          )}
+          {hasContent && (
+            <Button
+              type="button"
+              size="xs"
+              onClick={() => submit()}
+              aria-label="Submit search"
+              className={cn(
+                "h-6 gap-1 px-2 rounded-full text-micro font-semibold",
+                "bg-[#0071e3] text-white hover:bg-[#0077ed]",
+                "dark:bg-[#0a84ff] dark:hover:bg-[#409cff]",
+                "shadow-[0_1px_2px_rgba(0,113,227,0.25)]",
+              )}
+            >
+              <SearchIcon className="size-3" />
+              <span>Search</span>
+            </Button>
           )}
           {renderTrailingAffordance({ isPending, hasContent, isHeader, showKbdHint, clear })}
         </div>
