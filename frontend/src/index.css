@@ -167,6 +167,55 @@ html {
   --breakpoint-lg: 834px;
   --breakpoint-xl: 1024px;
   --breakpoint-2xl: 1440px;
+
+  /* === Neomorphism base tokens (Phase 1) ================================
+   * Defined unconditionally here so @theme can reference them. Scoped
+   * redirects in html.neo-ui / html.neo-ui.dark / html.neo-ui.hc below
+   * are what actually swap shadcn's surfaces to neomorphic values.
+   * See DESIGN.md §2 and docs/superpowers/specs/2026-04-21-neomorphism
+   * -revamp-design.md §2.
+   * ==================================================================== */
+
+  /* Surface */
+  --neu-surface:        oklch(0.915 0.005 250);
+  --neu-surface-alt:    oklch(0.935 0.005 250);
+  --neu-hairline:       rgba(163, 177, 198, 0.18);
+
+  /* Shadow primitives */
+  --neu-shadow-dark:    rgba(163, 177, 198, 0.55);
+  --neu-shadow-light:   rgba(255, 255, 255, 0.90);
+
+  /* Composite shadow tokens */
+  --neu-shadow-raised:
+      6px  6px 12px var(--neu-shadow-dark),
+     -6px -6px 12px var(--neu-shadow-light);
+  --neu-shadow-raised-lg:
+     12px  12px 24px var(--neu-shadow-dark),
+    -12px -12px 24px var(--neu-shadow-light);
+  --neu-shadow-inset:
+    inset  4px  4px  8px var(--neu-shadow-dark),
+    inset -4px -4px  8px var(--neu-shadow-light);
+  --neu-shadow-inset-sm:
+    inset  2px  2px  4px var(--neu-shadow-dark),
+    inset -2px -2px  4px var(--neu-shadow-light);
+  --neu-shadow-pressed:
+    inset  3px  3px  6px var(--neu-shadow-dark),
+    inset -3px -3px  6px var(--neu-shadow-light);
+  --neu-shadow-floating:
+      6px  6px 12px var(--neu-shadow-dark),
+     -6px -6px 12px var(--neu-shadow-light),
+      0   20px 40px rgba(0, 0, 0, 0.08);
+
+  /* Tailwind v4 shadow utility registration
+   * Generates: shadow-neu, shadow-neu-lg, shadow-neu-inset,
+   * shadow-neu-inset-sm, shadow-neu-pressed, shadow-neu-float
+   */
+  --shadow-neu:          var(--neu-shadow-raised);
+  --shadow-neu-lg:       var(--neu-shadow-raised-lg);
+  --shadow-neu-inset:    var(--neu-shadow-inset);
+  --shadow-neu-inset-sm: var(--neu-shadow-inset-sm);
+  --shadow-neu-pressed:  var(--neu-shadow-pressed);
+  --shadow-neu-float:    var(--neu-shadow-floating);
 }
 
 @layer base {
