@@ -7,11 +7,11 @@
  */
 import { render, screen, fireEvent } from "@testing-library/react";
 import { vi, beforeEach } from "vitest";
+import * as React from "react";
 import type { SubstanceResponse } from "@/types/chemistry";
 
 // Mock @base-ui/react/dialog to avoid portal/animation complexity in jsdom.
 vi.mock("@base-ui/react/dialog", () => {
-  const React = require("react");
   return {
     Dialog: {
       Root: ({
@@ -93,7 +93,6 @@ vi.mock("@base-ui/react/dialog", () => {
 
 // Mock @base-ui/react/button to a simple <button> in tests
 vi.mock("@base-ui/react/button", () => {
-  const React = require("react");
   return {
     Button: React.forwardRef(
       (
@@ -111,7 +110,6 @@ vi.mock("@base-ui/react/button", () => {
 
 // Mock @base-ui/react/tooltip to avoid portal/positioning complexity in jsdom.
 vi.mock("@base-ui/react/tooltip", () => {
-  const React = require("react");
   return {
     Tooltip: {
       Provider: ({ children }: { children: React.ReactNode }) =>
