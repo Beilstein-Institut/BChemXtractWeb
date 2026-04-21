@@ -843,3 +843,54 @@ html {
     transition-duration: 0s !important;
   }
 }
+
+/* =========================================================================
+ * Neomorphism mode — activates when ThemeProvider emits .neo-ui on <html>.
+ *
+ * Everything inside html.neo-ui { ... } redirects the existing shadcn
+ * tokens (--card, --border, --radius, etc.) to neomorphic values. The
+ * token names that shadcn primitives consume stay identical; only the
+ * values change — so the entire /ui/ component inventory re-skins with
+ * zero JSX modification.
+ *
+ * Default (no .neo-ui class): the legacy Apple palette defined in
+ * :root above is used, byte-for-byte unchanged.
+ *
+ * See docs/superpowers/specs/2026-04-21-neomorphism-revamp-design.md §2.
+ * ========================================================================= */
+html.neo-ui {
+  --background:     var(--neu-surface);
+  --card:           var(--neu-surface);
+  --popover:        var(--neu-surface-alt);
+  --muted:          var(--neu-surface-alt);
+  --secondary:      var(--neu-surface-alt);
+  --border:         var(--neu-hairline);
+  --input:          var(--neu-hairline);
+  --radius:         0.875rem;    /* 14px — neo shadows need more curve */
+}
+
+/* Dark neomorphism — inverts the shadow palette so light/dark extrusion
+ * remains legible against a deep blue-gray base. */
+html.neo-ui.dark {
+  --neu-surface:      oklch(0.264 0.008 265);
+  --neu-surface-alt:  oklch(0.290 0.008 265);
+  --neu-shadow-dark:  rgba(0, 0, 0, 0.50);
+  --neu-shadow-light: rgba(255, 255, 255, 0.05);
+  --neu-hairline:     rgba(255, 255, 255, 0.06);
+}
+
+/* High-Contrast — flattens shadows and raises text contrast to 7:1.
+ * Stacks with .dark (html.neo-ui.dark.hc inherits dark surfaces then
+ * flattens shadows on top). */
+html.neo-ui.hc {
+  --neu-shadow-raised:    none;
+  --neu-shadow-raised-lg: none;
+  --neu-shadow-inset:     none;
+  --neu-shadow-inset-sm:  none;
+  --neu-shadow-pressed:   none;
+  --neu-shadow-floating:  0 4px 12px rgba(0, 0, 0, 0.18);
+  --border:               currentColor;
+  --neu-hairline:         color-mix(in oklch, var(--foreground) 40%, transparent);
+  /* Raised contrast for AAA text / AA UI in HC mode. */
+  --muted-foreground:     var(--foreground);
+}
