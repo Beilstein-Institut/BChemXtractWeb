@@ -83,6 +83,13 @@ logger = logging.getLogger(__name__)
 # inputs cannot drive backtracking. Regression covered by
 # ``tests/test_formula_regex_redos.py``.
 _INCHI_KEY_RE = re.compile(r"\A[A-Z]{14}-[A-Z]{10}-[A-Z]\Z")
+# Partial keys — either just the 14-char connectivity block, or
+# <14>-<10> (connectivity + stereo), mirroring PubChem's partial-match
+# behaviour. The full shape is a superset, so ``_INCHI_KEY_ANY_RE``
+# matches full keys too.
+_INCHI_KEY_ANY_RE = re.compile(
+    r"\A[A-Z]{14}(?:-[A-Z]{10}(?:-[A-Z])?)?\Z"
+)
 _FORMULA_RE = re.compile(r"\A(?:[A-Z][a-z]?\d{0,5}){1,60}\Z")
 
 # Polymer-SMILES deadlock ceiling. Same threshold Plan 02 applies inside
@@ -122,7 +129,7 @@ def detect_search_type(raw: str) -> str:
     stripped = raw.strip()
     if not stripped:
         raise ValueError("empty query")
-    if _INCHI_KEY_RE.match(stripped.upper()):
+    if _INCHI_KEY_ANY_RE.match(stripped.upper()):
         return "inchi_key"
     if _FORMULA_RE.match(stripped):
         return "formula"
@@ -197,22 +204,36 @@ def _base_substance_select(scope_extraction_id: int | None):
 async def _search_inchi_key(
     q: str, scope_eid: int | None, db: AsyncSession
 ) -> list[Substance]:
-    """SRCH-01: indexed exact InChI key match.
+    """SRCH-01: indexed exact / prefix InChI key match.
 
     The user-supplied key is stripped and uppercased before matching, so
     ``"  uhovqnzjysornb-uhffffaoysa-n  "`` collapses to the canonical
-    27-character form. Shape validation uses the anchored ``_INCHI_KEY_RE``;
-    malformed keys raise :class:`InvalidInchiKeyError` (422 / INVALID_INCHI_KEY
-    once Plan 05 maps it).
+    27-character form. Accepted shapes (PubChem-style partial matching):
+
+    * ``<14>-<10>-<1>`` — full key, matched exactly.
+    * ``<14>-<10>`` — returns every stored key sharing skeleton + stereo
+      (any protonation).
+    * ``<14>`` — returns every stored key sharing the skeleton (any
+      stereo / isotope / protonation).
+
+    Malformed input raises :class:`InvalidInchiKeyError` (422 /
+    INVALID_INCHI_KEY). The LIKE branch is safe: the regex restricts
+    the pattern to ``[A-Z]`` + hyphens, so no SQL wildcard characters
+    (``%``, ``_``) can enter the pattern.
     """
     normalized = q.strip().upper()
-    if not _INCHI_KEY_RE.match(normalized):
+    if not _INCHI_KEY_ANY_RE.match(normalized):
         raise InvalidInchiKeyError(
-            "InChI key must be 14 letters, a dash, 10 letters, a dash, 1 letter."
+            "InChI key must be 14 letters, optionally followed by "
+            "'-' + 10 letters, optionally followed by '-' + 1 letter."
         )
-    stmt = _base_substance_select(scope_eid).where(
-        Substance.inchi_key == normalized
-    )
+    base = _base_substance_select(scope_eid)
+    if _INCHI_KEY_RE.match(normalized):
+        stmt = base.where(Substance.inchi_key == normalized)
+    else:
+        stmt = base.where(
+            Substance.inchi_key.like(f"{normalized}-%")
+        )
     return list((await db.execute(stmt)).scalars().all())
 
 

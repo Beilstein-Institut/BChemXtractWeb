@@ -28,7 +28,9 @@ import { searchInputRef } from "@/lib/searchFocus";
 import type { SearchType } from "@/types/search";
 import { cn } from "@/lib/utils";
 
-const INCHI_KEY_RE = /^[A-Z]{14}-[A-Z]{10}-[A-Z]$/;
+// Accepts full <14>-<10>-<1> as well as PubChem-style partial prefixes:
+// just <14> (any stereo/isotope/protonation) or <14>-<10> (any protonation).
+const INCHI_KEY_RE = /^[A-Z]{14}(?:-[A-Z]{10}(?:-[A-Z])?)?$/;
 const FORMULA_RE = /^([A-Z][a-z]?\d*)+$/;
 
 const TYPE_LABEL: Record<Exclude<SearchType, "auto">, string> = {
@@ -249,7 +251,7 @@ export function SearchInput({ className }: { className?: string }) {
               )}
             >
               <SearchIcon className="size-3" />
-              <span>Search</span>
+              Search
             </Button>
           )}
           {renderTrailingAffordance({ isPending, hasContent, isHeader, showKbdHint, clear })}

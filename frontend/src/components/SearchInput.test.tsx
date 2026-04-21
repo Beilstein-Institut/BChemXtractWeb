@@ -258,6 +258,38 @@ describe("SearchInput", () => {
     ).toBeGreaterThan(0);
   });
 
+  it("detects a 14-char partial InChI key as type 'InChI key'", () => {
+    render(<SearchInput />);
+    const input = screen.getAllByPlaceholderText(
+      "Search structures…"
+    )[0] as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "JVTAAEKCZFNVCJ" } });
+    // The badge's trigger button exposes the detected type via aria-label.
+    // This pins the badge specifically — the popover radio list always
+    // renders every TYPE_LABEL so `getAllByText("InChI key")` would match
+    // even when detection returns "Formula".
+    expect(
+      screen.getAllByRole("button", {
+        name: /Detected type: InChI key/,
+      }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("detects a 14-10 partial InChI key as type 'InChI key'", () => {
+    render(<SearchInput />);
+    const input = screen.getAllByPlaceholderText(
+      "Search structures…"
+    )[0] as HTMLInputElement;
+    fireEvent.change(input, {
+      target: { value: "JVTAAEKCZFNVCJ-REOHCLBHSA" },
+    });
+    expect(
+      screen.getAllByRole("button", {
+        name: /Detected type: InChI key/,
+      }).length,
+    ).toBeGreaterThan(0);
+  });
+
   it("clicking Submit search fires a search request", () => {
     const mockPost = vi.mocked(postSearch);
     render(<SearchInput />);
