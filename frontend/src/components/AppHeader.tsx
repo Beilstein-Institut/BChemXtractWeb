@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { MenuIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ModeToggle } from "@/components/mode-toggle";
+import { ChemistryThemeSwitch } from "@/components/ChemistryThemeSwitch";
 import { SearchInput } from "@/components/SearchInput";
 import { TextScramble } from "@/components/ui/text-scramble";
 import {
@@ -80,7 +80,7 @@ export function AppHeader() {
         <SearchInput className="mx-4" />
 
         <div className="flex items-center gap-2">
-          <ModeToggle />
+          <ChemistryThemeSwitch />
 
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
