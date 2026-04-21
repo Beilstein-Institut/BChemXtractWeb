@@ -174,3 +174,7 @@ nav-*.png
 
 # Runtime secrets — .env.example is committed, .env is not
 .env
+
+# Local-only code-review artefacts
+REVIEW-BACKEND.md
+REVIEW-FRONTEND.md
