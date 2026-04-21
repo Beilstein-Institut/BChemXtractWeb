@@ -10,6 +10,8 @@ import {
   postExtract,
   postReactions,
   getExtractionReactions,
+  postExport,
+  parseContentDispositionFilename,
 } from "./apiClient";
 import type {
   ExtractionResponse,
@@ -263,5 +265,124 @@ describe("getExtractionReactions", () => {
 
     const init = fetchSpy.mock.calls[0][1] as RequestInit;
     expect(init.signal).toBe(controller.signal);
+  });
+});
+
+describe("parseContentDispositionFilename", () => {
+  it("returns null for null / empty header", () => {
+    expect(parseContentDispositionFilename(null)).toBeNull();
+    expect(parseContentDispositionFilename("")).toBeNull();
+  });
+
+  it("parses plain ASCII filename=\"...\"", () => {
+    expect(
+      parseContentDispositionFilename('attachment; filename="export.svg"'),
+    ).toBe("export.svg");
+  });
+
+  it("parses unquoted filename=value", () => {
+    expect(
+      parseContentDispositionFilename("attachment; filename=export.zip"),
+    ).toBe("export.zip");
+  });
+
+  it("prefers filename* over filename when both are present (RFC 6266)", () => {
+    const header =
+      "attachment; filename=\"fallback.svg\"; filename*=UTF-8''preferred.svg";
+    expect(parseContentDispositionFilename(header)).toBe("preferred.svg");
+  });
+
+  it("percent-decodes filename* values", () => {
+    const header = "attachment; filename*=UTF-8''bchemxtract_export_svg_20260421.zip";
+    expect(parseContentDispositionFilename(header)).toBe(
+      "bchemxtract_export_svg_20260421.zip",
+    );
+  });
+
+  it("decodes unicode code points in filename*", () => {
+    const header = "attachment; filename*=UTF-8''%E6%97%A5%E6%9C%AC.svg";
+    expect(parseContentDispositionFilename(header)).toBe("日本.svg");
+  });
+
+  it("falls back to ASCII filename when filename* percent-encoding is malformed", () => {
+    const header =
+      'attachment; filename="safe.svg"; filename*=UTF-8\'\'%E6%97%';
+    expect(parseContentDispositionFilename(header)).toBe("safe.svg");
+  });
+
+  it("returns null when no filename parameter is present", () => {
+    expect(parseContentDispositionFilename("attachment")).toBeNull();
+    expect(parseContentDispositionFilename("inline; foo=bar")).toBeNull();
+  });
+});
+
+describe("postExport", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * Stub DOM sinks so triggerDownload can run in jsdom. Captures the anchor
+   * element `postExport` creates so tests can assert on `anchor.download`
+   * without sifting through createElement spy results.
+   */
+  function stubDomDownload(): {
+    clickSpy: ReturnType<typeof vi.fn>;
+    getAnchor: () => HTMLAnchorElement;
+  } {
+    const clickSpy = vi.fn();
+    let anchor: HTMLAnchorElement | null = null;
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock");
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(clickSpy);
+    const origCreate = document.createElement.bind(document);
+    vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
+      const el = origCreate(tag) as HTMLElement;
+      if (tag === "a") anchor = el as HTMLAnchorElement;
+      return el;
+    });
+    return {
+      clickSpy,
+      getAnchor: () => {
+        if (!anchor) throw new Error("No <a> element was created");
+        return anchor;
+      },
+    };
+  }
+
+  it("uses filename from Content-Disposition (filename*=UTF-8) over suggestedFilename", async () => {
+    const { clickSpy, getAnchor } = stubDomDownload();
+    const headers = new Headers({
+      "Content-Disposition":
+        "attachment; filename=\"bchemxtract_export_svg_20260421.zip\"; filename*=UTF-8''bchemxtract_export_svg_20260421.zip",
+      "Content-Type": "application/zip",
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      headers,
+      blob: () => Promise.resolve(new Blob(["zip-bytes"])),
+    } as unknown as Response);
+
+    await postExport(
+      { format: "svg", substance_ids: [1, 2] },
+      "wrong-suggestion.svg",
+    );
+
+    expect(clickSpy).toHaveBeenCalledOnce();
+    expect(getAnchor().download).toBe("bchemxtract_export_svg_20260421.zip");
+  });
+
+  it("falls back to suggestedFilename when Content-Disposition header is missing", async () => {
+    const { clickSpy, getAnchor } = stubDomDownload();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      headers: new Headers({ "Content-Type": "image/svg+xml" }),
+      blob: () => Promise.resolve(new Blob(["<svg/>"])),
+    } as unknown as Response);
+
+    await postExport({ format: "svg", substance_ids: [1] }, "fallback.svg");
+
+    expect(clickSpy).toHaveBeenCalledOnce();
+    expect(getAnchor().download).toBe("fallback.svg");
   });
 });

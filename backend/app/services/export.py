@@ -1,17 +1,16 @@
 """Export format generators for POST /api/export.
 
-All seven export formats are implemented here:
+All six export formats are implemented here:
   - SDF: CDK SDFWriter (JVM thread required)
   - JSON: pure Python dict serialization
   - CSV: pure Python csv stdlib
   - PNG: CDK DepictionGenerator.toImg() + ImageIO (JVM thread required)
   - SVG: served from stored `svg` field (pure Python)
-  - CML: lxml CML 2.4 XML (pure Python — CMLWriter is absent from JAR)
   - V3000: CDK MDLV3000Writer (JVM thread required)
   - RXN: empty RDF stub (D-11, Phase 10 will populate)
 
 Per D-08: single unified generate_export() function dispatches to per-format helpers.
-Per D-09: CDK/Java handles SDF, V3000, PNG. Python handles JSON, CSV, SVG, CML.
+Per D-09: CDK/Java handles SDF, V3000, PNG. Python handles JSON, CSV, SVG.
 Per D-10: PNG uses CDK DepictionGenerator (same CDK pipeline as stored svg field).
 
 Security:
@@ -28,7 +27,6 @@ import zipfile
 from datetime import UTC, datetime
 
 from fastapi import HTTPException
-from lxml import etree
 
 from app.services.filenames import safe_filename
 from app.services.jvm_bridge import run_in_jvm_thread
@@ -36,8 +34,6 @@ from app.services.jvm_bridge import run_in_jvm_thread
 _logger = logging.getLogger(__name__)
 
 _PNG_LIMIT = 200
-
-CML_NS = "http://www.xml-cml.org/schema"
 
 # IN-01: date is generated at call time in _generate_rxn_stub() — not hardcoded here.
 
@@ -57,7 +53,6 @@ def _single_filename(substance: dict, fmt: str) -> str:
         "csv": "csv",
         "png": "png",
         "svg": "svg",
-        "cml": "cml",
         "v3000": "mol",
         "rxn": "rxn",
     }
@@ -151,7 +146,7 @@ def _generate_sdf_sync(substances: list[dict]) -> bytes:
     return str(sw.toString()).encode("utf-8")
 
 
-def _generate_png_sync(smiles: str, width: int = 450, height: int = 450) -> bytes:
+def _generate_png_sync(smiles: str, width: int = 1000, height: int = 1000) -> bytes:
     """Generate PNG bytes for one molecule via CDK DepictionGenerator.
 
     Must run inside run_in_jvm_thread. Returns b'' on failure.
@@ -161,8 +156,8 @@ def _generate_png_sync(smiles: str, width: int = 450, height: int = 450) -> byte
 
     Args:
         smiles: SMILES string for the molecule.
-        width: Image width in pixels (default 450).
-        height: Image height in pixels (default 450).
+        width: Image width in pixels (default 1000).
+        height: Image height in pixels (default 1000).
 
     Returns:
         PNG bytes or b'' if SMILES is empty or parsing fails.
@@ -430,20 +425,21 @@ def _generate_csv(substances: list[dict]) -> bytes:
     return buf.getvalue().encode("utf-8")
 
 
-def _generate_svg_zip(substances: list[dict]) -> bytes:
-    """ZIP of CDK SVGs from stored `svg` field. Pure Python.
+def _svg_entries(substances: list[dict]) -> list[tuple[str, bytes]]:
+    """Build ``(filename, svg_bytes)`` entries from substance dicts.
 
     Filename construction uses inchi_key prefix + sequential index directly
-    to ensure unique ZIP entry names (avoids silent overwrites from identical
-    InChI key prefixes).
+    to ensure unique entry names (avoids silent overwrites from identical
+    InChI key prefixes). Substances with empty ``svg`` are skipped.
 
     Args:
         substances: List of substance dicts with ``svg`` and ``inchi_key`` fields.
 
     Returns:
-        ZIP bytes containing one .svg file per substance that has SVG content.
+        List of ``(filename, utf8_bytes)`` pairs, one per substance with
+        non-empty SVG content.
     """
-    entries = []
+    entries: list[tuple[str, bytes]] = []
     for i, s in enumerate(substances):
         svg_content = s.get("svg", "")
         if not svg_content:
@@ -452,40 +448,7 @@ def _generate_svg_zip(substances: list[dict]) -> bytes:
         prefix = inchi_key[:8] if inchi_key else f"substance_{s.get('id', 0):04d}"
         filename = f"{prefix}_{i:04d}.svg"
         entries.append((filename, svg_content.encode("utf-8")))
-    return _build_zip(entries)
-
-
-def _generate_cml_single(substance: dict) -> bytes:
-    """CML 2.4 document for one substance. Pure Python — no JVM needed.
-
-    CMLWriter is absent from the BChemXtract fat JAR (cdk-libiocml module
-    excluded). Uses lxml to build valid CML 2.4 XML instead (Pitfall 1).
-
-    Args:
-        substance: Substance dict with id, molecular_formula, smiles, inchi.
-
-    Returns:
-        UTF-8 encoded CML XML bytes with XML declaration.
-    """
-    root = etree.Element(f"{{{CML_NS}}}cml", nsmap={"cml": CML_NS})
-    mol = etree.SubElement(
-        root, f"{{{CML_NS}}}molecule", id=f"m_{substance.get('id', 0)}"
-    )
-    if substance.get("molecular_formula"):
-        etree.SubElement(
-            mol, f"{{{CML_NS}}}formula", concise=substance["molecular_formula"]
-        )
-    if substance.get("smiles"):
-        ident = etree.SubElement(mol, f"{{{CML_NS}}}identifier")
-        ident.set("convention", "daylight:smiles")
-        ident.set("value", substance["smiles"])
-    if substance.get("inchi"):
-        ident2 = etree.SubElement(mol, f"{{{CML_NS}}}identifier")
-        ident2.set("convention", "iupac:inchi")
-        ident2.set("value", substance["inchi"])
-    return etree.tostring(
-        root, pretty_print=True, xml_declaration=True, encoding="UTF-8"
-    )
+    return entries
 
 
 def _generate_rxn_stub() -> bytes:
@@ -519,7 +482,7 @@ async def generate_export(
 
     Dispatches to the appropriate format generator. JVM-dependent formats
     (sdf, png, v3000) are dispatched via run_in_jvm_thread. Pure Python
-    formats (json, csv, svg, cml, rxn) run directly.
+    formats (json, csv, svg, rxn) run directly.
 
     Args:
         substances: List of substance dicts from the ORM layer.
@@ -558,15 +521,10 @@ async def generate_export(
         )
 
     if fmt == "svg":
-        return _generate_svg_zip(substances), "application/zip", multi_name
-
-    if fmt == "cml":
-        entries = [
-            (_single_filename(s, "cml"), _generate_cml_single(s))
-            for s in substances
-            if s.get("smiles") or s.get("inchi")
-        ]
-        return _build_zip(entries), "application/zip", multi_name
+        svg_entries = _svg_entries(substances)
+        if len(svg_entries) == 1:
+            return svg_entries[0][1], "image/svg+xml", svg_entries[0][0]
+        return _build_zip(svg_entries), "application/zip", multi_name
 
     if fmt == "png":
         if len(substances) > _PNG_LIMIT:
@@ -577,28 +535,28 @@ async def generate_export(
                     "Select fewer structures or use SDF/SVG for bulk export."
                 ),
             )
-        entries: list[tuple[str, bytes]] = []
+        png_entries: list[tuple[str, bytes]] = []
         for s in substances:
             png_bytes = await run_in_jvm_thread(
                 _generate_png_sync, s.get("smiles", "")
             )
             if png_bytes:
-                entries.append((_single_filename(s, "png"), png_bytes))
-        if len(entries) == 1:
-            return entries[0][1], "image/png", entries[0][0]
-        return _build_zip(entries), "application/zip", multi_name
+                png_entries.append((_single_filename(s, "png"), png_bytes))
+        if len(png_entries) == 1:
+            return png_entries[0][1], "image/png", png_entries[0][0]
+        return _build_zip(png_entries), "application/zip", multi_name
 
     if fmt == "v3000":
-        entries = []
+        v3000_entries: list[tuple[str, bytes]] = []
         for s in substances:
             mol_bytes = await run_in_jvm_thread(
                 _generate_v3000_sync, s.get("smiles", "")
             )
             if mol_bytes:
-                entries.append((_single_filename(s, "v3000"), mol_bytes))
-        if len(entries) == 1:
-            return entries[0][1], "chemical/x-mdl-molfile", entries[0][0]
-        return _build_zip(entries), "application/zip", multi_name
+                v3000_entries.append((_single_filename(s, "v3000"), mol_bytes))
+        if len(v3000_entries) == 1:
+            return v3000_entries[0][1], "chemical/x-mdl-molfile", v3000_entries[0][0]
+        return _build_zip(v3000_entries), "application/zip", multi_name
 
     # Plan 10 EXPO-08: "rxn" is handled by generate_reactions_export. The
     # router intercepts rxn before generate_export is called; reaching here

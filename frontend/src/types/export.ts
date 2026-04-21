@@ -9,7 +9,6 @@ export type ExportFormat =
   | "csv"
   | "png"
   | "svg"
-  | "cml"
   | "v3000"
   | "rxn";
 
@@ -20,7 +19,6 @@ export const FORMAT_LABELS: Record<ExportFormat, string> = {
   csv: "CSV",
   png: "PNG Images",
   svg: "SVG Images",
-  cml: "CML",
   v3000: "MDL V3000",
   rxn: "RXN / RDfile",
 };
@@ -32,7 +30,6 @@ export const FORMAT_EXT: Record<ExportFormat, string> = {
   csv: "csv",
   png: "png",
   svg: "svg",
-  cml: "cml",
   v3000: "mol",
   rxn: "rdf",
 };

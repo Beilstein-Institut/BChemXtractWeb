@@ -158,7 +158,7 @@ class BatchStartResponse(BaseModel):
     file_count: int
 
 
-ExportFormatLiteral = Literal["sdf", "json", "csv", "png", "svg", "cml", "v3000", "rxn"]
+ExportFormatLiteral = Literal["sdf", "json", "csv", "png", "svg", "v3000", "rxn"]
 
 
 class ExportRequest(BaseModel):
@@ -168,7 +168,7 @@ class ExportRequest(BaseModel):
         entries to bound JVM thread-pool fan-out and response size (SEC H-06).
     extraction_id: export all from this extraction (D-03) — used when
         substance_ids is empty.
-    format: one of the seven export formats plus rxn stub.
+    format: one of the six export formats plus rxn stub.
     reaction_ids: explicit reaction selection for RXN export (Plan 10 D-22).
         Capped at 500 entries for the same reason as ``substance_ids``.
     """

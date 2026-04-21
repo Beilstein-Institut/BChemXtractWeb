@@ -83,7 +83,6 @@ const FORMAT_ICONS: Record<ExportFormat, React.ReactNode> = {
   csv: <TableIcon className="size-4" />,
   png: <ImageIcon className="size-4" />,
   svg: <FileImageIcon className="size-4" />,
-  cml: <FileCode2Icon className="size-4" />,
   v3000: <FileCode2Icon className="size-4" />,
   rxn: <ArrowRightLeftIcon className="size-4" />,
 };
@@ -95,7 +94,6 @@ const FORMAT_ORDER: ExportFormat[] = [
   "csv",
   "png",
   "svg",
-  "cml",
   "v3000",
 ];
 

@@ -104,8 +104,8 @@ _TAGS_METADATA = [
     {
         "name": "export",
         "description": (
-            "Export selected substances or an entire extraction in seven "
-            "formats: SDF, JSON, CSV, PNG, SVG, CML, MDL V3000."
+            "Export selected substances or an entire extraction in six "
+            "formats: SDF, JSON, CSV, PNG, SVG, MDL V3000."
         ),
     },
     {

@@ -224,14 +224,13 @@ describe("ExportMenu", () => {
     expect(onExport).toHaveBeenCalledWith("json");
   });
 
-  it("renders all 7 active format items", () => {
+  it("renders all 6 active format items", () => {
     render(<ExportMenu onExport={vi.fn()} />);
     expect(screen.getByText("SDF / MOL")).toBeInTheDocument();
     expect(screen.getByText("JSON")).toBeInTheDocument();
     expect(screen.getByText("CSV")).toBeInTheDocument();
     expect(screen.getByText("PNG Images")).toBeInTheDocument();
     expect(screen.getByText("SVG Images")).toBeInTheDocument();
-    expect(screen.getByText("CML")).toBeInTheDocument();
     expect(screen.getByText("MDL V3000")).toBeInTheDocument();
   });
 

@@ -1,8 +1,8 @@
 """Integration tests for POST /api/export endpoint.
 
-Tests all seven export formats plus input validation. JVM-dependent generators
+Tests all six export formats plus input validation. JVM-dependent generators
 (SDF, PNG, V3000) are mocked so the test suite runs without a live JVM.
-Pure-Python generators (JSON, CSV, SVG, CML) run unpatched.
+Pure-Python generators (JSON, CSV, SVG) run unpatched.
 
 Mock strategy:
   - _generate_sdf_sync: returns minimal valid SDF bytes (contains $$$$)
@@ -180,8 +180,14 @@ async def test_csv_export(client: AsyncClient) -> None:
     assert first_line == "id,inchi_key,smiles,molecular_formula,inchi,iupac_name,extended_smiles"
 
 
-async def test_svg_export(client: AsyncClient) -> None:
-    """POST /api/export format=svg returns application/zip containing a .svg file."""
+async def test_svg_export_single_returns_svg(client: AsyncClient) -> None:
+    """Single-substance SVG export returns raw SVG (not a ZIP).
+
+    Mirrors the PNG/V3000 single-substance shortcut so the ``.svg``
+    filename the browser saves actually contains SVG markup — otherwise
+    the file is ZIP bytes and every SVG viewer reports
+    "Document is empty" (the user-facing bug this test locks down).
+    """
     async with _patch_jvm_and_db():
         resp = await client.post(
             "/api/export",
@@ -189,31 +195,33 @@ async def test_svg_export(client: AsyncClient) -> None:
         )
 
     assert resp.status_code == 200, resp.text
-    assert "application/zip" in resp.headers["content-type"]
-    with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
-        svg_names = [n for n in zf.namelist() if n.endswith(".svg")]
-        assert len(svg_names) >= 1, f"No .svg files in ZIP. Names: {zf.namelist()}"
-        svg_content = zf.read(svg_names[0])
-        assert svg_content.startswith(b"<svg"), f"SVG content does not start with <svg: {svg_content[:40]}"
+    assert "image/svg+xml" in resp.headers["content-type"]
+    assert resp.content.startswith(b"<svg"), (
+        f"Expected SVG markup, got: {resp.content[:40]!r}"
+    )
+    disposition = resp.headers.get("content-disposition", "")
+    assert ".svg" in disposition, f"Expected .svg filename, got: {disposition!r}"
 
 
-async def test_cml_export(client: AsyncClient) -> None:
-    """POST /api/export format=cml returns application/zip containing a .cml file with CML namespace."""
-    async with _patch_jvm_and_db():
+async def test_svg_export_multi_returns_zip(client: AsyncClient) -> None:
+    """Multi-substance SVG export returns a ZIP of .svg entries."""
+    subs = [
+        {**TEST_SUBSTANCE, "id": 1},
+        {**TEST_SUBSTANCE, "id": 2, "inchi_key": "QTBSBXVTEAMEQO-UHFFFAOYSA-N"},
+    ]
+    async with _patch_jvm_and_db(substance_list=subs):
         resp = await client.post(
             "/api/export",
-            json={"format": "cml", "substance_ids": [1]},
+            json={"format": "svg", "substance_ids": [1, 2]},
         )
 
     assert resp.status_code == 200, resp.text
     assert "application/zip" in resp.headers["content-type"]
     with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
-        cml_names = [n for n in zf.namelist() if n.endswith(".cml")]
-        assert len(cml_names) >= 1, f"No .cml files in ZIP. Names: {zf.namelist()}"
-        cml_content = zf.read(cml_names[0]).decode("utf-8")
-        assert "http://www.xml-cml.org/schema" in cml_content, (
-            f"CML namespace not found in: {cml_content[:200]}"
-        )
+        svg_names = [n for n in zf.namelist() if n.endswith(".svg")]
+        assert len(svg_names) == 2, f"Expected 2 SVGs, got: {zf.namelist()}"
+        svg_content = zf.read(svg_names[0])
+        assert svg_content.startswith(b"<svg")
 
 
 async def test_v3000_export(client: AsyncClient) -> None:

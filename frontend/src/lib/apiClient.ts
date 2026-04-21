@@ -98,6 +98,46 @@ function triggerDownload(blob: Blob, filename: string): void {
 }
 
 /**
+ * Extract a filename from a ``Content-Disposition`` header per RFC 6266.
+ *
+ * The backend emits both ``filename="<ascii>"`` and
+ * ``filename*=UTF-8''<percent-encoded>`` — the starred form is the
+ * authoritative UTF-8 name. This parser prefers the starred form and
+ * falls back to the ASCII form when the percent-encoding is malformed
+ * or the charset is not UTF-8. Returns ``null`` when no filename can be
+ * recovered so callers can fall back to their own suggestion.
+ */
+export function parseContentDispositionFilename(
+  header: string | null,
+): string | null {
+  if (!header) return null;
+
+  // filename*=charset'lang'percent-encoded (RFC 5987).
+  const extMatch = /filename\*\s*=\s*([^']*)'([^']*)'([^;]+)/i.exec(header);
+  if (extMatch) {
+    const charset = extMatch[1].trim().toLowerCase();
+    const encoded = extMatch[3].trim();
+    if (charset === "utf-8" || charset === "") {
+      try {
+        const decoded = decodeURIComponent(encoded);
+        if (decoded) return decoded;
+      } catch {
+        // Malformed percent-encoding — fall through to the ASCII form.
+      }
+    }
+  }
+
+  // filename="ascii" or filename=ascii (no quotes, no semicolons).
+  const asciiMatch = /filename\s*=\s*(?:"([^"]*)"|([^;]+))/i.exec(header);
+  if (asciiMatch) {
+    const value = (asciiMatch[1] ?? asciiMatch[2] ?? "").trim();
+    if (value) return value;
+  }
+
+  return null;
+}
+
+/**
  * POSTs a CDX/CDXML file to POST /api/extract using multipart/form-data.
  * Throws a descriptive Error on HTTP errors or network failure.
  *
@@ -246,10 +286,16 @@ export async function downloadBatchZip(batchId: string): Promise<void> {
  *
  * POSTs JSON payload, receives a file blob (SDF, ZIP, JSON, CSV, etc.),
  * and triggers a browser download via temporary anchor element.
- * Reuses downloadBatchZip blob+anchor pattern (D-08).
+ *
+ * The server is the single source of truth for the download filename:
+ * the ``Content-Disposition`` header it emits already carries the
+ * correct extension (``.svg`` vs ``.zip``, ``.png`` vs ``.zip``, etc.)
+ * based on whether the response is a single file or a multi-entry ZIP.
+ * We honor that header; ``suggestedFilename`` is kept only as a fallback
+ * for the edge case where the header is missing or unparseable.
  *
  * @param payload - ExportRequest with format and substance_ids or extraction_id
- * @param suggestedFilename - Browser download filename (backend also sends Content-Disposition)
+ * @param suggestedFilename - Fallback filename when Content-Disposition is absent
  */
 export async function postExport(
   payload: ExportRequest,
@@ -261,7 +307,10 @@ export async function postExport(
     body: JSON.stringify(payload),
     errorPrefix: "Export failed",
   });
-  triggerDownload(await response.blob(), suggestedFilename);
+  const headerFilename = parseContentDispositionFilename(
+    response.headers.get("Content-Disposition"),
+  );
+  triggerDownload(await response.blob(), headerFilename ?? suggestedFilename);
 }
 
 /**

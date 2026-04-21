@@ -251,7 +251,7 @@ def _stream_export_response(
         "D-01/D-02/D-04) or an `extraction_id` (D-03 Export All); setting "
         "both restricts the selection to the intersection for IDOR safety "
         "(CR-01). Supported formats: `sdf`, `json`, `csv`, `png`, `svg`, "
-        "`cml`, `v3000`, and `rxn` (stub until Phase 10 per D-11)."
+        "`v3000`, and `rxn` (stub until Phase 10 per D-11)."
     ),
     responses={
         200: {
