@@ -82,14 +82,12 @@ logger = logging.getLogger(__name__)
 # (c) the outer repeat is capped via ``{1,60}`` so even adversarial
 # inputs cannot drive backtracking. Regression covered by
 # ``tests/test_formula_regex_redos.py``.
-_INCHI_KEY_RE = re.compile(r"\A[A-Z]{14}-[A-Z]{10}-[A-Z]\Z")
-# Partial keys — either just the 14-char connectivity block, or
-# <14>-<10> (connectivity + stereo), mirroring PubChem's partial-match
-# behaviour. The full shape is a superset, so ``_INCHI_KEY_ANY_RE``
-# matches full keys too.
-_INCHI_KEY_ANY_RE = re.compile(
-    r"\A[A-Z]{14}(?:-[A-Z]{10}(?:-[A-Z])?)?\Z"
-)
+# Accepts full ``<14>-<10>-<1>`` keys and PubChem-style partial prefixes:
+# the 14-char connectivity block alone, or ``<14>-<10>`` (connectivity +
+# stereo). :func:`_search_inchi_key` distinguishes full vs partial by
+# ``len(normalized) == 27`` — a 27-char string matching this pattern can
+# only be the full shape.
+_INCHI_KEY_RE = re.compile(r"\A[A-Z]{14}(?:-[A-Z]{10}(?:-[A-Z])?)?\Z")
 _FORMULA_RE = re.compile(r"\A(?:[A-Z][a-z]?\d{0,5}){1,60}\Z")
 
 # Polymer-SMILES deadlock ceiling. Same threshold Plan 02 applies inside
@@ -129,7 +127,7 @@ def detect_search_type(raw: str) -> str:
     stripped = raw.strip()
     if not stripped:
         raise ValueError("empty query")
-    if _INCHI_KEY_ANY_RE.match(stripped.upper()):
+    if _INCHI_KEY_RE.match(stripped.upper()):
         return "inchi_key"
     if _FORMULA_RE.match(stripped):
         return "formula"
@@ -222,13 +220,14 @@ async def _search_inchi_key(
     (``%``, ``_``) can enter the pattern.
     """
     normalized = q.strip().upper()
-    if not _INCHI_KEY_ANY_RE.match(normalized):
+    if not _INCHI_KEY_RE.match(normalized):
         raise InvalidInchiKeyError(
             "InChI key must be 14 letters, optionally followed by "
             "'-' + 10 letters, optionally followed by '-' + 1 letter."
         )
     base = _base_substance_select(scope_eid)
-    if _INCHI_KEY_RE.match(normalized):
+    # Post-regex, 27 chars is the only way to be a full <14>-<10>-<1>.
+    if len(normalized) == 27:
         stmt = base.where(Substance.inchi_key == normalized)
     else:
         stmt = base.where(
