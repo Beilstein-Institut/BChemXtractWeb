@@ -101,10 +101,14 @@ describe("App", () => {
     expect(screen.getByTestId("file-upload")).toBeInTheDocument();
   });
 
-  it("shows FileUpload with data-loading=true in loading state", () => {
+  it("advances the wizard to the Process step in loading state", () => {
     mockExtract({ state: "loading" });
     render(<App />);
-    expect(screen.getByTestId("file-upload")).toHaveAttribute("data-loading", "true");
+    const stepper = document.querySelector(
+      "[data-slot='wizard-stepper']",
+    ) as HTMLElement | null;
+    expect(stepper).not.toBeNull();
+    expect(stepper!.dataset.current).toBe("process");
   });
 
   it("auto-navigates to /browse when extraction succeeds on /", () => {

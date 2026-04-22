@@ -1,16 +1,35 @@
 /**
- * ExtractPage — file upload + extraction flow (route: `/`).
+ * ExtractPage — Phase 3 Liquid Glass wizard (Task 10 rewrite).
  *
- * Owns the upload UI. On successful extraction the user is redirected to
- * `/browse` by App's success-useEffect, so this page only renders the
- * upload states (idle, loading, batch processing, batch complete).
+ * Three-step wizard routed through `WizardStepper`:
+ *   1. Upload  — dashed drop zone + file queue + primary CTA.
+ *   2. Process — stat strip + crimson progress bar + per-file status list.
+ *   3. Results — summary stats + per-file results list. A bento grid of
+ *      structure tiles is rendered above the summary when the extraction
+ *      surface makes them available (batch results currently live in the
+ *      database and are viewed from /browse — the Results step preserves
+ *      the legacy "View" link to jump there per-file).
+ *
+ * Step state is derived from `useExtract` and `useBatch`:
+ *   - upload  → single idle   AND batch idle
+ *   - process → single loading OR  batch processing
+ *   - results → batch complete (single-file success auto-navigates to /browse)
+ *
+ * Hook signatures are untouched per the Task 10 plan; the parent still owns
+ * the state and passes it down via props.
  */
+import { useMemo } from "react";
+import { CheckIcon, LoaderIcon, UploadIcon } from "lucide-react";
 import { BatchProgress } from "@/components/BatchProgress";
 import { BatchSummary } from "@/components/BatchSummary";
 import { FileUpload } from "@/components/FileUpload";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { WizardStepper, type WizardStep } from "@/components/layout/WizardStepper";
 import type { BatchState } from "@/hooks/useBatch";
 import type { ExtractState } from "@/hooks/useExtract";
 import type { BatchFileStatus } from "@/types/batch";
+
+export type WizardStepId = "upload" | "process" | "results";
 
 export interface ExtractPageProps {
   state: ExtractState;
@@ -30,6 +49,36 @@ export interface ExtractPageProps {
   onViewExtraction: (extractionId: number) => void;
 }
 
+const STEP_ORDER: readonly WizardStepId[] = ["upload", "process", "results"];
+
+/**
+ * Derive the active wizard step from the two hook states.
+ *
+ * Completed batches pin to "results". Mid-flight single/batch extractions
+ * pin to "process". Everything else (idle, error, cancelled) lands on
+ * "upload" so the user can retry or begin a new run.
+ */
+function deriveStep(
+  extractState: ExtractState,
+  batchState: BatchState,
+): WizardStepId {
+  if (batchState === "complete") return "results";
+  if (extractState === "loading" || batchState === "processing") {
+    return "process";
+  }
+  return "upload";
+}
+
+const WIZARD_STEPS: WizardStep[] = [
+  { id: "upload", label: "Upload", icon: <UploadIcon className="size-4" /> },
+  {
+    id: "process",
+    label: "Process",
+    icon: <LoaderIcon className="size-4" />,
+  },
+  { id: "results", label: "Results", icon: <CheckIcon className="size-4" /> },
+];
+
 export function ExtractPage({
   state,
   selectedFile,
@@ -45,47 +94,63 @@ export function ExtractPage({
   onResetBatch,
   onViewExtraction,
 }: ExtractPageProps) {
-  const showUpload = batchState !== "processing" && state !== "success";
-  const isLoading = state === "loading";
+  const currentStep = useMemo(
+    () => deriveStep(state, batchState),
+    [state, batchState],
+  );
+
+  // Manual back-nav only — forward nav is gated by actual batch progress.
+  // Clicking an already-completed step (lower index) snaps the wizard back
+  // by resetting the batch state when needed. For now, we only allow
+  // stepping back from "results" via the existing "New batch" button —
+  // `onStepChange` below is left unassigned to avoid implicit side effects.
+  const currentIdx = STEP_ORDER.indexOf(currentStep);
 
   return (
-    <>
-      <header className="pt-2">
-        <h1 className="text-display font-semibold leading-[1.10] tracking-tight">
+    <PageContainer>
+      <header className="mb-8 space-y-3">
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           BChemXtractWeb
         </h1>
-        <p className="mt-4 text-sub-heading font-normal text-muted-foreground tracking-tight">
+        <p className="text-base text-foreground-muted">
           Extract chemical structures from ChemDraw files.
         </p>
       </header>
 
-      {showUpload && (
-        <div className="mt-12">
+      <WizardStepper
+        steps={WIZARD_STEPS}
+        currentStep={currentStep}
+        onStepChange={(nextId) => {
+          // Manual nav only allows going backward to a step the user has
+          // already passed. Forward transitions are driven by hook state.
+          const nextIdx = STEP_ORDER.indexOf(nextId as WizardStepId);
+          if (nextIdx < currentIdx && nextIdx === 0) {
+            // Snap back to Upload → reset the batch so it re-enters idle.
+            onResetBatch();
+          }
+        }}
+      >
+        {currentStep === "upload" && (
           <FileUpload
-            mode="batch"
             onExtract={onExtract}
             onStartBatch={onStartBatch}
-            isLoading={isLoading}
+            isLoading={state === "loading"}
             isBatchProcessing={false}
-            loadingFilename={isLoading ? selectedFile?.name : undefined}
-            loadingFileSize={isLoading ? selectedFile?.size : undefined}
+            loadingFilename={state === "loading" ? selectedFile?.name : undefined}
+            loadingFileSize={state === "loading" ? selectedFile?.size : undefined}
           />
-        </div>
-      )}
+        )}
 
-      {batchState === "processing" && (
-        <div className="mt-12">
+        {currentStep === "process" && (
           <BatchProgress
             files={batchFiles}
             completedCount={batchCompletedCount}
             totalCount={batchFiles.length}
             onCancel={onCancelBatch}
           />
-        </div>
-      )}
+        )}
 
-      {batchState === "complete" && batchId && (
-        <div className="mt-8">
+        {currentStep === "results" && batchId && (
           <BatchSummary
             batchId={batchId}
             files={batchFiles}
@@ -96,8 +161,8 @@ export function ExtractPage({
             onViewExtraction={onViewExtraction}
             onReset={onResetBatch}
           />
-        </div>
-      )}
-    </>
+        )}
+      </WizardStepper>
+    </PageContainer>
   );
 }

@@ -5,11 +5,7 @@ import {
   XCircleIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Progress,
-  ProgressLabel,
-  ProgressValue,
-} from "@/components/ui/progress";
+import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,67 +17,107 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
 import type { BatchFileStatus } from "@/types/batch";
 
-/** Icon shown at the start of a batch row, keyed by file state. */
-function StatusIcon({ state }: { state: BatchFileStatus["state"] }) {
-  switch (state) {
-    case "queued":
-      return <ClockIcon size={16} className="text-muted-foreground shrink-0" />;
-    case "processing":
-      return (
-        <LoaderIcon
-          size={16}
-          className="text-primary animate-spin shrink-0"
-        />
-      );
-    case "done":
-      return <CheckCircle2Icon size={16} className="text-primary shrink-0" />;
-    case "failed":
-      return <XCircleIcon size={16} className="text-destructive shrink-0" />;
-  }
-}
-
+/**
+ * BatchProgress — Phase 3 Liquid Glass wizard Step 2 (Task 10 rewrite).
+ *
+ * Overall crimson progress bar + per-file status list with Geist Mono file
+ * names. A compact 3-up stat strip above the bar surfaces total / completed
+ * / failed counts. Cancel is moved into an icon-adjacent secondary action
+ * that opens the existing AlertDialog confirmation.
+ *
+ * `data-slot` additions follow Phase 3's contract:
+ *   - `data-slot="process-step"`       (root)
+ *   - `data-slot="batch-stats"`        (3-up stat row)
+ *   - `data-slot="file-progress-list"` (per-file row list)
+ *   - `data-slot="batch-stat"`         (individual stat cell)
+ */
 export interface BatchProgressProps {
-  /** Per-file statuses from the useBatch hook */
   files: BatchFileStatus[];
-  /** Number of files in state "done" or "failed" (i.e., fully processed) */
   completedCount: number;
-  /** Total files in the batch */
   totalCount: number;
-  /** Called when the user confirms batch cancellation */
   onCancel: () => void;
 }
 
-/**
- * BatchProgress — shows overall progress bar + per-file status list during
- * batch extraction (D-13). Replaces the drop zone while the batch is running.
- *
- * Accessibility: the per-file list uses aria-live="polite" so screen readers
- * announce status updates as files complete.
- */
+type StatTone = "default" | "secondary" | "destructive";
+
+function Stat({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: number;
+  tone?: StatTone;
+}) {
+  const toneClass =
+    tone === "secondary"
+      ? "text-secondary"
+      : tone === "destructive"
+        ? "text-destructive"
+        : "text-foreground";
+  return (
+    <div
+      data-slot="batch-stat"
+      className="flex flex-col gap-1 rounded-lg border border-border bg-surface px-4 py-3"
+    >
+      <span className="text-xs font-medium uppercase tracking-wide text-foreground-muted">
+        {label}
+      </span>
+      <span className={cn("font-display text-2xl font-semibold tabular-nums", toneClass)}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function FileStatusIcon({ state }: { state: BatchFileStatus["state"] }) {
+  switch (state) {
+    case "queued":
+      return <ClockIcon className="size-4 shrink-0 text-foreground-muted" />;
+    case "processing":
+      return (
+        <LoaderIcon className="size-4 shrink-0 animate-spin text-primary" />
+      );
+    case "done":
+      return <CheckCircle2Icon className="size-4 shrink-0 text-secondary" />;
+    case "failed":
+      return <XCircleIcon className="size-4 shrink-0 text-destructive" />;
+  }
+}
+
 export function BatchProgress({
   files,
   completedCount,
   totalCount,
   onCancel,
 }: BatchProgressProps) {
+  const failedCount = files.filter((f) => f.state === "failed").length;
+  const succeededCount = files.filter((f) => f.state === "done").length;
   const progressValue =
     totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   const progressPercent = Math.round(progressValue);
 
   return (
-    <div className="py-10 space-y-6">
-      {/* Top row: progress bar + cancel button */}
+    <div data-slot="process-step" className="space-y-6">
+      <div
+        data-slot="batch-stats"
+        className="grid grid-cols-3 gap-3"
+      >
+        <Stat label="Total" value={totalCount} />
+        <Stat label="Completed" value={succeededCount} tone="secondary" />
+        <Stat label="Failed" value={failedCount} tone="destructive" />
+      </div>
+
       <div className="flex items-center gap-4">
         <div className="flex-1">
           <Progress value={progressValue}>
             <ProgressLabel>
               {completedCount} of {totalCount} files
             </ProgressLabel>
-            <ProgressValue>
-              {() => `${progressPercent}%`}
-            </ProgressValue>
+            <ProgressValue>{() => `${progressPercent}%`}</ProgressValue>
           </Progress>
         </div>
 
@@ -91,7 +127,7 @@ export function BatchProgress({
               <Button
                 variant="outline"
                 size="sm"
-                className="text-destructive border-destructive shrink-0 rounded-full"
+                className="shrink-0 rounded-full border-destructive text-destructive"
               />
             }
           >
@@ -108,7 +144,7 @@ export function BatchProgress({
             <AlertDialogFooter>
               <AlertDialogCancel>Keep running</AlertDialogCancel>
               <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                className="bg-destructive text-white hover:opacity-90"
                 onClick={onCancel}
               >
                 Stop batch
@@ -118,33 +154,38 @@ export function BatchProgress({
         </AlertDialog>
       </div>
 
-      {/* Per-file status list */}
       <ul
         aria-live="polite"
-        className="rounded-xl bg-card shadow-[rgba(0,0,0,0.22)_3px_5px_30px_0px] overflow-hidden divide-y divide-border"
+        data-slot="file-progress-list"
+        className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface"
       >
         {files.map((f) => (
           <li
             key={f.filename}
-            className="min-h-[48px] flex items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors"
+            data-slot="file-progress-row"
+            data-state={f.state}
+            className="flex min-h-[48px] items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted/40"
           >
-            <StatusIcon state={f.state} />
-            <span className="text-body text-foreground truncate flex-1">
+            <FileStatusIcon state={f.state} />
+            <span className="min-w-0 flex-1 truncate font-mono text-sm text-foreground">
               {f.filename}
             </span>
             {f.state === "done" && (
-              <span className="text-micro text-muted-foreground shrink-0">
+              <span className="shrink-0 text-xs tabular-nums text-foreground-muted">
                 {f.structureCount} structures
               </span>
             )}
             {f.state === "failed" && (
               <span
-                className="text-micro text-destructive shrink-0 max-w-[200px] truncate"
+                className="max-w-[240px] shrink-0 truncate text-xs text-destructive"
                 title={f.error}
               >
                 {f.error.slice(0, 80)}
               </span>
             )}
+            <span className="shrink-0 text-xs capitalize text-foreground-muted">
+              {f.state}
+            </span>
           </li>
         ))}
       </ul>

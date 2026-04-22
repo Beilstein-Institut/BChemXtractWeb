@@ -1,39 +1,67 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  UploadIcon,
-  XCircleIcon,
-  FileIcon,
-  XIcon,
   AlertTriangleIcon,
+  FileIcon,
+  UploadCloudIcon,
+  XIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 
+/**
+ * FileUpload — Phase 3 Liquid Glass wizard Step 1 (Task 10 rewrite).
+ *
+ * Composes the large dashed drop zone with the queue list + CTA that lives
+ * inside the Wizard's Upload step. Preserves the single-file fast-path
+ * behaviour: if exactly one file is dropped/selected with an empty queue,
+ * `onExtract` is called directly (routes through the fast single-file
+ * endpoint). Otherwise the files accumulate in a queue and `onStartBatch`
+ * fires when the user clicks the primary CTA.
+ *
+ * Prop contract is preserved for `ExtractPage`:
+ *   - `onExtract(File)`         — single-file fast-path.
+ *   - `onStartBatch(File[])`    — batch pipeline entry (SSE progress).
+ *   - `isLoading`               — surfaces spinner + filename status when
+ *                                 the single-file path is active. Preserved
+ *                                 for legacy tests; the Wizard consumer
+ *                                 renders Step 2 in place of Step 1 when
+ *                                 `isLoading` goes true, so this branch is
+ *                                 seldom seen post-Task-10.
+ *
+ * `data-slot` additions:
+ *   - `data-slot="upload-step"`        (root wrapper)
+ *   - `data-slot="drop-zone"`          (the 400-px dashed drop target)
+ *   - `data-slot="file-list"`          (queued files list)
+ *   - `data-slot="upload-extract-cta"` (primary CTA advancing Step 2)
+ *
+ * Validation rules (preserved from the Phase 2 implementation):
+ *   - `.cdx` or `.cdxml` extension only (wrong ext toast-rejects outright).
+ *   - 50 MB per file — oversize files still land in the queue with an
+ *     inline warning and disable the CTA.
+ *   - 20 files max per batch — overflow toasts "Batch limit reached…".
+ */
 export interface FileUploadProps {
-  /** "single" preserves the original one-file drop zone; "batch" enables multi-file queue */
+  /** Kept for backward-compat with legacy test files; no longer toggles layout. */
   mode?: "single" | "batch";
-  /** Called with the validated File when user selects or drops a valid file (single mode) */
+  /** Called with a validated File when the single-file fast-path fires. */
   onExtract: (file: File) => void;
-  /** When true, hides drop zone and shows spinner + loading message (single mode) */
+  /** Active when the single-file endpoint is mid-flight. */
   isLoading: boolean;
-  /** Filename shown in the loading message (e.g. "sample.cdx") */
+  /** Filename shown in the legacy loading panel. */
   loadingFilename?: string;
-  /** File size in bytes for the loading message */
+  /** File size (bytes) for the legacy loading panel. */
   loadingFileSize?: number;
-  /** Batch-mode only: called with validated File[] when user clicks "Start batch" */
+  /** Called with File[] when the "Extract N files" CTA fires. */
   onStartBatch?: (files: File[]) => void;
-  /** Batch-mode only: when true, hides the queue list (batch is in progress) */
+  /** When true, hides the queue list (batch is already processing). */
   isBatchProcessing?: boolean;
 }
 
-/**
- * Validates a file's extension. Returns an error string if invalid, null if valid.
- * Used in both single and batch mode to check file type.
- */
+const MAX_FILE_BYTES = 52_428_800; // 50 MB — backend enforces the same limit.
+const MAX_BATCH_FILES = 20;
+
 function validateExtension(file: File): string | null {
   const name = file.name.toLowerCase();
   if (!name.endsWith(".cdx") && !name.endsWith(".cdxml")) {
@@ -42,15 +70,6 @@ function validateExtension(file: File): string | null {
   return null;
 }
 
-const MAX_FILE_BYTES = 52_428_800; // 50 MB — backend enforces the same limit.
-const MAX_BATCH_FILES = 20;
-
-/**
- * Validates a file against allowed extensions and maximum size.
- * Returns an error string on violation, or null if the file is valid.
- * Note: this is a UX-only check — backend validates content via magic bytes (D-06).
- * Used in single mode only (batch mode shows oversize warning inline in queue).
- */
 function validateFile(file: File): string | null {
   const extError = validateExtension(file);
   if (extError) return extError;
@@ -60,28 +79,12 @@ function validateFile(file: File): string | null {
   return null;
 }
 
-/**
- * Formats bytes into a human-readable string (KB or MB).
- */
 function formatBytes(bytes: number): string {
   if (bytes < 1_048_576) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1_048_576).toFixed(1)} MB`;
 }
 
-/**
- * FileUpload — Drop zone component implementing D-01 through D-05.
- *
- * In "single" mode (default): accepts one file, calls onExtract.
- * In "batch" mode: accepts multiple files up to MAX_BATCH_FILES, shows a file
- * queue with remove buttons, and calls onStartBatch when the user clicks
- * "Start batch".
- *
- * The component is controlled: it receives onExtract/onStartBatch and
- * isLoading/isBatchProcessing as props so the parent (App) can own the hook
- * state and co-ordinate results display.
- */
 export function FileUpload({
-  mode = "single",
   onExtract,
   isLoading,
   loadingFilename,
@@ -91,78 +94,28 @@ export function FileUpload({
 }: FileUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [isDragReject, setIsDragReject] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
-
-  // Batch-mode queue
   const [queuedFiles, setQueuedFiles] = useState<File[]>([]);
 
-  function getZoneColorClasses(): string {
-    if (isDragReject) return "border-destructive bg-destructive/5";
-    if (isDragOver) return "border-primary bg-primary/10 scale-[1.01]";
-    if (isHovering) return "border-primary bg-primary/5";
-    return "border-border bg-background";
-  }
-
-  function getIconColor(): string {
-    if (isDragReject) return "text-destructive";
-    if (isDragOver || isHovering) return "text-primary";
-    return "text-muted-foreground";
-  }
-
-  function getHeadlineText(): string {
-    const isActiveDrop = isDragOver && !isDragReject;
-    if (mode === "batch") {
-      return isActiveDrop
-        ? "Drop them here"
-        : "Drag & drop your CDX or CDXML files";
-    }
-    return isActiveDrop
-      ? "Drop it here"
-      : "Drag & drop your CDX or CDXML file";
-  }
-
-  const zoneClasses = cn(
-    "min-h-[220px] rounded-xl flex flex-col items-center justify-center gap-4 p-8",
-    "cursor-pointer transition-all duration-200",
-    "border-2 border-dashed",
-    getZoneColorClasses(),
-  );
-  const iconColor = getIconColor();
-  const headlineText = getHeadlineText();
-
-  // ── Single-mode drop handler ───────────────────────────────────────────────
-  function handleDropSingle(e: React.DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    setIsDragOver(false);
-    setIsDragReject(false);
-    const files = Array.from(e.dataTransfer.files);
-    if (files.length > 1) {
-      toast.error("Upload one file at a time.");
-      return;
-    }
-    if (files.length === 0) return;
-    const error = validateFile(files[0]);
-    if (error) {
-      toast.error(error);
-      return;
-    }
-    onExtract(files[0]);
-  }
-
-  // ── Batch-mode drop handler ────────────────────────────────────────────────
-  function handleDropBatch(e: React.DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    setIsDragOver(false);
-    setIsDragReject(false);
-    const incoming = Array.from(e.dataTransfer.files);
-    addFilesToQueue(incoming);
+  // ── Loading state — preserved for legacy rendering paths ────────────────
+  if (isLoading) {
+    const sizeSuffix =
+      loadingFileSize !== undefined ? ` (${formatBytes(loadingFileSize)})` : "";
+    const loadingMessage = loadingFilename
+      ? `Extracting structures from ${loadingFilename}${sizeSuffix}\u2026`
+      : "Extracting structures\u2026";
+    return (
+      <div className="flex flex-col items-center gap-4 py-16">
+        <Spinner className="size-12 text-primary" />
+        <p aria-live="polite" className="text-body text-foreground-muted">
+          {loadingMessage}
+        </p>
+      </div>
+    );
   }
 
   function addFilesToQueue(incoming: File[]) {
-    // Smart single-file detection: if exactly one file is dropped/selected
-    // and the queue is empty, route through the fast single-file extraction
-    // endpoint (POST /api/extract) instead of the Celery batch pipeline.
+    // Single-file fast-path: exactly one file dropped/selected with an
+    // empty queue → route through the single-file endpoint.
     if (incoming.length === 1 && queuedFiles.length === 0) {
       const file = incoming[0];
       const error = validateFile(file);
@@ -175,9 +128,7 @@ export function FileUpload({
     }
 
     setQueuedFiles((prev) => {
-      const currentCount = prev.length;
-      const available = MAX_BATCH_FILES - currentCount;
-
+      const available = MAX_BATCH_FILES - prev.length;
       if (available <= 0) {
         toast.error("Batch limit reached. Maximum 20 files per batch.");
         return prev;
@@ -185,19 +136,18 @@ export function FileUpload({
 
       const toAdd: File[] = [];
       for (const file of incoming) {
-        // Wrong extension: reject immediately with toast (never show in queue)
         const extError = validateExtension(file);
         if (extError) {
           toast.error(extError);
           continue;
         }
-        // Valid extension (may be oversize — shown in queue with inline warning)
-        if (toAdd.length < available) {
-          toAdd.push(file);
-        }
+        if (toAdd.length < available) toAdd.push(file);
       }
 
-      if (currentCount + toAdd.length >= MAX_BATCH_FILES && incoming.length > available) {
+      if (
+        prev.length + toAdd.length >= MAX_BATCH_FILES &&
+        incoming.length > available
+      ) {
         toast.error("Batch limit reached. Maximum 20 files per batch.");
       }
 
@@ -205,72 +155,55 @@ export function FileUpload({
     });
   }
 
-  const handleDrop = mode === "batch" ? handleDropBatch : handleDropSingle;
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragOver(false);
+    addFilesToQueue(Array.from(e.dataTransfer.files));
+  }
 
-  // ── File input change ──────────────────────────────────────────────────────
   function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     const fileList = e.target.files;
     if (!fileList || fileList.length === 0) return;
-
-    if (mode === "batch") {
-      addFilesToQueue(Array.from(fileList));
-    } else {
-      const file = fileList[0];
-      const error = validateFile(file);
-      if (error) {
-        toast.error(error);
-        return;
-      }
-      onExtract(file);
-    }
-
-    // Reset input so same file can be re-selected
+    addFilesToQueue(Array.from(fileList));
+    // Reset input so the same file can be re-selected.
     e.target.value = "";
   }
 
-  // ── Loading state (single mode only) ──────────────────────────────────────
-  if (isLoading) {
-    const sizeSuffix =
-      loadingFileSize !== undefined ? ` (${formatBytes(loadingFileSize)})` : "";
-    const loadingMessage = loadingFilename
-      ? `Extracting structures from ${loadingFilename}${sizeSuffix}\u2026`
-      : "Extracting structures\u2026";
-    return (
-      <div className="flex flex-col items-center gap-4 py-16">
-        <Spinner className="size-12 text-primary" />
-        <p aria-live="polite" className="text-body text-muted-foreground">
-          {loadingMessage}
-        </p>
-      </div>
-    );
+  function handleRemove(target: File) {
+    setQueuedFiles((prev) => prev.filter((f) => f !== target));
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   const hasOversizeFile = queuedFiles.some((f) => f.size > MAX_FILE_BYTES);
+  const hasQueuedFiles = queuedFiles.length > 0 && !isBatchProcessing;
+  const ctaLabel = hasQueuedFiles
+    ? `Extract ${queuedFiles.length} file${queuedFiles.length !== 1 ? "s" : ""}`
+    : "";
 
   return (
-    <div>
+    <div data-slot="upload-step" className="space-y-6">
       <input
         type="file"
         accept=".cdx,.cdxml"
-        multiple={mode === "batch"}
+        multiple
         className="hidden"
         ref={fileInputRef}
         onChange={handleFileInputChange}
       />
 
-      {/* Drop zone */}
       <div
         role="button"
         tabIndex={0}
-        aria-label={
-          mode === "batch"
-            ? "Upload CDX or CDXML files"
-            : "Upload CDX or CDXML file"
-        }
-        className={zoneClasses}
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
+        aria-label="Upload CDX or CDXML file"
+        data-slot="drop-zone"
+        data-drag-over={isDragOver ? "true" : undefined}
+        className={cn(
+          "relative flex min-h-[400px] w-full cursor-pointer flex-col items-center justify-center gap-4 p-8",
+          "rounded-xl border-2 border-dashed bg-surface-elevated",
+          "transition-colors duration-200",
+          "border-border hover:border-primary/60 hover:bg-accent/30",
+          "data-[drag-over=true]:border-primary data-[drag-over=true]:bg-accent/40",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        )}
         onDragOver={(e) => {
           e.preventDefault();
           setIsDragOver(true);
@@ -279,113 +212,103 @@ export function FileUpload({
           e.preventDefault();
           setIsDragOver(true);
         }}
-        onDragLeave={() => {
-          setIsDragOver(false);
-          setIsDragReject(false);
-        }}
+        onDragLeave={() => setIsDragOver(false)}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
         }}
       >
-        {isDragReject ? (
-          <XCircleIcon size={40} className={iconColor} />
-        ) : (
-          <UploadIcon size={40} className={iconColor} />
-        )}
-        <p className="text-sub-heading font-normal text-foreground tracking-tight">{headlineText}</p>
-        {mode === "batch" ? (
-          <>
-            {!isDragOver && (
-              <p className="text-body text-muted-foreground">
-                or click to browse · up to 20 files · 50 MB each
-              </p>
-            )}
-            {queuedFiles.length > 0 && (
-              <Badge variant="secondary">{queuedFiles.length} files selected</Badge>
-            )}
-          </>
-        ) : (
-          <>
-            {!isDragOver && (
-              <p className="text-body text-muted-foreground">or click to browse</p>
-            )}
-            <p className="text-caption text-muted-foreground">
-              Supports .cdx and .cdxml — up to 50 MB
-            </p>
-            <Button
-              variant="default"
-              size="lg"
-              className="rounded-full px-6 py-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                fileInputRef.current?.click();
-              }}
-            >
-              Extract structures
-            </Button>
-          </>
-        )}
+        <UploadCloudIcon
+          aria-hidden="true"
+          className="size-12 text-foreground-muted"
+        />
+        <div className="space-y-2 text-center">
+          <p className="text-base font-medium text-foreground">
+            Drag &amp; drop your CDX or CDXML file
+          </p>
+          <p className="text-sm text-foreground-muted">or click to browse</p>
+        </div>
+        <Button
+          variant="primary"
+          size="lg"
+          className="pointer-events-none rounded-full"
+          tabIndex={-1}
+          type="button"
+        >
+          Extract structures
+        </Button>
+        <p className="text-xs text-foreground-muted">
+          Supports .cdx and .cdxml &mdash; up to 50 MB &middot; 20 files per batch
+        </p>
       </div>
 
-      {/* Batch-mode: file queue list + Start batch button */}
-      {mode === "batch" && queuedFiles.length > 0 && !isBatchProcessing && (
-        <div className="mt-4">
-          <ul className="space-y-1 rounded-xl bg-card shadow-[rgba(0,0,0,0.22)_3px_5px_30px_0px] overflow-hidden">
+      {hasQueuedFiles && (
+        <div data-slot="file-list" className="space-y-2">
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
             {queuedFiles.map((file) => {
               const oversize = file.size > MAX_FILE_BYTES;
               return (
                 <li
                   key={`${file.name}-${file.size}`}
+                  data-slot="file-row"
                   className={cn(
-                    "min-h-[48px] flex items-center gap-2 px-4 py-2 hover:bg-muted/30 transition-colors",
-                    oversize && "ring-destructive/40"
+                    "flex min-h-[48px] items-center gap-3 px-4 py-2 transition-colors hover:bg-surface-muted/40",
+                    oversize && "bg-destructive/5",
                   )}
                 >
-                  <FileIcon size={16} className="text-muted-foreground shrink-0" />
-                  <span className="text-body truncate flex-1">{file.name}</span>
+                  <FileIcon
+                    className="size-4 shrink-0 text-foreground-muted"
+                    aria-hidden="true"
+                  />
+                  <span className="flex-1 truncate text-sm text-foreground">
+                    {file.name}
+                  </span>
                   {oversize && (
                     <AlertTriangleIcon
-                      size={14}
-                      className="text-destructive shrink-0"
+                      className="size-4 shrink-0 text-destructive"
+                      aria-label="File exceeds the 50 MB limit"
                     />
                   )}
                   <span
                     className={cn(
-                      "text-micro shrink-0",
-                      oversize ? "text-destructive" : "text-muted-foreground"
+                      "shrink-0 font-mono text-xs tabular-nums",
+                      oversize ? "text-destructive" : "text-foreground-muted",
                     )}
                   >
                     {formatBytes(file.size)}
                   </span>
                   <Button
                     variant="ghost"
-                    size="icon"
+                    size="icon-sm"
                     className="shrink-0"
-                    aria-label={"Remove " + file.name}
-                    onClick={() =>
-                      setQueuedFiles((prev) => prev.filter((f) => f !== file))
-                    }
+                    aria-label={`Remove ${file.name}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemove(file);
+                    }}
                   >
-                    <XIcon size={16} className="text-muted-foreground hover:text-foreground" />
+                    <XIcon className="size-4" aria-hidden="true" />
                   </Button>
                 </li>
               );
             })}
           </ul>
-          <Separator className="my-3" />
           <Button
-            variant="default"
+            data-slot="upload-extract-cta"
+            variant="primary"
             size="lg"
             className="w-full rounded-full"
-            disabled={queuedFiles.length === 0 || hasOversizeFile}
+            disabled={hasOversizeFile}
             onClick={() => {
               onStartBatch?.(queuedFiles);
               setQueuedFiles([]);
             }}
           >
-            Start batch
+            {ctaLabel}
           </Button>
         </div>
       )}
