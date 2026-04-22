@@ -127,4 +127,26 @@ describe("SearchFilter", () => {
     const chips = container.querySelectorAll('[data-slot="filter-chip"]');
     expect(chips.length).toBe(3);
   });
+
+  it("syncs the local input when the parent resets value.q externally", () => {
+    // Mount with a non-empty `q` so the input reflects "benzene", then
+    // simulate the parent (e.g. a Task 14 share-link clear) flipping
+    // value.q back to "" — the local input must follow without waiting
+    // for another keystroke.
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <SearchFilter
+        value={{ ...EMPTY_FILTERS, q: "benzene" }}
+        onChange={onChange}
+      />,
+    );
+    const input = screen.getByRole("searchbox") as HTMLInputElement;
+    expect(input.value).toBe("benzene");
+
+    rerender(
+      <SearchFilter value={{ ...EMPTY_FILTERS }} onChange={onChange} />,
+    );
+    const refreshed = screen.getByRole("searchbox") as HTMLInputElement;
+    expect(refreshed.value).toBe("");
+  });
 });

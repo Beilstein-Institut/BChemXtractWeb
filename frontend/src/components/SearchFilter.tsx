@@ -34,7 +34,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   EMPTY_FILTERS,
-  hasActiveFilters,
   type BrowseFilters,
 } from "@/components/browse/browseFilters";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -104,6 +103,17 @@ export function SearchFilter({
   // to the parent's empty state without a circular effect.
   const lastFlushedRef = useRef<string>(value.q);
 
+  // Sync external `value.q` changes into the local input (e.g. parent
+  // clears filters programmatically — Task 14 share-link handling).
+  // Guarded by `lastFlushedRef` so we don't ping-pong with the debounce
+  // flush effect below.
+  useEffect(() => {
+    if (value.q !== lastFlushedRef.current) {
+      lastFlushedRef.current = value.q;
+      setQ(value.q);
+    }
+  }, [value.q]);
+
   useEffect(() => {
     if (debouncedQ !== lastFlushedRef.current) {
       lastFlushedRef.current = debouncedQ;
@@ -114,7 +124,10 @@ export function SearchFilter({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQ]);
 
-  const anyActive = hasActiveFilters(value);
+  // Compute active state from the local input so the Clear button shows
+  // immediately on typing rather than one debounce cycle late.
+  const anyActive =
+    q.trim() !== "" || value.hasName || value.hasSmiles || value.hasInchi;
 
   const handleClearAll = () => {
     lastFlushedRef.current = "";

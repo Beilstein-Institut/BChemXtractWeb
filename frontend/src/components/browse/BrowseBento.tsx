@@ -271,7 +271,7 @@ function PopularStructuresTile({
   offset: number;
 }) {
   const label =
-    substances.length > 0 ? "Featured structures" : "Featured structures";
+    substances.length > 0 ? "Featured structures" : "No featured yet";
   return (
     <Card
       data-slot="browse-bento-popular"

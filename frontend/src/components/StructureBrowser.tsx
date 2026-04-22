@@ -33,7 +33,10 @@ import { StructureCard } from "@/components/StructureCard";
 import { StructureTable } from "@/components/StructureTable";
 import { StructureSheet } from "@/components/StructureSheet";
 import { filterSubstances } from "@/components/browse/filterSubstances";
-import type { BrowseFilters } from "@/components/browse/browseFilters";
+import {
+  hasActiveFilters,
+  type BrowseFilters,
+} from "@/components/browse/browseFilters";
 
 export interface StructureBrowserProps {
   /** The extraction ID to browse. Null/undefined renders idle state. */
@@ -129,13 +132,7 @@ export function StructureBrowser({
   const activeSubstance = substances[sheetIndex] ?? null;
   const allSelected = substances.length > 0 && substances.every((s) => selectedIds.has(s.id));
   const totalPages = page?.pages ?? 0;
-  const filtersActive = Boolean(
-    filters &&
-      (filters.q.trim() !== "" ||
-        filters.hasName ||
-        filters.hasSmiles ||
-        filters.hasInchi),
-  );
+  const filtersActive = filters ? hasActiveFilters(filters) : false;
 
   return (
     <div data-slot="structure-browser">
