@@ -4,6 +4,16 @@ import { Progress as ProgressPrimitive } from "@base-ui/react/progress"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Progress — state tier (Phase 3 Liquid Glass rebuild, Task 5).
+ *
+ * Wraps Base UI's Progress.Root + Track + Indicator. The Root is a
+ * flex layout so `ProgressLabel` + `ProgressValue` (when passed as
+ * children) sit above the track. Track: `h-2 rounded-full
+ * bg-surface-muted`. Indicator: `bg-primary` with a transitioned
+ * width driven by Base UI's inline `style` output. `data-slot` hooks
+ * preserved for Task 6 glass selectors.
+ */
 function Progress({
   className,
   children,
@@ -14,7 +24,7 @@ function Progress({
     <ProgressPrimitive.Root
       value={value}
       data-slot="progress"
-      className={cn("flex flex-wrap gap-3", className)}
+      className={cn("flex flex-wrap gap-2", className)}
       {...props}
     >
       {children}
@@ -28,11 +38,11 @@ function Progress({
 function ProgressTrack({ className, ...props }: ProgressPrimitive.Track.Props) {
   return (
     <ProgressPrimitive.Track
+      data-slot="progress-track"
       className={cn(
-        "relative flex h-1 w-full items-center overflow-x-hidden rounded-full bg-muted",
+        "relative h-2 w-full overflow-hidden rounded-full bg-surface-muted",
         className
       )}
-      data-slot="progress-track"
       {...props}
     />
   )
@@ -45,7 +55,10 @@ function ProgressIndicator({
   return (
     <ProgressPrimitive.Indicator
       data-slot="progress-indicator"
-      className={cn("h-full bg-primary transition-all", className)}
+      className={cn(
+        "h-full bg-primary transition-[width] duration-300 ease-out",
+        className
+      )}
       {...props}
     />
   )
@@ -54,8 +67,8 @@ function ProgressIndicator({
 function ProgressLabel({ className, ...props }: ProgressPrimitive.Label.Props) {
   return (
     <ProgressPrimitive.Label
-      className={cn("text-sm font-medium", className)}
       data-slot="progress-label"
+      className={cn("text-sm font-medium text-foreground", className)}
       {...props}
     />
   )
@@ -64,11 +77,11 @@ function ProgressLabel({ className, ...props }: ProgressPrimitive.Label.Props) {
 function ProgressValue({ className, ...props }: ProgressPrimitive.Value.Props) {
   return (
     <ProgressPrimitive.Value
+      data-slot="progress-value"
       className={cn(
-        "ml-auto text-sm text-muted-foreground tabular-nums",
+        "ml-auto text-sm tabular-nums text-foreground-muted",
         className
       )}
-      data-slot="progress-value"
       {...props}
     />
   )

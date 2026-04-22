@@ -1,26 +1,43 @@
 "use client"
 
 import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox"
-
-import { cn } from "@/lib/utils"
 import { CheckIcon } from "lucide-react"
 
+import { cn } from "@/lib/utils"
+
+/**
+ * Checkbox — state tier (Phase 3 Liquid Glass rebuild, Task 5).
+ *
+ * Square box: `size-4 rounded-sm border border-border bg-surface-muted`
+ * off; fills with `bg-primary` + `border-primary` when checked
+ * (Base UI `data-checked`). Indicator is a lucide CheckIcon revealed when
+ * checked. `data-slot` hooks are preserved for Task 6 glass selectors.
+ */
 function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
   return (
     <CheckboxPrimitive.Root
       data-slot="checkbox"
       className={cn(
-        "peer relative flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input transition-colors outline-none group-has-disabled/field:opacity-50 after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 aria-invalid:aria-checked:border-primary dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground dark:data-checked:bg-primary",
+        "peer relative inline-flex size-4 shrink-0 items-center justify-center",
+        "rounded-sm border border-border bg-surface-muted",
+        "transition-colors duration-150 outline-none",
+        // Focus ring
+        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        // Checked state
+        "data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground",
+        // Disabled
+        "disabled:cursor-not-allowed disabled:opacity-50 data-disabled:cursor-not-allowed data-disabled:opacity-50",
+        // Invalid (field context)
+        "aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/40",
         className
       )}
       {...props}
     >
       <CheckboxPrimitive.Indicator
         data-slot="checkbox-indicator"
-        className="grid place-content-center text-current transition-none [&>svg]:size-3.5"
+        className="grid place-content-center text-current"
       >
-        <CheckIcon
-        />
+        <CheckIcon className="size-3 text-primary-foreground" />
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   )

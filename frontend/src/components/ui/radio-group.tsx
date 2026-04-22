@@ -3,11 +3,21 @@ import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * RadioGroup — state tier (Phase 3 Liquid Glass rebuild, Task 5).
+ *
+ * Group lays children out in a vertical stack by default. Item is a
+ * round `size-4` button with `border-border bg-surface-muted` that
+ * flips its border to `border-primary` when selected (Base UI
+ * `data-checked`). Indicator is an inner `size-2` dot in
+ * `bg-primary-foreground`. `data-slot` hooks are preserved for Task 6
+ * glass selectors.
+ */
 function RadioGroup({ className, ...props }: RadioGroupPrimitive.Props) {
   return (
     <RadioGroupPrimitive
       data-slot="radio-group"
-      className={cn("grid w-full gap-2", className)}
+      className={cn("flex flex-col gap-3", className)}
       {...props}
     />
   )
@@ -18,16 +28,26 @@ function RadioGroupItem({ className, ...props }: RadioPrimitive.Root.Props) {
     <RadioPrimitive.Root
       data-slot="radio-group-item"
       className={cn(
-        "group/radio-group-item peer relative flex aspect-square size-4 shrink-0 rounded-full border border-input outline-none after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 aria-invalid:aria-checked:border-primary dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground dark:data-checked:bg-primary",
+        "group/radio-group-item peer relative inline-flex aspect-square size-4 shrink-0 items-center justify-center",
+        "rounded-full border border-border bg-surface-muted",
+        "transition-colors duration-150 outline-none",
+        // Focus ring
+        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        // Checked state: crimson border + crimson fill
+        "data-checked:border-primary data-checked:bg-primary",
+        // Disabled
+        "disabled:cursor-not-allowed disabled:opacity-50 data-disabled:cursor-not-allowed data-disabled:opacity-50",
+        // Invalid
+        "aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/40",
         className
       )}
       {...props}
     >
       <RadioPrimitive.Indicator
         data-slot="radio-group-indicator"
-        className="flex size-4 items-center justify-center"
+        className="flex items-center justify-center"
       >
-        <span className="absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-foreground" />
+        <span className="size-2 rounded-full bg-primary-foreground" />
       </RadioPrimitive.Indicator>
     </RadioPrimitive.Root>
   )
