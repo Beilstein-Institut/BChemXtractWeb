@@ -11,7 +11,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetClose,
-} from "@/components/ui/nav-sheet";
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useRoute } from "@/lib/router";
 import { Link } from "@/lib/Link";
@@ -63,7 +63,7 @@ function Logo() {
  * Renders the sticky glass-tinted top bar with token-driven
  * backdrop-filter, wordmark logo, the 4-route NavLinks, global
  * SearchInput, ThemeSwitch, and a mobile hamburger that opens the
- * nav-sheet.
+ * Base UI Sheet (Task 6 glass-tinted drawer).
  */
 export function AppHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -73,7 +73,7 @@ export function AppHeader() {
     <header
       data-slot="app-header"
       className={cn(
-        "sticky top-0 z-50 w-full",
+        "sticky top-0 z-40 w-full",
         "bg-[var(--glass-tint-light)] dark:bg-[var(--glass-tint-dark)]",
         "backdrop-blur-[var(--glass-blur)] backdrop-saturate-[var(--glass-saturate)]",
         "border-b border-[var(--glass-border)]",
@@ -89,15 +89,17 @@ export function AppHeader() {
         <div className="flex items-center gap-2">
           <ThemeSwitch />
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="lg:hidden"
-                aria-label="Open navigation menu"
-              >
-                <MenuIcon className="size-5" />
-              </Button>
+            <SheetTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lg:hidden"
+                  aria-label="Open navigation menu"
+                />
+              }
+            >
+              <MenuIcon className="size-5" />
             </SheetTrigger>
             <SheetContent side="left" className="w-[280px] sm:w-[320px]">
               <SheetHeader className="mb-6">
@@ -109,23 +111,27 @@ export function AppHeader() {
                 {MOBILE_LINKS.map((link) => {
                   const active = isActive(route, link.to);
                   return (
-                    <SheetClose key={link.label} asChild>
-                      <Link
-                        to={link.to}
-                        aria-current={active ? "page" : undefined}
-                        data-slot="nav-link"
-                        data-active={active ? "true" : undefined}
-                        className={cn(
-                          "py-3 text-base font-medium border-b transition-colors",
-                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                          active
-                            ? "text-primary border-primary/30 font-semibold"
-                            : "text-foreground border-border hover:text-primary",
-                        )}
-                      >
-                        {link.label}
-                      </Link>
-                    </SheetClose>
+                    <SheetClose
+                      key={link.label}
+                      nativeButton={false}
+                      render={
+                        <Link
+                          to={link.to}
+                          aria-current={active ? "page" : undefined}
+                          data-slot="nav-link"
+                          data-active={active ? "true" : undefined}
+                          className={cn(
+                            "py-3 text-base font-medium border-b transition-colors",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            active
+                              ? "text-primary border-primary/30 font-semibold"
+                              : "text-foreground border-border hover:text-primary",
+                          )}
+                        >
+                          {link.label}
+                        </Link>
+                      }
+                    />
                   );
                 })}
               </nav>
