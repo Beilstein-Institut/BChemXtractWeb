@@ -254,4 +254,24 @@ test.describe("neomorphism primitives — Phase 2 re-skin", () => {
     expect(onShadow).not.toBe(offShadow);
     expect(onShadow).toContain("inset");
   });
+
+  test("Dark + neo: Card shadow uses dark-channel rgba(0, 0, 0, 0.5)", async ({ page }) => {
+    await page.goto("/?ui=neo");
+    await page.evaluate(() => {
+      localStorage.setItem("bchemxtract-theme", "dark");
+    });
+    await page.goto("/?ui=neo");
+    await page.evaluate(() => {
+      const probe = document.createElement("div");
+      probe.id = "__card_dark_probe";
+      probe.setAttribute("data-slot", "card");
+      probe.style.width = "40px";
+      probe.style.height = "40px";
+      document.body.appendChild(probe);
+    });
+    const boxShadow = await page
+      .locator("#__card_dark_probe")
+      .evaluate((el) => window.getComputedStyle(el).boxShadow);
+    expect(boxShadow).toContain("rgba(0, 0, 0, 0.5)");
+  });
 });
