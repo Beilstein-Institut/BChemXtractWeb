@@ -86,7 +86,8 @@ export function HistoryList({
       {!loading && total > 10 && (
         <div className="mt-3">
           <Button
-            variant="link"
+            variant="ghost"
+            data-underline
             className="text-[14px] font-normal text-primary p-0 h-auto underline-offset-2 hover:underline min-h-[44px] rounded-full"
             onClick={onToggleShowAll}
           >
