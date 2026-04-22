@@ -88,7 +88,7 @@ export function HistoryList({
           <Button
             variant="ghost"
             data-underline
-            className="text-[14px] font-normal text-primary p-0 h-auto underline-offset-2 hover:underline min-h-[44px] rounded-full"
+            className="text-[14px] font-normal text-primary p-0 h-auto min-h-[44px] rounded-full"
             onClick={onToggleShowAll}
           >
             {showAll ? "Show less" : `Show all ${total} extractions`}
