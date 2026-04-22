@@ -186,4 +186,72 @@ test.describe("neomorphism primitives — Phase 2 re-skin", () => {
       .evaluate((el) => window.getComputedStyle(el).boxShadow);
     expect(boxShadow).toContain("rgba(0, 0, 0, 0.08)");
   });
+
+  test("Switch (off) [data-slot=switch] gets shadow-neu-inset-sm", async ({ page }) => {
+    await page.goto("/?ui=neo");
+    await page.evaluate(() => {
+      const probe = document.createElement("button");
+      probe.id = "__switch_probe";
+      probe.setAttribute("data-slot", "switch");
+      probe.setAttribute("role", "switch");
+      probe.setAttribute("aria-checked", "false");
+      document.body.appendChild(probe);
+    });
+    const boxShadow = await page
+      .locator("#__switch_probe")
+      .evaluate((el) => window.getComputedStyle(el).boxShadow);
+    expect(boxShadow).toContain("inset");
+  });
+
+  test("Badge [data-slot=badge] gets shadow-neu-inset-sm", async ({ page }) => {
+    await page.goto("/?ui=neo");
+    await page.evaluate(() => {
+      const probe = document.createElement("span");
+      probe.id = "__badge_probe";
+      probe.setAttribute("data-slot", "badge");
+      probe.textContent = "x";
+      document.body.appendChild(probe);
+    });
+    const boxShadow = await page
+      .locator("#__badge_probe")
+      .evaluate((el) => window.getComputedStyle(el).boxShadow);
+    expect(boxShadow).toContain("inset");
+  });
+
+  test("Alert [data-slot=alert] gets a subtle inset frame", async ({ page }) => {
+    await page.goto("/?ui=neo");
+    await page.evaluate(() => {
+      const probe = document.createElement("div");
+      probe.id = "__alert_probe";
+      probe.setAttribute("data-slot", "alert");
+      document.body.appendChild(probe);
+    });
+    const boxShadow = await page
+      .locator("#__alert_probe")
+      .evaluate((el) => window.getComputedStyle(el).boxShadow);
+    expect(boxShadow).toContain("inset");
+  });
+
+  test("Switch (on) [data-slot=switch][data-checked] gets the pressed shadow (different from off)", async ({ page }) => {
+    await page.goto("/?ui=neo");
+    await page.evaluate(() => {
+      const off = document.createElement("button");
+      off.id = "__switch_off_probe";
+      off.setAttribute("data-slot", "switch");
+      document.body.appendChild(off);
+      const on = document.createElement("button");
+      on.id = "__switch_on_probe";
+      on.setAttribute("data-slot", "switch");
+      on.setAttribute("data-checked", "");
+      document.body.appendChild(on);
+    });
+    const offShadow = await page
+      .locator("#__switch_off_probe")
+      .evaluate((el) => window.getComputedStyle(el).boxShadow);
+    const onShadow = await page
+      .locator("#__switch_on_probe")
+      .evaluate((el) => window.getComputedStyle(el).boxShadow);
+    expect(onShadow).not.toBe(offShadow);
+    expect(onShadow).toContain("inset");
+  });
 });

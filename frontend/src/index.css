@@ -1008,3 +1008,39 @@ html.neo-ui [data-slot="navigation-menu-content"] {
   /* Kill shadcn's default hairline ring on popups — neo drop provides lift. */
   --tw-ring-shadow: 0 0 #0000;
 }
+
+/* --- State + atomic primitives ----------------------------------------
+ * Badge / Alert / Switch-off / Tabs-trigger-inactive / Checkbox-unchecked
+ * / RadioGroupItem-unchecked / Progress-track: inset-sm "pressed well".
+ * Switch-on / Tabs-trigger-active / Checkbox-checked / RadioGroupItem-checked:
+ * pressed shadow to read as the activated state.
+ * ----------------------------------------------------------------------- */
+html.neo-ui [data-slot="badge"],
+html.neo-ui [data-slot="alert"],
+html.neo-ui [data-slot="switch"],
+html.neo-ui [data-slot="tabs-list"],
+html.neo-ui [data-slot="progress-track"],
+html.neo-ui [data-slot="slider-track"],
+html.neo-ui [data-slot="checkbox"],
+html.neo-ui [data-slot="radio-group-item"] {
+  box-shadow: var(--neu-shadow-inset-sm);
+  transition: box-shadow 150ms ease-out;
+}
+
+/* Base UI emits data-checked / data-active / data-pressed (not the
+ * Radix-style data-state="checked" / "active" / "on"). Target the
+ * attributes the real components actually render. */
+html.neo-ui [data-slot="switch"][data-checked],
+html.neo-ui [data-slot="tabs-trigger"][data-active],
+html.neo-ui [data-slot="checkbox"][data-checked],
+html.neo-ui [data-slot="radio-group-item"][data-checked],
+html.neo-ui [data-slot="toggle"][data-pressed] {
+  box-shadow: var(--neu-shadow-pressed);
+}
+
+/* Select trigger reads like an input (inset, clickable) */
+html.neo-ui [data-slot="select-trigger"],
+html.neo-ui [data-slot="native-select"] {
+  box-shadow: var(--neu-shadow-inset);
+  transition: box-shadow 180ms ease-out;
+}
