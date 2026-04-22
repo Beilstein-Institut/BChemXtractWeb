@@ -1,6 +1,4 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { resolveHcMode } from "@/lib/hcMode";
-import { resolveUiMode, type UiMode } from "@/lib/uiMode";
 
 type Theme = "dark" | "light" | "system";
 
@@ -13,15 +11,11 @@ interface ThemeProviderProps {
 interface ThemeProviderState {
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  uiMode: UiMode;
-  hcMode: boolean;
 }
 
 const initialState: ThemeProviderState = {
   theme: "system",
   setTheme: () => null,
-  uiMode: "legacy",
-  hcMode: false,
 };
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
@@ -35,10 +29,8 @@ export function ThemeProvider({
   const [theme, setTheme] = useState<Theme>(
     () => (localStorage.getItem(storageKey) as Theme) || defaultTheme,
   );
-  const [uiMode, setUiMode] = useState<UiMode>(() => resolveUiMode());
-  const [hcMode, setHcMode] = useState<boolean>(() => resolveHcMode());
 
-  // Existing .dark / .light emission (unchanged behaviour).
+  // Emit only `.dark` on <html>, driven by stored theme or system preference.
   useEffect(() => {
     const root = window.document.documentElement;
     root.classList.remove("light", "dark");
@@ -67,40 +59,12 @@ export function ThemeProvider({
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, [theme]);
 
-  // NEW: .neo-ui / .hc emission, driven by resolver modules.
-  useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.toggle("neo-ui", uiMode === "neo");
-  }, [uiMode]);
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.toggle("hc", hcMode);
-  }, [hcMode]);
-
-  // Re-resolve on route/popstate so ?ui=neo / ?hc=on flags take
-  // effect when the URL changes without a full page reload.
-  useEffect(() => {
-    const sync = () => {
-      setUiMode(resolveUiMode());
-      setHcMode(resolveHcMode());
-    };
-    window.addEventListener("popstate", sync);
-    window.addEventListener("routechange", sync);
-    return () => {
-      window.removeEventListener("popstate", sync);
-      window.removeEventListener("routechange", sync);
-    };
-  }, []);
-
   const value: ThemeProviderState = {
     theme,
     setTheme: (theme: Theme) => {
       localStorage.setItem(storageKey, theme);
       setTheme(theme);
     },
-    uiMode,
-    hcMode,
   };
 
   return (
