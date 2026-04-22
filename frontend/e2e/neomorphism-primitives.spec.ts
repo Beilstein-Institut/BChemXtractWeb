@@ -112,4 +112,38 @@ test.describe("neomorphism primitives — Phase 2 re-skin", () => {
     expect(props).toContain("box-shadow");
     expect(props).toContain("transform");
   });
+
+  test("Input [data-slot=input] gets shadow-neu-inset under .neo-ui", async ({ page }) => {
+    await page.goto("/?ui=neo");
+    await page.evaluate(() => {
+      const probe = document.createElement("input");
+      probe.id = "__input_probe";
+      probe.setAttribute("data-slot", "input");
+      probe.className = "bg-transparent";
+      document.body.appendChild(probe);
+    });
+    const style = await page
+      .locator("#__input_probe")
+      .evaluate((el) => {
+        const cs = window.getComputedStyle(el);
+        return { boxShadow: cs.boxShadow, borderRadius: cs.borderRadius };
+      });
+    expect(style.boxShadow).not.toBe("none");
+    expect(style.boxShadow).toContain("inset");
+    expect(style.borderRadius).not.toBe("0px");
+  });
+
+  test("Textarea [data-slot=textarea] also gets inset shadow", async ({ page }) => {
+    await page.goto("/?ui=neo");
+    await page.evaluate(() => {
+      const probe = document.createElement("textarea");
+      probe.id = "__textarea_probe";
+      probe.setAttribute("data-slot", "textarea");
+      document.body.appendChild(probe);
+    });
+    const boxShadow = await page
+      .locator("#__textarea_probe")
+      .evaluate((el) => window.getComputedStyle(el).boxShadow);
+    expect(boxShadow).toContain("inset");
+  });
 });

@@ -961,3 +961,27 @@ html.neo-ui [data-slot="button"]:not([data-variant="link"]):not([data-variant="g
 html.neo-ui [data-slot="button"]:disabled {
   box-shadow: none;
 }
+
+/* --- Input + Textarea (inset tier) ------------------------------------- */
+html.neo-ui [data-slot="input"],
+html.neo-ui [data-slot="textarea"] {
+  box-shadow: var(--neu-shadow-inset);
+  background: var(--neu-surface);
+  border-radius: var(--radius-lg);
+  transition: box-shadow 180ms ease-out;
+}
+
+html.neo-ui [data-slot="input"]:focus-visible,
+html.neo-ui [data-slot="textarea"]:focus-visible {
+  /* Inset preserved; focus ring comes from the Tailwind focus-visible:ring utility
+   * Button/Input already carry — stacks cleanly on top of the inset shadow. */
+  box-shadow: var(--neu-shadow-inset);
+}
+
+html.neo-ui [data-slot="input"]:disabled,
+html.neo-ui [data-slot="textarea"]:disabled {
+  /* The Input / Textarea primitives already carry Tailwind's
+   * disabled:opacity-50 class; we rely on that rather than stacking
+   * another opacity factor here (0.5 × 0.6 = 0.3 would over-dim). */
+  box-shadow: var(--neu-shadow-inset-sm);
+}
