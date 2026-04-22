@@ -191,7 +191,7 @@ export function StructureCard({
           />
         ) : (
           <div className="flex size-full items-center justify-center">
-            <FlaskConicalIcon className="size-8 text-muted-foreground" />
+            <FlaskConicalIcon className="size-8 text-foreground-muted" />
           </div>
         )}
       </div>
@@ -242,7 +242,7 @@ export function StructureCard({
                 <Check className="size-3.5 text-primary" aria-hidden="true" />
               ) : (
                 <Share2
-                  className="size-3.5 text-muted-foreground"
+                  className="size-3.5 text-foreground-muted"
                   aria-hidden="true"
                 />
               )}
