@@ -864,9 +864,18 @@ html.neo-ui {
   --popover:        var(--neu-surface-alt);
   --muted:          var(--neu-surface-alt);
   --secondary:      var(--neu-surface-alt);
+  --accent:         var(--neu-surface-alt);
   --border:         var(--neu-hairline);
   --input:          var(--neu-hairline);
   --radius:         0.875rem;    /* 14px — neo shadows need more curve */
+
+  /* Sidebar surface family — primitives like Sheet, DropdownMenu,
+   * NavigationMenu all consume these via --sidebar* tokens. */
+  --sidebar:              var(--neu-surface-alt);
+  --sidebar-foreground:   var(--foreground);
+  --sidebar-border:       var(--neu-hairline);
+  --sidebar-accent:       var(--neu-surface);
+  --sidebar-primary:      var(--primary);
 }
 
 /* Dark neomorphism — inverts the shadow palette so light/dark extrusion
