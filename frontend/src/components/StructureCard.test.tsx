@@ -1,5 +1,5 @@
 /**
- * Tests for StructureCard component.
+ * Tests for StructureCard component (Phase 3 Liquid Glass rewrite).
  * Vitest globals: true — no need to import describe/it/expect.
  *
  * Note: The dialog mock renders both the trigger and content always visible.
@@ -23,6 +23,8 @@ Object.defineProperty(navigator, "clipboard", {
 vi.mock("sonner", () => ({
   toast: {
     error: vi.fn(),
+    success: vi.fn(),
+    loading: vi.fn(),
   },
 }));
 
@@ -94,6 +96,7 @@ vi.mock("@base-ui/react/button", () => {
 });
 
 const mockSubstance: SubstanceResponse = {
+  id: 42,
   inchi: "InChI=1S/C6H6/c1-2-4-6-5-3-1/h1-6H",
   inchi_key: "UHOVQNZJYSORNB-UHFFFAOYSA-N",
   smiles: "c1ccccc1",
@@ -111,6 +114,11 @@ const mockSubstanceNoSvg: SubstanceResponse = {
   svg: "",
 };
 
+const mockSubstanceNoName: SubstanceResponse = {
+  ...mockSubstance,
+  iupac_name: "",
+};
+
 import { StructureCard } from "./StructureCard";
 
 describe("StructureCard component", () => {
@@ -119,36 +127,103 @@ describe("StructureCard component", () => {
     (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
   });
 
-  it("renders molecular formula text", () => {
+  it("renders IUPAC name in the Inter-semibold name slot", () => {
     render(<StructureCard substance={mockSubstance} />);
-    // The formula appears in both the card and the dialog; at least one occurrence
-    expect(screen.getAllByText("C6H6").length).toBeGreaterThan(0);
+    const names = document.querySelectorAll("[data-slot='structure-card-name']");
+    expect(names.length).toBeGreaterThan(0);
+    expect(names[0].textContent).toBe("benzene");
+    expect(names[0].className).toMatch(/font-semibold/);
   });
 
-  it("renders SMILES in a span with truncate class", () => {
+  it("falls back to molecular formula as the name when iupac_name is empty", () => {
+    render(<StructureCard substance={mockSubstanceNoName} />);
+    const name = document.querySelector("[data-slot='structure-card-name']");
+    expect(name).not.toBeNull();
+    expect(name!.textContent).toBe("C6H6");
+  });
+
+  it("renders molecular formula with <sub> elements for digit runs", () => {
     render(<StructureCard substance={mockSubstance} />);
-    // Find the truncated span specifically (inside the card trigger area, not dialog)
-    const truncatedSpans = document.querySelectorAll("span.truncate, span[class*='truncate']");
-    expect(truncatedSpans.length).toBeGreaterThan(0);
-    const smilesSpan = Array.from(truncatedSpans).find(
-      (el) => el.textContent === "c1ccccc1"
+    const formula = document.querySelector(
+      "[data-slot='structure-card-formula']"
     );
-    expect(smilesSpan).toBeDefined();
-    expect(smilesSpan!.className).toMatch(/truncate/);
+    expect(formula).not.toBeNull();
+    // "C6H6" → "C", <sub>6</sub>, "H", <sub>6</sub>
+    const subs = formula!.querySelectorAll("sub");
+    expect(subs.length).toBe(2);
+    expect(Array.from(subs).map((s) => s.textContent)).toEqual(["6", "6"]);
+    // Combined text still reads "C6H6"
+    expect(formula!.textContent).toBe("C6H6");
   });
 
-  it("renders an img element with a Blob URL src", () => {
+  it("renders em-dash in the formula slot when molecular_formula is empty", () => {
+    render(
+      <StructureCard
+        substance={{ ...mockSubstance, molecular_formula: "" }}
+      />
+    );
+    const formula = document.querySelector(
+      "[data-slot='structure-card-formula']"
+    );
+    expect(formula!.textContent).toBe("\u2014");
+  });
+
+  it("renders SMILES in the Geist Mono truncated slot with title attr", () => {
     render(<StructureCard substance={mockSubstance} />);
-    // At least one img element (the card thumbnail)
-    const imgs = document.querySelectorAll("img");
-    expect(imgs.length).toBeGreaterThan(0);
-    expect(imgs[0].src).toMatch(/^blob:/);
+    const smilesEls = document.querySelectorAll(
+      "[data-slot='structure-card-smiles']"
+    );
+    expect(smilesEls.length).toBeGreaterThan(0);
+    const smilesEl = smilesEls[0] as HTMLElement;
+    expect(smilesEl.textContent).toBe("c1ccccc1");
+    expect(smilesEl.className).toMatch(/truncate/);
+    expect(smilesEl.className).toMatch(/font-mono/);
+    expect(smilesEl.getAttribute("title")).toBe("c1ccccc1");
+  });
+
+  it("applies data-slot='structure-card' on the root with hover ring classes", () => {
+    render(<StructureCard substance={mockSubstance} />);
+    const roots = document.querySelectorAll("[data-slot='structure-card']");
+    expect(roots.length).toBeGreaterThan(0);
+    const root = roots[0] as HTMLElement;
+    expect(root.className).toMatch(/hover:ring-2/);
+    expect(root.className).toMatch(/hover:ring-primary\/20/);
+    expect(root.className).toMatch(/\bgroup\b/);
+  });
+
+  it("renders the white sub-surface with min-h-[160px] and bg-white", () => {
+    render(<StructureCard substance={mockSubstance} />);
+    const imageSurfaces = document.querySelectorAll(
+      "[data-slot='structure-card-image']"
+    );
+    expect(imageSurfaces.length).toBeGreaterThan(0);
+    const surface = imageSurfaces[0] as HTMLElement;
+    expect(surface.className).toMatch(/bg-white/);
+    expect(surface.className).toMatch(/min-h-\[160px\]/);
+  });
+
+  it("PNG image has group-hover scale class", () => {
+    render(<StructureCard substance={mockSubstance} />);
+    const img = document.querySelector(
+      "[data-slot='structure-card-image'] img"
+    ) as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    expect(img!.className).toMatch(/group-hover:scale-\[1\.02\]/);
   });
 
   it("renders FlaskConical fallback (no img element) when svg prop is empty string", () => {
     render(<StructureCard substance={mockSubstanceNoSvg} />);
-    const img = document.querySelector("img");
+    const img = document.querySelector("[data-slot='structure-card-image'] img");
     expect(img).toBeNull();
+  });
+
+  it("renders an img with a Blob URL src when svg is present", () => {
+    render(<StructureCard substance={mockSubstance} />);
+    const img = document.querySelector(
+      "[data-slot='structure-card-image'] img"
+    ) as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    expect(img!.src).toMatch(/^blob:/);
   });
 
   it('renders a button with aria-label="Copy SMILES to clipboard"', () => {
@@ -160,7 +235,6 @@ describe("StructureCard component", () => {
 
   it("clicking the copy button calls navigator.clipboard.writeText with smiles value", async () => {
     render(<StructureCard substance={mockSubstance} />);
-    // Click the first "Copy SMILES to clipboard" button (the card-level one)
     const copyBtns = screen.getAllByRole("button", { name: "Copy SMILES to clipboard" });
     fireEvent.click(copyBtns[0]);
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith("c1ccccc1");
@@ -172,6 +246,44 @@ describe("StructureCard component", () => {
     fireEvent.click(copyBtns[0]);
     await waitFor(() => {
       expect(screen.getAllByRole("button", { name: "Copied!" }).length).toBeGreaterThan(0);
+    });
+  });
+
+  it("renders a share button with data-slot='structure-card-share'", () => {
+    render(<StructureCard substance={mockSubstance} />);
+    const shareBtns = document.querySelectorAll(
+      "[data-slot='structure-card-share']"
+    );
+    expect(shareBtns.length).toBeGreaterThan(0);
+    expect(shareBtns[0].getAttribute("aria-label")).toBe("Copy share link");
+  });
+
+  it("clicking share copies a URL containing the InChI key to the clipboard", async () => {
+    render(<StructureCard substance={mockSubstance} />);
+    const shareBtn = document.querySelector(
+      "[data-slot='structure-card-share']"
+    ) as HTMLElement;
+    fireEvent.click(shareBtn);
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(1);
+    });
+    const call = (navigator.clipboard.writeText as ReturnType<typeof vi.fn>)
+      .mock.calls[0][0];
+    expect(call).toContain(`#s=${encodeURIComponent(mockSubstance.inchi_key)}`);
+    expect(call).toContain("/browse");
+  });
+
+  it("after share, the share button flips to 'Share link copied' aria-label", async () => {
+    render(<StructureCard substance={mockSubstance} />);
+    const shareBtn = document.querySelector(
+      "[data-slot='structure-card-share']"
+    ) as HTMLElement;
+    fireEvent.click(shareBtn);
+    await waitFor(() => {
+      const after = document.querySelector(
+        "[data-slot='structure-card-share']"
+      ) as HTMLElement;
+      expect(after.getAttribute("aria-label")).toBe("Share link copied");
     });
   });
 
@@ -188,12 +300,23 @@ describe("StructureCard component", () => {
         <StructureCard substance={mockSubstance} />
       </div>
     );
-    // Find the card-level copy button (the one inside the card trigger div, not the dialog)
     const cardTrigger = screen.getByRole("button", { name: /View details for C6H6/ });
-    // The SMILES copy button is a sibling of the formula text inside the card
     const copyBtns = within(cardTrigger).getAllByRole("button", { name: "Copy SMILES to clipboard" });
     fireEvent.click(copyBtns[0]);
-    // The parent div should NOT receive the click since stopPropagation is called
+    expect(handleParentClick).not.toHaveBeenCalled();
+  });
+
+  it("clicking the share button does NOT bubble to the parent div (stopPropagation)", () => {
+    const handleParentClick = vi.fn();
+    render(
+      <div onClick={handleParentClick} data-testid="parent-wrapper">
+        <StructureCard substance={mockSubstance} />
+      </div>
+    );
+    const shareBtn = document.querySelector(
+      "[data-slot='structure-card-share']"
+    ) as HTMLElement;
+    fireEvent.click(shareBtn);
     expect(handleParentClick).not.toHaveBeenCalled();
   });
 });

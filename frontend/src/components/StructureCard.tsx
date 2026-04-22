@@ -1,31 +1,51 @@
 /**
- * StructureCard — a clickable molecule card showing SVG depiction, molecular
- * formula, truncated SMILES, and a clipboard copy button.
+ * StructureCard — Phase 3 Liquid Glass tile (Task 9 rewrite).
  *
- * Clicking the card body opens a StructureDetail dialog. Clicking the copy
- * button copies the SMILES string without opening the dialog (stopPropagation).
+ * Flat surface card:
+ *   - White sub-surface (rounded 12 px, min-h 160 px) holds the SVG depiction.
+ *     The white sub-surface persists in dark mode — chemistry convention keeps
+ *     structures on paper-white regardless of theme.
+ *   - Metadata block below on the outer `--color-surface` card background:
+ *       Name (IUPAC when present; molecular formula otherwise) in Inter
+ *       semibold 16 px.
+ *       SMILES in Geist Mono 14 px, truncated with a native `title` tooltip
+ *       for hover-reveal full.
+ *       Molecular formula in Inter with chemistry subscripts via <sub> tags.
+ *   - Bottom action row: Copy-SMILES icon button, Share link icon button,
+ *     optional per-card export menu, optional Details trigger.
  *
- * SVG is rendered via a Blob URL in an <img> src — never as raw innerHTML —
- * to prevent XSS injection from backend-supplied SVG (T-04-04). See
- * useSvgObjectUrl for why Blob URLs replaced data URIs here.
+ * Hover: crimson ring (`ring-2 ring-primary/20`) + a 1.02 scale on the SVG
+ * thumbnail (group-hover). No neomorphic lift.
+ *
+ * Behaviour preserved from the pre-rewrite version (downstream call sites
+ * depend on this contract):
+ *   - onOpen(itemIndex)   — sheet mode used by StructureBrowser.
+ *   - isChecked / onSelect — selection checkbox overlay (D-16 batch flow).
+ *   - default mode        — opens internal StructureDetail Dialog via Base UI.
+ *   - ExportMenu overlay  — per-card export dropdown (top-right).
+ *   - SVG rendered as Blob URL in <img src> (T-04-04 XSS mitigation).
+ *
+ * All new slots follow the Phase 3 `data-slot` contract:
+ *   data-slot="structure-card"            (root)
+ *   data-slot="structure-card-image"      (white PNG surface)
+ *   data-slot="structure-card-name"       (Inter semibold title)
+ *   data-slot="structure-card-smiles"     (Geist Mono truncated)
+ *   data-slot="structure-card-formula"    (Inter with subscripts)
+ *   data-slot="structure-card-share"      (share icon button)
+ *   data-slot="structure-card-details"    (details/ExternalLink trigger)
  */
-import { useState } from "react";
-import { FlaskConicalIcon } from "lucide-react";
+import { useCallback, useState } from "react";
+import { FlaskConicalIcon, Share2, Check } from "lucide-react";
 import { toast } from "sonner";
-import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/internal/CopyButton";
 import { ExportMenu } from "@/components/ExportMenu";
 import { StructureDetail } from "@/components/StructureDetail";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { postExport } from "@/lib/apiClient";
-import { safeDownloadSlug } from "@/lib/safeStrings";
+import { safeClipboardText, safeDownloadSlug } from "@/lib/safeStrings";
 import { cn } from "@/lib/utils";
 import type { SubstanceResponse } from "@/types/chemistry";
 import type { ExportFormat } from "@/types/export";
@@ -46,16 +66,39 @@ export interface StructureCardProps {
   onSelect?: (id: number) => void;
   /** 0-based index within the current page (passed back via onOpen). */
   itemIndex?: number;
+  /** Extra classes merged into the root tile. */
+  className?: string;
+}
+
+/**
+ * Render a molecular formula (e.g. "C6H12O6") with digit runs wrapped in
+ * `<sub>` tags so the output reads C₆H₁₂O₆ visually. Returns "—" for empty.
+ */
+function renderFormulaWithSubscripts(
+  formula: string | null | undefined
+): React.ReactNode {
+  if (!formula) return "—";
+  const parts = formula.split(/(\d+)/).filter((part) => part.length > 0);
+  return parts.map((part, i) =>
+    /^\d+$/.test(part) ? (
+      <sub key={i} className="text-[0.75em] align-baseline">
+        {part}
+      </sub>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
 }
 
 /**
  * StructureCard — molecule grid tile.
  *
  * Implements D-07 (thumbnail card), D-08 (molecular formula + SMILES), D-09
- * (dialog trigger), and DISP-04 (copy SMILES to clipboard).
- *
- * When `onOpen` prop is provided, clicks open a Sheet instead of the internal
- * Dialog (D-08, D-10). All existing usages without `onOpen` retain Dialog behavior.
+ * (dialog trigger), DISP-04 (copy SMILES to clipboard), and D-16 (batch
+ * selection). The Phase-3 rewrite flattens the surface and introduces the
+ * white PNG sub-surface, Inter / Geist Mono typography, and chemistry
+ * subscripts — existing behaviour (sheet mode, export menu, detail dialog,
+ * XSS-safe Blob-URL SVG) is preserved.
  */
 export function StructureCard({
   substance,
@@ -63,10 +106,20 @@ export function StructureCard({
   isChecked,
   onSelect,
   itemIndex,
+  className,
 }: StructureCardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [shared, setShared] = useState(false);
 
   const svgSrc = useSvgObjectUrl(substance.svg);
+
+  // Prefer IUPAC name for the Inter-semibold headline; fall back to the
+  // molecular formula (same text that already appears in the formula row, but
+  // serves as a stable label when no IUPAC name is present).
+  const displayName =
+    (substance.iupac_name && substance.iupac_name.trim()) ||
+    substance.molecular_formula ||
+    "Unnamed structure";
 
   async function handleExport(format: ExportFormat): Promise<void> {
     // IN-02: guard against sending substance_ids:[0] when id is falsy (Pydantic
@@ -90,45 +143,76 @@ export function StructureCard({
     }
   }
 
+  // Inline share action — copies a browse-anchored URL keyed by the InChI
+  // hash so recipients land on the same structure. Task 14 will extract this
+  // into a `useShareLink` hook; keeping it inline here avoids a premature
+  // abstraction.
+  const handleShare = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!substance.inchi_key) return;
+      try {
+        const url = `${window.location.origin}/browse#s=${encodeURIComponent(
+          substance.inchi_key
+        )}`;
+        await navigator.clipboard.writeText(safeClipboardText(url));
+        setShared(true);
+        window.setTimeout(() => setShared(false), 2000);
+      } catch {
+        toast.error("Could not copy share link.");
+      }
+    },
+    [substance.inchi_key]
+  );
+
   /** Shared card inner content (SVG + metadata) used in both render modes. */
   const cardInner = (
-    <Card
+    <div
+      data-slot="structure-card"
       className={cn(
-        "rounded-xl overflow-hidden bg-card ring-1 ring-foreground/10 transition-shadow hover:shadow-[rgba(0,0,0,0.22)_3px_5px_30px_0px] border-0",
-        isChecked && "ring-primary"
+        "group relative overflow-hidden rounded-lg border border-border bg-surface",
+        "transition-[box-shadow,transform] duration-200",
+        "hover:ring-2 hover:ring-primary/20",
+        isChecked && "ring-2 ring-primary",
+        className
       )}
     >
-      {/* SVG container: 240px fixed height */}
-      <div className="h-[240px] flex items-center justify-center bg-background rounded-t-xl p-4">
+      {/* White sub-surface — structure depictions always render on white
+          regardless of theme (chemistry convention). */}
+      <div
+        data-slot="structure-card-image"
+        className="flex min-h-[160px] items-center justify-center rounded-md bg-white p-4"
+      >
         {svgSrc ? (
           <img
             src={svgSrc}
             alt={`${substance.molecular_formula} structure`}
-            className="max-h-full max-w-full object-contain"
+            className="max-h-full max-w-full object-contain transition-transform duration-200 group-hover:scale-[1.02]"
           />
         ) : (
-          <div className="flex items-center justify-center w-full h-full bg-muted rounded">
+          <div className="flex size-full items-center justify-center">
             <FlaskConicalIcon className="size-8 text-muted-foreground" />
           </div>
         )}
       </div>
 
-      {/* Molecule metadata */}
-      <CardContent className="space-y-2">
-        <p className="text-caption font-normal tracking-[-0.016em] text-foreground">
-          {substance.molecular_formula}
-        </p>
+      {/* Metadata block on the card surface. */}
+      <div className="space-y-2 px-5 py-4">
+        <h3
+          data-slot="structure-card-name"
+          className="font-sans text-base font-semibold leading-tight text-foreground line-clamp-2"
+        >
+          {displayName}
+        </h3>
+
         <div className="flex items-center gap-2">
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <span className="text-caption text-muted-foreground truncate max-w-[calc(100%-2rem)]" />
-              }
-            >
-              {substance.smiles}
-            </TooltipTrigger>
-            <TooltipContent>{substance.smiles}</TooltipContent>
-          </Tooltip>
+          <span
+            data-slot="structure-card-smiles"
+            className="min-w-0 flex-1 truncate font-mono text-sm text-foreground-muted"
+            title={substance.smiles || ""}
+          >
+            {substance.smiles || "\u2014"}
+          </span>
           <CopyButton
             value={substance.smiles}
             label="SMILES"
@@ -136,8 +220,44 @@ export function StructureCard({
             mutedIcon
           />
         </div>
-      </CardContent>
-    </Card>
+
+        <div
+          data-slot="structure-card-formula"
+          className="font-sans text-sm text-foreground-muted"
+        >
+          {renderFormulaWithSubscripts(substance.molecular_formula)}
+        </div>
+
+        <div className="flex items-center justify-between border-t border-border pt-2">
+          <div className="flex items-center gap-1">
+            <Button
+              data-slot="structure-card-share"
+              variant="ghost"
+              size="icon-sm"
+              type="button"
+              aria-label={shared ? "Share link copied" : "Copy share link"}
+              onClick={handleShare}
+            >
+              {shared ? (
+                <Check className="size-3.5 text-primary" aria-hidden="true" />
+              ) : (
+                <Share2
+                  className="size-3.5 text-muted-foreground"
+                  aria-hidden="true"
+                />
+              )}
+            </Button>
+          </div>
+          <span
+            data-slot="structure-card-details"
+            aria-hidden="true"
+            className="text-xs font-medium text-foreground-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+          >
+            View details
+          </span>
+        </div>
+      </div>
+    </div>
   );
 
   // Checkbox overlay — shown on hover when onOpen is provided, always visible when checked (D-16)
