@@ -41,4 +41,75 @@ test.describe("neomorphism primitives — Phase 2 re-skin", () => {
     expect(style.borderRadius).not.toBe("0px");
     expect(style.transition).toContain("box-shadow");
   });
+
+  test("Button [data-variant=default] gets shadow-neu idle and shadow-neu-pressed on :active", async ({ page }) => {
+    await page.goto("/?ui=neo");
+    const isDark = await page.evaluate(() =>
+      document.documentElement.classList.contains("dark"),
+    );
+    expect(isDark).toBe(false);
+    await page.evaluate(() => {
+      const probe = document.createElement("button");
+      probe.id = "__btn_default";
+      probe.setAttribute("data-slot", "button");
+      probe.setAttribute("data-variant", "default");
+      probe.className = "bg-primary text-primary-foreground";
+      probe.textContent = "x";
+      document.body.appendChild(probe);
+    });
+    const idle = await page
+      .locator("#__btn_default")
+      .evaluate((el) => window.getComputedStyle(el).boxShadow);
+    expect(idle).not.toBe("none");
+    expect(idle).toContain("rgba(163, 177, 198");
+  });
+
+  test("Button [data-variant=link] has NO neo shadow (transparency exception)", async ({ page }) => {
+    await page.goto("/?ui=neo");
+    await page.evaluate(() => {
+      const probe = document.createElement("button");
+      probe.id = "__btn_link";
+      probe.setAttribute("data-slot", "button");
+      probe.setAttribute("data-variant", "link");
+      probe.textContent = "x";
+      document.body.appendChild(probe);
+    });
+    const idle = await page
+      .locator("#__btn_link")
+      .evaluate((el) => window.getComputedStyle(el).boxShadow);
+    expect(idle).toBe("none");
+  });
+
+  test("Button [data-variant=ghost] has NO neo shadow (transparency exception)", async ({ page }) => {
+    await page.goto("/?ui=neo");
+    await page.evaluate(() => {
+      const probe = document.createElement("button");
+      probe.id = "__btn_ghost";
+      probe.setAttribute("data-slot", "button");
+      probe.setAttribute("data-variant", "ghost");
+      probe.textContent = "x";
+      document.body.appendChild(probe);
+    });
+    const idle = await page
+      .locator("#__btn_ghost")
+      .evaluate((el) => window.getComputedStyle(el).boxShadow);
+    expect(idle).toBe("none");
+  });
+
+  test("Button transition includes box-shadow and transform", async ({ page }) => {
+    await page.goto("/?ui=neo");
+    await page.evaluate(() => {
+      const probe = document.createElement("button");
+      probe.id = "__btn_trans";
+      probe.setAttribute("data-slot", "button");
+      probe.setAttribute("data-variant", "default");
+      probe.textContent = "x";
+      document.body.appendChild(probe);
+    });
+    const props = await page
+      .locator("#__btn_trans")
+      .evaluate((el) => window.getComputedStyle(el).transitionProperty);
+    expect(props).toContain("box-shadow");
+    expect(props).toContain("transform");
+  });
 });

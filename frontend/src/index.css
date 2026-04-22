@@ -942,3 +942,22 @@ html.neo-ui [data-slot="card"] {
     transform: translateY(-2px);
   }
 }
+
+/* --- Button ------------------------------------------------------------
+ * Variants default / outline / secondary / destructive get the neo surface.
+ * Variants ghost / link are transparent — no shadow halo.
+ * Press state: inset-style shadow + scale(0.98). :disabled strips shadow.
+ * ----------------------------------------------------------------------- */
+html.neo-ui [data-slot="button"]:not([data-variant="link"]):not([data-variant="ghost"]) {
+  box-shadow: var(--neu-shadow-raised);
+  transition: box-shadow 150ms ease-out, transform 150ms ease-out;
+}
+
+html.neo-ui [data-slot="button"]:not([data-variant="link"]):not([data-variant="ghost"]):active {
+  box-shadow: var(--neu-shadow-pressed);
+  transform: scale(0.98);
+}
+
+html.neo-ui [data-slot="button"]:disabled {
+  box-shadow: none;
+}
