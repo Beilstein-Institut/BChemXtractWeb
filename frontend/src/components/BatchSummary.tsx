@@ -140,6 +140,9 @@ export function BatchSummary({
             data-state={f.state}
             className="flex min-h-[48px] items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted/40"
           >
+            <span className="sr-only">
+              {f.state === "done" ? "Succeeded" : "Failed"}
+            </span>
             {f.state === "done" ? (
               <CheckCircle2Icon
                 className="size-4 shrink-0 text-secondary"

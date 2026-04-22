@@ -76,15 +76,33 @@ function Stat({
 function FileStatusIcon({ state }: { state: BatchFileStatus["state"] }) {
   switch (state) {
     case "queued":
-      return <ClockIcon className="size-4 shrink-0 text-foreground-muted" />;
+      return (
+        <ClockIcon
+          className="size-4 shrink-0 text-foreground-muted"
+          aria-hidden="true"
+        />
+      );
     case "processing":
       return (
-        <LoaderIcon className="size-4 shrink-0 animate-spin text-primary" />
+        <LoaderIcon
+          className="size-4 shrink-0 animate-spin text-primary"
+          aria-hidden="true"
+        />
       );
     case "done":
-      return <CheckCircle2Icon className="size-4 shrink-0 text-secondary" />;
+      return (
+        <CheckCircle2Icon
+          className="size-4 shrink-0 text-secondary"
+          aria-hidden="true"
+        />
+      );
     case "failed":
-      return <XCircleIcon className="size-4 shrink-0 text-destructive" />;
+      return (
+        <XCircleIcon
+          className="size-4 shrink-0 text-destructive"
+          aria-hidden="true"
+        />
+      );
   }
 }
 

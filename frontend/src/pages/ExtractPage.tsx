@@ -18,7 +18,7 @@
  * Hook signatures are untouched per the Task 10 plan; the parent still owns
  * the state and passes it down via props.
  */
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { CheckIcon, LoaderIcon, UploadIcon } from "lucide-react";
 import { BatchProgress } from "@/components/BatchProgress";
 import { BatchSummary } from "@/components/BatchSummary";
@@ -99,12 +99,19 @@ export function ExtractPage({
     [state, batchState],
   );
 
-  // Manual back-nav only — forward nav is gated by actual batch progress.
-  // Clicking an already-completed step (lower index) snaps the wizard back
-  // by resetting the batch state when needed. For now, we only allow
-  // stepping back from "results" via the existing "New batch" button —
-  // `onStepChange` below is left unassigned to avoid implicit side effects.
-  const currentIdx = STEP_ORDER.indexOf(currentStep);
+  // Manual back-nav: any backward click in the stepper resets the batch and
+  // returns to Upload. Forward clicks are ignored — forward transitions are
+  // driven by hook state (useExtract / useBatch auto-advance).
+  const handleStepChange = useCallback(
+    (nextId: string) => {
+      const nextIdx = STEP_ORDER.indexOf(nextId as WizardStepId);
+      const currentIdx = STEP_ORDER.indexOf(currentStep);
+      if (nextIdx < currentIdx) {
+        onResetBatch();
+      }
+    },
+    [currentStep, onResetBatch],
+  );
 
   return (
     <PageContainer>
@@ -120,15 +127,7 @@ export function ExtractPage({
       <WizardStepper
         steps={WIZARD_STEPS}
         currentStep={currentStep}
-        onStepChange={(nextId) => {
-          // Manual nav only allows going backward to a step the user has
-          // already passed. Forward transitions are driven by hook state.
-          const nextIdx = STEP_ORDER.indexOf(nextId as WizardStepId);
-          if (nextIdx < currentIdx && nextIdx === 0) {
-            // Snap back to Upload → reset the batch so it re-enters idle.
-            onResetBatch();
-          }
-        }}
+        onStepChange={handleStepChange}
       >
         {currentStep === "upload" && (
           <FileUpload

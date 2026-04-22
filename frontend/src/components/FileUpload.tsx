@@ -43,8 +43,6 @@ import { Spinner } from "@/components/ui/spinner";
  *   - 20 files max per batch — overflow toasts "Batch limit reached…".
  */
 export interface FileUploadProps {
-  /** Kept for backward-compat with legacy test files; no longer toggles layout. */
-  mode?: "single" | "batch";
   /** Called with a validated File when the single-file fast-path fires. */
   onExtract: (file: File) => void;
   /** Active when the single-file endpoint is mid-flight. */
