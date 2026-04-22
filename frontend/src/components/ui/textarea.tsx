@@ -2,12 +2,24 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Textarea — form tier (Phase 3 Liquid Glass rebuild, Task 4).
+ *
+ * Shares the form-input pattern with Input and Select trigger:
+ *   bg-surface-muted / border-border / rounded-sm / focus-visible ring-ring.
+ *
+ * Adds `min-h-20` + `resize-y` so long-form text still has a reasonable
+ * default height and the user can drag-resize vertically.
+ *
+ * `data-slot="textarea"` is the stable hook for downstream selectors and
+ * tests; do not rename.
+ */
 function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
   return (
     <textarea
       data-slot="textarea"
       className={cn(
-        "flex field-sizing-content min-h-16 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        "flex min-h-20 w-full resize-y rounded-sm border border-border bg-surface-muted px-3 py-2 text-sm text-foreground transition-colors outline-none placeholder:text-foreground-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/40",
         className
       )}
       {...props}

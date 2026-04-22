@@ -4,12 +4,24 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Label — form tier (Phase 3 Liquid Glass rebuild, Task 4).
+ *
+ * Plan-specified base classes: `text-sm font-medium mb-2 block`.
+ *
+ * The legacy peer-disabled / group-disabled selectors are preserved so
+ * existing form layouts that nest this label next to a disabled input or
+ * inside a `group[data-disabled=true]` wrapper keep their muted state.
+ *
+ * `data-slot="label"` is the stable hook for downstream selectors and
+ * tests; do not rename.
+ */
 function Label({ className, ...props }: React.ComponentProps<"label">) {
   return (
     <label
       data-slot="label"
       className={cn(
-        "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
+        "mb-2 block text-sm font-medium leading-none select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
         className
       )}
       {...props}
