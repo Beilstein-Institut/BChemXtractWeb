@@ -13,7 +13,7 @@
  * - T-06-10: Keyboard listener scoped to open state in StructureSheet
  * - T-06-11: onPrev/onNext clamped with Math.max/Math.min to [0, substances.length-1]
  */
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AlertCircleIcon, LayoutGridIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,6 +32,8 @@ import { BrowseToolbar } from "@/components/BrowseToolbar";
 import { StructureCard } from "@/components/StructureCard";
 import { StructureTable } from "@/components/StructureTable";
 import { StructureSheet } from "@/components/StructureSheet";
+import { filterSubstances } from "@/components/browse/filterSubstances";
+import type { BrowseFilters } from "@/components/browse/browseFilters";
 
 export interface StructureBrowserProps {
   /** The extraction ID to browse. Null/undefined renders idle state. */
@@ -52,6 +54,14 @@ export interface StructureBrowserProps {
    * hydrated from the D-23 cached path. Defaults to false.
    */
   reactionsAvailable?: boolean;
+  /**
+   * Optional `BrowseFilters` surfaced by the Phase 3 Task 11 `SearchFilter`
+   * composite. When provided, the current-page substance slice is filtered
+   * client-side using `filterSubstances` so the grid/table views honour
+   * the same chip + query state as the bento landing. Server pagination
+   * itself is unchanged — useBrowse still drives `page` / `size` / `sort`.
+   */
+  filters?: BrowseFilters;
 }
 
 /**
@@ -79,6 +89,7 @@ export function StructureBrowser({
   onReset: _onReset,
   onSearchWithin,
   reactionsAvailable = false,
+  filters,
 }: StructureBrowserProps) {
   const {
     browseState,
@@ -106,13 +117,28 @@ export function StructureBrowser({
     setSheetOpen(true);
   }
 
-  const substances = page?.items ?? [];
+  // Task 11: narrow the current server page to the browse filters. Server
+  // pagination / sort still drive which slice we see — filters only hide
+  // non-matches within that slice. Pulling `page?.items` inside the useMemo
+  // keeps the dep array stable across renders (outside the memo the fallback
+  // `??` would produce a new array literal every render).
+  const substances = useMemo(() => {
+    const items = page?.items ?? [];
+    return filters ? filterSubstances(items, filters) : items;
+  }, [page, filters]);
   const activeSubstance = substances[sheetIndex] ?? null;
   const allSelected = substances.length > 0 && substances.every((s) => selectedIds.has(s.id));
   const totalPages = page?.pages ?? 0;
+  const filtersActive = Boolean(
+    filters &&
+      (filters.q.trim() !== "" ||
+        filters.hasName ||
+        filters.hasSmiles ||
+        filters.hasInchi),
+  );
 
   return (
-    <div>
+    <div data-slot="structure-browser">
       {/* Toolbar — disabled during initial load (D-14) */}
       <BrowseToolbar
         view={view}
@@ -163,12 +189,23 @@ export function StructureBrowser({
         />
       )}
 
-      {/* Empty state (D-19) */}
+      {/* Empty state (D-19). When filters are active but the current page
+          happens to contain zero matches, the copy switches from the
+          default "nothing to browse" to a filter-aware prompt so the user
+          understands why the grid is blank. */}
       {browseState === "success" && substances.length === 0 && (
         <EmptyState
           icon={LayoutGridIcon}
-          title="Nothing to browse yet"
-          message="Upload a file or pick an extraction from your history to see its structures here."
+          title={
+            filtersActive
+              ? "No structures match these filters"
+              : "Nothing to browse yet"
+          }
+          message={
+            filtersActive
+              ? "Clear a chip or change the search query to see more results."
+              : "Upload a file or pick an extraction from your history to see its structures here."
+          }
           size="large"
         />
       )}

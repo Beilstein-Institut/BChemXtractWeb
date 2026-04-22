@@ -1,19 +1,45 @@
 /**
- * BrowsePage — paginated structure grid + Reactions tab (route: `/browse`).
+ * BrowsePage — bento landing + extraction tabs (route: `/browse`).
  *
- * Renders <ExtractionTabs> with <StructureBrowser> for the currently active
- * extraction. When no extraction is active, shows an empty state with CTAs
- * back to Extract and History.
+ * Phase 3 Task 11 rewrite. The page is still scoped to whichever
+ * extraction is "active" (set by App.tsx after a successful upload
+ * or via `handleViewExtraction`). Landing layout, top-down:
+ *
+ *   1. Page header (display title + sub-copy).
+ *   2. `SearchFilter` composite (debounced 250 ms query + 3 chips).
+ *   3. `BrowseBento` — 4-col bento grid with Recent / Total / Unique
+ *      InChI / Source format / Browse-all CTA / Featured tiles.
+ *   4. `ExtractionTabs` wrapping `StructureBrowser` (full paginated
+ *      grid/table view + Reactions tab).
+ *
+ * The bento consumes the full `activeResult.substances` list filtered
+ * locally; the StructureBrowser below keeps its paginated server-driven
+ * contract (Phase 6 `useBrowse` unchanged). Filters also reach the
+ * browser via a `filters` prop so the paginated grid honours the same
+ * chip + query state on the current page slice (client-side predicate —
+ * server pagination is unmodified).
  */
+import { useCallback, useMemo, useRef, useState } from "react";
 import { FileUpIcon, HistoryIcon } from "lucide-react";
+import { BrowseBento } from "@/components/browse/BrowseBento";
+import { filterSubstances } from "@/components/browse/filterSubstances";
 import { ExtractionTabs } from "@/components/ExtractionTabs";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { SearchFilter } from "@/components/SearchFilter";
+import {
+  EMPTY_FILTERS,
+  type BrowseFilters,
+} from "@/components/browse/browseFilters";
 import { StructureBrowser } from "@/components/StructureBrowser";
+import { StructureDetail } from "@/components/StructureDetail";
+import { Dialog } from "@/components/ui/dialog";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Link } from "@/lib/Link";
 import type {
   ExtractionResponse,
   ReactionExtractionResponse,
+  SubstanceResponse,
 } from "@/types/chemistry";
 
 export interface BrowsePageProps {
@@ -43,13 +69,44 @@ export function BrowsePage({
 }: BrowsePageProps) {
   const hasExtraction = activeExtractionId !== null && activeResult !== null;
 
+  const [filters, setFilters] = useState<BrowseFilters>({ ...EMPTY_FILTERS });
+  const [activeSubstance, setActiveSubstance] =
+    useState<SubstanceResponse | null>(null);
+
+  const browserRef = useRef<HTMLDivElement | null>(null);
+
+  const allSubstances = useMemo<SubstanceResponse[]>(
+    () => activeResult?.substances ?? [],
+    [activeResult],
+  );
+
+  const filteredSubstances = useMemo(
+    () => filterSubstances(allSubstances, filters),
+    [allSubstances, filters],
+  );
+
+  const handleOpenSubstance = useCallback(
+    (index: number) => {
+      const match = filteredSubstances[index];
+      if (match) setActiveSubstance(match);
+    },
+    [filteredSubstances],
+  );
+
+  const handleBrowseAll = useCallback(() => {
+    browserRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, []);
+
   return (
-    <>
-      <header className="pt-2">
-        <h1 className="text-display font-semibold leading-[1.10] tracking-tight">
+    <PageContainer data-slot="browse-page">
+      <header className="space-y-2">
+        <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
           Browse
         </h1>
-        <p className="mt-4 text-sub-heading font-normal text-muted-foreground tracking-tight">
+        <p className="text-base text-foreground-muted">
           Explore the structures and reactions in the active extraction.
         </p>
       </header>
@@ -85,19 +142,36 @@ export function BrowsePage({
       ) : (
         <>
           {isHistoricalView && (
-            <div className="mt-8 flex items-center gap-3">
-              <span className="text-[14px] text-muted-foreground">
+            <div className="mt-6 flex items-center gap-3">
+              <span className="text-caption text-foreground-muted">
                 Viewing historical extraction
               </span>
               <button
                 onClick={onBackToLatest}
-                className="text-[14px] text-primary underline-offset-2 hover:underline"
+                className="text-caption text-primary underline-offset-2 hover:underline"
               >
                 Back to latest
               </button>
             </div>
           )}
-          <div className="mt-8">
+
+          <SearchFilter
+            value={filters}
+            onChange={setFilters}
+            className="mt-6"
+          />
+
+          <section className="mt-6">
+            <BrowseBento
+              substances={filteredSubstances}
+              totalSubstances={allSubstances.length}
+              format={activeResult.format}
+              onBrowseAll={handleBrowseAll}
+              onOpenSubstance={handleOpenSubstance}
+            />
+          </section>
+
+          <div ref={browserRef} className="mt-10">
             <ExtractionTabs
               substanceCount={activeResult.structure_count}
               reactionsTabProps={{
@@ -114,11 +188,21 @@ export function BrowsePage({
                 onReset={onReset}
                 onSearchWithin={onSearchWithin}
                 reactionsAvailable={liveReactionCount > 0}
+                filters={filters}
               />
             </ExtractionTabs>
           </div>
+
+          <Dialog
+            open={activeSubstance !== null}
+            onOpenChange={(open) => {
+              if (!open) setActiveSubstance(null);
+            }}
+          >
+            {activeSubstance && <StructureDetail substance={activeSubstance} />}
+          </Dialog>
         </>
       )}
-    </>
+    </PageContainer>
   );
 }
