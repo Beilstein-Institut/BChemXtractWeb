@@ -4,20 +4,20 @@ import * as React from "react"
 import { Select as SelectPrimitive } from "@base-ui/react/select"
 
 import { cn } from "@/lib/utils"
+import { glassSurfaceClasses } from "@/lib/glass"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
 
 /**
- * Select — form tier (Phase 3 Liquid Glass rebuild, Task 4).
+ * Select — form tier (Phase 3 Liquid Glass rebuild, Task 4 + Task 6).
  *
  * Base UI-backed. The trigger wears the shared form-tier styling
  * (bg-surface-muted / border-border / rounded-sm / ring-ring focus) so it
  * sits next to <Input /> and <Textarea /> without visual drift.
  *
- * The popup (dropdown panel + items) currently renders with an opaque
- * surface-elevated skim. Task 6 will re-skin it with the Liquid Glass
- * floating tokens (backdrop-blur + glass tint). Item styling is kept
- * simple — accent-on-focus, check indicator — and inherits any blur
- * applied in Task 6 without edits here.
+ * Task 6 upgrade: the popup now uses the shared Liquid Glass surface
+ * helper (`glassSurfaceClasses`) so the dropdown panel blurs what sits
+ * behind it, matching Dialog / Popover / DropdownMenu. The scroll arrows
+ * inherit a transparent tint so they float over the same glass tile.
  *
  * `data-slot` hooks (`select-trigger`, `select-content`, `select-item`,
  * `select-value`, `select-group`, `select-label`, `select-separator`,
@@ -103,11 +103,8 @@ function SelectContent({
           data-slot="select-content"
           data-align-trigger={alignItemWithTrigger}
           className={cn(
-            // NOTE: this opaque surface is deliberately minimal — Task 6
-            // replaces it with the Liquid Glass floating layer (backdrop
-            // blur + glass tint). Keep classes shallow so the Task 6
-            // diff is surgical.
-            "relative isolate z-50 max-h-[var(--available-height)] w-[var(--anchor-width)] min-w-36 origin-[var(--transform-origin)] overflow-x-hidden overflow-y-auto rounded-md border border-border bg-surface-elevated text-foreground shadow-md",
+            glassSurfaceClasses,
+            "relative isolate z-50 max-h-[var(--available-height)] w-[var(--anchor-width)] min-w-36 origin-[var(--transform-origin)] overflow-x-hidden overflow-y-auto rounded-md text-foreground duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
             className
           )}
           {...props}
@@ -169,7 +166,10 @@ function SelectSeparator({
   return (
     <SelectPrimitive.Separator
       data-slot="select-separator"
-      className={cn("pointer-events-none -mx-1 my-1 h-px bg-border", className)}
+      className={cn(
+        "pointer-events-none -mx-1 my-1 h-px bg-[var(--glass-border)]",
+        className
+      )}
       {...props}
     />
   )
@@ -183,7 +183,7 @@ function SelectScrollUpButton({
     <SelectPrimitive.ScrollUpArrow
       data-slot="select-scroll-up-button"
       className={cn(
-        "top-0 z-10 flex w-full cursor-default items-center justify-center bg-surface-elevated py-1 [&_svg:not([class*='size-'])]:size-4",
+        "top-0 z-10 flex w-full cursor-default items-center justify-center bg-[var(--glass-tint-light)] py-1 text-foreground-muted dark:bg-[var(--glass-tint-dark)] [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}
@@ -201,7 +201,7 @@ function SelectScrollDownButton({
     <SelectPrimitive.ScrollDownArrow
       data-slot="select-scroll-down-button"
       className={cn(
-        "bottom-0 z-10 flex w-full cursor-default items-center justify-center bg-surface-elevated py-1 [&_svg:not([class*='size-'])]:size-4",
+        "bottom-0 z-10 flex w-full cursor-default items-center justify-center bg-[var(--glass-tint-light)] py-1 text-foreground-muted dark:bg-[var(--glass-tint-dark)] [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}

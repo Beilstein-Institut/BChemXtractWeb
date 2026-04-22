@@ -4,6 +4,7 @@ import * as React from "react"
 import { Command as CommandPrimitive } from "cmdk"
 
 import { cn } from "@/lib/utils"
+import { glassSurfaceClasses } from "@/lib/glass"
 import {
   Dialog,
   DialogContent,
@@ -25,7 +26,8 @@ function Command({
     <CommandPrimitive
       data-slot="command"
       className={cn(
-        "flex size-full flex-col overflow-hidden rounded-xl! bg-popover p-1 text-popover-foreground",
+        glassSurfaceClasses,
+        "flex size-full flex-col overflow-hidden rounded-xl! p-1 text-foreground",
         className
       )}
       {...props}

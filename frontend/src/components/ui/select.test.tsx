@@ -98,4 +98,20 @@ describe("Select", () => {
     const popup = option.closest("[data-slot=\"select-content\"]");
     expect(popup).not.toBeNull();
   });
+
+  it("applies the Liquid Glass surface cluster to the popup (Task 6)", async () => {
+    const user = userEvent.setup();
+    renderSelect();
+    await user.click(screen.getByRole("combobox", { name: "fruit" }));
+    const option = await screen.findByRole("option", { name: "Apple" });
+    const popup = option.closest("[data-slot=\"select-content\"]") as HTMLElement;
+    expect(popup).not.toBeNull();
+    expect(popup.className).toContain("bg-[var(--glass-tint-light)]");
+    expect(popup.className).toContain("dark:bg-[var(--glass-tint-dark)]");
+    expect(popup.className).toContain("backdrop-blur-[var(--glass-blur)]");
+    expect(popup.className).toContain(
+      "backdrop-saturate-[var(--glass-saturate)]"
+    );
+    expect(popup.className).toContain("border-[var(--glass-border)]");
+  });
 });
