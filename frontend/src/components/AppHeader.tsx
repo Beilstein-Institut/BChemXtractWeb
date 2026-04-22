@@ -2,7 +2,8 @@ import { useState } from "react";
 import { MenuIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/SearchInput";
-import { TextScramble } from "@/components/ui/text-scramble";
+import { NavLinks } from "@/components/nav/NavLinks";
+import { ThemeSwitch } from "@/components/ThemeSwitch";
 import {
   Sheet,
   SheetTrigger,
@@ -15,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { useRoute } from "@/lib/router";
 import { Link } from "@/lib/Link";
 
-const NAV_LINKS = [
+const MOBILE_LINKS = [
   { label: "Extract", to: "/" },
   { label: "Browse", to: "/browse" },
   { label: "History", to: "/history" },
@@ -28,10 +29,41 @@ function isActive(route: string, to: string): boolean {
 }
 
 /**
- * AppHeader — Apple-inspired sticky navigation bar.
+ * Logo — inline wordmark for the Liquid Glass AppHeader (Task 7).
  *
- * Routes via the lightweight pathname router (src/lib/router.tsx). Active
- * route gets an accent-tinted pill treatment.
+ * Uses the Fraunces display family via `font-display` (Satoshi was not
+ * available on npm; Fraunces is the project-wide fallback). A small
+ * crimson accent dot sits to the right of the wordmark for visual
+ * weight without overpowering the glass chrome.
+ */
+function Logo() {
+  return (
+    <Link
+      to="/"
+      aria-label="BChemXtract home"
+      data-slot="app-logo"
+      className={cn(
+        "group inline-flex items-center gap-2",
+        "font-display text-lg tracking-tight text-foreground",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-full",
+      )}
+    >
+      <span className="font-semibold">BChemXtract</span>
+      <span
+        aria-hidden="true"
+        className="size-1.5 rounded-full bg-primary"
+      />
+    </Link>
+  );
+}
+
+/**
+ * AppHeader — Phase 3 Liquid Glass chrome top bar.
+ *
+ * Renders the sticky glass-tinted top bar with token-driven
+ * backdrop-filter, wordmark logo, the 4-route NavLinks, global
+ * SearchInput, ThemeSwitch, and a mobile hamburger that opens the
+ * nav-sheet.
  */
 export function AppHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -39,46 +71,23 @@ export function AppHeader() {
 
   return (
     <header
+      data-slot="app-header"
       className={cn(
         "sticky top-0 z-50 w-full",
-        "nav-glass-light dark:nav-glass",
-        "border-b border-black/5 dark:border-white/5",
+        "bg-[var(--glass-tint-light)] dark:bg-[var(--glass-tint-dark)]",
+        "backdrop-blur-[var(--glass-blur)] backdrop-saturate-[var(--glass-saturate)]",
+        "border-b border-[var(--glass-border)]",
       )}
     >
-      <div className="mx-auto flex h-12 max-w-[980px] items-center justify-between px-6">
-        <Link
-          to="/"
-          className="text-[17px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white"
-          aria-label="BChemXtractWeb home"
-        >
-          <TextScramble text="BChemXtractWeb" duration={1.0} />
-        </Link>
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-6">
+        <Logo />
 
-        <nav className="hidden lg:flex items-center gap-1" aria-label="Main navigation">
-          {NAV_LINKS.map((link) => {
-            const active = isActive(route, link.to);
-            return (
-              <Link
-                key={link.label}
-                to={link.to}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "px-3 py-1.5 text-[12px] font-normal rounded-full transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]",
-                  active
-                    ? "bg-[#0071e3]/10 text-[#0071e3] dark:bg-[#2997ff]/15 dark:text-[#2997ff]"
-                    : "text-black/80 dark:text-white/80 hover:text-[#0071e3] dark:hover:text-[#2997ff]",
-                )}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
-        </nav>
+        <NavLinks className="hidden lg:flex" />
 
         <SearchInput className="mx-4" />
 
         <div className="flex items-center gap-2">
+          <ThemeSwitch />
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button
@@ -92,22 +101,26 @@ export function AppHeader() {
             </SheetTrigger>
             <SheetContent side="left" className="w-[280px] sm:w-[320px]">
               <SheetHeader className="mb-6">
-                <SheetTitle className="text-[17px] font-semibold">BChemXtractWeb</SheetTitle>
+                <SheetTitle className="font-display text-lg font-semibold">
+                  BChemXtract
+                </SheetTitle>
               </SheetHeader>
               <nav aria-label="Mobile navigation" className="flex flex-col">
-                {NAV_LINKS.map((link) => {
+                {MOBILE_LINKS.map((link) => {
                   const active = isActive(route, link.to);
                   return (
                     <SheetClose key={link.label} asChild>
                       <Link
                         to={link.to}
                         aria-current={active ? "page" : undefined}
+                        data-slot="nav-link"
+                        data-active={active ? "true" : undefined}
                         className={cn(
-                          "py-3 text-[17px] font-normal border-b transition-colors",
+                          "py-3 text-base font-medium border-b transition-colors",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                           active
-                            ? "text-[#0071e3] dark:text-[#2997ff] border-[#0071e3]/30"
-                            : "text-[#1d1d1f] dark:text-white border-black/5 dark:border-white/5 hover:text-[#0071e3] dark:hover:text-[#2997ff]",
-                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]",
+                            ? "text-primary border-primary/30 font-semibold"
+                            : "text-foreground border-border hover:text-primary",
                         )}
                       >
                         {link.label}

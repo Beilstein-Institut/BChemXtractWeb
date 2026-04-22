@@ -1,0 +1,86 @@
+/**
+ * AppHeader — tests for the Phase 3 Liquid Glass chrome top bar (Task 7).
+ *
+ * Mocks @base-ui/react/menu + SearchInput + ThemeSwitch to isolate the
+ * header shell. Asserts the sticky + glass token class cluster and
+ * `data-slot` contract plus the Logo wordmark.
+ */
+import { describe, it, expect, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { AppHeader } from "./AppHeader";
+
+vi.mock("./SearchInput", () => ({
+  SearchInput: () => <div data-testid="search-input" />,
+}));
+
+vi.mock("./ThemeSwitch", () => ({
+  ThemeSwitch: () => (
+    <button data-slot="theme-switch" aria-label="Theme: System" />
+  ),
+}));
+
+describe("AppHeader", () => {
+  it("exposes data-slot=\"app-header\"", () => {
+    render(<AppHeader />);
+    expect(
+      document.querySelector('header[data-slot="app-header"]'),
+    ).not.toBeNull();
+  });
+
+  it("applies the Liquid Glass token class cluster", () => {
+    render(<AppHeader />);
+    const header = document.querySelector(
+      'header[data-slot="app-header"]',
+    ) as HTMLElement;
+    expect(header.className).toContain("bg-[var(--glass-tint-light)]");
+    expect(header.className).toContain("dark:bg-[var(--glass-tint-dark)]");
+    expect(header.className).toContain("backdrop-blur-[var(--glass-blur)]");
+    expect(header.className).toContain(
+      "backdrop-saturate-[var(--glass-saturate)]",
+    );
+    expect(header.className).toContain("border-[var(--glass-border)]");
+  });
+
+  it("is sticky to the top of the viewport", () => {
+    render(<AppHeader />);
+    const header = document.querySelector(
+      'header[data-slot="app-header"]',
+    ) as HTMLElement;
+    expect(header.className).toContain("sticky");
+    expect(header.className).toContain("top-0");
+  });
+
+  it("has a 64px tall inner row (h-16)", () => {
+    render(<AppHeader />);
+    const inner = document.querySelector(
+      'header[data-slot="app-header"] > div',
+    ) as HTMLElement;
+    expect(inner.className).toContain("h-16");
+  });
+
+  it("renders the BChemXtract wordmark Logo", () => {
+    render(<AppHeader />);
+    const logo = screen.getByLabelText("BChemXtract home");
+    expect(logo).toBeInTheDocument();
+    expect(logo.getAttribute("data-slot")).toBe("app-logo");
+  });
+
+  it("renders the main nav via NavLinks", () => {
+    render(<AppHeader />);
+    const nav = screen.getByLabelText("Main navigation");
+    expect(nav).toBeInTheDocument();
+    expect(nav.getAttribute("data-slot")).toBe("nav-links");
+  });
+
+  it("renders the stubbed ThemeSwitch trigger", () => {
+    render(<AppHeader />);
+    expect(
+      document.querySelector('[data-slot="theme-switch"]'),
+    ).not.toBeNull();
+  });
+
+  it("renders the mobile hamburger trigger", () => {
+    render(<AppHeader />);
+    expect(screen.getByLabelText("Open navigation menu")).toBeInTheDocument();
+  });
+});

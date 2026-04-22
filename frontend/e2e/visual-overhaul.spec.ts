@@ -13,18 +13,18 @@ test.describe("AppHeader", () => {
   });
 
   test("renders sticky header with brand text", async ({ page }) => {
-    const header = page.locator("header").first();
+    const header = page.locator('header[data-slot="app-header"]');
     await expect(header).toBeVisible();
 
     // Sticky positioning
     await expect(header).toHaveCSS("position", "sticky");
 
-    // Brand text eventually resolves to BChemXtractWeb (after scramble animation)
-    await expect(header.getByText("BChemXtractWeb")).toBeVisible({ timeout: 3000 });
+    // Brand wordmark renders inside the Logo link.
+    await expect(header.getByLabel("BChemXtract home")).toBeVisible();
   });
 
   test("header has glass backdrop-filter effect", async ({ page }) => {
-    const header = page.locator("header").first();
+    const header = page.locator('header[data-slot="app-header"]');
     const backdropFilter = await header.evaluate(
       (el) => getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter
     );
@@ -38,6 +38,7 @@ test.describe("AppHeader", () => {
     await expect(nav.getByText("Extract")).toBeVisible();
     await expect(nav.getByText("Browse")).toBeVisible();
     await expect(nav.getByText("History")).toBeVisible();
+    await expect(nav.getByText("About")).toBeVisible();
   });
 
   test("hamburger is hidden at desktop width", async ({ page }) => {
@@ -46,56 +47,42 @@ test.describe("AppHeader", () => {
   });
 });
 
-test.describe("Dark/Light Mode Toggle", () => {
+test.describe("ThemeSwitch (Light / Dark / System)", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
   });
 
-  test("toggle button exists in header", async ({ page }) => {
-    const toggle = page.locator("header").getByRole("button", {
-      name: /switch to (light|dark) mode/i,
-    });
+  test("theme-switch trigger exists in header", async ({ page }) => {
+    const toggle = page
+      .locator("header")
+      .locator('[data-slot="theme-switch"]');
     await expect(toggle).toBeVisible();
   });
 
-  test("clicking toggle switches between light and dark mode", async ({ page }) => {
+  test("selecting Dark from the menu adds the dark class on <html>", async ({
+    page,
+  }) => {
     const html = page.locator("html");
-
-    // Get initial state
-    const initialClasses = await html.getAttribute("class");
-    const startedDark = initialClasses?.includes("dark");
-
-    // Click the toggle
-    const toggle = page.locator("header").getByRole("button", {
-      name: /switch to (light|dark) mode/i,
-    });
+    const toggle = page
+      .locator("header")
+      .locator('[data-slot="theme-switch"]');
     await toggle.click();
 
-    // Class should have changed
-    if (startedDark) {
-      await expect(html).toHaveClass(/light/);
-    } else {
-      await expect(html).toHaveClass(/dark/);
-    }
-
-    // Click again to toggle back
-    await toggle.click();
-    if (startedDark) {
-      await expect(html).toHaveClass(/dark/);
-    } else {
-      await expect(html).not.toHaveClass(/dark/);
-    }
+    await page.getByRole("menuitemcheckbox", { name: "Dark" }).click();
+    await expect(html).toHaveClass(/dark/);
   });
 
-  test("toggle is a button, not a dropdown menu", async ({ page }) => {
-    const toggle = page.locator("header").getByRole("button", {
-      name: /switch to (light|dark) mode/i,
-    });
+  test("selecting Light from the menu removes the dark class on <html>", async ({
+    page,
+  }) => {
+    const html = page.locator("html");
+    const toggle = page
+      .locator("header")
+      .locator('[data-slot="theme-switch"]');
     await toggle.click();
 
-    // No dropdown/popover should appear — verify no menu role elements
-    const menu = page.getByRole("menu");
-    await expect(menu).toHaveCount(0);
+    await page.getByRole("menuitemcheckbox", { name: "Light" }).click();
+    await expect(html).not.toHaveClass(/dark/);
   });
 });
 
@@ -143,10 +130,10 @@ test.describe("Mobile Navigation", () => {
     await expect(mobileNav).toBeHidden({ timeout: 3000 });
   });
 
-  test("dark/light toggle visible on mobile", async ({ page }) => {
-    const toggle = page.locator("header").getByRole("button", {
-      name: /switch to (light|dark) mode/i,
-    });
+  test("theme-switch visible on mobile", async ({ page }) => {
+    const toggle = page
+      .locator("header")
+      .locator('[data-slot="theme-switch"]');
     await expect(toggle).toBeVisible();
   });
 });
@@ -221,10 +208,10 @@ test.describe("Typography and Spacing", () => {
     expect(pt).toBeGreaterThanOrEqual(90);
   });
 
-  test("header height is 48px (h-12)", async ({ page }) => {
+  test("header height is 64px (h-16)", async ({ page }) => {
     const headerInner = page.locator("header > div").first();
     const height = await headerInner.evaluate((el) => el.getBoundingClientRect().height);
-    expect(height).toBeCloseTo(48, 0);
+    expect(height).toBeCloseTo(64, 0);
   });
 });
 

@@ -51,21 +51,3 @@ body {
   color: var(--color-primary-foreground);
 }
 
-/* TODO(Task 7): replace .nav-glass / .nav-glass-light with a composable
- * AppHeader class that consumes --glass-* tokens. Preserved for now so
- * frontend/e2e/visual-overhaul.spec.ts (backdrop-filter assertion) keeps
- * passing and AppHeader.tsx keeps rendering with a visible chrome until
- * it is rebuilt against the new tokens.
- */
-@layer utilities {
-  .nav-glass {
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: saturate(180%) blur(20px);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
-  }
-  .nav-glass-light {
-    background: rgba(245, 245, 247, 0.85);
-    backdrop-filter: saturate(180%) blur(20px);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
-  }
-}
