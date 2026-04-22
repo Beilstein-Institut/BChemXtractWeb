@@ -903,3 +903,42 @@ html.neo-ui.hc {
   /* Raised contrast for AAA text / AA UI in HC mode. */
   --muted-foreground:     var(--foreground);
 }
+
+/* =========================================================================
+ * Phase 2 — primitive re-skin rules.
+ *
+ * Every rule here is scoped under html.neo-ui so the legacy Apple palette
+ * stays byte-for-byte untouched when ?ui=legacy is active. Rules target
+ * the data-slot attributes shadcn primitives already emit, so no JSX
+ * changes are required.
+ *
+ * HC mode inherits every composite shadow token as "none" from the
+ * html.neo-ui.hc block above, so these rules automatically flatten
+ * without per-primitive HC overrides.
+ *
+ * Reduced-motion: every Phase 2 transition / transform is suppressed
+ * for users who set prefers-reduced-motion: reduce. One guard covers
+ * all primitives because every re-skin rule targets [data-slot].
+ * ========================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  html.neo-ui [data-slot] {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+/* --- Card -------------------------------------------------------------- */
+html.neo-ui [data-slot="card"] {
+  box-shadow: var(--neu-shadow-raised);
+  /* Kill shadcn's default hairline ring — neo surface provides elevation. */
+  --tw-ring-shadow: 0 0 #0000;
+  transition: box-shadow 220ms ease-out, transform 220ms ease-out;
+}
+
+@media (hover: hover) {
+  html.neo-ui [data-slot="card"]:hover {
+    box-shadow: var(--neu-shadow-raised-lg);
+    transform: translateY(-2px);
+  }
+}
