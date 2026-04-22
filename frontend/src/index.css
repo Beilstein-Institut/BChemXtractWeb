@@ -30,6 +30,7 @@
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
   --radius-xl: var(--radius-xl);
+  --radius-full: var(--radius-full);
 
   --font-sans:    var(--font-sans);
   --font-mono:    var(--font-mono);
