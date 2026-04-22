@@ -985,3 +985,26 @@ html.neo-ui [data-slot="textarea"]:disabled {
    * another opacity factor here (0.5 × 0.6 = 0.3 would over-dim). */
   box-shadow: var(--neu-shadow-inset-sm);
 }
+
+/* --- Floating layer (Dialog, Popover, Sheet, Tooltip, DropdownMenu,
+ * HoverCard, Command, AlertDialog, ContextMenu, Drawer) ----------------
+ *
+ * All floating primitives use --neu-shadow-floating which is the raised
+ * shadow plus a drop shadow for lift-off. Same selector pattern across
+ * the family. ------------------------------------------------------- */
+html.neo-ui [data-slot="dialog-content"],
+html.neo-ui [data-slot="alert-dialog-content"],
+html.neo-ui [data-slot="popover-content"],
+html.neo-ui [data-slot="sheet-content"],
+html.neo-ui [data-slot="drawer-content"],
+html.neo-ui [data-slot="tooltip-content"],
+html.neo-ui [data-slot="dropdown-menu-content"],
+html.neo-ui [data-slot="context-menu-content"],
+html.neo-ui [data-slot="hover-card-content"],
+html.neo-ui [data-slot="command"],
+html.neo-ui [data-slot="menubar-content"],
+html.neo-ui [data-slot="navigation-menu-content"] {
+  box-shadow: var(--neu-shadow-floating);
+  /* Kill shadcn's default hairline ring on popups — neo drop provides lift. */
+  --tw-ring-shadow: 0 0 #0000;
+}

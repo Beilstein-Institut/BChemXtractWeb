@@ -146,4 +146,44 @@ test.describe("neomorphism primitives — Phase 2 re-skin", () => {
       .evaluate((el) => window.getComputedStyle(el).boxShadow);
     expect(boxShadow).toContain("inset");
   });
+
+  test("Dialog [data-slot=dialog-content] gets shadow-neu-float", async ({ page }) => {
+    await page.goto("/?ui=neo");
+    // Light-mode precondition: the rgba(163, 177, 198 ...) assertion below is the
+    // light-theme --neu-shadow-dark literal. Dark-neo swaps it for rgba(0, 0, 0, 0.5).
+    // The rgba(0, 0, 0, 0.08) drop in --neu-shadow-floating is mode-invariant.
+    const isDark = await page.evaluate(() =>
+      document.documentElement.classList.contains("dark"),
+    );
+    expect(isDark).toBe(false);
+    await page.evaluate(() => {
+      const probe = document.createElement("div");
+      probe.id = "__dialog_probe";
+      probe.setAttribute("data-slot", "dialog-content");
+      probe.style.width = "200px";
+      probe.style.height = "100px";
+      document.body.appendChild(probe);
+    });
+    const boxShadow = await page
+      .locator("#__dialog_probe")
+      .evaluate((el) => window.getComputedStyle(el).boxShadow);
+    expect(boxShadow).not.toBe("none");
+    expect(boxShadow).toContain("rgba(163, 177, 198");
+    // The floating tier adds a second bottom drop: rgba(0, 0, 0, 0.08) 0px 20px 40px
+    expect(boxShadow).toContain("rgba(0, 0, 0, 0.08)");
+  });
+
+  test("Popover [data-slot=popover-content] also gets shadow-neu-float", async ({ page }) => {
+    await page.goto("/?ui=neo");
+    await page.evaluate(() => {
+      const probe = document.createElement("div");
+      probe.id = "__popover_probe";
+      probe.setAttribute("data-slot", "popover-content");
+      document.body.appendChild(probe);
+    });
+    const boxShadow = await page
+      .locator("#__popover_probe")
+      .evaluate((el) => window.getComputedStyle(el).boxShadow);
+    expect(boxShadow).toContain("rgba(0, 0, 0, 0.08)");
+  });
 });
