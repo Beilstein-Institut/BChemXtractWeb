@@ -137,7 +137,7 @@ describe("HistoryList — Phase 3", () => {
     });
   });
 
-  it("Enter key on a row reloads the extraction", async () => {
+  it("keyboard activation on a row reloads the extraction", async () => {
     const onReload = vi.fn(async () => mockReload);
     const onReloadSuccess = vi.fn();
     render(
@@ -153,8 +153,12 @@ describe("HistoryList — Phase 3", () => {
       />,
     );
     const row = screen.getByRole("button", { name: /open extraction kbd/i });
+    // The row is now a native <button>, which the user agent activates on
+    // Enter / Space by firing a synthetic click — no custom keydown handler
+    // to assert against. Dispatching the click event directly is the DOM-
+    // level equivalent of pressing Enter on a focused button.
     await act(async () => {
-      fireEvent.keyDown(row, { key: "Enter" });
+      fireEvent.click(row);
     });
     expect(onReload).toHaveBeenCalledWith(9);
   });

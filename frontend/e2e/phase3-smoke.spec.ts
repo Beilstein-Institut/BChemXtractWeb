@@ -27,19 +27,28 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_CDX = resolve(__dirname, "..", "..", "..", "Test_files", "test_fixture.cdx");
 
 /**
- * Probe the backend health endpoint. Returns true only if the backend
- * responds 2xx within the timeout, so frontend-only CI runs skip backend-
- * dependent scenarios cleanly rather than hanging on upload.
+ * Probe whether an extraction-capable backend is reachable. Tries the
+ * nginx reverse proxy first (which injects the auth bearer the backend
+ * now requires) and falls back to the direct backend port for frontend-
+ * only dev. Returns false only if both routes fail — those runs skip
+ * backend-dependent scenarios cleanly rather than hanging on upload.
  */
 async function isBackendUp(): Promise<boolean> {
-  try {
-    const res = await fetch("http://localhost:8000/api/stats", {
-      signal: AbortSignal.timeout(2_000),
-    });
-    return res.ok;
-  } catch {
-    return false;
+  const targets = [
+    "http://localhost/api/health",
+    "http://localhost:8000/api/health",
+  ];
+  for (const url of targets) {
+    try {
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(2_000),
+      });
+      if (res.ok) return true;
+    } catch {
+      // next target
+    }
   }
+  return false;
 }
 
 test.describe("Phase 3 — Extract page", () => {

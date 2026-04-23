@@ -126,38 +126,49 @@ function HistoryRow({
         data-slot="history-row"
         data-even={isEven ? "true" : undefined}
         className={cn(
-          "group grid cursor-pointer items-center gap-4 px-5 py-3 text-sm transition-colors",
+          "group grid items-center gap-4 px-0 py-0 text-sm transition-colors",
           "grid-cols-[1fr_auto_auto_auto_auto]",
           "hover:bg-accent/40",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
           !isEven && "bg-surface-elevated",
           fading && "opacity-0 transition-opacity duration-200",
         )}
-        role="button"
-        tabIndex={0}
-        onClick={async () => {
-          if (deleting) return;
-          await onRowClick();
-        }}
-        onKeyDown={async (e) => {
-          if (deleting) return;
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            await onRowClick();
-          }
-        }}
-        aria-label={`Open extraction ${entry.filename}`}
       >
-        <span className="min-w-0 truncate font-mono text-foreground" title={entry.filename}>
-          {entry.filename}
-        </span>
-        <span className="whitespace-nowrap text-foreground-muted">{dateLabel}</span>
-        <span className="w-16 text-right tabular-nums text-foreground">
-          {entry.structure_count}
-        </span>
-        <span className="w-16 text-right tabular-nums text-foreground">{entry.reaction_count}</span>
+        {/*
+          Main click target for "open extraction". Lives as its own
+          <button> so the row's semantic <li> stays a plain listitem
+          (axe nested-interactive + aria-required-children) while the
+          per-row action buttons in the actions column remain independent
+          buttons — no button-inside-button anywhere.
+        */}
+        <button
+          type="button"
+          disabled={deleting}
+          onClick={async () => {
+            if (deleting) return;
+            await onRowClick();
+          }}
+          aria-label={`Open extraction ${entry.filename}`}
+          className={cn(
+            "col-span-4 grid cursor-pointer items-center gap-4 px-5 py-3 text-left",
+            "grid-cols-[1fr_auto_auto_auto] bg-transparent border-0 m-0",
+            "hover:bg-transparent",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+            "disabled:cursor-default",
+          )}
+        >
+          <span className="min-w-0 truncate font-mono text-foreground" title={entry.filename}>
+            {entry.filename}
+          </span>
+          <span className="whitespace-nowrap text-foreground-muted">{dateLabel}</span>
+          <span className="w-16 text-right tabular-nums text-foreground">
+            {entry.structure_count}
+          </span>
+          <span className="w-16 text-right tabular-nums text-foreground">
+            {entry.reaction_count}
+          </span>
+        </button>
         <div
-          className="flex items-center gap-1"
+          className="flex items-center gap-1 pr-5"
           // Swallow activation on the actions column so clicking an action
           // button doesn't also reload the row.
           onClick={(e) => e.stopPropagation()}
