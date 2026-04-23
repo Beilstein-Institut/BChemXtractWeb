@@ -1,0 +1,120 @@
+/**
+ * AboutPage tests — Phase 3 Task 13.
+ *
+ * Covers:
+ *   - Root + every tile expose their `data-slot` hook.
+ *   - Hero tile renders mission copy + "Start extracting" link + GitHub CTA.
+ *   - Version tile shows the hardcoded version numeral.
+ *   - Links tile renders BChemXtract / PubChem / RDKit as outbound anchors
+ *     with `target="_blank" rel="noreferrer"`.
+ *   - Tech-stack tile renders a Badge chip per declared technology.
+ *   - Credits tile links to the Beilstein-Institut.
+ */
+import { describe, it, expect } from "vitest";
+import { render, screen } from "@testing-library/react";
+
+import { AboutPage } from "./AboutPage";
+
+describe("AboutPage", () => {
+  it("exposes the `about-page` root data-slot", () => {
+    const { container } = render(<AboutPage />);
+    expect(container.querySelector('[data-slot="about-page"]')).not.toBeNull();
+  });
+
+  it("renders every tile slot inside the bento", () => {
+    const { container } = render(<AboutPage />);
+    const slots = [
+      "about-bento",
+      "about-hero-cell",
+      "about-version-cell",
+      "about-links-cell",
+      "about-tech-cell",
+      "about-credits-cell",
+      "about-hero",
+      "about-version",
+      "about-links",
+      "about-tech-stack",
+      "about-credits",
+    ];
+    for (const slot of slots) {
+      expect(
+        container.querySelector(`[data-slot="${slot}"]`),
+        `missing [data-slot="${slot}"]`,
+      ).not.toBeNull();
+    }
+  });
+
+  it("renders hero mission copy and CTA links", () => {
+    render(<AboutPage />);
+    // Mission blurb mentions InChI / SMILES to anchor on extractable copy.
+    expect(screen.getByText(/InChI, SMILES, RInChI/i)).toBeInTheDocument();
+    // "Start extracting" routes to "/" via the internal Link.
+    const start = screen.getByRole("link", { name: /start extracting/i });
+    expect(start).toHaveAttribute("href", "/");
+    // GitHub CTA opens in a new tab safely.
+    const github = screen.getByRole("link", { name: /view on github/i });
+    expect(github).toHaveAttribute(
+      "href",
+      "https://github.com/Beilstein-Institut/BChemXtract",
+    );
+    expect(github).toHaveAttribute("target", "_blank");
+    expect(github).toHaveAttribute("rel", "noreferrer");
+  });
+
+  it("renders the version tile with the current version numeral", () => {
+    const { container } = render(<AboutPage />);
+    const valueEl = container.querySelector(
+      '[data-slot="about-version-value"]',
+    );
+    expect(valueEl).not.toBeNull();
+    expect(valueEl?.textContent).toMatch(/\d/);
+  });
+
+  it("renders the resources list with outbound links only", () => {
+    const { container } = render(<AboutPage />);
+    const list = container.querySelector('[data-slot="about-links-list"]');
+    expect(list).not.toBeNull();
+    const anchors = list!.querySelectorAll("a");
+    // At minimum: BChemXtract, PubChem, RDKit.
+    expect(anchors.length).toBeGreaterThanOrEqual(3);
+    for (const anchor of anchors) {
+      expect(anchor.getAttribute("target")).toBe("_blank");
+      expect(anchor.getAttribute("rel")).toBe("noreferrer");
+      expect(anchor.getAttribute("href")).toMatch(/^https?:\/\//);
+    }
+    // Spot-check the three known destinations show up as labels.
+    expect(screen.getByText(/BChemXtract on GitHub/i)).toBeInTheDocument();
+    expect(screen.getByText("PubChem")).toBeInTheDocument();
+    expect(screen.getByText("RDKit")).toBeInTheDocument();
+  });
+
+  it("renders the tech-stack tile as Badge chips", () => {
+    const { container } = render(<AboutPage />);
+    const list = container.querySelector('[data-slot="about-tech-list"]');
+    expect(list).not.toBeNull();
+    const chips = list!.querySelectorAll('[data-slot="badge"]');
+    // The declared stack has 6 entries (React 19, Tailwind v4, Vite,
+    // FastAPI, JPype, CDK 2.12). Guard on presence + minimum count.
+    expect(chips.length).toBeGreaterThanOrEqual(6);
+    expect(screen.getByText("React 19")).toBeInTheDocument();
+    expect(screen.getByText("FastAPI")).toBeInTheDocument();
+    expect(screen.getByText("JPype")).toBeInTheDocument();
+    expect(screen.getByText("CDK 2.12")).toBeInTheDocument();
+  });
+
+  it("renders the credits tile with a Beilstein-Institut link", () => {
+    render(<AboutPage />);
+    const institute = screen.getAllByRole("link", {
+      name: /beilstein-institut/i,
+    });
+    expect(institute.length).toBeGreaterThanOrEqual(1);
+    // Every Beilstein-Institut link should open externally.
+    for (const link of institute) {
+      expect(link.getAttribute("href")).toBe(
+        "https://www.beilstein-institut.de/",
+      );
+      expect(link.getAttribute("target")).toBe("_blank");
+      expect(link.getAttribute("rel")).toBe("noreferrer");
+    }
+  });
+});

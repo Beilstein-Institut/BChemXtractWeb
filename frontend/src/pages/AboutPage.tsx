@@ -1,404 +1,328 @@
 /**
- * AboutPage — editorial "who made this and why" page (route: `/about`).
+ * AboutPage — Phase 3 Liquid Glass rebuild (Task 13).
  *
- * Styled as a scientific-publication page: numbered sections, pull quote,
- * stroke-drawn molecular hero SVG, Geist Mono for technical accents,
- * staggered reveal on load. Extends the Apple-inspired palette already
- * in use across the app (Apple Blue accent, OKLCH neutrals) rather than
- * introducing a competing system.
+ * Bento editorial layout (route: `/about`). Three columns at `lg:`,
+ * five tiles in total:
+ *
+ *   ┌─────────────────────────┬──────────┐
+ *   │  Hero: mission + CTAs   │  Version │
+ *   │  (2×2, display type)    │  (1×1)   │
+ *   │                         ├──────────┤
+ *   │                         │  Links   │
+ *   │                         │  (1×1)   │
+ *   ├─────────┬───────────────┴──────────┤
+ *   │ Tech    │  Credits / upstream      │
+ *   │ stack   │  (2×1)                   │
+ *   │ (1×1)   │                          │
+ *   └─────────┴──────────────────────────┘
+ *
+ * The page is pure static content — no data fetching, no props. Every
+ * tile carries a stable `data-slot` hook so selectors / tests can anchor
+ * without depending on class names.
  */
-import { ArrowUpRightIcon, ZapIcon, FileSearchIcon, DownloadIcon } from "lucide-react";
-import { Link } from "@/lib/Link";
-import { buttonVariants } from "@/components/ui/button";
+import type { ReactNode } from "react";
+import {
+  ArrowUpRightIcon,
+  AtomIcon,
+  ExternalLinkIcon,
+  FlaskConicalIcon,
+  BookOpenIcon,
+} from "lucide-react";
 
-const STACK: Array<{ label: string; detail: string }> = [
-  { label: "Frontend", detail: "React 19 · TypeScript · Vite · Tailwind v4" },
-  { label: "Backend", detail: "FastAPI · Python 3.11 · PostgreSQL" },
-  { label: "Bridge", detail: "JPype · JVM 17 · JNI" },
-  { label: "Core engine", detail: "BChemXtract · CDK 2.12 · Java" },
+import { BentoCell } from "@/components/layout/BentoCell";
+import { BentoGrid } from "@/components/layout/BentoGrid";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { Link } from "@/lib/Link";
+
+// TODO: replace with a build-time define from vite.config / package.json
+// so releases stamp the correct version automatically.
+const VERSION = "1.0";
+const BUILD_LABEL = "April 2026";
+
+interface TechEntry {
+  label: string;
+  detail: string;
+}
+
+const TECH_STACK: TechEntry[] = [
+  { label: "React 19", detail: "SPA + TypeScript" },
+  { label: "Tailwind v4", detail: "Design tokens" },
+  { label: "Vite", detail: "Build + dev server" },
+  { label: "FastAPI", detail: "Python 3.11 API" },
+  { label: "JPype", detail: "Python ↔ JVM" },
+  { label: "CDK 2.12", detail: "Descriptor engine" },
 ];
 
-const STEPS: Array<{ icon: typeof ZapIcon; title: string; body: string }> = [
+interface LinkEntry {
+  href: string;
+  label: string;
+  description: string;
+  icon: ReactNode;
+}
+
+const LINKS: LinkEntry[] = [
   {
-    icon: ZapIcon,
-    title: "Upload",
-    body: "Drop a .cdx or .cdxml file. We auto-detect the format via its magic bytes and route to the correct reader.",
+    href: "https://github.com/Beilstein-Institut/BChemXtract",
+    label: "BChemXtract on GitHub",
+    description: "Upstream Java library + issue tracker.",
+    icon: <BookOpenIcon />,
   },
   {
-    icon: FileSearchIcon,
-    title: "Extract",
-    body: "BChemXtract walks the ChemDraw document, deduplicates fragments, and computes InChI, SMILES, and molecular formulae through CDK.",
+    href: "https://pubchem.ncbi.nlm.nih.gov/",
+    label: "PubChem",
+    description: "Lookup compounds by InChI / SMILES.",
+    icon: <FlaskConicalIcon />,
   },
   {
-    icon: DownloadIcon,
-    title: "Browse & export",
-    body: "Inspect structures in a paginated grid, reopen past extractions from history, and export everything as SDF, CSV, or JSON.",
+    href: "https://www.rdkit.org/",
+    label: "RDKit",
+    description: "Complementary open cheminformatics.",
+    icon: <AtomIcon />,
   },
 ];
 
 export function AboutPage() {
   return (
-    <>
-      {/* Scoped styles — load-in animations + Geist display. Keeps the About
-          page's editorial flavor without polluting global CSS. */}
-      <style>{`
-        @keyframes about-rise {
-          from { opacity: 0; transform: translateY(14px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes about-fade {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        @keyframes about-draw {
-          from { stroke-dashoffset: 800; }
-          to   { stroke-dashoffset: 0; }
-        }
-        .about-rise {
-          opacity: 0;
-          animation: about-rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
-        }
-        .about-fade {
-          opacity: 0;
-          animation: about-fade 0.9s ease forwards;
-        }
-        .about-molecule path,
-        .about-molecule line,
-        .about-molecule polyline,
-        .about-molecule polygon {
-          stroke-dasharray: 800;
-          stroke-dashoffset: 800;
-          animation: about-draw 1.8s cubic-bezier(0.5, 0, 0.2, 1) 0.2s forwards;
-        }
-        .about-molecule text {
-          opacity: 0;
-          animation: about-fade 0.6s ease 1.5s forwards;
-        }
-        .about-num {
-          font-family: "Geist Variable", "Geist", var(--font-sans);
-          font-feature-settings: "tnum" on, "cv11" on;
-          font-variant-numeric: tabular-nums;
-        }
-        .about-display {
-          font-family: "Geist Variable", "Geist", var(--font-sans);
-          letter-spacing: -0.035em;
-        }
-        .about-mono {
-          font-family: "Geist Mono Variable", "Geist Mono", ui-monospace,
-            SFMono-Regular, "SF Mono", Menlo, monospace;
-        }
-        .about-grid {
-          background-image:
-            linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px);
-          background-size: 120px 100%;
-        }
-        .dark .about-grid {
-          background-image:
-            linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px);
-        }
-      `}</style>
-
-      {/* Hero — editorial slab with section marker, large display title, and
-          stroke-drawn molecular diagram on the right. */}
-      <section className="relative grid grid-cols-1 gap-10 pt-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12 lg:pt-16">
-        <div>
-          <div
-            className="about-rise about-mono mb-6 flex items-center gap-3 text-[11px] uppercase tracking-[0.2em] text-muted-foreground"
-            style={{ animationDelay: "0ms" }}
-          >
-            <span>Beilstein-Institut</span>
-            <span aria-hidden className="h-px w-8 bg-current opacity-40" />
-            <span>2026 · v1.0</span>
-          </div>
-
-          <h1
-            className="about-rise about-display text-[clamp(44px,7vw,80px)] font-semibold leading-[0.95] text-foreground"
-            style={{ animationDelay: "80ms" }}
-          >
-            ChemDraw,
-            <br />
-            <span className="text-[color:var(--color-link)] dark:text-[color:var(--color-link-dark)]">
-              decoded
-            </span>{" "}
-            for anyone.
-          </h1>
-
-          <p
-            className="about-rise mt-8 max-w-[42ch] text-sub-heading text-muted-foreground"
-            style={{ animationDelay: "160ms" }}
-          >
-            BChemXtractWeb is a browser-based wrapper around{" "}
-            <a
-              href="https://github.com/Beilstein-Institut/BChemXtract"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-foreground underline decoration-[color:var(--color-link)]/50 underline-offset-4 hover:decoration-[color:var(--color-link)]"
-            >
-              BChemXtract
-            </a>{" "}
-            — an open-source Java library for extracting chemical
-            structures and reactions from ChemDraw files. No Java. No
-            CLI. No tooling. Just drop and go.
-          </p>
-
-          <div
-            className="about-rise mt-10 flex flex-wrap gap-3"
-            style={{ animationDelay: "240ms" }}
-          >
-            <Link to="/" className={buttonVariants({ size: "lg" })}>
-              Start extracting
-            </Link>
-            <a
-              href="https://github.com/Beilstein-Institut/BChemXtract"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={
-                buttonVariants({ variant: "outline", size: "lg" }) + " gap-2"
-              }
-            >
-              View on GitHub
-              <ArrowUpRightIcon className="size-4" />
-            </a>
-          </div>
-        </div>
-
-        {/* Stroke-drawn molecule — a stylised para-substituted benzene with
-            reaction arrow. Animates stroke-dashoffset on mount. */}
-        <div className="about-fade relative" style={{ animationDelay: "120ms" }}>
-          <div className="about-grid absolute inset-0 -z-10" aria-hidden />
-          <svg
-            viewBox="0 0 380 320"
-            className="about-molecule h-auto w-full max-w-[460px] text-foreground"
-            role="img"
-            aria-label="Stylized chemical reaction: benzene ring transformed via extraction"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-          >
-            {/* Left benzene ring */}
-            <polygon
-              points="60,120 100,96 140,120 140,168 100,192 60,168"
-              opacity="0.95"
-            />
-            {/* Inner double bonds — Kekule representation */}
-            <line x1="72" y1="126" x2="72" y2="162" opacity="0.7" />
-            <line x1="108" y1="104" x2="132" y2="118" opacity="0.7" />
-            <line x1="108" y1="184" x2="132" y2="170" opacity="0.7" />
-            {/* Substituent stem */}
-            <line x1="140" y1="120" x2="176" y2="100" />
-            <text
-              x="184"
-              y="100"
-              fontSize="13"
-              fontFamily="Geist Mono Variable, ui-monospace, monospace"
-              fill="currentColor"
-              stroke="none"
-              dominantBaseline="middle"
-            >
-              OH
-            </text>
-
-            {/* Reaction arrow */}
-            <line x1="208" y1="150" x2="272" y2="150" />
-            <polyline points="262,144 272,150 262,156" />
-            <text
-              x="240"
-              y="138"
-              fontSize="10"
-              textAnchor="middle"
-              fontFamily="Geist Mono Variable, ui-monospace, monospace"
-              fill="currentColor"
-              stroke="none"
-              letterSpacing="0.1em"
-            >
-              EXTRACT
-            </text>
-
-            {/* Right "data" lattice — abstract InChI/SMILES columns */}
-            <g transform="translate(288, 60)">
-              <line x1="0" y1="0" x2="0" y2="200" opacity="0.35" />
-              <line x1="20" y1="0" x2="20" y2="200" opacity="0.35" />
-              <line x1="40" y1="0" x2="40" y2="200" opacity="0.35" />
-              <line x1="60" y1="0" x2="60" y2="200" opacity="0.35" />
-              <line x1="80" y1="0" x2="80" y2="200" opacity="0.35" />
-              {/* Data "hits" */}
-              <line x1="0" y1="30" x2="80" y2="30" strokeWidth="2" />
-              <line x1="0" y1="64" x2="60" y2="64" strokeWidth="2" />
-              <line x1="0" y1="98" x2="80" y2="98" strokeWidth="2" />
-              <line x1="0" y1="132" x2="40" y2="132" strokeWidth="2" />
-              <line x1="0" y1="166" x2="80" y2="166" strokeWidth="2" />
-            </g>
-
-            {/* Annotation dots */}
-            <circle cx="60" cy="120" r="2.5" fill="currentColor" />
-            <circle cx="140" cy="120" r="2.5" fill="currentColor" />
-            <circle cx="100" cy="192" r="2.5" fill="currentColor" />
-          </svg>
-          <div className="about-mono mt-4 flex items-center justify-end gap-2 pr-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            <span>Fig. 1</span>
-            <span aria-hidden className="h-px w-6 bg-current opacity-40" />
-            <span>CDX → InChI / SMILES / RInChI</span>
-          </div>
-        </div>
-      </section>
-
-      {/* Hairline divider */}
-      <hr className="mt-20 border-t border-border" />
-
-      {/* §01 Mission */}
-      <Section num="01" title="The mission">
-        <p className="text-body text-foreground leading-[1.65] max-w-[62ch]">
-          Chemists routinely sit on years of ChemDraw files — the raw
-          sketches behind papers, patents, lab notebooks. The structures
-          inside are valuable, but trapped in a proprietary format that
-          needs specialist tooling to open, let alone query.
+    <PageContainer data-slot="about-page">
+      <header className="space-y-2">
+        <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+          About
+        </h1>
+        <p className="text-base text-foreground-muted">
+          A browser wrapper around the BChemXtract Java library — built at
+          the Beilstein-Institut to make ChemDraw extraction accessible to
+          anyone.
         </p>
-        <p className="mt-5 text-body text-foreground leading-[1.65] max-w-[62ch]">
-          <strong className="font-semibold">BChemXtract</strong> changed
-          that by making parsing open-source. <strong className="font-semibold">BChemXtractWeb</strong>{" "}
-          removes the last barrier: you no longer need Java, a terminal,
-          or a build system. Any browser is enough.
+      </header>
+
+      <BentoGrid
+        cols={3}
+        className="mt-8 auto-rows-[minmax(180px,auto)]"
+        data-slot="about-bento"
+      >
+        <BentoCell span="2:2" data-slot="about-hero-cell">
+          <HeroTile />
+        </BentoCell>
+        <BentoCell span="1:1" data-slot="about-version-cell">
+          <VersionTile />
+        </BentoCell>
+        <BentoCell span="1:1" data-slot="about-links-cell">
+          <LinksTile />
+        </BentoCell>
+        <BentoCell span="1:1" data-slot="about-tech-cell">
+          <TechStackTile />
+        </BentoCell>
+        <BentoCell span="2:1" data-slot="about-credits-cell">
+          <CreditsTile />
+        </BentoCell>
+      </BentoGrid>
+    </PageContainer>
+  );
+}
+
+function HeroTile() {
+  return (
+    <article
+      data-slot="about-hero"
+      className="flex h-full flex-col justify-between gap-8 rounded-lg border border-border bg-surface p-8"
+    >
+      <div className="space-y-5">
+        <Badge variant="secondary" className="font-mono uppercase tracking-wider">
+          Chemistry · Extraction
+        </Badge>
+        <h2 className="font-display text-[clamp(2rem,4vw,3.25rem)] font-semibold leading-[1.05] tracking-tight text-foreground">
+          ChemDraw, decoded for{" "}
+          <span className="text-primary">anyone</span>.
+        </h2>
+        <p className="max-w-[52ch] text-base leading-relaxed text-foreground-muted">
+          BChemXtractWeb parses CDX and CDXML files, extracts structures
+          and reactions, and enriches them with computed descriptors —
+          InChI, SMILES, RInChI, molecular formulas — all without
+          installing Java or touching a command line. Drop a file, read
+          the structures back as JSON, SDF, or CSV.
         </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <Link to="/" className={buttonVariants({ size: "lg" })}>
+          Start extracting
+        </Link>
+        <a
+          href="https://github.com/Beilstein-Institut/BChemXtract"
+          target="_blank"
+          rel="noreferrer"
+          className={
+            buttonVariants({ variant: "outline", size: "lg" }) + " gap-2"
+          }
+        >
+          View on GitHub
+          <ArrowUpRightIcon className="size-4" />
+        </a>
+      </div>
+    </article>
+  );
+}
 
-        {/* Pull quote */}
-        <blockquote className="relative mt-12 border-l-2 border-[color:var(--color-link)] pl-6 md:pl-8">
-          <p className="about-display text-[clamp(22px,3vw,32px)] font-medium leading-[1.25] text-foreground">
-            “Any user — technical or not — can extract, browse, search,
-            and export chemical structures from ChemDraw files without
-            installing Java or using a command line.”
-          </p>
-          <footer className="about-mono mt-4 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-            — Project charter
-          </footer>
-        </blockquote>
-      </Section>
+function VersionTile() {
+  return (
+    <article
+      data-slot="about-version"
+      className="flex h-full flex-col justify-center gap-2 rounded-lg border border-border bg-surface p-6"
+    >
+      <span className="text-caption font-semibold uppercase tracking-wide text-foreground-muted">
+        Version
+      </span>
+      <span
+        data-slot="about-version-value"
+        className="font-display text-5xl font-semibold leading-none text-primary tabular-nums"
+      >
+        {VERSION}
+      </span>
+      <span className="text-caption text-foreground-muted">
+        {BUILD_LABEL}
+      </span>
+    </article>
+  );
+}
 
-      {/* §02 How it works */}
-      <Section num="02" title="How it works">
-        <div className="mt-2 grid grid-cols-1 gap-8 sm:grid-cols-3">
-          {STEPS.map((s, i) => {
-            const Icon = s.icon;
-            return (
-              <article key={s.title} className="relative">
-                <span className="about-num block text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                  Step {String(i + 1).padStart(2, "0")}
+function LinksTile() {
+  return (
+    <article
+      data-slot="about-links"
+      className="flex h-full flex-col gap-3 rounded-lg border border-border bg-surface p-6"
+    >
+      <span className="text-caption font-semibold uppercase tracking-wide text-foreground-muted">
+        Resources
+      </span>
+      <ul className="flex flex-col gap-2" data-slot="about-links-list">
+        {LINKS.map(({ href, label, description, icon }) => (
+          <li key={href}>
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="group/link flex items-start gap-3 rounded-md p-2 -mx-2 transition-colors hover:bg-accent"
+            >
+              <span
+                aria-hidden="true"
+                className="mt-0.5 flex size-4 shrink-0 items-center justify-center text-foreground-muted [&_svg]:size-4 group-hover/link:text-primary"
+              >
+                {icon}
+              </span>
+              <span className="flex flex-1 flex-col gap-0.5">
+                <span className="text-sm font-medium text-foreground group-hover/link:text-primary">
+                  {label}
                 </span>
-                <div className="mt-4 flex size-10 items-center justify-center rounded-full border border-border bg-card">
-                  <Icon className="size-4 text-foreground" />
-                </div>
-                <h3 className="about-display mt-5 text-heading font-semibold text-foreground">
-                  {s.title}
-                </h3>
-                <p className="mt-3 text-body leading-[1.55] text-muted-foreground">
-                  {s.body}
-                </p>
-              </article>
-            );
-          })}
-        </div>
-      </Section>
+                <span className="text-caption text-foreground-muted">
+                  {description}
+                </span>
+              </span>
+              <ExternalLinkIcon
+                aria-hidden="true"
+                className="mt-1 size-3.5 shrink-0 text-foreground-muted group-hover/link:text-primary"
+              />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </article>
+  );
+}
 
-      {/* §03 The stack */}
-      <Section num="03" title="Under the hood">
-        <p className="text-body text-foreground leading-[1.65] max-w-[62ch]">
-          A single long-lived JVM, bridged into Python via JPype, sits
-          behind a FastAPI service. A React SPA talks to it over JSON.
-          Each layer picks the simplest tool that does its job well.
-        </p>
-        <dl className="mt-10 divide-y divide-border border-y border-border">
-          {STACK.map((row) => (
-            <div
-              key={row.label}
-              className="grid grid-cols-[120px_1fr] items-baseline gap-6 py-5 md:grid-cols-[200px_1fr]"
+function TechStackTile() {
+  return (
+    <article
+      data-slot="about-tech-stack"
+      className="flex h-full flex-col gap-4 rounded-lg border border-border bg-surface p-6"
+    >
+      <div className="flex flex-col gap-1">
+        <span className="text-caption font-semibold uppercase tracking-wide text-foreground-muted">
+          Tech stack
+        </span>
+        <span className="text-caption text-foreground-muted">
+          Simplest tool at every layer.
+        </span>
+      </div>
+      <ul className="flex flex-wrap gap-2" data-slot="about-tech-list">
+        {TECH_STACK.map(({ label, detail }) => (
+          <li key={label}>
+            <Badge
+              variant="outline"
+              className="font-mono text-[0.7rem]"
+              title={detail}
             >
-              <dt className="about-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                {row.label}
-              </dt>
-              <dd className="text-body text-foreground">{row.detail}</dd>
-            </div>
-          ))}
-        </dl>
-      </Section>
+              {label}
+            </Badge>
+          </li>
+        ))}
+      </ul>
+    </article>
+  );
+}
 
-      {/* §04 Credits */}
-      <Section num="04" title="Credits">
-        <p className="text-body text-foreground leading-[1.65] max-w-[62ch]">
-          BChemXtract is developed at the{" "}
+function CreditsTile() {
+  return (
+    <article
+      data-slot="about-credits"
+      className="flex h-full flex-col gap-4 rounded-lg border border-border bg-surface p-6"
+    >
+      <span className="text-caption font-semibold uppercase tracking-wide text-foreground-muted">
+        Credits
+      </span>
+      <div className="space-y-3">
+        <p className="text-sm leading-relaxed text-foreground">
+          BChemXtractWeb wraps the{" "}
+          <a
+            href="https://github.com/Beilstein-Institut/BChemXtract"
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary underline-offset-2 hover:underline"
+          >
+            BChemXtract
+          </a>{" "}
+          Java library developed at the{" "}
           <a
             href="https://www.beilstein-institut.de/"
             target="_blank"
-            rel="noopener noreferrer"
-            className="text-foreground underline decoration-[color:var(--color-link)]/50 underline-offset-4 hover:decoration-[color:var(--color-link)]"
+            rel="noreferrer"
+            className="text-primary underline-offset-2 hover:underline"
           >
             Beilstein-Institut
           </a>
           , an independent non-profit foundation advancing the chemical
-          sciences. The web wrapper is open work — contributions,
-          feedback, and issue reports welcome.
+          sciences.
         </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <a
-            href="https://github.com/Beilstein-Institut/BChemXtract"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={
-              buttonVariants({ variant: "outline", size: "lg" }) + " gap-2"
-            }
-          >
-            BChemXtract repository
-            <ArrowUpRightIcon className="size-4" />
-          </a>
-          <a
-            href="https://www.beilstein-institut.de/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={
-              buttonVariants({ variant: "outline", size: "lg" }) + " gap-2"
-            }
-          >
-            Beilstein-Institut
-            <ArrowUpRightIcon className="size-4" />
-          </a>
-        </div>
-      </Section>
-
-      <footer className="mt-24 flex flex-col items-start justify-between gap-4 border-t border-border pt-8 pb-4 sm:flex-row sm:items-center">
-        <p className="about-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-          © 2026 · Beilstein-Institut · BChemXtractWeb v1.0
+        <p className="text-caption text-foreground-muted">
+          Built with CDK 2.12 for descriptors, FastAPI + JPype to bridge
+          Python and the JVM, and React 19 for the interface.
+          Contributions, feedback, and issue reports welcome upstream.
         </p>
-        <Link
-          to="/"
-          className="text-[14px] text-muted-foreground hover:text-foreground transition-colors"
+      </div>
+      <div className="mt-auto flex flex-wrap gap-2 pt-2">
+        <a
+          href="https://github.com/Beilstein-Institut/BChemXtract"
+          target="_blank"
+          rel="noreferrer"
+          className={
+            buttonVariants({ variant: "outline", size: "sm" }) + " gap-1.5"
+          }
         >
-          Back to Extract →
-        </Link>
-      </footer>
-    </>
-  );
-}
-
-interface SectionProps {
-  num: string;
-  title: string;
-  children: React.ReactNode;
-}
-
-function Section({ num, title, children }: SectionProps) {
-  return (
-    <section className="mt-20 grid grid-cols-1 gap-8 lg:grid-cols-[180px_1fr] lg:gap-12">
-      <header className="lg:sticky lg:top-20 lg:self-start">
-        <div className="about-num text-[40px] font-semibold leading-none text-muted-foreground/60">
-          {num}
-        </div>
-        <div className="about-mono mt-3 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-          §{num}
-        </div>
-        <h2 className="about-display mt-4 text-heading font-semibold tracking-tight text-foreground">
-          {title}
-        </h2>
-      </header>
-      <div>{children}</div>
-    </section>
+          BChemXtract repo
+          <ArrowUpRightIcon className="size-3.5" />
+        </a>
+        <a
+          href="https://www.beilstein-institut.de/"
+          target="_blank"
+          rel="noreferrer"
+          className={
+            buttonVariants({ variant: "ghost", size: "sm" }) + " gap-1.5"
+          }
+        >
+          Beilstein-Institut
+          <ArrowUpRightIcon className="size-3.5" />
+        </a>
+      </div>
+    </article>
   );
 }
