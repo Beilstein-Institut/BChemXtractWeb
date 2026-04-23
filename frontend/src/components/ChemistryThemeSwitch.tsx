@@ -23,7 +23,7 @@
  * `[data-slot="theme-switch"]`.
  */
 import { useEffect, useState } from "react";
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@/hooks/useTheme";
 
 /** Live system-dark preference, SSR-safe and re-subscribed across mounts. */
 function useSystemDark(): boolean {

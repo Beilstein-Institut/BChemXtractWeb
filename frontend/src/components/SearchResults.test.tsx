@@ -34,7 +34,6 @@ vi.mock("sonner", () => ({
 
 // Mock @base-ui/react/popover — same shape as BrowseToolbar.test.tsx.
 vi.mock("@base-ui/react/popover", () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
   return {
     Popover: {
@@ -66,7 +65,6 @@ vi.mock("@base-ui/react/popover", () => {
 
 // Mock @base-ui/react/separator.
 vi.mock("@base-ui/react/separator", () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
   return {
     Separator: ({ className, ...rest }: { className?: string; [k: string]: unknown }) =>
@@ -76,7 +74,6 @@ vi.mock("@base-ui/react/separator", () => {
 
 // Mock @base-ui/react/button to a plain button.
 vi.mock("@base-ui/react/button", () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
   return {
     Button: React.forwardRef(
@@ -97,7 +94,6 @@ vi.mock("@base-ui/react/use-render", () => ({
     props: Record<string, unknown>;
     defaultTagName: string;
   }) => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const React = require("react");
     return React.createElement(defaultTagName, props);
   },
@@ -110,7 +106,6 @@ vi.mock("@base-ui/react/merge-props", () => ({
 
 // Mock @base-ui/react/dialog — StructureCard imports Dialog under the hood.
 vi.mock("@base-ui/react/dialog", () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
   return {
     Dialog: {
@@ -147,7 +142,6 @@ vi.mock("@base-ui/react/dialog", () => {
 
 // Mock @base-ui/react/tooltip — StructureCard uses Tooltip for the SMILES row.
 vi.mock("@base-ui/react/tooltip", () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
   return {
     Tooltip: {

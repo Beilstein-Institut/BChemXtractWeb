@@ -138,9 +138,16 @@ export function useBrowse(extractionId: number | null | undefined): UseBrowseRet
   }, []);
 
   // Fetch when extractionId, currentPage, pageSize, or sort changes.
+  // why: when extractionId goes null (navigating away from an active
+  //      extraction) we reset the list to a known idle/null pair. The
+  //      alternative — deriving browseState/page from extractionId at
+  //      render time — would require lifting or duplicating the fetch
+  //      state machine and still fire a render to flush the stale page.
   useEffect(() => {
     if (!extractionId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset sync
       setBrowseState("idle");
+       
       setPage(null);
       return;
     }

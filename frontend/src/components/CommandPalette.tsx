@@ -49,7 +49,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@/hooks/useTheme";
 import { navigate } from "@/lib/router";
 
 type IconNode = React.ReactNode;

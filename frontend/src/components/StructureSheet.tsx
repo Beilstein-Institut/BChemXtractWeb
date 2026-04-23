@@ -91,8 +91,12 @@ export function StructureSheet({
   // Reset zoom and pick initial layout when substance changes. Default to CDK;
   // fall back to ChemDraw when CDK isn't available. Computed once per substance
   // change so there's only a single commit (no cascading effects).
+  // why: keying off `substance` to remount would break the Sheet
+  //      animation and focus. Ephemeral UI state resets sync to the prop.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- prop-sync
     setZoom(1);
+     
     setUseCdxCoords(substance ? !substance.svg && !!substance.svg_cdx : false);
   }, [substance]);
 

@@ -178,7 +178,10 @@ export function ReactionSheet({
   }, [open, onPrev, onNext]);
 
   // Reset zoom when the displayed reaction changes.
+  // why: remounting via `key={reactionIndex}` would restart the Sheet
+  //      open/close animation and break keyboard focus on prev/next.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- prop-sync
     setZoom(1);
   }, [reactionIndex]);
 

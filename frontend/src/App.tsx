@@ -81,6 +81,10 @@ function App() {
 
   // On successful single-file extraction: refresh history + pin the new
   // extraction as active so the Browse page knows what to show.
+  // why: useExtract emits a state machine from an external-ish source
+  //      (network + JVM). setActiveExtractionId is a sync of that
+  //      external transition, not a render-derived update.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (state !== "success") return;
     refreshHistory();
@@ -89,6 +93,7 @@ function App() {
       if (window.location.pathname === "/") navigate("/browse");
     }
   }, [state, result, refreshHistory]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Batch completion refreshes the history list too.
   useEffect(() => {

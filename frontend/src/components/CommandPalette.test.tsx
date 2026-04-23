@@ -93,8 +93,10 @@ vi.mock("@/lib/router", () => ({
 
 // Capture setTheme.
 const setThemeMock = vi.fn();
-vi.mock("@/components/theme-provider", () => ({
+vi.mock("@/hooks/useTheme", () => ({
   useTheme: () => ({ theme: "system", setTheme: setThemeMock }),
+}));
+vi.mock("@/components/theme-provider", () => ({
   ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 

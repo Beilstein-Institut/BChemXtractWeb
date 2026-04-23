@@ -65,11 +65,18 @@ export function useHistory(): UseHistoryReturn {
     }
   }, []);
 
-  // Initial fetch on mount.
+  // Initial fetch on mount. The setState happens inside fetchHistory /
+  // fetchStats; the lint rule flags it because it cannot see through the
+  // callback boundary.
+  // why: documented "fetch-on-mount" pattern. Migrating to
+  //      useSyncExternalStore or Suspense would require a server cache
+  //      layer we don't have.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchHistory(false);
     fetchStats();
   }, [fetchHistory, fetchStats]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const toggleShowAll = useCallback(() => {
     setShowAll((prev) => {

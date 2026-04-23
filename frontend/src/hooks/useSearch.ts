@@ -203,9 +203,13 @@ export function useSearch(): UseSearchReturn {
 
   // Debounced live fetch for text-based types (D-03). Substructure
   // requires an explicit submit() call and short-circuits here.
+  // why: when the query string clears we reset to idle + null response.
+  //      That's a sync of input-driven state, not a render-derived update.
   useEffect(() => {
     if (!query) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset sync
       setSearchState("idle");
+       
       setResponse(null);
       return;
     }
