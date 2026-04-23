@@ -51,6 +51,122 @@
   --text-mono-sm:     var(--text-mono-sm);
 }
 
+/* Shiny layered-gradient Button variants (Phase 3 Task 18).
+ * Utilities that back the CVA in components/ui/button.tsx so the CVA
+ * stays terse. Palette references crimson / teal / navy via the token
+ * layer's --color-primary / --color-secondary / --color-foreground and
+ * --color-destructive vars. Uses plain color-mix(in oklch, …) rather
+ * than relative-color syntax for Tailwind-4 friendliness.
+ */
+@layer components {
+  /* Shared base for all shiny variants */
+  .btn-shiny {
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow 0.3s ease, transform 0.15s ease;
+  }
+  .btn-shiny:hover {
+    box-shadow: 0 0 20px color-mix(in oklch, var(--shiny-accent, var(--color-primary)) 30%, transparent);
+  }
+
+  /* Primary: navy base + crimson glow */
+  .btn-shiny-primary {
+    --shiny-accent: var(--color-primary);
+    background-image:
+      linear-gradient(180deg,
+        color-mix(in oklch, var(--color-foreground) 85%, var(--color-primary)) 0%,
+        var(--color-foreground) 50%,
+        color-mix(in oklch, var(--color-foreground) 75%, var(--color-primary)) 100%);
+    color: color-mix(in oklch, var(--color-primary) 40%, white);
+    box-shadow:
+      inset 0 0 18px color-mix(in oklch, var(--color-primary) 25%, transparent),
+      inset 0 1px 0 color-mix(in oklch, white 15%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-primary) 45%, transparent);
+  }
+  .btn-shiny-primary:hover {
+    background-image:
+      linear-gradient(180deg,
+        color-mix(in oklch, var(--color-foreground) 75%, var(--color-primary)) 0%,
+        color-mix(in oklch, var(--color-foreground) 92%, var(--color-primary)) 50%,
+        color-mix(in oklch, var(--color-foreground) 70%, var(--color-primary)) 100%);
+  }
+
+  /* Secondary: navy base + teal glow */
+  .btn-shiny-secondary {
+    --shiny-accent: var(--color-secondary);
+    background-image:
+      linear-gradient(180deg,
+        color-mix(in oklch, var(--color-foreground) 85%, var(--color-secondary)) 0%,
+        var(--color-foreground) 50%,
+        color-mix(in oklch, var(--color-foreground) 75%, var(--color-secondary)) 100%);
+    color: color-mix(in oklch, var(--color-secondary) 50%, white);
+    box-shadow:
+      inset 0 0 18px color-mix(in oklch, var(--color-secondary) 25%, transparent),
+      inset 0 1px 0 color-mix(in oklch, white 15%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-secondary) 45%, transparent);
+  }
+
+  /* Destructive: navy base + red glow */
+  .btn-shiny-destructive {
+    --shiny-accent: var(--color-destructive);
+    background-image:
+      linear-gradient(180deg,
+        color-mix(in oklch, var(--color-foreground) 80%, var(--color-destructive)) 0%,
+        var(--color-foreground) 50%,
+        color-mix(in oklch, var(--color-foreground) 70%, var(--color-destructive)) 100%);
+    color: color-mix(in oklch, var(--color-destructive) 40%, white);
+    box-shadow:
+      inset 0 0 18px color-mix(in oklch, var(--color-destructive) 25%, transparent),
+      inset 0 1px 0 color-mix(in oklch, white 15%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-destructive) 45%, transparent);
+  }
+
+  /* Outline: gradient border, transparent fill */
+  .btn-shiny-outline {
+    --shiny-accent: var(--color-primary);
+    background: transparent;
+    color: var(--color-foreground);
+    border: 1px solid transparent;
+    background-image:
+      linear-gradient(var(--color-background), var(--color-background)),
+      linear-gradient(90deg, var(--color-primary), var(--color-secondary), var(--color-primary));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+  .btn-shiny-outline:hover {
+    background-image:
+      linear-gradient(color-mix(in oklch, var(--color-primary) 8%, var(--color-background)),
+                      color-mix(in oklch, var(--color-primary) 8%, var(--color-background))),
+      linear-gradient(90deg, var(--color-primary), var(--color-secondary), var(--color-primary));
+    color: var(--color-primary);
+  }
+
+  /* Ghost: transparent default, shiny fill on hover */
+  .btn-shiny-ghost {
+    --shiny-accent: var(--color-primary);
+    background: transparent;
+    color: var(--color-foreground);
+    border: 1px solid transparent;
+  }
+  .btn-shiny-ghost:hover {
+    background-image:
+      linear-gradient(180deg,
+        color-mix(in oklch, var(--color-primary) 12%, transparent) 0%,
+        color-mix(in oklch, var(--color-primary) 18%, transparent) 100%);
+    color: var(--color-primary);
+    border-color: color-mix(in oklch, var(--color-primary) 25%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn-shiny, .btn-shiny:hover { transition: none; }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .btn-shiny-primary, .btn-shiny-secondary, .btn-shiny-destructive {
+      box-shadow: none;
+    }
+  }
+}
+
 body {
   font-family: var(--font-sans);
   color: var(--color-foreground);

@@ -4,42 +4,48 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 /**
- * Button — surface tier (Phase 3 Liquid Glass rebuild, Task 3).
+ * Button — surface tier (Phase 3 Liquid Glass rebuild, Task 18).
  *
- * Variants expressed by the plan:
- *   primary      — crimson fill
- *   secondary    — teal fill
- *   outline      — transparent w/ border
- *   ghost        — transparent, accent on hover
- *   destructive  — destructive fill
+ * Variants:
+ *   primary      — navy base + crimson inner glow
+ *   default      — alias for primary (~10 legacy call sites)
+ *   secondary    — navy base + teal glow
+ *   outline      — transparent fill + crimson→teal gradient border
+ *   ghost        — transparent; shiny primary fill on hover
+ *   destructive  — navy base + red/crimson glow
  *
- * `default` is kept as an alias for `primary` to preserve ~10 call sites
- * that predate the rename; downstream `variant="default"` resolves to
- * the same CVA branch as `variant="primary"`.
+ * Visual treatment is implemented by `.btn-shiny-*` utility classes
+ * in `src/index.css` (@layer components) so the CVA stays terse.
+ * The shared `.btn-shiny` base supplies position/overflow/transition
+ * and a `box-shadow` glow on hover keyed off `--shiny-accent`.
  *
- * The legacy `link` variant is dropped per the plan — migrated to `ghost`
- * with `underline`.
+ * The legacy `link` variant is dropped per the plan — migrated to
+ * `ghost` with `data-underline`.
  *
  * `data-variant` is preserved on the DOM element so Task 6's glass
  * selectors and any existing CSS can target the chosen variant.
  */
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md text-sm font-medium transition-[background-color,color,opacity,transform] duration-150 select-none outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 active:not-aria-[haspopup]:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-2 aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  cn(
+    "btn-shiny",
+    "group/button inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap",
+    "rounded-md text-sm font-medium select-none outline-none",
+    "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0",
+    "active:not-aria-[haspopup]:scale-[0.98]",
+    "disabled:pointer-events-none disabled:opacity-50",
+    "aria-invalid:ring-2 aria-invalid:ring-destructive/40",
+    "data-[underline=true]:underline data-[underline=true]:underline-offset-4",
+    "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  ),
   {
     variants: {
       variant: {
-        primary:
-          "bg-primary text-primary-foreground hover:opacity-90",
-        default:
-          "bg-primary text-primary-foreground hover:opacity-90",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:opacity-90",
-        outline:
-          "border border-border bg-transparent text-foreground hover:bg-accent",
-        ghost:
-          "bg-transparent text-foreground hover:bg-accent data-[underline=true]:underline data-[underline=true]:underline-offset-4",
-        destructive:
-          "bg-destructive text-white hover:opacity-90",
+        primary: "btn-shiny-primary",
+        default: "btn-shiny-primary",
+        secondary: "btn-shiny-secondary",
+        outline: "btn-shiny-outline",
+        ghost: "btn-shiny-ghost",
+        destructive: "btn-shiny-destructive",
       },
       size: {
         default: "h-10 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",

@@ -68,30 +68,41 @@ describe("Button", () => {
     expect(btn.className).toContain("focus-visible:ring-ring");
   });
 
-  it("resolves primary variant to crimson fill utilities", () => {
+  it("resolves primary variant to the shiny primary utility", () => {
     render(<Button variant="primary">x</Button>);
     const btn = screen.getByRole("button");
-    expect(btn.className).toContain("bg-primary");
-    expect(btn.className).toContain("text-primary-foreground");
+    expect(btn.className).toContain("btn-shiny");
+    expect(btn.className).toContain("btn-shiny-primary");
   });
 
-  it("resolves outline variant to bordered transparent utilities", () => {
+  it("resolves default variant to the shiny primary utility (alias)", () => {
+    render(<Button>x</Button>);
+    const btn = screen.getByRole("button");
+    expect(btn.className).toContain("btn-shiny-primary");
+  });
+
+  it("resolves secondary variant to the shiny secondary utility", () => {
+    render(<Button variant="secondary">x</Button>);
+    const btn = screen.getByRole("button");
+    expect(btn.className).toContain("btn-shiny-secondary");
+  });
+
+  it("resolves outline variant to the shiny outline utility", () => {
     render(<Button variant="outline">x</Button>);
     const btn = screen.getByRole("button");
-    expect(btn.className).toContain("border-border");
-    expect(btn.className).toContain("bg-transparent");
+    expect(btn.className).toContain("btn-shiny-outline");
   });
 
-  it("resolves ghost variant to transparent background", () => {
+  it("resolves ghost variant to the shiny ghost utility", () => {
     render(<Button variant="ghost">x</Button>);
     const btn = screen.getByRole("button");
-    expect(btn.className).toContain("bg-transparent");
+    expect(btn.className).toContain("btn-shiny-ghost");
   });
 
-  it("resolves destructive variant to destructive fill", () => {
+  it("resolves destructive variant to the shiny destructive utility", () => {
     render(<Button variant="destructive">x</Button>);
     const btn = screen.getByRole("button");
-    expect(btn.className).toContain("bg-destructive");
+    expect(btn.className).toContain("btn-shiny-destructive");
   });
 
   it("applies the lg size height", () => {
