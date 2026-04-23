@@ -63,7 +63,7 @@ async def _mk_extraction(db_session, filename: str = "test.cdx") -> int:
 
 
 async def test_save_reactions_inserts_all_columns(db_session):
-    """save_reactions writes long_rinchi_key + rinchi + reaction_smiles + svg + components JSONB."""
+    """save_reactions writes all Reaction columns including components JSONB."""
     eid = await _mk_extraction(db_session)
     await save_reactions(db_session, eid, [_mk_reaction()])
     result = await db_session.execute(

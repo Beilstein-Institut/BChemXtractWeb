@@ -671,8 +671,9 @@ def _extract_fragments_from_document(document) -> tuple[list[dict], dict]:
                         if mf is not None:
                             formula = str(MolecularFormulaManipulator.getString(mf))
 
-                    # No cross-fallback — empty stays empty so the frontend can accurately
-                    # disable the corresponding layout button.
+                    # No cross-fallback — empty stays empty so the
+                    # frontend can accurately disable the corresponding
+                    # layout button.
                     svg_cdx = _render_atom_container_svg(component)
                     svg = _render_with_cdk_layout(component)
 

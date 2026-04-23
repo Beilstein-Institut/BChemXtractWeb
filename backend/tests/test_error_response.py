@@ -32,7 +32,7 @@ async def test_validation_error_shape(
     body = resp.json()
     assert body.get("code") == "VALIDATION_ERROR"
     assert isinstance(body.get("fields"), dict)
-    assert any("query" in k for k in body["fields"].keys())
+    assert any("query" in k for k in body["fields"])
 
 
 @pytest.mark.asyncio

@@ -73,7 +73,7 @@ async def test_save_extraction_creates_extraction_row(db_session):
 
 @pytest.mark.asyncio
 async def test_save_extraction_deduplicates_substances(db_session):
-    """HIST-03: second save with the same inchi_key produces exactly one Substance row."""
+    """HIST-03: second save with same inchi_key produces one Substance row."""
     key = _KEY_B
     await save_extraction(db_session, _make_response("a.cdx", inchi_keys=[key]))
     await save_extraction(db_session, _make_response("b.cdx", inchi_keys=[key]))

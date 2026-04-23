@@ -33,8 +33,8 @@ async def test_response_has_svg(
     """RXTN-02: At least one reaction has a rendered svg (matches plan-01 pattern).
 
     CDK's DepictionGenerator.toSvgStr() prefixes the SVG with an XML prolog,
-    so we accept either "<svg" at the start or anywhere in the string
-    (consistent with test_reactions.py::test_extract_reactions_with_svg_renders_depiction).
+    so we accept "<svg" at the start or anywhere in the string
+    (mirrors test_reactions.py::test_extract_reactions_with_svg_renders_depiction).
     """
     response = await client.post(
         "/api/reactions",
@@ -52,7 +52,7 @@ async def test_response_has_svg(
 async def test_response_has_rinchi_fields(
     client: AsyncClient, cdx_reaction_file_bytes: bytes
 ) -> None:
-    """RXTN-03: Every reaction has rinchi, short/long/web_rinchi_key, reaction_smiles."""
+    """RXTN-03: reaction has rinchi, short/long/web_rinchi_key, reaction_smiles."""
     response = await client.post(
         "/api/reactions",
         files={
@@ -124,7 +124,7 @@ async def test_substance_extraction_unaffected(
 async def test_get_extraction_reactions_returns_cached(
     client: AsyncClient, cdx_reaction_file_bytes: bytes
 ) -> None:
-    """D-23: GET /api/extractions/{id}/reactions returns the cached reactions for hydration."""
+    """D-23: /api/extractions/{id}/reactions returns cached reactions for hydration."""
     # First extract to populate the DB
     post_resp = await client.post(
         "/api/reactions",

@@ -15,7 +15,7 @@ pytestmark = pytest.mark.asyncio
 async def test_get_substances_page_returns_paged_response(
     client: AsyncClient, cdx_file_bytes: bytes
 ):
-    """DISP-03: GET /api/extractions/{id}/substances returns PagedSubstancesResponse shape."""
+    """DISP-03: substances endpoint returns PagedSubstancesResponse shape."""
     # POST extraction to get a real extraction_id
     upload = await client.post(
         "/api/extract",
@@ -41,7 +41,7 @@ async def test_get_substances_page_returns_paged_response(
 
 
 async def test_get_substances_page_404_for_unknown_extraction(client: AsyncClient):
-    """DISP-03: GET /api/extractions/{id}/substances returns 404 for non-existent extraction."""
+    """DISP-03: substances endpoint returns 404 for missing extraction."""
     resp = await client.get("/api/extractions/99999999/substances")
     assert resp.status_code == 404
 
@@ -102,7 +102,7 @@ async def test_get_substances_page_out_of_range_returns_empty(
 async def test_extraction_response_includes_id(
     client: AsyncClient, cdx_file_bytes: bytes
 ):
-    """DISP-03: POST /api/extract response includes extraction_id as a positive integer."""
+    """DISP-03: POST /api/extract response includes extraction_id (positive int)."""
     upload = await client.post(
         "/api/extract",
         files={"file": ("test.cdx", cdx_file_bytes, "application/octet-stream")},

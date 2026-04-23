@@ -102,7 +102,7 @@ async def test_429_has_retry_after_header() -> None:
         r = await ac.get("/ping")
     assert r.status_code == 429
     # slowapi emits Retry-After on 429
-    assert "retry-after" in {h.lower() for h in r.headers.keys()}
+    assert "retry-after" in {h.lower() for h in r.headers}
 
 
 async def test_different_ips_have_separate_budgets() -> None:

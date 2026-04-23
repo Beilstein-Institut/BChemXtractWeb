@@ -98,7 +98,7 @@ async def test_highlight_accessibility_title_inserted(started_app) -> None:
 
 @pytest.mark.asyncio
 async def test_highlight_none_mol_returns_empty_string(started_app) -> None:
-    """None input short-circuits to empty string — matches render_substance_svg behavior."""
+    """None input short-circuits to empty string (like render_substance_svg)."""
     from app.services.depiction import render_substance_svg_with_highlight
     from app.services.jvm_bridge import run_in_jvm_thread
 

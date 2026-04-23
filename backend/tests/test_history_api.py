@@ -100,7 +100,7 @@ async def test_history_all_limit(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_history_detail_success_path(client: AsyncClient, cdx_file_bytes: bytes):
-    """HIST-02: GET /api/history/{id} returns 200 with substances list for a real extraction.
+    """HIST-02: GET /api/history/{id} returns 200 + substances for real extraction.
 
     Steps:
     1. POST a CDX file to /api/extract to create an extraction record.
@@ -124,7 +124,7 @@ async def test_history_detail_success_path(client: AsyncClient, cdx_file_bytes: 
     items = history_response.json()["items"]
     matching = [item for item in items if item["filename"] == "L-lactic-acid.cdx"]
     assert len(matching) >= 1, (
-        "POST /api/extract did not produce a history entry — auto-persist hook may be broken"
+        "POST /api/extract did not create history entry — auto-persist hook broken"
     )
     extraction_id = matching[0]["id"]
 

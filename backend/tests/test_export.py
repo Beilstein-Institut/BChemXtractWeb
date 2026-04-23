@@ -41,7 +41,14 @@ TEST_SUBSTANCE = {
 }
 
 # Minimal SDF bytes — contains $$$$ record separator
-_MOCK_SDF_BYTES = b"\n  Mrv2211 01010000002D\n\n  2  1  0  0  0  0            999 V2000\n    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    1.0000    0.0000    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n  1  2  1  0  0  0  0\nM  END\n$$$$\n"
+_MOCK_SDF_BYTES = (
+    b"\n  Mrv2211 01010000002D\n\n"
+    b"  2  1  0  0  0  0            999 V2000\n"
+    b"    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n"
+    b"    1.0000    0.0000    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n"
+    b"  1  2  1  0  0  0  0\n"
+    b"M  END\n$$$$\n"
+)
 
 # Minimal valid PNG header (8-byte PNG signature + IHDR)
 _MOCK_PNG_BYTES = (
@@ -54,7 +61,20 @@ _MOCK_PNG_BYTES = (
 )
 
 # Minimal V3000 molfile
-_MOCK_V3000_BYTES = b"\n     RDKit          2D\n\n  0  0  0  0  0  0  0  0  0  0999 V3000\nM  V30 BEGIN CTAB\nM  V30 COUNTS 2 1 0 0 0\nM  V30 BEGIN ATOM\nM  V30 1 C 0 0 0 0\nM  V30 2 O 1 0 0 0\nM  V30 END ATOM\nM  V30 BEGIN BOND\nM  V30 1 1 1 2\nM  V30 END BOND\nM  V30 END CTAB\nM  END\n"
+_MOCK_V3000_BYTES = (
+    b"\n     RDKit          2D\n\n"
+    b"  0  0  0  0  0  0  0  0  0  0999 V3000\n"
+    b"M  V30 BEGIN CTAB\n"
+    b"M  V30 COUNTS 2 1 0 0 0\n"
+    b"M  V30 BEGIN ATOM\n"
+    b"M  V30 1 C 0 0 0 0\n"
+    b"M  V30 2 O 1 0 0 0\n"
+    b"M  V30 END ATOM\n"
+    b"M  V30 BEGIN BOND\n"
+    b"M  V30 1 1 1 2\n"
+    b"M  V30 END BOND\n"
+    b"M  V30 END CTAB\nM  END\n"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -147,7 +167,7 @@ async def test_sdf_export(client: AsyncClient) -> None:
 
 
 async def test_json_export(client: AsyncClient) -> None:
-    """POST /api/export format=json returns application/json array with expected keys."""
+    """POST /api/export format=json returns application/json array with keys."""
     async with _patch_jvm_and_db():
         resp = await client.post(
             "/api/export",
@@ -249,7 +269,7 @@ async def test_v3000_export(client: AsyncClient) -> None:
 
 
 async def test_png_export(client: AsyncClient) -> None:
-    """POST /api/export format=png returns image/png (single) or application/zip with PNG bytes."""
+    """POST /api/export format=png returns image/png or application/zip."""
     async with _patch_jvm_and_db():
         resp = await client.post(
             "/api/export",
@@ -305,7 +325,7 @@ async def test_unknown_format(client: AsyncClient) -> None:
 
 
 async def test_export_all_uses_extraction_id(client: AsyncClient) -> None:
-    """POST /api/export with extraction_id and empty substance_ids fetches all substances."""
+    """POST /api/export extraction_id + empty substance_ids = fetch all."""
     fetched_args = {}
 
     async def _capture_fetch(payload, db):
@@ -313,15 +333,17 @@ async def test_export_all_uses_extraction_id(client: AsyncClient) -> None:
         fetched_args["substance_ids"] = payload.substance_ids
         return [TEST_SUBSTANCE]
 
-    with patch("app.routers.export._fetch_substances", side_effect=_capture_fetch):
-        with patch(
+    with (
+        patch("app.routers.export._fetch_substances", side_effect=_capture_fetch),
+        patch(
             "app.services.export.run_in_jvm_thread",
             new=AsyncMock(return_value=_MOCK_SDF_BYTES),
-        ):
-            resp = await client.post(
-                "/api/export",
-                json={"format": "sdf", "extraction_id": 42, "substance_ids": []},
-            )
+        ),
+    ):
+        resp = await client.post(
+            "/api/export",
+            json={"format": "sdf", "extraction_id": 42, "substance_ids": []},
+        )
 
     assert resp.status_code == 200, resp.text
     assert fetched_args.get("extraction_id") == 42

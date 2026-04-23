@@ -1,4 +1,4 @@
-"""Tests for ReactionResponse.svg + ReactionExtractionResponse + ExportRequest.reaction_ids (Plan 10-01)."""
+"""Tests for Reaction/ReactionExtraction/Export models (Plan 10-01)."""
 
 from app.models.chemistry import (
     ExportRequest,
@@ -15,7 +15,7 @@ def test_reaction_response_has_svg():
 
 
 def test_reaction_response_accepts_svg_kwarg():
-    """ReactionResponse(svg="<svg/>") validates — not extra fields forbidden (Pitfall 5)."""
+    """ReactionResponse(svg=...) validates; extra fields not forbidden (Pitfall 5)."""
     r = ReactionResponse(svg="<svg xmlns='http://www.w3.org/2000/svg'/>")
     assert "<svg" in r.svg
 
@@ -48,7 +48,7 @@ def test_reaction_extraction_response_shape():
 
 
 def test_export_request_accepts_reaction_ids():
-    """D-22: ExportRequest.reaction_ids: list[int] = [] is accepted (mirrors substance_ids)."""
+    """D-22: ExportRequest.reaction_ids default [] accepted (mirrors substance_ids)."""
     req = ExportRequest(format="rxn", reaction_ids=[1, 2, 3])
     assert req.reaction_ids == [1, 2, 3]
     req2 = ExportRequest(format="sdf")  # default = []

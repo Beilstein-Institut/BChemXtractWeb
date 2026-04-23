@@ -73,7 +73,7 @@ async def test_operation_id_snapshot(client_no_jvm: AsyncClient) -> None:
     assert resp.status_code == 200
     schema = resp.json()
     observed = set()
-    for path, methods in schema["paths"].items():
+    for _path, methods in schema["paths"].items():
         for method, spec in methods.items():
             if method not in ("get", "post", "put", "delete", "patch"):
                 continue

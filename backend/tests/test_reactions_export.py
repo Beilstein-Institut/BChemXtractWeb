@@ -77,7 +77,7 @@ async def test_generate_reactions_export_multi_filename(started_app):
 async def test_export_endpoint_rxn_dispatch(
     client: AsyncClient, cdx_reaction_file_bytes: bytes
 ) -> None:
-    """POST /api/export format=rxn routes through _fetch_reactions + generate_reactions_export."""
+    """POST /api/export format=rxn routes via _fetch_reactions + export."""
     # First, run /api/reactions so reactions exist in DB
     ext_resp = await client.post(
         "/api/reactions",
