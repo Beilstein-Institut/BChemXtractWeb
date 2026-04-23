@@ -1,19 +1,40 @@
+# SEC/OPS: force nginx to re-resolve container IPs on every request
+# via Docker's embedded DNS (127.0.0.11). Without this, nginx caches
+# the upstream IPs at startup and returns 502 after any frontend or
+# backend container rebuild (their Docker-assigned IPs change).
+#
+# `valid=10s` caps the cache window; `ipv6=off` is required because
+# Docker's embedded resolver does not answer AAAA queries and would
+# inject ~5s of timeout per request otherwise.
+resolver 127.0.0.11 valid=10s ipv6=off;
+
 server {
     listen 80;
     server_name _;
 
+    # Upstream URLs as variables — this (not the literal host:port in
+    # proxy_pass) is what triggers runtime DNS re-resolution.
+    set $frontend_upstream "http://frontend:80";
+    set $backend_upstream  "http://backend:8000";
+
     # Frontend SPA (proxied to frontend container)
     location / {
-        proxy_pass http://frontend:80;
+        proxy_pass $frontend_upstream;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # Backend API proxy
+    # Backend API proxy.
+    # NOTE: when proxy_pass uses a variable, nginx does NOT replace
+    # the location-matched prefix with the URI portion of the target —
+    # it passes the full original request URI unchanged. So we omit
+    # the `/api/` suffix here and let the original `/api/...` path
+    # flow through verbatim. (With a literal proxy_pass we would
+    # write `http://backend:8000/api/`; with a variable we must not.)
     location /api/ {
-        proxy_pass http://backend:8000/api/;
+        proxy_pass $backend_upstream;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -54,14 +75,15 @@ server {
         # SSE connections send periodic events so they won't idle-timeout.
     }
 
-    # FastAPI OpenAPI docs proxy
+    # FastAPI OpenAPI docs proxy. Same variable-proxy_pass rule applies:
+    # omit the URI suffix, the original request path flows through.
     location /docs {
-        proxy_pass http://backend:8000/docs;
+        proxy_pass $backend_upstream;
         proxy_set_header Host $host;
     }
 
     location /openapi.json {
-        proxy_pass http://backend:8000/openapi.json;
+        proxy_pass $backend_upstream;
         proxy_set_header Host $host;
     }
 }
