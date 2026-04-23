@@ -1,10 +1,13 @@
 /**
- * ChemistryThemeSwitch — tests for the sky+flask fusion theme toggle (Task 17).
+ * ChemistryThemeSwitch — tests for the claymorphism sky slider with
+ * the conical (Erlenmeyer) flask puck (Phase 3 Task 21).
  *
  * The component is a plain `<label>` wrapping a hidden checkbox whose
  * state drives the ThemeProvider. Assertions cover the data-slot
- * contract, aria-label polarity, and Light↔Dark persistence through
- * localStorage.bchemxtract-theme.
+ * contract, aria-label polarity, the new DOM shape
+ * (theme-switch__container / theme-switch__clouds /
+ * theme-switch__stars-container / theme-switch__flask), and
+ * Light↔Dark persistence through localStorage.bchemxtract-theme.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -39,25 +42,43 @@ describe("ChemistryThemeSwitch", () => {
     expect(checkbox.getAttribute("type")).toBe("checkbox");
   });
 
-  it("announces 'Switch to dark mode' when in light mode", () => {
+  it("announces 'Switch to dark theme' when in light mode", () => {
     renderWithProvider("light");
-    expect(screen.getByLabelText("Switch to dark mode")).toBeInTheDocument();
+    expect(screen.getByLabelText("Switch to dark theme")).toBeInTheDocument();
   });
 
-  it("announces 'Switch to light mode' when in dark mode", () => {
+  it("announces 'Switch to light theme' when in dark mode", () => {
     renderWithProvider("dark");
-    expect(screen.getByLabelText("Switch to light mode")).toBeInTheDocument();
+    expect(screen.getByLabelText("Switch to light theme")).toBeInTheDocument();
   });
 
-  it("applies the chem-toggle class cluster for the scoped CSS", () => {
+  it("applies the theme-switch class cluster for the scoped CSS", () => {
     renderWithProvider();
     const root = document.querySelector('[data-slot="theme-switch"]');
-    expect(root?.className).toContain("chem-toggle");
+    expect(root?.className).toContain("theme-switch");
+    expect(document.querySelector(".theme-switch__container")).not.toBeNull();
+    expect(document.querySelector(".theme-switch__clouds")).not.toBeNull();
+    expect(document.querySelector(".theme-switch__stars-container")).not.toBeNull();
+    expect(document.querySelector(".theme-switch__circle-container")).not.toBeNull();
+    expect(document.querySelector(".theme-switch__flask")).not.toBeNull();
+  });
+
+  it("renders the Erlenmeyer flask body + liquid inside the puck", () => {
+    renderWithProvider();
+    expect(document.querySelector(".theme-switch__flask-body")).not.toBeNull();
+    expect(document.querySelector(".theme-switch__flask-liquid")).not.toBeNull();
+    // Bubbles inside the liquid — cosmetic detail that should exist.
     expect(
-      document.querySelector(".chem-toggle__container"),
+      document.querySelectorAll(".theme-switch__flask-bubble").length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("defines light + dark liquid gradients in the SVG <defs>", () => {
+    renderWithProvider();
+    expect(
+      document.querySelector("#chem-flask-liquid-light"),
     ).not.toBeNull();
-    expect(document.querySelector(".flask")).not.toBeNull();
-    expect(document.querySelector(".flask__body")).not.toBeNull();
+    expect(document.querySelector("#chem-flask-liquid-dark")).not.toBeNull();
   });
 
   it("toggling the checkbox from light persists 'dark' to localStorage", () => {
@@ -83,15 +104,11 @@ describe("ChemistryThemeSwitch", () => {
     expect(document.documentElement.classList.contains("dark")).toBe(true);
   });
 
-  it("renders the scenery (stars + sun + moon + clouds)", () => {
-    renderWithProvider();
-    // 7 stars, 2 sun halves, 1 moon + 2 craters, 3 clouds.
-    expect(document.querySelectorAll(".chem-toggle__star")).toHaveLength(7);
-    expect(document.querySelector(".sun-primary")).not.toBeNull();
-    expect(document.querySelector(".sun-secondary")).not.toBeNull();
-    expect(document.querySelector(".moon")).not.toBeNull();
-    expect(document.querySelector(".moon-crater-1")).not.toBeNull();
-    expect(document.querySelector(".moon-crater-2")).not.toBeNull();
-    expect(document.querySelectorAll(".chem-toggle__cloud")).toHaveLength(3);
+  it("aria-label flips polarity after the user toggles to dark", () => {
+    renderWithProvider("light");
+    const checkbox = screen.getByRole("switch") as HTMLInputElement;
+    expect(screen.getByLabelText("Switch to dark theme")).toBeInTheDocument();
+    fireEvent.click(checkbox);
+    expect(screen.getByLabelText("Switch to light theme")).toBeInTheDocument();
   });
 });

@@ -319,601 +319,298 @@ body {
 }
 
 /* ============================================================
-   Chemistry Theme Switch — ported from Kohulan/ChemAudit's
-   ChemThemeToggle. A glass round-bottom flask slides between
-   a day scene (sun + clouds) and a night scene (moon + stars);
-   the liquid inside shifts from teal (day) to navy (night).
-   All rules are scoped to `.chem-toggle` so the non-BEM
-   internals (.flask, .moon, .sun-*, .chem-toggle__star, etc.)
-   never leak to the global cascade (we don't have
-   styled-components here).
-   Sizing driven by --toggle-size — everything else is em.
+   Chemistry Theme Switch — claymorphism sky slider with a
+   conical (Erlenmeyer) flask as the slider puck (Phase 3
+   Task 21). Structure:
+
+     label.theme-switch
+       input.theme-switch__checkbox            (visually hidden)
+       div.theme-switch__container
+         div.theme-switch__clouds              (light-side scenery)
+         div.theme-switch__stars-container     (dark-side, svg)
+         div.theme-switch__circle-container    (sliding puck)
+           div.theme-switch__sun-moon-container
+             svg.theme-switch__flask           (Erlenmeyer + liquid)
+
+   Claymorphism treatment:
+     - Vibrant 2-stop sky gradient on .theme-switch__container
+       (sunny blue in light, deep navy in dark)
+     - Multi-layer outer drop + inner highlight/depth shadows on the
+       container for "pressed plasticky-clay" feel
+     - drop-shadow float on the flask SVG (2-layer) for puck lift
+     - Pour-tilt rotate(18deg) on active click
+     - Clouds slide down + stars slide in on :checked
+
+   Sizing driven by --toggle-size; all inner metrics in em so the
+   whole toggle scales uniformly with a single var.
    ============================================================ */
-.chem-toggle {
-  --toggle-size: 5.25px;
-  --toggle-width: 10.625em;
-  --toggle-height: 5.625em;
-  --toggle-offset: calc((var(--toggle-height) - var(--flask-diameter)) / 2);
-  --toggle-bg: linear-gradient(#2c4770, #070e2b 35%, #628cac 50% 70%, #a6c5d4)
-    no-repeat;
-  --flask-diameter: 4.375em;
-  --radius: 99em;
-  --transition: 0.4s;
-  --liquid-day: #0d9488;
-  --liquid-day-surface: rgba(13, 148, 136, 0.45);
-  --liquid-night: #1e293b;
-  --liquid-night-deep: #0f172a;
-  --liquid-night-surface: rgba(30, 41, 59, 0.5);
-  --glass: rgba(255, 255, 255, 0.82);
-  --glass-edge: rgba(180, 210, 235, 0.45);
+.theme-switch {
+  --toggle-size: 14px;
+  --container-width: 5.625em;
+  --container-height: 2.5em;
+  --container-radius: 6.25em;
+  --circle-container-diameter: 3.375em;
+  --sun-moon-diameter: 2.125em;
+  /* Pre-computed offset so the checked-state math stays clean. */
+  --circle-offset: calc(
+    (var(--circle-container-diameter) - var(--container-height)) / 2 * -1
+  );
+
+  --stars-color: #ffffff;
+  --clouds-color: #f3fdff;
+  --back-clouds-color: #aacadf;
+
+  --container-light-bg-start: #5bb3e8;
+  --container-light-bg-end:   #3d7eae;
+  --container-night-bg-start: #2d2f42;
+  --container-night-bg-end:   #0f1118;
+
+  --transition: 0.5s cubic-bezier(0, -0.02, 0.4, 1.25);
+  --circle-transition: 0.3s cubic-bezier(0, -0.02, 0.35, 1.17);
+
+  display: inline-block;
   cursor: pointer;
   font-size: var(--toggle-size);
-  display: inline-block;
   line-height: 0;
 }
-.chem-toggle,
-.chem-toggle *,
-.chem-toggle *::before,
-.chem-toggle *::after {
+
+.theme-switch,
+.theme-switch *,
+.theme-switch *::before,
+.theme-switch *::after {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
-.chem-toggle__checkbox {
+
+.theme-switch__checkbox {
   position: absolute;
   opacity: 0;
   width: 0;
   height: 0;
   pointer-events: none;
 }
-.chem-toggle__container {
-  width: var(--toggle-width);
-  height: var(--toggle-height);
-  background: var(--toggle-bg);
-  background-size: 100% 11.25em;
-  background-position-y: -5.625em;
-  border-radius: var(--radius);
+
+.theme-switch__container {
   position: relative;
-  transition: var(--transition);
+  width: var(--container-width);
+  height: var(--container-height);
+  border-radius: var(--container-radius);
+  overflow: hidden;
+  background-image: linear-gradient(
+    to bottom,
+    var(--container-light-bg-start) 0%,
+    var(--container-light-bg-end) 100%
+  );
   box-shadow:
-    inset 1px 1px 3px rgba(255, 255, 255, 0.15),
-    inset -1px -1px 3px rgba(0, 0, 0, 0.2),
-    0 3px 10px rgba(0, 0, 0, 0.12),
-    0 1px 3px rgba(0, 0, 0, 0.08);
-  border: 2px solid rgba(255, 255, 255, 0.25);
+    0 5px 12px rgba(61, 126, 174, 0.35),
+    0 10px 24px rgba(61, 126, 174, 0.18),
+    inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.12);
+  transition:
+    box-shadow var(--transition),
+    background-image var(--transition);
 }
 
-/* ── Scenery: clouds / sun / moon / stars live inside this ── */
-.chem-toggle .chem-toggle__scenery {
+/* Inner depth inset (preserves the reference toggle's "dent" feel) */
+.theme-switch__container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: var(--container-radius);
+  pointer-events: none;
+  box-shadow:
+    inset 0 0.05em 0.187em rgba(0, 0, 0, 0.25),
+    inset 0 -0.05em 0.187em rgba(0, 0, 0, 0.15);
+}
+
+/* ── Sliding puck (flask container) ── */
+.theme-switch__circle-container {
+  position: absolute;
+  left: var(--circle-offset);
+  top: var(--circle-offset);
+  width: var(--circle-container-diameter);
+  height: var(--circle-container-diameter);
+  border-radius: var(--container-radius);
+  background-color: rgba(255, 255, 255, 0.12);
+  display: flex;
+  transition: left var(--circle-transition);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.theme-switch__sun-moon-container {
+  position: relative;
+  width: var(--sun-moon-diameter);
+  height: var(--sun-moon-diameter);
+  margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  z-index: 2;
+  filter:
+    drop-shadow(0.062em 0.125em 0.125em rgba(0, 0, 0, 0.2))
+    drop-shadow(0 0.062em 0.125em rgba(0, 0, 0, 0.15));
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.theme-switch__flask {
   width: 100%;
   height: 100%;
-  pointer-events: none;
-  overflow: hidden;
-  position: relative;
-  border-radius: inherit;
-}
-.chem-toggle .chem-toggle__scenery::before {
-  content: "";
-  position: absolute;
-  width: 100%;
-  height: 30%;
-  bottom: 0;
-  background: linear-gradient(to bottom, #8ba4b8, #6b8a9e);
-  z-index: 1;
+  overflow: visible;
 }
 
-/* Clouds */
-.chem-toggle .chem-toggle__cloud {
-  z-index: 1;
-  position: absolute;
-  border-radius: 50%;
-}
-.chem-toggle .chem-toggle__cloud:nth-last-child(1) {
-  width: 0.875em;
-  height: 0.625em;
-  filter:
-    blur(0.125em)
-    drop-shadow(0.313em 0.313em #ffffffae)
-    drop-shadow(-0.625em 0 #fff)
-    drop-shadow(-0.938em -0.125em #fff);
-  right: 1.875em;
-  top: 2.813em;
-  background: linear-gradient(to top right, #ffffffae, #ffffffae);
-  transition: var(--transition);
-}
-.chem-toggle .chem-toggle__cloud:nth-last-child(2) {
-  top: 0.625em;
-  right: 4.375em;
-  width: 0.875em;
-  height: 0.375em;
-  background: #dfdedeae;
-  filter:
-    blur(0.125em)
-    drop-shadow(-0.313em -0.188em #e0dfdfae)
-    drop-shadow(-0.625em -0.188em #bbbbbbae)
-    drop-shadow(-1em 0.063em #cfcfcfae);
-  transition: 0.6s;
-}
-.chem-toggle .chem-toggle__cloud:nth-last-child(3) {
-  top: 1.25em;
-  right: 0.938em;
-  width: 0.875em;
-  height: 0.375em;
-  background: #ffffffae;
-  filter:
-    blur(0.125em)
-    drop-shadow(0.438em 0.188em #ffffffae)
-    drop-shadow(-0.625em 0.313em #ffffffae);
-  transition: 0.8s;
+.theme-switch__flask-body {
+  fill: rgba(255, 255, 255, 0.92);
+  stroke: rgba(255, 255, 255, 0.98);
+  stroke-width: 0.4;
+  stroke-linejoin: round;
 }
 
-/* Moon + craters */
-.chem-toggle .moon,
-.chem-toggle .moon-crater-1,
-.chem-toggle .moon-crater-2 {
-  position: absolute;
-  border-radius: var(--radius);
-  background: linear-gradient(#fff, #6e8ea2);
-  top: 100%;
-}
-.chem-toggle .moon {
-  left: 0.938em;
-  width: 1.875em;
-  height: 1.875em;
-  box-shadow:
-    0 0 0.188em #ffffff52,
-    0 0 0.188em #6e8ea24b;
-  transition: var(--transition);
-}
-.chem-toggle .moon::before,
-.chem-toggle .moon::after {
-  content: "";
-  position: absolute;
-  border-radius: inherit;
-  box-shadow: inset 0 0 0.063em rgb(140, 162, 169);
-  background: rgb(184, 196, 200);
-}
-.chem-toggle .moon::before {
-  left: 0.313em;
-  top: 0.313em;
-  width: 0.438em;
-  height: 0.438em;
-}
-.chem-toggle .moon::after {
-  width: 0.25em;
-  height: 0.25em;
-  left: 1.25em;
-  top: 0.75em;
-}
-.chem-toggle .moon-crater-1,
-.chem-toggle .moon-crater-2 {
-  box-shadow:
-    0 0 0.125em #ffffff52,
-    0 0 0.125em #6e8ea24b;
-}
-.chem-toggle .moon-crater-1 {
-  left: 3.438em;
-  width: 0.625em;
-  height: 0.625em;
-  transition: 0.6s;
-}
-.chem-toggle .moon-crater-2 {
-  left: 4.375em;
-  width: 0.5em;
-  height: 0.5em;
-  transition: 0.8s;
+.theme-switch__flask-liquid {
+  fill: url(#chem-flask-liquid-light);
+  transition: fill var(--transition);
 }
 
-/* Sun */
-.chem-toggle .sun-primary,
-.chem-toggle .sun-secondary {
+.theme-switch__flask-shine {
+  fill: rgba(255, 255, 255, 0.75);
+}
+
+.theme-switch__flask-bubble {
+  fill: rgba(255, 255, 255, 0.6);
+}
+
+/* ── Clouds (light-side scenery) — box-shadow cloud pattern ── */
+.theme-switch__clouds {
   position: absolute;
+  left: 0.312em;
+  bottom: -0.625em;
   width: 1.25em;
   height: 1.25em;
-  border-radius: var(--radius);
-}
-.chem-toggle .sun-primary {
-  background: #fefefe;
-  right: 3.125em;
-  top: 0.625em;
-  box-shadow: 0 0 0.438em #fdf4e1;
-  transition: var(--transition);
-}
-.chem-toggle .sun-secondary {
-  background: linear-gradient(#e6ac5c, #d75449);
-  right: 1.25em;
-  top: 2.188em;
+  background-color: var(--clouds-color);
+  border-radius: var(--container-radius);
+  z-index: 1;
+  transition: bottom var(--transition);
   box-shadow:
-    0 0 0.438em #e6ad5c3d,
-    0 0 0.438em #d755494f;
-  transition: 0.7s;
+    0.937em 0.312em var(--clouds-color),
+    -0.312em -0.312em var(--back-clouds-color),
+    1.437em 0.375em var(--clouds-color),
+    0.5em -0.125em var(--back-clouds-color),
+    2.187em 0 var(--clouds-color),
+    1.25em -0.062em var(--back-clouds-color),
+    2.937em 0.312em var(--clouds-color),
+    2em -0.312em var(--back-clouds-color),
+    3.625em -0.062em var(--clouds-color),
+    2.625em 0 var(--back-clouds-color),
+    4.5em -0.312em var(--clouds-color),
+    3.375em -0.437em var(--back-clouds-color),
+    4.625em -1.75em 0 0.437em var(--clouds-color),
+    4em -0.625em var(--back-clouds-color),
+    4.125em -2.125em 0 0.437em var(--back-clouds-color);
 }
 
-/* Stars */
-.chem-toggle .chem-toggle__star {
+/* ── Stars (dark-side scenery) ── */
+.theme-switch__stars-container {
   position: absolute;
-  width: 0.063em;
-  height: 0.063em;
-  background: #fff;
-  border-radius: var(--radius);
-  filter: drop-shadow(0 0 0.063em #fff);
-  color: #fff;
-  top: 100%;
+  left: 0.312em;
+  top: -100%;
+  width: 2.75em;
+  height: auto;
+  color: var(--stars-color);
+  transition: top var(--transition), transform var(--transition);
+  z-index: 1;
 }
-.chem-toggle .chem-toggle__star:nth-child(1) {
-  left: 3.75em;
-  box-shadow:
-    1.25em 0.938em, -1.25em 2.5em, 0 1.25em,
-    1.875em 0.625em, -3.125em 1.875em, 1.25em 2.813em;
-  transition: 0.2s;
-}
-.chem-toggle .chem-toggle__star:nth-child(2) {
-  left: 4.688em;
-  box-shadow:
-    0.625em 0, 0 0.625em, -0.625em -0.625em,
-    0.625em 0.938em, -3.125em 1.25em, 1.25em -1.563em;
-  transition: 0.3s;
-}
-.chem-toggle .chem-toggle__star:nth-child(3) {
-  left: 5.313em;
-  box-shadow:
-    -0.625em -0.625em, -2.188em 1.25em, -2.188em 0,
-    -3.75em -0.625em, -3.125em -0.625em, -2.5em -0.313em,
-    0.75em -0.625em;
-  transition: var(--transition);
-}
-.chem-toggle .chem-toggle__star:nth-child(4),
-.chem-toggle .chem-toggle__star:nth-child(5),
-.chem-toggle .chem-toggle__star:nth-child(6),
-.chem-toggle .chem-toggle__star:nth-child(7) {
-  width: 0.125em;
-  height: 0.125em;
-}
-.chem-toggle .chem-toggle__star:nth-child(4) { left: 1.875em; transition: 0.5s; }
-.chem-toggle .chem-toggle__star:nth-child(5) { left: 5em;     transition: 0.6s; }
-.chem-toggle .chem-toggle__star:nth-child(6) { left: 2.5em;   transition: 0.7s; }
-.chem-toggle .chem-toggle__star:nth-child(7) { left: 3.438em; transition: 0.8s; }
 
-/* ── Flask ── */
-.chem-toggle .flask {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: absolute;
-  top: calc(var(--toggle-offset) - 1.688em + 0.188em);
-  left: var(--toggle-offset);
-  transition: var(--transition);
-  z-index: 2;
-}
-.chem-toggle .flask__neck-container {
-  position: relative;
-  z-index: 2;
-  transform-origin: center bottom;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  transition: transform var(--transition);
-}
-.chem-toggle .flask__neck {
-  width: 1.2em;
-  height: 1.3em;
-  margin-bottom: -0.3em;
-  position: relative;
-  z-index: 1;
-  background: linear-gradient(
-    to right,
-    rgba(190, 220, 240, 0.5),
-    rgba(255, 255, 255, 0.85) 25% 75%,
-    rgba(190, 220, 240, 0.5)
-  );
-  border: 0.09em solid var(--glass-edge);
-  border-bottom: none;
-  border-radius: 0.18em 0.18em 0 0;
-  box-shadow:
-    inset 0.08em 0.08em 0.15em rgba(255, 255, 255, 0.7),
-    inset -0.05em -0.05em 0.12em rgba(0, 0, 0, 0.04),
-    0 -0.05em 0.15em rgba(0, 0, 0, 0.06);
-}
-.chem-toggle .flask__neck::before {
-  content: "";
-  position: absolute;
-  top: -0.2em;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 1.65em;
-  height: 0.28em;
-  background: linear-gradient(
-    to bottom,
-    rgba(240, 248, 255, 0.95),
-    rgba(200, 225, 245, 0.8)
-  );
-  border-radius: 0.14em;
-  border: 0.06em solid var(--glass-edge);
-  box-shadow:
-    inset 0.04em 0.04em 0.08em rgba(255, 255, 255, 0.9),
-    inset -0.03em -0.03em 0.06em rgba(0, 0, 0, 0.06),
-    0 0.06em 0.12em rgba(0, 0, 0, 0.08);
-}
-.chem-toggle .flask__neck::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0.12em;
-  right: 0.12em;
-  height: 28%;
-  background: var(--liquid-day-surface);
-  border-radius: 0 0 0.04em 0.04em;
-  transition: var(--transition);
-}
-.chem-toggle .flask__vapor {
-  position: absolute;
-  border-radius: var(--radius);
-  transition: var(--transition);
-  opacity: 0;
-}
-.chem-toggle .flask__vapor:nth-child(1) {
-  width: 0.4em;
-  height: 0.4em;
-  top: -0.5em;
-  left: 0.1em;
-  background: radial-gradient(
-    circle,
-    rgba(255, 255, 255, 0.45),
-    rgba(255, 255, 255, 0.1) 70%,
-    transparent
-  );
-}
-.chem-toggle .flask__vapor:nth-child(2) {
-  width: 0.3em;
-  height: 0.3em;
-  top: -0.85em;
-  right: 0.15em;
-  background: radial-gradient(
-    circle,
-    rgba(255, 255, 255, 0.35),
-    rgba(255, 255, 255, 0.08) 70%,
-    transparent
-  );
-}
-.chem-toggle .flask__body {
-  width: var(--flask-diameter);
-  height: var(--flask-diameter);
-  border-radius: var(--radius);
-  position: relative;
-  overflow: hidden;
-  transition: var(--transition);
-  z-index: 1;
-  background: radial-gradient(
-    ellipse at 32% 28%,
-    rgba(255, 255, 255, 0.98) 0%,
-    rgba(240, 248, 255, 0.9) 20%,
-    rgba(220, 238, 252, 0.82) 45%,
-    rgba(195, 220, 240, 0.75) 70%,
-    rgba(175, 205, 230, 0.7) 100%
-  );
-  border: 0.1em solid rgba(180, 210, 235, 0.35);
-  box-shadow:
-    inset 0.25em 0.25em 0.6em rgba(255, 255, 255, 0.7),
-    inset -0.2em -0.2em 0.5em rgba(100, 150, 200, 0.12),
-    inset 0 0.15em 0.3em rgba(255, 255, 255, 0.4),
-    0 0.25em 0.6em rgba(0, 0, 0, 0.1),
-    0 0.08em 0.2em rgba(0, 0, 0, 0.06);
-}
-.chem-toggle .flask__body::before {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
+.theme-switch__stars-container svg {
   width: 100%;
-  height: 56%;
-  background:
-    radial-gradient(
-      ellipse at 50% 0%,
-      rgba(255, 255, 255, 0.3) 0%,
-      transparent 60%
-    ),
-    linear-gradient(
-      to bottom,
-      var(--liquid-day-surface) 0%,
-      rgba(13, 148, 136, 0.65) 20%,
-      var(--liquid-day) 60%,
-      rgba(6, 95, 86, 0.95) 100%
-    );
-  border-radius: 0 0 var(--radius) var(--radius);
-  transition: var(--transition);
-  box-shadow:
-    inset 0 0.2em 0.4em rgba(255, 255, 255, 0.15),
-    inset 0 -0.3em 0.6em rgba(0, 60, 50, 0.2);
-}
-.chem-toggle .flask__body::after {
-  content: "";
-  position: absolute;
-  top: 0.4em;
-  left: 0.5em;
-  width: 1.1em;
-  height: 0.65em;
-  background: radial-gradient(
-    ellipse,
-    rgba(255, 255, 255, 0.7) 0%,
-    rgba(255, 255, 255, 0.3) 50%,
-    transparent 100%
-  );
-  border-radius: 50%;
-  transform: rotate(-20deg);
-  transition: var(--transition);
-  box-shadow:
-    1.1em 2.3em 0 -0.04em rgba(255, 255, 255, 0.5),
-    2.2em 2.5em 0 -0.05em rgba(255, 255, 255, 0.4),
-    0.5em 2.7em 0 -0.03em rgba(255, 255, 255, 0.35),
-    1.7em 2.0em 0 -0.07em rgba(255, 255, 255, 0.3),
-    2.6em 2.2em 0 -0.06em rgba(255, 255, 255, 0.35),
-    0.8em 1.9em 0 -0.08em rgba(255, 255, 255, 0.25),
-    1.4em 2.9em 0 -0.09em rgba(255, 255, 255, 0.3),
-    2.0em 3.0em 0 -0.1em rgba(255, 255, 255, 0.2),
-    2.2em 0.6em 0 -0.12em rgba(255, 255, 255, 0.2);
-}
-.chem-toggle .artificial__hidden {
-  position: absolute;
-  border-radius: inherit;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-.chem-toggle .flask__shadow {
-  width: var(--flask-diameter);
-  height: 20%;
-  border-radius: 50%;
-  background: #2a3a4c;
-  box-shadow: 0.313em 0 3.125em #2a3a4c;
-  opacity: 0.25;
-  position: absolute;
-  bottom: 0;
-  left: calc(var(--toggle-offset) - 0.938em);
-  transition: var(--transition);
-  transform: skew(-70deg);
-  z-index: 1;
+  height: auto;
+  display: block;
 }
 
-/* ── Checked (dark) state ── */
-.chem-toggle__checkbox:checked ~ .chem-toggle__container { background-position-y: 0; }
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .chem-toggle__cloud { right: -100%; }
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .moon         { top: 0.938em; }
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .moon-crater-1 { top: 2.5em; }
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .moon-crater-2 { top: 2.75em; }
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .chem-toggle__star:nth-child(1) { top: 0.625em; }
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .chem-toggle__star:nth-child(2) { top: 1.875em; }
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .chem-toggle__star:nth-child(3) { top: 1.25em; }
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .chem-toggle__star:nth-child(4) { top: 3.438em; }
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .chem-toggle__star:nth-child(5) { top: 3.438em; }
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .chem-toggle__star:nth-child(6) { top: 0.313em; }
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .chem-toggle__star:nth-child(7) { top: 1.875em; }
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .sun-primary,
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .sun-secondary { top: 100%; }
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .flask {
-  left: calc(100% - var(--flask-diameter) - var(--toggle-offset));
-}
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .flask__shadow {
-  left: calc(100% - var(--flask-diameter) - var(--toggle-offset) + 0.938em);
-  transform: skew(70deg);
-}
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .flask__body {
-  transform: rotate(360deg);
-  background: radial-gradient(
-    ellipse at 32% 28%,
-    rgba(230, 240, 255, 0.92) 0%,
-    rgba(210, 225, 245, 0.82) 20%,
-    rgba(185, 210, 235, 0.72) 45%,
-    rgba(160, 190, 220, 0.65) 70%,
-    rgba(140, 175, 210, 0.6) 100%
+/* ── CHECKED state: dark-mode sky + slider slid right ── */
+.theme-switch__checkbox:checked + .theme-switch__container {
+  background-image: linear-gradient(
+    to bottom,
+    var(--container-night-bg-start) 0%,
+    var(--container-night-bg-end) 100%
   );
   box-shadow:
-    inset 0.25em 0.25em 0.6em rgba(200, 220, 255, 0.5),
-    inset -0.2em -0.2em 0.5em rgba(50, 80, 120, 0.15),
-    inset 0 0.15em 0.3em rgba(200, 220, 255, 0.3),
-    0 0.25em 0.6em rgba(0, 0, 0, 0.15),
-    0 0.08em 0.2em rgba(0, 0, 0, 0.1);
-}
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .flask__body::before {
-  background:
-    radial-gradient(
-      ellipse at 50% 0%,
-      rgba(100, 140, 180, 0.2) 0%,
-      transparent 55%
-    ),
-    linear-gradient(
-      to bottom,
-      var(--liquid-night-surface) 0%,
-      rgba(30, 41, 59, 0.75) 20%,
-      var(--liquid-night) 55%,
-      var(--liquid-night-deep) 100%
-    );
-  box-shadow:
-    inset 0 0.15em 0.3em rgba(100, 140, 200, 0.1),
-    inset 0 -0.3em 0.6em rgba(0, 0, 0, 0.25);
-}
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .flask__body::after {
-  box-shadow:
-    1.1em 2.3em 0 -0.04em rgba(150, 180, 220, 0.3),
-    2.2em 2.5em 0 -0.05em rgba(150, 180, 220, 0.25),
-    0.5em 2.7em 0 -0.03em rgba(150, 180, 220, 0.2),
-    1.7em 2.0em 0 -0.07em rgba(150, 180, 220, 0.18),
-    2.6em 2.2em 0 -0.06em rgba(150, 180, 220, 0.2),
-    0.8em 1.9em 0 -0.08em rgba(150, 180, 220, 0.15),
-    1.4em 2.9em 0 -0.09em rgba(150, 180, 220, 0.18),
-    2.0em 3.0em 0 -0.1em rgba(150, 180, 220, 0.12),
-    2.2em 0.6em 0 -0.12em rgba(180, 200, 230, 0.15);
-}
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .flask__neck::after {
-  background: var(--liquid-night-surface);
-}
-.chem-toggle__checkbox:checked ~ .chem-toggle__container .flask__vapor {
-  opacity: 0.35;
+    0 5px 12px rgba(0, 0, 0, 0.4),
+    0 10px 24px rgba(0, 0, 0, 0.25),
+    inset 0 2px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.3);
 }
 
-/* Hover: brighten bubbles + lift vapor */
-.chem-toggle:hover .flask__body::after {
-  box-shadow:
-    1.1em 2.0em 0 -0.03em rgba(255, 255, 255, 0.55),
-    2.2em 2.2em 0 -0.04em rgba(255, 255, 255, 0.45),
-    0.5em 2.4em 0 -0.02em rgba(255, 255, 255, 0.4),
-    1.7em 1.7em 0 -0.06em rgba(255, 255, 255, 0.35),
-    2.6em 1.9em 0 -0.05em rgba(255, 255, 255, 0.4),
-    0.8em 1.6em 0 -0.07em rgba(255, 255, 255, 0.3),
-    1.4em 2.6em 0 -0.08em rgba(255, 255, 255, 0.35),
-    2.0em 2.7em 0 -0.09em rgba(255, 255, 255, 0.25),
-    2.2em 0.6em 0 -0.12em rgba(255, 255, 255, 0.25);
-}
-.chem-toggle__checkbox:checked ~ .chem-toggle__container:hover .flask__body::after {
-  box-shadow:
-    1.1em 2.0em 0 -0.03em rgba(150, 180, 220, 0.35),
-    2.2em 2.2em 0 -0.04em rgba(150, 180, 220, 0.3),
-    0.5em 2.4em 0 -0.02em rgba(150, 180, 220, 0.25),
-    1.7em 1.7em 0 -0.06em rgba(150, 180, 220, 0.22),
-    2.6em 1.9em 0 -0.05em rgba(150, 180, 220, 0.25),
-    0.8em 1.6em 0 -0.07em rgba(150, 180, 220, 0.18),
-    1.4em 2.6em 0 -0.08em rgba(150, 180, 220, 0.22),
-    2.0em 2.7em 0 -0.09em rgba(150, 180, 220, 0.15),
-    2.2em 0.6em 0 -0.12em rgba(180, 200, 230, 0.18);
-}
-.chem-toggle:hover .flask__vapor {
-  opacity: 0.45;
-}
-.chem-toggle:hover .flask__vapor:nth-child(1) {
-  top: -0.75em;
-  opacity: 0.4;
-}
-.chem-toggle:hover .flask__vapor:nth-child(2) {
-  top: -1.15em;
-  opacity: 0.3;
+.theme-switch__checkbox:checked
+  + .theme-switch__container
+  .theme-switch__circle-container {
+  left: calc(100% - var(--circle-offset) - var(--circle-container-diameter));
 }
 
-/* Pour animation on active press */
-.chem-toggle__checkbox:active ~ .chem-toggle__container .flask__neck-container {
+.theme-switch__checkbox:checked
+  + .theme-switch__container
+  .theme-switch__clouds {
+  bottom: -4.062em;
+}
+
+.theme-switch__checkbox:checked
+  + .theme-switch__container
+  .theme-switch__stars-container {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.theme-switch__checkbox:checked
+  + .theme-switch__container
+  .theme-switch__flask-liquid {
+  fill: url(#chem-flask-liquid-dark);
+}
+
+/* ── Hover nudge on slider (same offset math, with +/- 0.187em) ── */
+.theme-switch__container:hover .theme-switch__circle-container {
+  left: calc(var(--circle-offset) + 0.187em);
+}
+
+.theme-switch__checkbox:checked
+  + .theme-switch__container:hover
+  .theme-switch__circle-container {
+  left: calc(
+    100% - var(--circle-offset) - var(--circle-container-diameter) - 0.187em
+  );
+}
+
+/* ── Pour tilt on active click ── */
+.theme-switch__container:active .theme-switch__sun-moon-container {
   transform: rotate(18deg);
 }
-.chem-toggle__checkbox:checked:active ~ .chem-toggle__container .flask__neck-container {
+.theme-switch__checkbox:checked
+  + .theme-switch__container:active
+  .theme-switch__sun-moon-container {
   transform: rotate(-18deg);
 }
-.chem-toggle__checkbox:active ~ .chem-toggle__container .flask__body {
-  box-shadow:
-    inset 0.3em 0.3em 0.7em rgba(255, 255, 255, 0.5),
-    inset -0.25em -0.25em 0.6em rgba(100, 150, 200, 0.15),
-    inset 0 0.2em 0.35em rgba(255, 255, 255, 0.3),
-    0 0.15em 0.35em rgba(0, 0, 0, 0.12),
-    0 0.04em 0.1em rgba(0, 0, 0, 0.08);
-}
 
-/* Keyboard focus ring */
-.chem-toggle__checkbox:focus-visible ~ .chem-toggle__container {
+/* ── Keyboard focus ring ── */
+.theme-switch__checkbox:focus-visible + .theme-switch__container {
   outline: 2px solid var(--color-ring, var(--color-primary, #0071e3));
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
-/* Respect OS motion preference */
+/* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
-  .chem-toggle,
-  .chem-toggle *,
-  .chem-toggle *::before,
-  .chem-toggle *::after {
-    transition-duration: 0s !important;
+  .theme-switch__container,
+  .theme-switch__circle-container,
+  .theme-switch__sun-moon-container,
+  .theme-switch__flask-liquid,
+  .theme-switch__clouds,
+  .theme-switch__stars-container {
+    transition: none !important;
+  }
+  .theme-switch__container:active .theme-switch__sun-moon-container,
+  .theme-switch__checkbox:checked
+    + .theme-switch__container:active
+    .theme-switch__sun-moon-container {
+    transform: none;
   }
 }
-
