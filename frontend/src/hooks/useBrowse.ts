@@ -147,7 +147,6 @@ export function useBrowse(extractionId: number | null | undefined): UseBrowseRet
     if (!extractionId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reset sync
       setBrowseState("idle");
-       
       setPage(null);
       return;
     }

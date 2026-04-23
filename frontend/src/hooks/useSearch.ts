@@ -209,7 +209,6 @@ export function useSearch(): UseSearchReturn {
     if (!query) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reset sync
       setSearchState("idle");
-       
       setResponse(null);
       return;
     }
