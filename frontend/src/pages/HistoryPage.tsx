@@ -1,11 +1,47 @@
 /**
- * HistoryPage — past extractions + aggregate stats (route: `/history`).
+ * HistoryPage — Phase 3 Liquid Glass rebuild (Task 12).
  *
- * Thin presentational page that composes <StatCard> and <HistoryList>.
- * Hooks/state live in App.tsx and are passed in as props.
+ * Bento dashboard:
+ *
+ *   Row 1 (4 columns, 1:1 cells):
+ *     ┌──────────────────┬──────────────────┬──────────────────┬──────────────────┐
+ *     │ Total extractions │ Structures found │ Reactions found │ Avg processing  │
+ *     │   (primary)       │   (secondary)    │   (secondary)   │   time          │
+ *     └──────────────────┴──────────────────┴──────────────────┴──────────────────┘
+ *
+ *   Row 2 (4 columns, 4:1 list):
+ *     ┌──────────────────────────────────────────────────────────────────────────┐
+ *     │                         HistoryList (full width)                         │
+ *     └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * Stats sources:
+ *   - Total extractions  → `stats.total_extractions` if loaded; else
+ *                           `Math.max(total, entries.length)`.
+ *   - Structures found   → `stats.unique_structures` if loaded; else
+ *                           sum of `structure_count` across the loaded
+ *                           entries.
+ *   - Reactions found    → sum of `reaction_count` across the loaded
+ *                           entries (backend does not expose a global
+ *                           reactions total today).
+ *   - Avg processing time → mean of `extraction_time_ms` across the
+ *                           loaded entries, in milliseconds.
+ *
+ * The bento consumes the state the parent already fetches through
+ * `useHistory` and passes down via props; no new hooks or endpoints.
  */
-import { FileUpIcon } from "lucide-react";
+import { useMemo } from "react";
+import {
+  BeakerIcon,
+  FileUpIcon,
+  FlaskConicalIcon,
+  LayersIcon,
+  TimerIcon,
+} from "lucide-react";
 import { toast } from "sonner";
+
+import { BentoCell } from "@/components/layout/BentoCell";
+import { BentoGrid } from "@/components/layout/BentoGrid";
+import { PageContainer } from "@/components/layout/PageContainer";
 import { HistoryList } from "@/components/HistoryList";
 import { StatCard } from "@/components/StatCard";
 import { buttonVariants } from "@/components/ui/button";
@@ -14,6 +50,7 @@ import type { HistoryState } from "@/hooks/useHistory";
 import { Link } from "@/lib/Link";
 import type { ExtractionResponse } from "@/types/chemistry";
 import type { HistoryListItem, StatsResponse } from "@/types/history";
+import { computeHistoryStats } from "./historyStats";
 
 export interface HistoryPageProps {
   historyState: HistoryState;
@@ -45,12 +82,16 @@ export function HistoryPage({
     entries.length > 0 ||
     (stats !== null && stats.total_extractions > 0);
 
-  const statsCards: Array<{ label: string; value: string | number }> = [
-    { label: "Total extractions", value: stats?.total_extractions ?? "" },
-    { label: "Unique structures", value: stats?.unique_structures ?? "" },
-    { label: "Most common formula", value: stats?.most_common_formula ?? "" },
-  ];
-  const statsLoadingVisible = statsLoading && stats === null;
+  const computed = useMemo(
+    () => computeHistoryStats(entries, stats, total),
+    [entries, stats, total],
+  );
+
+  // Stat tiles are considered "loading" while the first server stats call
+  // is still in-flight AND we haven't received any entries yet; once the
+  // list arrives we compute client-side totals so the top bar feels live.
+  const statsLoadingVisible =
+    statsLoading && stats === null && entries.length === 0;
 
   async function handleDelete(id: number) {
     try {
@@ -61,13 +102,13 @@ export function HistoryPage({
   }
 
   return (
-    <>
-      <header className="pt-2">
-        <h1 className="text-display font-semibold leading-[1.10] tracking-tight">
+    <PageContainer data-slot="history-page">
+      <header className="space-y-2">
+        <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
           History
         </h1>
-        <p className="mt-4 text-sub-heading font-normal text-muted-foreground tracking-tight">
-          Revisit, search, and download your past extractions.
+        <p className="text-base text-foreground-muted">
+          All extractions, searchable and exportable.
         </p>
       </header>
 
@@ -86,23 +127,54 @@ export function HistoryPage({
         </div>
       ) : (
         <>
-          <section className="mt-[48px]">
-            <h2 className="text-heading font-normal tracking-tight text-foreground mb-4">
-              Summary
-            </h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {statsCards.map((card) => (
-                <StatCard
-                  key={card.label}
-                  label={card.label}
-                  value={card.value}
-                  loading={statsLoadingVisible}
-                />
-              ))}
-            </div>
-          </section>
+          <BentoGrid
+            cols={4}
+            className="mt-8 auto-rows-[minmax(128px,auto)]"
+            data-slot="history-stats"
+          >
+            <BentoCell span="1:1" data-slot="history-stat-total">
+              <StatCard
+                label="Total extractions"
+                value={computed.totalExtractions}
+                format="count"
+                tone="primary"
+                icon={<LayersIcon />}
+                loading={statsLoadingVisible}
+              />
+            </BentoCell>
+            <BentoCell span="1:1" data-slot="history-stat-structures">
+              <StatCard
+                label="Structures found"
+                value={computed.structuresFound}
+                format="count"
+                tone="secondary"
+                icon={<FlaskConicalIcon />}
+                loading={statsLoadingVisible}
+              />
+            </BentoCell>
+            <BentoCell span="1:1" data-slot="history-stat-reactions">
+              <StatCard
+                label="Reactions found"
+                value={computed.reactionsFound}
+                format="count"
+                tone="secondary"
+                icon={<BeakerIcon />}
+                loading={statsLoadingVisible}
+              />
+            </BentoCell>
+            <BentoCell span="1:1" data-slot="history-stat-avg-time">
+              <StatCard
+                label="Avg processing time"
+                value={computed.avgProcessingTimeMs}
+                format="duration"
+                tone="neutral"
+                icon={<TimerIcon />}
+                loading={statsLoadingVisible}
+              />
+            </BentoCell>
+          </BentoGrid>
 
-          <section className="mt-[32px]">
+          <section className="mt-8">
             <HistoryList
               entries={entries}
               total={total}
@@ -116,6 +188,6 @@ export function HistoryPage({
           </section>
         </>
       )}
-    </>
+    </PageContainer>
   );
 }
