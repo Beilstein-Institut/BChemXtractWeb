@@ -73,6 +73,131 @@ interface SpotlightCommand {
   action: () => void;
 }
 
+interface PaletteBodyArgs {
+  query: string;
+  normalisedQuery: string;
+  filteredCommands: SpotlightCommand[];
+  shortcuts: SpotlightShortcut[];
+  reduceMotion: boolean;
+  onRun: (action: () => void) => void;
+}
+
+/**
+ * Render one of three mutually-exclusive palette bodies:
+ *  - no query         → shortcut tile grid
+ *  - query + matches  → animated results list
+ *  - query + no match → "no commands match" empty state
+ *
+ * Pulled out of the render body so the top-level JSX reads as a flat
+ * sequence rather than a two-level nested ternary.
+ */
+function renderPaletteBody({
+  query,
+  normalisedQuery,
+  filteredCommands,
+  shortcuts,
+  reduceMotion,
+  onRun,
+}: PaletteBodyArgs) {
+  if (!normalisedQuery) {
+    return (
+      <div
+        data-slot="command-palette-shortcuts"
+        className="grid grid-cols-4 gap-3 p-6"
+      >
+        {shortcuts.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => onRun(s.action)}
+            data-slot="command-item"
+            data-value={s.value}
+            className={cn(
+              "flex flex-col items-center gap-2 rounded-2xl px-2 py-4",
+              "bg-surface text-foreground transition-transform",
+              "shadow-[var(--shadow-neu-raised)]",
+              "hover:-translate-y-0.5 active:translate-y-0 active:shadow-[var(--shadow-neu-pressed)]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            )}
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                "grid size-10 place-content-center rounded-full",
+                "bg-surface text-primary shadow-[var(--shadow-neu-inset)]",
+              )}
+            >
+              {s.icon}
+            </span>
+            <span className="text-xs font-medium">{s.label}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  if (filteredCommands.length === 0) {
+    return (
+      <p
+        data-slot="command-palette-empty"
+        className="px-5 py-8 text-center text-sm text-foreground-muted"
+      >
+        No commands match “{query}”.
+      </p>
+    );
+  }
+
+  return (
+    <div
+      role="listbox"
+      aria-label="Matching commands"
+      data-slot="command-palette-results"
+      className="max-h-[50vh] overflow-y-auto p-2"
+    >
+      {filteredCommands.map((cmd, i) => (
+        <motion.button
+          key={cmd.id}
+          type="button"
+          role="option"
+          aria-selected={false}
+          onClick={() => onRun(cmd.action)}
+          initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+          animate={reduceMotion ? {} : { opacity: 1, y: 0 }}
+          transition={{ delay: i * 0.02 }}
+          data-slot="command-item"
+          data-value={cmd.value}
+          className={cn(
+            "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left outline-none",
+            "transition-colors hover:bg-surface-muted focus-visible:bg-surface-muted",
+            "focus-visible:ring-2 focus-visible:ring-ring",
+          )}
+        >
+          <span
+            className={cn(
+              "grid size-9 place-content-center rounded-xl",
+              "bg-surface text-primary shadow-[var(--shadow-neu-soft)]",
+            )}
+          >
+            {cmd.icon}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate font-medium text-foreground">
+              {cmd.label}
+            </span>
+            <span className="block truncate text-xs text-foreground-muted">
+              {cmd.description}
+            </span>
+          </span>
+          <ChevronRightIcon
+            className="size-4 text-foreground-muted"
+            aria-hidden="true"
+          />
+        </motion.button>
+      ))}
+    </div>
+  );
+}
+
 /**
  * Mount once at app root. Listens for Cmd/Ctrl+K globally; the palette
  * renders nothing when closed and a full-screen overlay when open.
@@ -319,98 +444,16 @@ export function CommandPalette() {
               />
             </div>
 
-            {/* Results OR shortcut tiles */}
-            {normalisedQuery ? (
-              filteredCommands.length > 0 ? (
-                <div
-                  role="listbox"
-                  aria-label="Matching commands"
-                  data-slot="command-palette-results"
-                  className="max-h-[50vh] overflow-y-auto p-2"
-                >
-                  {filteredCommands.map((cmd, i) => (
-                    <motion.button
-                      key={cmd.id}
-                      type="button"
-                      role="option"
-                      aria-selected={false}
-                      onClick={() => run(cmd.action)}
-                      initial={reduceMotion ? false : { opacity: 0, y: 4 }}
-                      animate={reduceMotion ? {} : { opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.02 }}
-                      data-slot="command-item"
-                      data-value={cmd.value}
-                      className={cn(
-                        "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left outline-none",
-                        "transition-colors hover:bg-surface-muted focus-visible:bg-surface-muted",
-                        "focus-visible:ring-2 focus-visible:ring-ring",
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "grid size-9 place-content-center rounded-xl",
-                          "bg-surface text-primary shadow-[var(--shadow-neu-soft)]",
-                        )}
-                      >
-                        {cmd.icon}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium text-foreground">
-                          {cmd.label}
-                        </span>
-                        <span className="block truncate text-xs text-foreground-muted">
-                          {cmd.description}
-                        </span>
-                      </span>
-                      <ChevronRightIcon
-                        className="size-4 text-foreground-muted"
-                        aria-hidden="true"
-                      />
-                    </motion.button>
-                  ))}
-                </div>
-              ) : (
-                <p
-                  data-slot="command-palette-empty"
-                  className="px-5 py-8 text-center text-sm text-foreground-muted"
-                >
-                  No commands match “{query}”.
-                </p>
-              )
-            ) : (
-              <div
-                data-slot="command-palette-shortcuts"
-                className="grid grid-cols-4 gap-3 p-6"
-              >
-                {shortcuts.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => run(s.action)}
-                    data-slot="command-item"
-                    data-value={s.value}
-                    className={cn(
-                      "flex flex-col items-center gap-2 rounded-2xl px-2 py-4",
-                      "bg-surface text-foreground transition-transform",
-                      "shadow-[var(--shadow-neu-raised)]",
-                      "hover:-translate-y-0.5 active:translate-y-0 active:shadow-[var(--shadow-neu-pressed)]",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    )}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        "grid size-10 place-content-center rounded-full",
-                        "bg-surface text-primary shadow-[var(--shadow-neu-inset)]",
-                      )}
-                    >
-                      {s.icon}
-                    </span>
-                    <span className="text-xs font-medium">{s.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+            {/* Three mutually-exclusive body states — resolved by {@link renderPaletteBody}
+                to avoid a nested ternary in JSX. */}
+            {renderPaletteBody({
+              query,
+              normalisedQuery,
+              filteredCommands,
+              shortcuts,
+              reduceMotion: !!reduceMotion,
+              onRun: run,
+            })}
 
             {/* Bottom hint */}
             <div
