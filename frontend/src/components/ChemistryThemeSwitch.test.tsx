@@ -1,10 +1,11 @@
 /**
- * ChemistryThemeSwitch — tests for the original chemistry-themed
- * light/dark toggle. The component is a plain `<label>` wrapping a
- * hidden checkbox whose state drives the ThemeProvider. Assertions
- * cover the data-slot contract, aria-label polarity, the DOM shape
- * (chem-toggle__container / chem-toggle__scenery / .flask +
- * .flask__neck + .flask__body), and Light↔Dark persistence through
+ * ChemistryThemeSwitch — tests for the sky-slider + flask hybrid
+ * toggle. The component is a plain `<label>` wrapping a hidden
+ * checkbox whose state drives the ThemeProvider. Assertions cover
+ * the data-slot contract, aria-label polarity, the DOM shape
+ * (theme-switch__container / __clouds / __stars-container /
+ * __circle-container / __sun-moon-container with the flask
+ * inside), and Light↔Dark persistence through
  * localStorage.bchemxtract-theme.
  */
 import { describe, it, expect, beforeEach } from "vitest";
@@ -50,32 +51,42 @@ describe("ChemistryThemeSwitch", () => {
     expect(screen.getByLabelText("Switch to light theme")).toBeInTheDocument();
   });
 
-  it("applies the chem-toggle class cluster for the scoped CSS", () => {
+  it("applies the theme-switch class cluster for the scoped CSS", () => {
     renderWithProvider();
     const root = document.querySelector('[data-slot="theme-switch"]');
-    expect(root?.className).toContain("chem-toggle");
-    expect(document.querySelector(".chem-toggle__container")).not.toBeNull();
-    expect(document.querySelector(".chem-toggle__scenery")).not.toBeNull();
-    expect(document.querySelector(".flask")).not.toBeNull();
+    expect(root?.className).toContain("theme-switch");
+    expect(document.querySelector(".theme-switch__container")).not.toBeNull();
+    expect(document.querySelector(".theme-switch__clouds")).not.toBeNull();
+    expect(document.querySelector(".theme-switch__stars-container")).not.toBeNull();
+    expect(document.querySelector(".theme-switch__circle-container")).not.toBeNull();
+    expect(document.querySelector(".theme-switch__sun-moon-container")).not.toBeNull();
+  });
+
+  it("embeds the flask inside the sun-moon container (not as a sibling)", () => {
+    renderWithProvider();
+    const slot = document.querySelector(".theme-switch__sun-moon-container");
+    expect(slot).not.toBeNull();
+    const flask = slot?.querySelector(".flask");
+    expect(flask).not.toBeNull();
     expect(document.querySelector(".flask__neck")).not.toBeNull();
     expect(document.querySelector(".flask__body")).not.toBeNull();
   });
 
-  it("renders the full scenery — 7 stars, sun, moon, craters, 3 clouds", () => {
-    renderWithProvider();
-    expect(document.querySelectorAll(".chem-toggle__star").length).toBe(7);
-    expect(document.querySelector(".sun-primary")).not.toBeNull();
-    expect(document.querySelector(".sun-secondary")).not.toBeNull();
-    expect(document.querySelector(".moon")).not.toBeNull();
-    expect(document.querySelector(".moon-crater-1")).not.toBeNull();
-    expect(document.querySelector(".moon-crater-2")).not.toBeNull();
-    expect(document.querySelectorAll(".chem-toggle__cloud").length).toBe(3);
-  });
-
-  it("renders the flask neck container with vapor puffs", () => {
+  it("renders the flask neck container with exactly two vapor puffs", () => {
     renderWithProvider();
     expect(document.querySelector(".flask__neck-container")).not.toBeNull();
     expect(document.querySelectorAll(".flask__vapor").length).toBe(2);
+  });
+
+  it("does not render the original standalone scenery (stars, sun, moon, cloud divs)", () => {
+    renderWithProvider();
+    expect(document.querySelectorAll(".chem-toggle__star").length).toBe(0);
+    expect(document.querySelector(".sun-primary")).toBeNull();
+    expect(document.querySelector(".sun-secondary")).toBeNull();
+    expect(document.querySelector(".moon")).toBeNull();
+    expect(document.querySelector(".moon-crater-1")).toBeNull();
+    expect(document.querySelector(".moon-crater-2")).toBeNull();
+    expect(document.querySelectorAll(".chem-toggle__cloud").length).toBe(0);
   });
 
   it("toggling the checkbox from light persists 'dark' to localStorage", () => {
