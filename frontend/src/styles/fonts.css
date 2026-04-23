@@ -1,14 +1,10 @@
-/* Web font imports for the Phase 3 Liquid Glass token system.
+/* Web font imports for the Liquid Glass token system.
  *
- * Sans (body UI) ........ Inter Variable
- * Display (headings) .... Fraunces Variable (Satoshi unavailable on npm,
- *                         Fraunces is the documented fallback per plan)
- * Mono (SMILES / code) .. Geist Mono Variable
+ * A single JetBrains Mono Variable family covers body, display, and
+ * monospace for a unified technical/terminal aesthetic.
  *
- * Each @fontsource-variable package ships `index.css` at the package root
- * which registers the full unicode-range @font-face set.
+ * The @fontsource-variable package ships `index.css` at the package
+ * root which registers the full unicode-range @font-face set.
  */
 
-@import "@fontsource-variable/inter/index.css";
-@import "@fontsource-variable/geist-mono/index.css";
-@import "@fontsource-variable/fraunces/index.css";
+@import "@fontsource-variable/jetbrains-mono/index.css";

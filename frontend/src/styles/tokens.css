@@ -42,9 +42,9 @@
   --glass-border:         color-mix(in oklch, currentColor 10%, transparent);
 
   /* ---------- Typography ---------- */
-  --font-display: "Fraunces Variable", ui-serif, Georgia, serif;
-  --font-sans:    "Inter Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-mono:    "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
+  --font-display: "JetBrains Mono Variable", ui-monospace, "SF Mono", monospace;
+  --font-sans:    "JetBrains Mono Variable", ui-monospace, "SF Mono", monospace;
+  --font-mono:    "JetBrains Mono Variable", ui-monospace, "SF Mono", monospace;
 
   --text-display-2xl: clamp(2.5rem, 5vw, 4rem);
   --text-display-xl:  clamp(2rem,   4vw, 3rem);
