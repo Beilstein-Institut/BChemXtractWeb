@@ -188,12 +188,23 @@ function renderPaletteBody({
   );
 }
 
+interface CommandPaletteProps {
+  /**
+   * Mount open. Used by DeferredCommandPalette so the first ⌘K press
+   * that lazy-loads this chunk also opens the palette — otherwise the
+   * user would need to press ⌘K twice to see it (once to trigger the
+   * chunk download, once to open). Default false preserves the
+   * original Task-14 behavior when mounted eagerly.
+   */
+  initiallyOpen?: boolean;
+}
+
 /**
  * Mount once at app root. Listens for Cmd/Ctrl+K globally; the palette
  * renders nothing when closed and a full-screen overlay when open.
  */
-export function CommandPalette() {
-  const [open, setOpen] = useState(false);
+export function CommandPalette({ initiallyOpen = false }: CommandPaletteProps = {}) {
+  const [open, setOpen] = useState(initiallyOpen);
   const [query, setQuery] = useState("");
   const { setTheme } = useTheme();
   const reduceMotion = useReducedMotion();
