@@ -1,10 +1,13 @@
 import { test, expect } from "@playwright/test";
 
 // ─────────────────────────────────────────────────────
-// Phase 7.1: Visual Overhaul — E2E Tests
+// Visual overhaul — E2E tests
 //
-// Covers: AppHeader, nav links, dark/light toggle,
-//         mobile hamburger, typography, FileUpload styling
+// Originally authored for the Phase 7.1 single-page layout; surviving
+// assertions were retargeted to the Phase 3 Liquid Glass rebuild.
+// Tests of the old scroll-anchor nav / "BChemXtractWeb" hero / pill
+// primary button / body-level smooth-scroll have been removed because
+// those were design choices that Phase 3 deliberately reversed.
 // ─────────────────────────────────────────────────────
 
 test.describe("AppHeader", () => {
@@ -146,66 +149,38 @@ test.describe("Mobile Navigation", () => {
   });
 });
 
-test.describe("Nav Link Scroll Anchors", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-  });
-
-  test("Extract link has href #extract", async ({ page }) => {
-    const link = page.locator('nav[aria-label="Main navigation"]').getByText("Extract");
-    await expect(link).toHaveAttribute("href", "#extract");
-  });
-
-  test("Browse link has href #browse", async ({ page }) => {
-    const link = page.locator('nav[aria-label="Main navigation"]').getByText("Browse");
-    await expect(link).toHaveAttribute("href", "#browse");
-  });
-
-  test("History link has href #history", async ({ page }) => {
-    const link = page.locator('nav[aria-label="Main navigation"]').getByText("History");
-    await expect(link).toHaveAttribute("href", "#history");
-  });
-
-  test("extract section has matching id and scroll-mt", async ({ page }) => {
-    const section = page.locator("#extract");
-    await expect(section).toBeVisible();
-    await expect(section).toHaveClass(/scroll-mt-24/);
-  });
-
-  test("clicking Extract nav link scrolls to extract section", async ({ page }) => {
-    const link = page.locator('nav[aria-label="Main navigation"]').getByText("Extract");
-    await link.click();
-
-    // URL hash should update
-    await expect(page).toHaveURL(/#extract/);
-  });
-});
-
 test.describe("Typography and Spacing", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
   });
 
-  test("hero h1 uses display-size typography (~40px)", async ({ page }) => {
-    const h1 = page.locator("h1").filter({ hasText: "BChemXtractWeb" });
+  test("hero h1 renders the Extract page tagline in the display scale", async ({
+    page,
+  }) => {
+    const h1 = page.locator("h1").filter({ hasText: /ChemDraw, read back\./i });
     await expect(h1).toBeVisible();
 
     const fontSize = await h1.evaluate((el) => getComputedStyle(el).fontSize);
     const size = parseFloat(fontSize);
-    expect(size).toBeGreaterThanOrEqual(36);
-    expect(size).toBeLessThanOrEqual(44);
+    // Liquid Glass hero: font-display + text-3xl (30px) on mobile,
+    // text-4xl (36px) from sm: upward. Viewport here is 1280×720.
+    expect(size).toBeGreaterThanOrEqual(30);
+    expect(size).toBeLessThanOrEqual(40);
   });
 
-  test("subtitle uses sub-heading typography (~21px)", async ({ page }) => {
+  test("subtitle uses the body-base type step", async ({ page }) => {
     const subtitle = page.locator("p").filter({
-      hasText: "Extract chemical structures from ChemDraw files.",
+      hasText: /Drop a CDX or CDXML file/i,
     });
     await expect(subtitle).toBeVisible();
 
-    const fontSize = await subtitle.evaluate((el) => getComputedStyle(el).fontSize);
+    const fontSize = await subtitle.evaluate(
+      (el) => getComputedStyle(el).fontSize,
+    );
     const size = parseFloat(fontSize);
-    expect(size).toBeGreaterThanOrEqual(18);
-    expect(size).toBeLessThanOrEqual(24);
+    // text-base = 16px; allow a small tolerance either way.
+    expect(size).toBeGreaterThanOrEqual(14);
+    expect(size).toBeLessThanOrEqual(20);
   });
 
   test("main content has generous top padding for sticky header", async ({ page }) => {
@@ -234,28 +209,5 @@ test.describe("FileUpload Styling", () => {
     );
     // The drop zone should be visible in idle state
     await expect(dropZone).toBeVisible();
-  });
-
-  test("Extract structures button is pill-shaped (rounded-full)", async ({ page }) => {
-    const extractBtn = page.getByRole("button", { name: /extract structures/i });
-    if (await extractBtn.isVisible()) {
-      const borderRadius = await extractBtn.evaluate(
-        (el) => getComputedStyle(el).borderRadius
-      );
-      const radius = parseFloat(borderRadius);
-      // rounded-full = 9999px
-      expect(radius).toBeGreaterThan(100);
-    }
-  });
-});
-
-test.describe("Smooth Scrolling", () => {
-  test("html element has smooth scroll behavior", async ({ page }) => {
-    await page.goto("/");
-
-    const scrollBehavior = await page.locator("html").evaluate(
-      (el) => getComputedStyle(el).scrollBehavior
-    );
-    expect(scrollBehavior).toBe("smooth");
   });
 });
