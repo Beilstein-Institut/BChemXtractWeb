@@ -5,8 +5,8 @@
  *   - Root + every tile expose their `data-slot` hook.
  *   - Hero tile renders mission copy + "Start extracting" link + GitHub CTA.
  *   - Version tile shows the hardcoded version numeral.
- *   - Links tile renders BChemXtract / PubChem / RDKit as outbound anchors
- *     with `target="_blank" rel="noreferrer"`.
+ *   - Links tile renders BChemXtractWeb / BChemXtract (upstream) / CDK as
+ *     outbound anchors with `target="_blank" rel="noreferrer"`.
  *   - Tech-stack tile renders a Badge chip per declared technology.
  *   - Credits tile links to the Beilstein-Institut.
  */
@@ -51,11 +51,11 @@ describe("AboutPage", () => {
     // "Start extracting" routes to "/" via the internal Link.
     const start = screen.getByRole("link", { name: /start extracting/i });
     expect(start).toHaveAttribute("href", "/");
-    // GitHub CTA opens in a new tab safely.
+    // GitHub CTA now points at the web wrapper repo (not the upstream Java lib).
     const github = screen.getByRole("link", { name: /view on github/i });
     expect(github).toHaveAttribute(
       "href",
-      "https://github.com/Beilstein-Institut/BChemXtract",
+      "https://github.com/Beilstein-Institut/BChemXtractWeb",
     );
     expect(github).toHaveAttribute("target", "_blank");
     expect(github).toHaveAttribute("rel", "noreferrer");
@@ -75,7 +75,7 @@ describe("AboutPage", () => {
     const list = container.querySelector('[data-slot="about-links-list"]');
     expect(list).not.toBeNull();
     const anchors = list!.querySelectorAll("a");
-    // At minimum: BChemXtract, PubChem, RDKit.
+    // BChemXtractWeb repo, upstream BChemXtract, and CDK.
     expect(anchors.length).toBeGreaterThanOrEqual(3);
     for (const anchor of anchors) {
       expect(anchor.getAttribute("target")).toBe("_blank");
@@ -83,9 +83,12 @@ describe("AboutPage", () => {
       expect(anchor.getAttribute("href")).toMatch(/^https?:\/\//);
     }
     // Spot-check the three known destinations show up as labels.
-    expect(screen.getByText(/BChemXtract on GitHub/i)).toBeInTheDocument();
-    expect(screen.getByText("PubChem")).toBeInTheDocument();
-    expect(screen.getByText("RDKit")).toBeInTheDocument();
+    expect(screen.getByText(/BChemXtractWeb on GitHub/i)).toBeInTheDocument();
+    expect(screen.getByText("BChemXtract on GitHub")).toBeInTheDocument();
+    expect(screen.getByText("Chemistry Development Kit")).toBeInTheDocument();
+    // Confirm the removed PubChem / RDKit entries are gone.
+    expect(screen.queryByText("PubChem")).toBeNull();
+    expect(screen.queryByText("RDKit")).toBeNull();
   });
 
   it("renders the tech-stack tile as Badge chips", () => {

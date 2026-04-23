@@ -23,7 +23,6 @@
 import type { ReactNode } from "react";
 import {
   ArrowUpRightIcon,
-  AtomIcon,
   ExternalLinkIcon,
   FlaskConicalIcon,
   BookOpenIcon,
@@ -32,6 +31,7 @@ import {
 import { BentoCell } from "@/components/layout/BentoCell";
 import { BentoGrid } from "@/components/layout/BentoGrid";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { BrandName } from "@/components/BrandName";
 import { Badge } from "@/components/ui/badge";
 import { BackgroundPaths } from "@/components/ui/background-paths";
 import { buttonVariants } from "@/components/ui/button";
@@ -65,22 +65,29 @@ interface LinkEntry {
 
 const LINKS: LinkEntry[] = [
   {
+    href: "https://github.com/Beilstein-Institut/BChemXtractWeb",
+    label: "BChemXtractWeb on GitHub",
+    description: "This web app — source, issues, releases.",
+    icon: <BookOpenIcon />,
+  },
+  {
     href: "https://github.com/Beilstein-Institut/BChemXtract",
     label: "BChemXtract on GitHub",
     description: "Upstream Java library + issue tracker.",
     icon: <BookOpenIcon />,
   },
   {
-    href: "https://pubchem.ncbi.nlm.nih.gov/",
-    label: "PubChem",
-    description: "Lookup compounds by InChI / SMILES.",
-    icon: <FlaskConicalIcon />,
-  },
-  {
-    href: "https://www.rdkit.org/",
-    label: "RDKit",
-    description: "Complementary open cheminformatics.",
-    icon: <AtomIcon />,
+    href: "https://cdk.github.io/",
+    label: "Chemistry Development Kit",
+    description: "Open-source cheminformatics library (CDK 2.12) powering descriptor generation.",
+    icon: (
+      <img
+        src="/cdk-logo.png"
+        alt=""
+        aria-hidden="true"
+        className="h-5 w-auto object-contain"
+      />
+    ),
   },
 ];
 
@@ -92,7 +99,7 @@ export function AboutPage() {
           About
         </h1>
         <p className="text-base text-foreground-muted">
-          A browser wrapper around the BChemXtract Java library — built at
+          A browser wrapper around the <BrandName /> Java library — built at
           the Beilstein-Institut to make ChemDraw extraction accessible to
           anyone.
         </p>
@@ -139,7 +146,7 @@ function HeroTile() {
           <span className="text-primary">anyone</span>.
         </h2>
         <p className="max-w-[52ch] text-base leading-relaxed text-foreground-muted">
-          BChemXtractWeb parses CDX and CDXML files, extracts structures
+          <BrandName suffix="Web" /> parses CDX and CDXML files, extracts structures
           and reactions, and enriches them with computed descriptors —
           InChI, SMILES, RInChI, molecular formulas — all without
           installing Java or touching a command line. Drop a file, read
@@ -154,7 +161,7 @@ function HeroTile() {
           <span>Start extracting</span>
         </Link>
         <a
-          href="https://github.com/Beilstein-Institut/BChemXtract"
+          href="https://github.com/Beilstein-Institut/BChemXtractWeb"
           target="_blank"
           rel="noreferrer"
           className={buttonVariants({ variant: "outline", size: "lg" })}
@@ -211,7 +218,7 @@ function LinksTile() {
             >
               <span
                 aria-hidden="true"
-                className="mt-0.5 flex size-4 shrink-0 items-center justify-center text-foreground-muted [&_svg]:size-4 group-hover/link:text-primary"
+                className="mt-0.5 flex h-5 min-w-5 shrink-0 items-center justify-start text-foreground-muted [&_svg]:size-4 group-hover/link:text-primary"
               >
                 {icon}
               </span>
@@ -277,14 +284,14 @@ function CreditsTile() {
       </span>
       <div className="space-y-3">
         <p className="text-sm leading-relaxed text-foreground">
-          BChemXtractWeb wraps the{" "}
+          <BrandName suffix="Web" /> wraps the{" "}
           <a
             href="https://github.com/Beilstein-Institut/BChemXtract"
             target="_blank"
             rel="noreferrer"
             className="text-primary underline-offset-2 hover:underline"
           >
-            BChemXtract
+            <BrandName />
           </a>{" "}
           Java library developed at the{" "}
           <a
@@ -306,6 +313,17 @@ function CreditsTile() {
       </div>
       <div className="mt-auto flex flex-wrap gap-2 pt-2">
         <a
+          href="https://github.com/Beilstein-Institut/BChemXtractWeb"
+          target="_blank"
+          rel="noreferrer"
+          className={
+            buttonVariants({ variant: "outline", size: "sm" }) + " gap-1.5"
+          }
+        >
+          <BrandName suffix="Web" /> repo
+          <ArrowUpRightIcon className="size-3.5" />
+        </a>
+        <a
           href="https://github.com/Beilstein-Institut/BChemXtract"
           target="_blank"
           rel="noreferrer"
@@ -313,7 +331,7 @@ function CreditsTile() {
             buttonVariants({ variant: "outline", size: "sm" }) + " gap-1.5"
           }
         >
-          BChemXtract repo
+          <BrandName /> repo
           <ArrowUpRightIcon className="size-3.5" />
         </a>
         <a
