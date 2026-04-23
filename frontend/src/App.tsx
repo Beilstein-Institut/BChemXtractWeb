@@ -227,7 +227,7 @@ function App() {
     <ThemeProvider defaultTheme="system" storageKey="bchemxtract-theme">
       <div className="min-h-screen bg-background text-foreground">
         <AppHeader />
-        <main className="mx-auto max-w-[980px] px-6 pt-24 pb-24">
+        <main className="mx-auto max-w-7xl px-6 pt-24 pb-24">
           {renderRoute()}
         </main>
         {/* Task 14: globally mounted so ⌘K works from any route. */}

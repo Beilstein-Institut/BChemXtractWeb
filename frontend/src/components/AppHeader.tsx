@@ -79,15 +79,17 @@ export function AppHeader() {
         "border-b border-[var(--glass-border)]",
       )}
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-6">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-6">
         <Logo />
 
         <NavLinks className="hidden lg:flex" />
 
-        <SearchInput className="mx-4" />
-
-        <div className="flex items-center gap-2">
+        <div className="flex flex-1 items-center justify-end gap-3">
+          <SearchInput />
           <ChemistryThemeSwitch />
+        </div>
+
+        <div className="flex items-center">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger
               render={

@@ -143,7 +143,6 @@ export function ExtractPage({
         {currentStep === "process" && (
           <BatchProgress
             files={batchFiles}
-            completedCount={batchCompletedCount}
             totalCount={batchFiles.length}
             onCancel={onCancelBatch}
           />

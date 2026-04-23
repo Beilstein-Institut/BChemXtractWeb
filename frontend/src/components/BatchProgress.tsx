@@ -36,7 +36,6 @@ import type { BatchFileStatus } from "@/types/batch";
  */
 export interface BatchProgressProps {
   files: BatchFileStatus[];
-  completedCount: number;
   totalCount: number;
   onCancel: () => void;
 }
@@ -108,14 +107,18 @@ function FileStatusIcon({ state }: { state: BatchFileStatus["state"] }) {
 
 export function BatchProgress({
   files,
-  completedCount,
   totalCount,
   onCancel,
 }: BatchProgressProps) {
   const failedCount = files.filter((f) => f.state === "failed").length;
   const succeededCount = files.filter((f) => f.state === "done").length;
+  // Progress bar should advance for every file that has FINISHED, regardless
+  // of success or failure — otherwise a batch with any failures stalls the
+  // bar mid-run even though the worker is making forward progress. The
+  // succeededCount is still surfaced in the Completed stat cell below.
+  const processedCount = succeededCount + failedCount;
   const progressValue =
-    totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+    totalCount > 0 ? (processedCount / totalCount) * 100 : 0;
   const progressPercent = Math.round(progressValue);
 
   return (
@@ -133,7 +136,7 @@ export function BatchProgress({
         <div className="flex-1">
           <Progress value={progressValue}>
             <ProgressLabel>
-              {completedCount} of {totalCount} files
+              {processedCount} of {totalCount} files
             </ProgressLabel>
             <ProgressValue>{() => `${progressPercent}%`}</ProgressValue>
           </Progress>
