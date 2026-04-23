@@ -33,6 +33,7 @@ import { BentoCell } from "@/components/layout/BentoCell";
 import { BentoGrid } from "@/components/layout/BentoGrid";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/badge";
+import { BackgroundPaths } from "@/components/ui/background-paths";
 import { buttonVariants } from "@/components/ui/button";
 import { Link } from "@/lib/Link";
 
@@ -126,9 +127,10 @@ function HeroTile() {
   return (
     <article
       data-slot="about-hero"
-      className="flex h-full flex-col justify-between gap-8 rounded-lg border border-border bg-surface p-8"
+      className="relative flex h-full flex-col justify-between gap-8 overflow-hidden rounded-lg border border-border bg-surface p-8"
     >
-      <div className="space-y-5">
+      <BackgroundPaths />
+      <div className="relative z-10 space-y-5">
         <Badge variant="secondary" className="font-mono uppercase tracking-wider">
           Chemistry · Extraction
         </Badge>
@@ -144,7 +146,7 @@ function HeroTile() {
           the structures back as JSON, SDF, or CSV.
         </p>
       </div>
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="relative z-10 flex flex-wrap items-center gap-3">
         <Link to="/" className={buttonVariants({ size: "lg" })}>
           <span className="btn-clay__icon" aria-hidden="true">
             <FlaskConicalIcon />
