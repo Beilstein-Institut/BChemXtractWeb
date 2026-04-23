@@ -12,6 +12,8 @@
 import { ArrowUpRightIcon, BuildingIcon } from "lucide-react";
 
 import { PageContainer } from "@/components/layout/PageContainer";
+import { cn } from "@/lib/utils";
+import { LEGAL_LINK_CLASS, LegalPageHeader } from "@/pages/legalShared";
 
 interface LabelledEntry {
   label: string;
@@ -43,7 +45,7 @@ const ENTITY: LabelledEntry[] = [
     value: (
       <a
         href="mailto:info@beilstein-institut.de"
-        className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
+        className={LEGAL_LINK_CLASS}
       >
         info@beilstein-institut.de
       </a>
@@ -56,7 +58,7 @@ const ENTITY: LabelledEntry[] = [
         href="https://www.beilstein-institut.de/"
         target="_blank"
         rel="noreferrer"
-        className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
+        className={LEGAL_LINK_CLASS}
       >
         www.beilstein-institut.de
       </a>
@@ -82,20 +84,12 @@ const GOVERNANCE: LabelledEntry[] = [
 export function ImprintPage() {
   return (
     <PageContainer data-slot="imprint-page">
-      <header className="space-y-3">
-        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-elevated px-3 py-1 text-caption uppercase tracking-wider text-foreground-muted">
-          <BuildingIcon aria-hidden="true" className="size-3.5" />
-          <span>Imprint</span>
-        </div>
-        <h1 className="text-4xl text-foreground sm:text-5xl">
-          Imprint
-        </h1>
-        <p className="max-w-[70ch] text-base text-foreground-muted">
-          Legal identification of the site operator pursuant to §5 of the
-          German Telemedia Act (TMG) and §18 of the Interstate Media Treaty
-          (MStV).
-        </p>
-      </header>
+      <LegalPageHeader
+        icon={<BuildingIcon aria-hidden="true" className="size-3.5" />}
+        eyebrow="Imprint"
+        title="Imprint"
+        lede="Legal identification of the site operator pursuant to §5 of the German Telemedia Act (TMG) and §18 of the Interstate Media Treaty (MStV)."
+      />
 
       <section
         aria-labelledby="imprint-entity-heading"
@@ -186,7 +180,7 @@ export function ImprintPage() {
           href="https://www.beilstein-institut.de/en/impressum/"
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1 text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
+          className={cn("inline-flex items-center gap-1", LEGAL_LINK_CLASS)}
         >
           beilstein-institut.de/en/impressum/
           <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />

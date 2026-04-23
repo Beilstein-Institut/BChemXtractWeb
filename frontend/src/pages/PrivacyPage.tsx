@@ -24,6 +24,8 @@ import { ArrowUpRightIcon, ShieldCheckIcon } from "lucide-react";
 
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Link } from "@/lib/Link";
+import { cn } from "@/lib/utils";
+import { LEGAL_LINK_CLASS, LegalPageHeader } from "@/pages/legalShared";
 
 interface Topic {
   id: string;
@@ -44,7 +46,7 @@ const TOPICS: Topic[] = [
           email:{" "}
           <a
             href="mailto:info@beilstein-institut.de"
-            className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
+            className={LEGAL_LINK_CLASS}
           >
             info@beilstein-institut.de
           </a>
@@ -52,7 +54,7 @@ const TOPICS: Topic[] = [
           at{" "}
           <a
             href="mailto:datenschutz@beilstein-institut.de"
-            className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
+            className={LEGAL_LINK_CLASS}
           >
             datenschutz@beilstein-institut.de
           </a>
@@ -80,7 +82,7 @@ const TOPICS: Topic[] = [
           Extracted structures are deduplicated by InChIKey and stored as
           SMILES, InChI, molecular formula, MDL V3000 block, and rendered
           SVG. These records are retained until you delete them via the{" "}
-          <Link to="/history" className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary">
+          <Link to="/history" className={LEGAL_LINK_CLASS}>
             History page
           </Link>
           .
@@ -211,21 +213,12 @@ const TOPICS: Topic[] = [
 export function PrivacyPage() {
   return (
     <PageContainer data-slot="privacy-page">
-      <header className="space-y-3">
-        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-elevated px-3 py-1 text-caption uppercase tracking-wider text-foreground-muted">
-          <ShieldCheckIcon aria-hidden="true" className="size-3.5" />
-          <span>Privacy</span>
-        </div>
-        <h1 className="text-4xl text-foreground sm:text-5xl">
-          Privacy notice
-        </h1>
-        <p className="max-w-[70ch] text-base text-foreground-muted">
-          How BChemXtractWeb handles personal data. This notice describes
-          only what the web application itself does. The Beilstein-Institut
-          publishes a broader privacy policy covering its other activities;
-          see the link at the foot of this page.
-        </p>
-      </header>
+      <LegalPageHeader
+        icon={<ShieldCheckIcon aria-hidden="true" className="size-3.5" />}
+        eyebrow="Privacy"
+        title="Privacy notice"
+        lede="How BChemXtractWeb handles personal data. This notice describes only what the web application itself does. The Beilstein-Institut publishes a broader privacy policy covering its other activities; see the link at the foot of this page."
+      />
 
       <nav
         aria-label="Privacy notice contents"
@@ -274,7 +267,7 @@ export function PrivacyPage() {
           href="https://www.beilstein-institut.de/en/privacy-policy/"
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1 text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
+          className={cn("inline-flex items-center gap-1", LEGAL_LINK_CLASS)}
         >
           Beilstein-Institut's full privacy policy
           <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />

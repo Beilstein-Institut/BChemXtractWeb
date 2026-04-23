@@ -15,6 +15,8 @@
 import { ArrowUpRightIcon, ScaleIcon } from "lucide-react";
 
 import { PageContainer } from "@/components/layout/PageContainer";
+import { LEGAL_LINK_CLASS, LegalPageHeader } from "@/pages/legalShared";
+import { cn } from "@/lib/utils";
 
 const MIT_LICENSE_TEXT = `MIT License
 
@@ -105,21 +107,12 @@ const THIRD_PARTY: ThirdPartyEntry[] = [
 export function LicensePage() {
   return (
     <PageContainer data-slot="license-page">
-      <header className="space-y-3">
-        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-elevated px-3 py-1 text-caption uppercase tracking-wider text-foreground-muted">
-          <ScaleIcon aria-hidden="true" className="size-3.5" />
-          <span>License</span>
-        </div>
-        <h1 className="text-4xl text-foreground sm:text-5xl">
-          Open source under the MIT License
-        </h1>
-        <p className="max-w-[70ch] text-base text-foreground-muted">
-          BChemXtractWeb is released under the MIT License. You are free to
-          use, modify, and redistribute the software subject to the notice
-          below. Third-party components retain their own licenses, listed
-          further down.
-        </p>
-      </header>
+      <LegalPageHeader
+        icon={<ScaleIcon aria-hidden="true" className="size-3.5" />}
+        eyebrow="License"
+        title="Open source under the MIT License"
+        lede="BChemXtractWeb is released under the MIT License. You are free to use, modify, and redistribute the software subject to the notice below. Third-party components retain their own licenses, listed further down."
+      />
 
       <section
         aria-labelledby="license-mit-heading"
@@ -138,7 +131,7 @@ export function LicensePage() {
             href="https://github.com/Beilstein-Institut/BChemXtractWeb/blob/main/LICENSE"
             target="_blank"
             rel="noreferrer"
-            className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
+            className={LEGAL_LINK_CLASS}
           >
             LICENSE file at the repository root
           </a>
@@ -170,7 +163,7 @@ export function LicensePage() {
             href="https://github.com/Beilstein-Institut/BChemXtractWeb/blob/main/frontend/package.json"
             target="_blank"
             rel="noreferrer"
-            className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
+            className={LEGAL_LINK_CLASS}
           >
             frontend/package.json
           </a>{" "}
@@ -179,7 +172,7 @@ export function LicensePage() {
             href="https://github.com/Beilstein-Institut/BChemXtractWeb/blob/main/backend/requirements.txt"
             target="_blank"
             rel="noreferrer"
-            className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
+            className={LEGAL_LINK_CLASS}
           >
             backend/requirements.txt
           </a>
@@ -243,7 +236,7 @@ export function LicensePage() {
             href="https://github.com/cdk/cdk"
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
+            className={cn("inline-flex items-center gap-1", LEGAL_LINK_CLASS)}
           >
             CDK source on GitHub
             <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
