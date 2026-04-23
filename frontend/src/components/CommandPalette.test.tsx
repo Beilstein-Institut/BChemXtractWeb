@@ -1,15 +1,19 @@
 /**
- * CommandPalette — component tests.
+ * CommandPalette — Spotlight-style rebuild tests (Phase 3 Task 19).
  *
- * Focuses on the observable behaviour we can reasonably exercise in jsdom:
- *  - ⌘K (and Ctrl+K) toggles the palette open/closed
- *  - Escape closes it (relying on the `cmdk` built-in)
- *  - Navigation items dispatch navigate() and close the palette
- *  - Theme items call setTheme and close the palette
- *  - data-slot contract for the palette root + input
+ * Covers the behaviour we can meaningfully exercise in jsdom:
+ *   - ⌘K / Ctrl+K toggle the palette open/closed
+ *   - Esc closes
+ *   - Typing filters the commands list
+ *   - Clicking a shortcut tile or a filtered command row fires its
+ *     action and closes the palette
+ *   - data-slot contract for the palette root, search input, shortcut
+ *     grid, and results list all present as downstream selectors
  *
- * We stub the heavier Base UI dialog/tooltip portals so rendered content
- * stays in the document tree.
+ * Motion is mocked so `motion.div` / `motion.button` render as plain
+ * HTML and `AnimatePresence` is a passthrough — otherwise the spring
+ * entrance would leave the palette out of the document while the test
+ * asserts against it.
  */
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import {
@@ -21,154 +25,73 @@ import {
   vi,
 } from "vitest";
 
-// ResizeObserver + scrollIntoView stubs live in `src/test-setup.ts` so
-// cmdk and Base UI mounts work across every test file (Task 15 M-1).
-
-// Mock the Base UI Dialog root so the portal always renders children inline.
-vi.mock("@base-ui/react/dialog", async () => {
+// Mock motion/react so the palette renders synchronously without any
+// entrance animation gating test assertions.
+vi.mock("motion/react", async () => {
   const React = await import("react");
-  return {
-    Dialog: {
-      Root: ({
-        open,
-        children,
-      }: {
-        open?: boolean;
-        onOpenChange?: (v: boolean) => void;
-        children: React.ReactNode;
-      }) =>
-        open === false
-          ? null
-          : React.createElement(React.Fragment, null, children),
-      Trigger: ({
-        children,
-        render: renderProp,
-        ...rest
-      }: {
-        children?: React.ReactNode;
-        render?: React.ReactElement;
-        [key: string]: unknown;
-      }) => {
-        if (renderProp) return React.cloneElement(renderProp, rest, children);
-        return React.createElement(React.Fragment, null, children);
+  type AnyProps = Record<string, unknown> & {
+    children?: React.ReactNode;
+    // Known motion-only props to strip before reaching the DOM.
+    initial?: unknown;
+    animate?: unknown;
+    exit?: unknown;
+    transition?: unknown;
+    variants?: unknown;
+    whileHover?: unknown;
+    whileTap?: unknown;
+    layout?: unknown;
+    layoutId?: unknown;
+  };
+  function stripMotionProps(props: AnyProps) {
+    const {
+      initial: _initial,
+      animate: _animate,
+      exit: _exit,
+      transition: _transition,
+      variants: _variants,
+      whileHover: _whileHover,
+      whileTap: _whileTap,
+      layout: _layout,
+      layoutId: _layoutId,
+      ...rest
+    } = props;
+    void _initial;
+    void _animate;
+    void _exit;
+    void _transition;
+    void _variants;
+    void _whileHover;
+    void _whileTap;
+    void _layout;
+    void _layoutId;
+    return rest;
+  }
+  const motion = new Proxy(
+    {},
+    {
+      get: (_target, key) => {
+        const tag = typeof key === "string" ? key : "div";
+        return (props: AnyProps) =>
+          React.createElement(tag, stripMotionProps(props));
       },
-      Portal: ({ children }: { children: React.ReactNode }) =>
-        React.createElement(React.Fragment, null, children),
-      Backdrop: ({ className }: { className?: string }) =>
-        React.createElement("div", {
-          "data-testid": "dialog-backdrop",
-          className,
-        }),
-      Popup: ({
-        children,
-        className,
-      }: {
-        children: React.ReactNode;
-        className?: string;
-      }) =>
-        React.createElement(
-          "div",
-          {
-            "data-testid": "dialog-popup",
-            role: "dialog",
-            className,
-          },
-          children,
-        ),
-      Close: ({ children }: { children?: React.ReactNode }) =>
-        React.createElement(
-          "button",
-          { "data-testid": "dialog-close" },
-          children ?? null,
-        ),
-      Title: ({
-        children,
-        className,
-      }: {
-        children: React.ReactNode;
-        className?: string;
-      }) =>
-        React.createElement(
-          "h2",
-          { "data-testid": "dialog-title", className },
-          children,
-        ),
-      Description: ({
-        children,
-        className,
-      }: {
-        children: React.ReactNode;
-        className?: string;
-      }) =>
-        React.createElement(
-          "p",
-          { "data-testid": "dialog-description", className },
-          children,
-        ),
     },
-  };
-});
-
-vi.mock("@base-ui/react/tooltip", async () => {
-  const React = await import("react");
+  );
   return {
-    Tooltip: {
-      Provider: ({ children }: { children: React.ReactNode }) =>
-        React.createElement(React.Fragment, null, children),
-      Root: ({ children }: { children: React.ReactNode }) =>
-        React.createElement(React.Fragment, null, children),
-      Trigger: ({
-        children,
-        render: renderProp,
-        ...rest
-      }: {
-        children?: React.ReactNode;
-        render?: React.ReactElement;
-        [key: string]: unknown;
-      }) => {
-        if (renderProp) return React.cloneElement(renderProp, rest, children);
-        return React.createElement(React.Fragment, null, children);
-      },
-      Portal: ({ children }: { children: React.ReactNode }) =>
-        React.createElement(React.Fragment, null, children),
-      Positioner: ({ children }: { children: React.ReactNode }) =>
-        React.createElement(React.Fragment, null, children),
-      Popup: ({ children }: { children: React.ReactNode }) =>
-        React.createElement(
-          "div",
-          { "data-testid": "tooltip-content" },
-          children,
-        ),
-      Arrow: () => null,
-    },
+    motion,
+    AnimatePresence: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+    useReducedMotion: () => true,
   };
 });
 
-vi.mock("@base-ui/react/button", async () => {
-  const React = await import("react");
-  return {
-    Button: React.forwardRef(
-      (
-        { children, className, ...props }: React.ComponentProps<"button">,
-        ref: React.Ref<HTMLButtonElement>,
-      ) =>
-        React.createElement(
-          "button",
-          { ref, className, ...props },
-          children,
-        ),
-    ),
-  };
-});
-
-// Mock the router navigate — the real one pushes to window.history.
+// Mock the router — real navigate() pushes to window.history.
 vi.mock("@/lib/router", () => ({
   navigate: vi.fn(),
   useRoute: () => "/",
   ROUTE_CHANGE_EVENT: "routechange",
 }));
 
-// Also capture setTheme from the theme provider.
+// Capture setTheme.
 const setThemeMock = vi.fn();
 vi.mock("@/components/theme-provider", () => ({
   useTheme: () => ({ theme: "system", setTheme: setThemeMock }),
@@ -193,78 +116,76 @@ function pressMetaK(meta = true) {
   });
 }
 
+/** Dispatch Escape on window (captured by the in-palette effect). */
+function pressEscape() {
+  act(() => {
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  });
+}
+
 describe("CommandPalette", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   afterEach(() => {
-    // Make sure no palette residue leaks between tests.
     document.body.innerHTML = "";
   });
 
-  it("does not render any dialog content before ⌘K is pressed", () => {
+  it("renders nothing before ⌘K is pressed", () => {
     render(<CommandPalette />);
-    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(
+      document.querySelector('[data-slot="command-palette"]'),
+    ).toBeNull();
   });
 
   it("opens on Cmd+K", () => {
     render(<CommandPalette />);
     pressMetaK(true);
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(
+      document.querySelector('[data-slot="command-palette"]'),
+    ).not.toBeNull();
   });
 
   it("also opens on Ctrl+K (cross-platform)", () => {
     render(<CommandPalette />);
     pressMetaK(false);
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(
+      document.querySelector('[data-slot="command-palette"]'),
+    ).not.toBeNull();
   });
 
-  it("a second ⌘K press closes the palette (toggle)", () => {
+  it("a second ⌘K toggles the palette closed", () => {
     render(<CommandPalette />);
     pressMetaK(true);
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(
+      document.querySelector('[data-slot="command-palette"]'),
+    ).not.toBeNull();
     pressMetaK(true);
-    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(
+      document.querySelector('[data-slot="command-palette"]'),
+    ).toBeNull();
   });
 
-  it("renders Navigation and Theme groups with data-slot on the palette root", () => {
+  it("closes on Escape", () => {
     render(<CommandPalette />);
     pressMetaK(true);
-    const root = document.querySelector('[data-slot="command-palette"]');
-    expect(root).not.toBeNull();
-    // Group headings ship verbatim — cmdk renders them as [cmdk-group-heading].
-    expect(screen.getByText("Navigation")).toBeInTheDocument();
-    expect(screen.getByText("Theme")).toBeInTheDocument();
+    expect(
+      document.querySelector('[data-slot="command-palette"]'),
+    ).not.toBeNull();
+    pressEscape();
+    expect(
+      document.querySelector('[data-slot="command-palette"]'),
+    ).toBeNull();
   });
 
-  it("shows the four navigation items", () => {
-    render(<CommandPalette />);
-    pressMetaK(true);
-    expect(screen.getByText("Extract")).toBeInTheDocument();
-    expect(screen.getByText("Browse")).toBeInTheDocument();
-    expect(screen.getByText("History")).toBeInTheDocument();
-    expect(screen.getByText("About")).toBeInTheDocument();
-  });
-
-  it("clicking 'Browse' calls navigate('/browse') and closes the palette", () => {
-    render(<CommandPalette />);
-    pressMetaK(true);
-    fireEvent.click(screen.getByText("Browse"));
-    expect(vi.mocked(navigate)).toHaveBeenCalledWith("/browse");
-    // Palette should close after selection.
-    expect(screen.queryByRole("dialog")).toBeNull();
-  });
-
-  it("clicking a theme item calls setTheme with the expected value", () => {
-    render(<CommandPalette />);
-    pressMetaK(true);
-    fireEvent.click(screen.getByText("Dark"));
-    expect(setThemeMock).toHaveBeenCalledWith("dark");
-    expect(screen.queryByRole("dialog")).toBeNull();
-  });
-
-  it("renders the search input with data-slot='command-palette-input'", () => {
+  it("renders the search input with data-slot hook", () => {
     render(<CommandPalette />);
     pressMetaK(true);
     const input = document.querySelector(
@@ -272,5 +193,95 @@ describe("CommandPalette", () => {
     ) as HTMLInputElement | null;
     expect(input).not.toBeNull();
     expect(input!.getAttribute("placeholder")).toMatch(/search commands/i);
+  });
+
+  it("shows the four chemistry shortcut tiles when query is empty", () => {
+    render(<CommandPalette />);
+    pressMetaK(true);
+    expect(
+      document.querySelector('[data-slot="command-palette-shortcuts"]'),
+    ).not.toBeNull();
+    expect(screen.getByText("Extract")).toBeInTheDocument();
+    expect(screen.getByText("Browse")).toBeInTheDocument();
+    expect(screen.getByText("History")).toBeInTheDocument();
+    expect(screen.getByText("About")).toBeInTheDocument();
+  });
+
+  it("typing switches to filtered results and hides the shortcut grid", () => {
+    render(<CommandPalette />);
+    pressMetaK(true);
+    const input = document.querySelector(
+      '[data-slot="command-palette-input"]',
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "browse" } });
+    expect(
+      document.querySelector('[data-slot="command-palette-shortcuts"]'),
+    ).toBeNull();
+    expect(
+      document.querySelector('[data-slot="command-palette-results"]'),
+    ).not.toBeNull();
+    expect(screen.getByText("Go to Browse")).toBeInTheDocument();
+  });
+
+  it("renders an empty state when no commands match the query", () => {
+    render(<CommandPalette />);
+    pressMetaK(true);
+    const input = document.querySelector(
+      '[data-slot="command-palette-input"]',
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "zzzzzz-nomatch" } });
+    const empty = document.querySelector(
+      '[data-slot="command-palette-empty"]',
+    );
+    expect(empty).not.toBeNull();
+    expect(empty!.textContent).toMatch(/no commands match/i);
+  });
+
+  it("clicking the Browse shortcut navigates and closes", () => {
+    render(<CommandPalette />);
+    pressMetaK(true);
+    const tile = document.querySelector(
+      '[data-slot="command-item"][data-value="nav-browse"]',
+    ) as HTMLButtonElement;
+    expect(tile).not.toBeNull();
+    fireEvent.click(tile);
+    expect(vi.mocked(navigate)).toHaveBeenCalledWith("/browse");
+    expect(
+      document.querySelector('[data-slot="command-palette"]'),
+    ).toBeNull();
+  });
+
+  it("clicking a filtered theme result calls setTheme and closes", () => {
+    render(<CommandPalette />);
+    pressMetaK(true);
+    const input = document.querySelector(
+      '[data-slot="command-palette-input"]',
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "dark" } });
+    fireEvent.click(screen.getByText("Dark theme"));
+    expect(setThemeMock).toHaveBeenCalledWith("dark");
+    expect(
+      document.querySelector('[data-slot="command-palette"]'),
+    ).toBeNull();
+  });
+
+  it("each filtered result exposes data-slot='command-item' with data-value", () => {
+    render(<CommandPalette />);
+    pressMetaK(true);
+    const input = document.querySelector(
+      '[data-slot="command-palette-input"]',
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "go to" } });
+    const items = document.querySelectorAll(
+      '[data-slot="command-item"]',
+    );
+    expect(items.length).toBeGreaterThan(0);
+    const values = Array.from(items).map((el) =>
+      el.getAttribute("data-value"),
+    );
+    expect(values).toContain("nav-extract");
+    expect(values).toContain("nav-browse");
+    expect(values).toContain("nav-history");
+    expect(values).toContain("nav-about");
   });
 });

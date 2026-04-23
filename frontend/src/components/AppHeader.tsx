@@ -92,7 +92,7 @@ export function AppHeader() {
           data-slot="nav-pill"
           className={cn(
             "hidden lg:flex items-center",
-            "rounded-full border border-border bg-surface-muted/60",
+            "rounded-full border border-border bg-surface-muted/75",
             "px-2 py-1.5 backdrop-blur-sm",
           )}
         >

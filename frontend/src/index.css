@@ -755,7 +755,7 @@ body {
       rgba(6, 95, 86, 0.95) 100%
     );
   border-radius: 0 0 var(--radius) var(--radius);
-  transform-origin: 50% 0%;
+  transform-origin: 50% 50%;
   transform: rotate(0deg);
   transition:
     background var(--transition),

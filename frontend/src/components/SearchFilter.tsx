@@ -2,8 +2,9 @@
  * SearchFilter — browse-page quick filter bar (Phase 3 Task 11).
  *
  * Compact glass composite that sits above the bento landing:
- *   - Free-text <Input> with a SearchIcon adornment. Matches against
- *     molecular formula, SMILES, InChI key, and IUPAC name.
+ *   - Free-text search inside a neomorphic pill (`--shadow-neu-inset`)
+ *     so it echoes the AppHeader and command-palette inputs. Matches
+ *     against molecular formula, SMILES, InChI key, and IUPAC name.
  *   - Three filter chips that narrow the current-extraction slice. The
  *     plan's original chip list (has-reaction / .cdx / .cdxml / date range)
  *     assumes a cross-extraction index — the per-extraction data surface
@@ -30,7 +31,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
 
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   EMPTY_FILTERS,
@@ -145,19 +145,28 @@ export function SearchFilter({
     >
       <div
         data-slot="browse-search-input"
-        className="relative min-w-[240px] flex-1"
+        className={cn(
+          "relative flex min-w-[240px] flex-1 items-center gap-2",
+          "h-10 rounded-full bg-surface px-4",
+          "shadow-[var(--shadow-neu-inset)]",
+          "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0",
+        )}
       >
         <SearchIcon
           aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-foreground-muted"
+          className="size-4 shrink-0 text-foreground-muted"
         />
-        <Input
+        <input
           type="search"
           aria-label="Search structures in this extraction"
           placeholder="Search by formula, SMILES, InChI key, or IUPAC name…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          className="pl-9"
+          data-slot="input"
+          className={cn(
+            "min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none",
+            "placeholder:text-foreground-muted",
+          )}
         />
       </div>
 

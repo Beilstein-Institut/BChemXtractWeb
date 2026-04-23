@@ -29,7 +29,6 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -374,12 +373,19 @@ function Toolbar({
         Recent extractions
       </h2>
       <div className="flex flex-1 items-center gap-2 sm:flex-none sm:justify-end">
-        <div className="relative w-full sm:w-64">
+        <div
+          className={cn(
+            "relative flex w-full items-center gap-2 sm:w-64",
+            "h-10 rounded-full bg-surface px-4",
+            "shadow-[var(--shadow-neu-inset)]",
+            "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0",
+          )}
+        >
           <SearchIcon
-            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-foreground-muted"
+            className="size-4 shrink-0 text-foreground-muted"
             aria-hidden="true"
           />
-          <Input
+          <input
             type="search"
             value={search}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -388,7 +394,10 @@ function Toolbar({
             placeholder="Search by filename or format"
             aria-label="Search history"
             data-slot="history-search"
-            className="pl-8"
+            className={cn(
+              "min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none",
+              "placeholder:text-foreground-muted",
+            )}
           />
         </div>
         <Button

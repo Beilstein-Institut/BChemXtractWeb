@@ -41,6 +41,19 @@
   --glass-tint-dark:      color-mix(in oklch, var(--color-surface) 72%, transparent);
   --glass-border:         color-mix(in oklch, currentColor 10%, transparent);
 
+  /* ---------- Neomorphism ----------
+   * Soft inset (carved) + raised stacks for the Spotlight-style command
+   * palette and inline search bars (Task 19). The shadows deliberately
+   * layer a warm dark and a cool-white highlight so the surface reads
+   * as a pressed-in divot (inset) or floating pillow (raised). Alpha
+   * values are tuned against the light cream `--color-background` and
+   * fall back gracefully in prefers-reduced-transparency.
+   */
+  --shadow-neu-inset:   inset 3px 3px 6px rgba(72, 60, 50, 0.12), inset -3px -3px 6px rgba(255, 253, 250, 0.9);
+  --shadow-neu-raised:  6px 6px 12px rgba(72, 60, 50, 0.14), -6px -6px 12px rgba(255, 253, 250, 0.8);
+  --shadow-neu-pressed: inset 4px 4px 8px rgba(72, 60, 50, 0.18), inset -4px -4px 8px rgba(255, 253, 250, 0.6);
+  --shadow-neu-soft:    3px 3px 8px rgba(72, 60, 50, 0.10), -3px -3px 8px rgba(255, 253, 250, 0.7);
+
   /* ---------- Typography ---------- */
   --font-display: "JetBrains Mono Variable", ui-monospace, "SF Mono", monospace;
   --font-sans:    "JetBrains Mono Variable", ui-monospace, "SF Mono", monospace;
@@ -88,6 +101,13 @@
   --color-accent:              oklch(0.32 0.10 2);
   --color-destructive:         oklch(0.62 0.22 25);
   --color-ring:                oklch(0.62 0.22 2 / 50%);
+
+  /* Dark-mode neumorphism — drop the warm-white highlight (reads wrong on
+   * a near-black surface) and let black shadows do the depth work. */
+  --shadow-neu-inset:   inset 3px 3px 6px rgba(0, 0, 0, 0.50), inset -3px -3px 6px rgba(255, 255, 255, 0.04);
+  --shadow-neu-raised:  6px 6px 12px rgba(0, 0, 0, 0.55), -6px -6px 12px rgba(255, 255, 255, 0.03);
+  --shadow-neu-pressed: inset 4px 4px 8px rgba(0, 0, 0, 0.60), inset -4px -4px 8px rgba(255, 255, 255, 0.02);
+  --shadow-neu-soft:    3px 3px 8px rgba(0, 0, 0, 0.45), -3px -3px 8px rgba(255, 255, 255, 0.03);
 }
 
 /* ---------- Accessibility fallbacks ---------- */
@@ -98,6 +118,20 @@
     --glass-saturate: 100%;
     --glass-tint-light: var(--color-surface);
     --glass-tint-dark: var(--color-surface);
+
+    /* Collapse the layered neumorphism stacks to a single solid shadow
+     * so the raised/carved look still reads but without the soft
+     * translucency users have asked us to suppress. */
+    --shadow-neu-inset:   inset 0 0 0 1px rgba(0, 0, 0, 0.24);
+    --shadow-neu-raised:  0 2px 6px rgba(0, 0, 0, 0.22);
+    --shadow-neu-pressed: inset 0 0 0 2px rgba(0, 0, 0, 0.30);
+    --shadow-neu-soft:    0 1px 3px rgba(0, 0, 0, 0.18);
+  }
+  .dark {
+    --shadow-neu-inset:   inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+    --shadow-neu-raised:  0 2px 6px rgba(0, 0, 0, 0.60);
+    --shadow-neu-pressed: inset 0 0 0 2px rgba(255, 255, 255, 0.22);
+    --shadow-neu-soft:    0 1px 3px rgba(0, 0, 0, 0.50);
   }
 }
 

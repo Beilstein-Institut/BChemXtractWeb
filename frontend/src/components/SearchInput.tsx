@@ -169,36 +169,77 @@ export function SearchInput({ className }: { className?: string }) {
     const describedById = isHeader ? "search-input-hint" : "search-input-hint-mobile";
     return (
       <div
+        // Header variant: neomorphic pill with inset shadow so the search
+        // reads as a carved divot on the glass header. Mobile (sheet)
+        // variant keeps the plain form-tier Input — the sheet already has
+        // its own glass surface and neumorphism would fight the tint.
+        data-slot={isHeader ? "search-input-neu" : undefined}
         className={cn(
-          "relative flex items-center gap-2 h-9",
-          isHeader ? "w-[280px] md:w-[280px] lg:w-[360px] xl:w-[440px]" : "w-full",
+          "relative flex items-center gap-2",
+          isHeader
+            ? [
+                "h-10 rounded-full bg-surface px-4",
+                "shadow-[var(--shadow-neu-inset)]",
+                "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0",
+                "w-[280px] md:w-[280px] lg:w-[360px] xl:w-[440px]",
+              ]
+            : "h-9 w-full",
           className,
         )}
       >
         <SearchIcon
-          className="absolute left-2.5 size-4 text-muted-foreground pointer-events-none"
+          className={cn(
+            "size-4 text-foreground-muted pointer-events-none",
+            isHeader ? "shrink-0" : "absolute left-2.5",
+          )}
           aria-hidden="true"
         />
-        <Input
-          ref={refToUse}
-          type="search"
-          aria-label="Search structures across all extractions"
-          aria-describedby={describedById}
-          placeholder="Search structures…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          className={cn(
-            "h-9 pl-8 text-body transition-[padding]",
-            hasContent ? "pr-[7.5rem]" : "pr-16",
-          )}
-        />
+        {isHeader ? (
+          <input
+            ref={refToUse}
+            type="search"
+            aria-label="Search structures across all extractions"
+            aria-describedby={describedById}
+            placeholder="Search structures…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            data-slot="input"
+            className={cn(
+              "min-w-0 flex-1 bg-transparent text-body text-foreground outline-none",
+              "placeholder:text-foreground-muted",
+              hasContent ? "pr-[6.75rem]" : "pr-10",
+            )}
+          />
+        ) : (
+          <Input
+            ref={refToUse}
+            type="search"
+            aria-label="Search structures across all extractions"
+            aria-describedby={describedById}
+            placeholder="Search structures…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            className={cn(
+              "h-9 pl-8 text-body transition-[padding]",
+              hasContent ? "pr-[7.5rem]" : "pr-16",
+            )}
+          />
+        )}
         <span id={describedById} className="sr-only">
           Press slash to focus search from anywhere. Press Escape to clear.
         </span>
-        <div className="absolute right-1.5 flex items-center gap-1">
+        <div
+          className={cn(
+            "absolute flex items-center gap-1",
+            isHeader ? "right-2" : "right-1.5",
+          )}
+        >
           {badgeLabel && (
             <Popover>
               <PopoverTrigger
