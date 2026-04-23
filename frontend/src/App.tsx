@@ -3,6 +3,7 @@ import { Toaster, toast } from "sonner";
 import { AppHeader } from "@/components/AppHeader";
 import { CommandPalette } from "@/components/CommandPalette";
 import { SearchResults } from "@/components/SearchResults";
+import { SiteFooter } from "@/components/SiteFooter";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useBatch } from "@/hooks/useBatch";
 import { useExtract } from "@/hooks/useExtract";
@@ -14,6 +15,9 @@ import { AboutPage } from "@/pages/AboutPage";
 import { BrowsePage } from "@/pages/BrowsePage";
 import { ExtractPage } from "@/pages/ExtractPage";
 import { HistoryPage } from "@/pages/HistoryPage";
+import { ImprintPage } from "@/pages/ImprintPage";
+import { LicensePage } from "@/pages/LicensePage";
+import { PrivacyPage } from "@/pages/PrivacyPage";
 import type {
   ExtractionResponse,
   ReactionExtractionResponse,
@@ -172,6 +176,12 @@ function App() {
     switch (route) {
       case "/about":
         return <AboutPage />;
+      case "/license":
+        return <LicensePage />;
+      case "/imprint":
+        return <ImprintPage />;
+      case "/privacy":
+        return <PrivacyPage />;
       case "/browse":
         return (
           <BrowsePage
@@ -225,11 +235,12 @@ function App() {
 
   return (
     <ThemeProvider defaultTheme="system" storageKey="bchemxtract-theme">
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="flex min-h-screen flex-col bg-background text-foreground">
         <AppHeader />
-        <main className="mx-auto max-w-7xl px-6 pt-24 pb-24">
+        <main className="mx-auto w-full max-w-7xl flex-1 px-6 pt-24 pb-12">
           {renderRoute()}
         </main>
+        <SiteFooter />
         {/* Task 14: globally mounted so ⌘K works from any route. */}
         <CommandPalette />
       </div>
