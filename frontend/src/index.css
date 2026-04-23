@@ -371,8 +371,10 @@ body {
   --circle-transition: 0.3s cubic-bezier(0, -0.02, 0.35, 1.17);
   --liquid-transition: 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 
-  /* Original flask required vars */
-  --flask-diameter: 1.7em;
+  /* Original flask required vars (--flask-diameter at its original value;
+     the flask re-anchors its font-size below so all internal ems resolve
+     to the same pixel sizes as the original 34c059b toggle). */
+  --flask-diameter: 4.375em;
   --radius: 99em;
   --glass-edge: rgba(180, 210, 235, 0.45);
   --liquid-day: #0d9488;
@@ -465,6 +467,11 @@ body {
    ========================== */
 
 .theme-switch .flask {
+  /* Re-anchor font-size so every em in the original flask CSS resolves
+     to the same pixel sizes the original toggle had (at --toggle-size:
+     5.25px). Without this, a larger parent font-size scales the neck/
+     body/bubbles disproportionately. */
+  font-size: 5.25px;
   display: flex;
   flex-direction: column;
   align-items: center;
