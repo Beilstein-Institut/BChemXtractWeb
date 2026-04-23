@@ -6,9 +6,8 @@
  *   - Sticky column header row (uppercase captions, glass tint).
  *   - Zebra-striped rows (alt rows get `bg-surface-elevated`).
  *   - Click / keyboard-activate on a row to reload the extraction.
- *   - Per-row reload + delete affordances tucked in a trailing column,
- *     with pointer events stopped so the click doesn't bubble up to the
- *     row navigation.
+ *   - Per-row delete affordance tucked in a trailing column, with pointer
+ *     events stopped so the click doesn't bubble up to the row navigation.
  *   - CSV export uses {@link useCSVExport} and respects the active
  *     filtered slice, so "Export CSV" emits exactly what the user sees.
  *
@@ -25,8 +24,6 @@ import { format, formatDistanceToNow, differenceInDays } from "date-fns";
 import {
   ClockIcon,
   DownloadIcon,
-  LoaderIcon,
-  RotateCcwIcon,
   SearchIcon,
   Trash2Icon,
 } from "lucide-react";
@@ -98,38 +95,27 @@ function matchesQuery(entry: HistoryListItem, q: string): boolean {
 }
 
 /**
- * Row-level delete + reload controller. Kept inline so the parent row
- * can animate the opacity out while the delete request is in flight.
+ * Row-level delete controller. Kept inline so the parent row can
+ * animate the opacity out while the delete request is in flight.
+ * Row click is the single reload/open affordance — no per-row reload
+ * button. See commit history (I-1) for the drop rationale.
  */
 function HistoryRow({
   entry,
   index,
   onRowClick,
-  onReload,
   onDelete,
 }: {
   entry: HistoryListItem;
   index: number;
   onRowClick: () => Promise<void>;
-  onReload: () => Promise<void>;
   onDelete: () => Promise<void>;
 }) {
-  const [reloading, setReloading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [fading, setFading] = useState(false);
 
   const isEven = index % 2 === 0;
-
-  async function handleReloadClick(e: React.MouseEvent) {
-    e.stopPropagation();
-    setReloading(true);
-    try {
-      await onReload();
-    } finally {
-      setReloading(false);
-    }
-  }
 
   async function handleConfirmDelete() {
     setShowConfirm(false);
@@ -202,34 +188,11 @@ function HistoryRow({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    onClick={handleReloadClick}
-                    disabled={reloading || deleting}
-                    aria-label="Reload extraction"
-                    data-slot="history-row-reload"
-                    className="text-foreground-muted hover:text-primary"
-                  />
-                }
-              >
-                {reloading ? (
-                  <LoaderIcon className="size-4 animate-spin" />
-                ) : (
-                  <RotateCcwIcon className="size-4" />
-                )}
-              </TooltipTrigger>
-              <TooltipContent>Reload this extraction</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
                     onClick={(e: React.MouseEvent) => {
                       e.stopPropagation();
                       setShowConfirm(true);
                     }}
-                    disabled={reloading || deleting}
+                    disabled={deleting}
                     aria-label="Delete extraction"
                     data-slot="history-row-delete"
                     className="text-foreground-muted hover:text-destructive"
@@ -362,7 +325,6 @@ export function HistoryList({
               entry={entry}
               index={idx}
               onRowClick={() => handleRowClick(entry.id)}
-              onReload={() => handleRowClick(entry.id)}
               onDelete={() => onDelete(entry.id)}
             />
           ))}
