@@ -63,11 +63,6 @@ function renderInternalLink(link: FooterTextLink, className: string): React.Reac
 export function SiteFooter() {
   return (
     <Footer
-      logo={
-        <img src="/bchemxtract-logo.svg" alt="" aria-hidden="true" className="h-8 w-8 shrink-0" />
-      }
-      brandName={<BrandName className="text-xl" />}
-      brandLabel="BChemXtract"
       renderLink={renderInternalLink}
       socialLinks={[
         {
@@ -94,9 +89,17 @@ export function SiteFooter() {
       ]}
       copyright={{
         text: (
-          <>
-            © 2026 <BrandName />
-          </>
+          <span className="inline-flex items-center gap-2 whitespace-nowrap">
+            <img
+              src="/bchemxtract-logo.svg"
+              alt=""
+              aria-hidden="true"
+              className="h-5 w-5 shrink-0"
+            />
+            <span>
+              © 2026 <BrandName />
+            </span>
+          </span>
         ),
         license: "Open source",
       }}

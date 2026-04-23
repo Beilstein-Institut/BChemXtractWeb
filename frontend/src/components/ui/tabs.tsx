@@ -20,8 +20,15 @@ function Tabs({ className, orientation = "horizontal", ...props }: TabsPrimitive
   return (
     <TabsPrimitive.Root
       data-slot="tabs"
-      data-orientation={orientation}
-      className={cn("group/tabs flex gap-2 data-horizontal:flex-col", className)}
+      orientation={orientation}
+      className={cn(
+        "group/tabs flex gap-2",
+        // Base UI sets data-orientation on the root. For horizontal tabs
+        // the list sits on top of the panel (flex-col); vertical keeps
+        // flex-row so the list is a side rail.
+        "data-[orientation=horizontal]:flex-col",
+        className,
+      )}
       {...props}
     />
   );
@@ -32,8 +39,9 @@ const tabsListVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-surface-muted rounded-full p-1 group-data-vertical/tabs:flex-col",
-        line: "gap-1 bg-transparent rounded-none group-data-vertical/tabs:flex-col",
+        default:
+          "bg-surface-muted rounded-full p-1 group-data-[orientation=vertical]/tabs:flex-col",
+        line: "gap-1 bg-transparent rounded-none group-data-[orientation=vertical]/tabs:flex-col",
       },
     },
     defaultVariants: {
@@ -84,8 +92,8 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
         "group-data-[variant=line]/tabs-list:data-active:text-foreground",
         // Underline element for line variant
         "after:absolute after:bg-foreground after:opacity-0 after:transition-opacity",
-        "group-data-horizontal/tabs:after:inset-x-0 group-data-horizontal/tabs:after:-bottom-1 group-data-horizontal/tabs:after:h-0.5",
-        "group-data-vertical/tabs:after:inset-y-0 group-data-vertical/tabs:after:-right-1 group-data-vertical/tabs:after:w-0.5",
+        "group-data-[orientation=horizontal]/tabs:after:inset-x-0 group-data-[orientation=horizontal]/tabs:after:-bottom-1 group-data-[orientation=horizontal]/tabs:after:h-0.5",
+        "group-data-[orientation=vertical]/tabs:after:inset-y-0 group-data-[orientation=vertical]/tabs:after:-right-1 group-data-[orientation=vertical]/tabs:after:w-0.5",
         "group-data-[variant=line]/tabs-list:data-active:after:opacity-100",
         className,
       )}
