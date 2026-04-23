@@ -43,6 +43,12 @@ export interface BatchProgressProps {
 
 type StatTone = "default" | "secondary" | "destructive";
 
+const STAT_TONE_CLASS: Record<StatTone, string> = {
+  default: "text-foreground",
+  secondary: "text-secondary",
+  destructive: "text-destructive",
+};
+
 /**
  * useElapsedSeconds — ticks a whole-second counter while `active` is
  * true. The counter resets to 0 whenever `active` transitions from
@@ -121,12 +127,7 @@ function Stat({
   value: number;
   tone?: StatTone;
 }) {
-  const toneClass =
-    tone === "secondary"
-      ? "text-secondary"
-      : tone === "destructive"
-        ? "text-destructive"
-        : "text-foreground";
+  const toneClass = STAT_TONE_CLASS[tone];
   return (
     <div
       data-slot="batch-stat"
