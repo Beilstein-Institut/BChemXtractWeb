@@ -1,9 +1,9 @@
 /**
  * AppHeader — tests for the Phase 3 Liquid Glass chrome top bar (Task 7).
  *
- * Mocks @base-ui/react/menu + SearchInput + ThemeSwitch to isolate the
- * header shell. Asserts the sticky + glass token class cluster and
- * `data-slot` contract plus the Logo wordmark.
+ * Mocks @base-ui/react/menu + SearchInput + ChemistryThemeSwitch to
+ * isolate the header shell. Asserts the sticky + glass token class
+ * cluster and `data-slot` contract plus the Logo wordmark.
  */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -13,9 +13,9 @@ vi.mock("./SearchInput", () => ({
   SearchInput: () => <div data-testid="search-input" />,
 }));
 
-vi.mock("./ThemeSwitch", () => ({
-  ThemeSwitch: () => (
-    <button data-slot="theme-switch" aria-label="Theme: System" />
+vi.mock("./ChemistryThemeSwitch", () => ({
+  ChemistryThemeSwitch: () => (
+    <label data-slot="theme-switch" aria-label="Switch to dark mode" />
   ),
 }));
 
@@ -72,7 +72,7 @@ describe("AppHeader", () => {
     expect(nav.getAttribute("data-slot")).toBe("nav-links");
   });
 
-  it("renders the stubbed ThemeSwitch trigger", () => {
+  it("renders the stubbed ChemistryThemeSwitch trigger", () => {
     render(<AppHeader />);
     expect(
       document.querySelector('[data-slot="theme-switch"]'),

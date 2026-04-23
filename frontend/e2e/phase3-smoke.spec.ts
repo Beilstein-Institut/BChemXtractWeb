@@ -9,7 +9,7 @@
  * Conventions:
  *   - All selectors use `data-slot` hooks declared in the Phase 3 pages /
  *     components (BrowsePage, HistoryPage, AboutPage, CommandPalette,
- *     ThemeSwitch, StructureCard).
+ *     ChemistryThemeSwitch, StructureCard).
  *   - Each test navigates directly to the route under test and waits for
  *     the page's root `data-slot` before asserting child behaviour.
  */
@@ -173,19 +173,26 @@ test.describe("Phase 3 — Command palette (⌘K / Ctrl+K)", () => {
 });
 
 test.describe("Phase 3 — Theme switch", () => {
-  test("Dark selection toggles the `.dark` class on <html>", async ({ page }) => {
+  test("clicking the flask toggle flips the `.dark` class on <html>", async ({
+    page,
+  }) => {
     await page.goto("/");
+    // Seed a known light baseline so the click always transitions into dark
+    // regardless of the runner's OS preference.
+    await page.evaluate(() => {
+      localStorage.setItem("bchemxtract-theme", "light");
+    });
+    await page.reload();
+
     const html = page.locator("html");
     const toggle = page
       .locator("header")
       .locator('[data-slot="theme-switch"]');
 
-    // Single-shot: open the menu, click Dark, assert the class lands. The
-    // full Light→Dark→System cycle relies on a stable menu re-open animation
-    // which is flaky in headless Chromium; the single selection proves the
-    // provider contract just fine.
+    // The ChemistryThemeSwitch is a plain checkbox-backed label — one click
+    // flips state. No menu to open, so the assertion is a direct class
+    // check after the click lands.
     await toggle.click();
-    await page.getByRole("menuitemcheckbox", { name: "Dark" }).click();
     await expect(html).toHaveClass(/dark/);
   });
 });

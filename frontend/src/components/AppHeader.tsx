@@ -3,7 +3,7 @@ import { MenuIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/SearchInput";
 import { NavLinks } from "@/components/nav/NavLinks";
-import { ThemeSwitch } from "@/components/ThemeSwitch";
+import { ChemistryThemeSwitch } from "@/components/ChemistryThemeSwitch";
 import {
   Sheet,
   SheetTrigger,
@@ -62,7 +62,7 @@ function Logo() {
  *
  * Renders the sticky glass-tinted top bar with token-driven
  * backdrop-filter, wordmark logo, the 4-route NavLinks, global
- * SearchInput, ThemeSwitch, and a mobile hamburger that opens the
+ * SearchInput, ChemistryThemeSwitch, and a mobile hamburger that opens the
  * Base UI Sheet (Task 6 glass-tinted drawer).
  */
 export function AppHeader() {
@@ -87,7 +87,7 @@ export function AppHeader() {
         <SearchInput className="mx-4" />
 
         <div className="flex items-center gap-2">
-          <ThemeSwitch />
+          <ChemistryThemeSwitch />
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger
               render={

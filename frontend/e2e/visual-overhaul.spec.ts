@@ -47,41 +47,49 @@ test.describe("AppHeader", () => {
   });
 });
 
-test.describe("ThemeSwitch (Light / Dark / System)", () => {
+test.describe("ChemistryThemeSwitch (flask slider)", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
   });
 
-  test("theme-switch trigger exists in header", async ({ page }) => {
+  test("theme-switch toggle exists in header", async ({ page }) => {
     const toggle = page
       .locator("header")
       .locator('[data-slot="theme-switch"]');
     await expect(toggle).toBeVisible();
   });
 
-  test("selecting Dark from the menu adds the dark class on <html>", async ({
+  test("clicking the flask toggle adds the dark class on <html>", async ({
     page,
   }) => {
+    // Start from a known light baseline regardless of OS preference. The
+    // ThemeProvider persists this to localStorage.bchemxtract-theme.
+    await page.evaluate(() => {
+      localStorage.setItem("bchemxtract-theme", "light");
+    });
+    await page.reload();
+
     const html = page.locator("html");
     const toggle = page
       .locator("header")
       .locator('[data-slot="theme-switch"]');
     await toggle.click();
-
-    await page.getByRole("menuitemcheckbox", { name: "Dark" }).click();
     await expect(html).toHaveClass(/dark/);
   });
 
-  test("selecting Light from the menu removes the dark class on <html>", async ({
+  test("clicking the flask toggle again removes the dark class on <html>", async ({
     page,
   }) => {
+    await page.evaluate(() => {
+      localStorage.setItem("bchemxtract-theme", "dark");
+    });
+    await page.reload();
+
     const html = page.locator("html");
     const toggle = page
       .locator("header")
       .locator('[data-slot="theme-switch"]');
     await toggle.click();
-
-    await page.getByRole("menuitemcheckbox", { name: "Light" }).click();
     await expect(html).not.toHaveClass(/dark/);
   });
 });
