@@ -56,7 +56,7 @@ interface HistoryListProps {
   onReloadSuccess: (response: ExtractionResponse) => void;
 }
 
-/** Short relative-then-absolute date — matches HistoryEntry's formatting. */
+/** Short relative-then-absolute date used by each history row. */
 function formatEntryDate(dateStr: string): string {
   const date = new Date(dateStr);
   if (differenceInDays(new Date(), date) >= 7) {

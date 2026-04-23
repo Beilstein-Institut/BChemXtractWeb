@@ -41,8 +41,12 @@ import {
 export interface StructureBrowserProps {
   /** The extraction ID to browse. Null/undefined renders idle state. */
   extractionId: number | null | undefined;
-  /** Called when user wishes to reset back to upload state. */
-  onReset: () => void;
+  /**
+   * Kept for API compatibility with callers that previously let the browser
+   * reset back to the extract flow. Unused internally — reset navigation is
+   * now handled from the parent via routing.
+   */
+  onReset?: () => void;
   /**
    * Callback fired when the BrowseToolbar "Search within" button is clicked
    * (D-20). Forwarded to BrowseToolbar. When undefined, the button is hidden.
@@ -71,7 +75,7 @@ export interface StructureBrowserProps {
  * Build page number array with ellipsis. Max 5 page number buttons visible.
  * T-06-11: sheetIndex is clamped externally; this helper is pure pagination math.
  */
-export function buildPageNumbers(current: number, total: number): (number | "...")[] {
+function buildPageNumbers(current: number, total: number): (number | "...")[] {
   if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
   const pages: (number | "...")[] = [1];
   if (current > 3) pages.push("...");
@@ -89,7 +93,6 @@ export function buildPageNumbers(current: number, total: number): (number | "...
  */
 export function StructureBrowser({
   extractionId,
-  onReset: _onReset,
   onSearchWithin,
   reactionsAvailable = false,
   filters,

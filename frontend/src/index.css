@@ -36,6 +36,19 @@
   --font-sans:    var(--font-sans);
   --font-mono:    var(--font-mono);
   --font-display: var(--font-display);
+
+  /* Typography scale aliases — register with `@theme` so Tailwind generates
+   * `text-caption`, `text-display-lg`, etc. as real utilities. Without this
+   * the classes silently fall back (Phase 3 Task 15 polish).
+   */
+  --text-display-2xl: var(--text-display-2xl);
+  --text-display-xl:  var(--text-display-xl);
+  --text-display-lg:  var(--text-display-lg);
+  --text-body-lg:     var(--text-body-lg);
+  --text-body-md:     var(--text-body-md);
+  --text-body-sm:     var(--text-body-sm);
+  --text-caption:     var(--text-caption);
+  --text-mono-sm:     var(--text-mono-sm);
 }
 
 body {

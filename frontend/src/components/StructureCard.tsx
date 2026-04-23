@@ -243,6 +243,16 @@ export function StructureCard({
                 />
               )}
             </Button>
+            {/* Polite live region so screen readers announce the copy
+                confirmation. The visible state change is on the button icon;
+                this lets non-sighted users hear the same feedback. */}
+            <span
+              data-slot="structure-card-share-status"
+              aria-live="polite"
+              className="sr-only"
+            >
+              {shared ? "Share link copied to clipboard" : ""}
+            </span>
           </div>
           <span
             data-slot="structure-card-details"
