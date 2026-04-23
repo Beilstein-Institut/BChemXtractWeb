@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import {
   AlertTriangleIcon,
   FileIcon,
+  SparklesIcon,
   UploadCloudIcon,
   XIcon,
 } from "lucide-react";
@@ -301,6 +302,7 @@ export function FileUpload({
             size="lg"
             className="w-full rounded-full"
             disabled={hasOversizeFile}
+            icon={<SparklesIcon />}
             onClick={() => {
               onStartBatch?.(queuedFiles);
               setQueuedFiles([]);

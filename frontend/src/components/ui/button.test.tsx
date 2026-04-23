@@ -1,9 +1,10 @@
 /**
- * Button — tests for the Phase 3 Liquid Glass surface primitive (Task 3).
+ * Button — tests for the Phase 3 Liquid Glass surface primitive.
  *
  * Covers: render, data-slot + data-variant contract, click handler,
  * disabled behavior (no click fires), focus-visible ring class,
- * variant class resolution, and size class resolution.
+ * variant class resolution (claymorphism utilities), size class
+ * resolution, and the optional `icon` prop's circular sub-wrapper.
  */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
@@ -68,41 +69,41 @@ describe("Button", () => {
     expect(btn.className).toContain("focus-visible:ring-ring");
   });
 
-  it("resolves primary variant to the shiny primary utility", () => {
+  it("resolves primary variant to the clay primary utility", () => {
     render(<Button variant="primary">x</Button>);
     const btn = screen.getByRole("button");
-    expect(btn.className).toContain("btn-shiny");
-    expect(btn.className).toContain("btn-shiny-primary");
+    expect(btn.className).toContain("btn-clay");
+    expect(btn.className).toContain("btn-clay-primary");
   });
 
-  it("resolves default variant to the shiny primary utility (alias)", () => {
+  it("resolves default variant to the clay primary utility (alias)", () => {
     render(<Button>x</Button>);
     const btn = screen.getByRole("button");
-    expect(btn.className).toContain("btn-shiny-primary");
+    expect(btn.className).toContain("btn-clay-primary");
   });
 
-  it("resolves secondary variant to the shiny secondary utility", () => {
+  it("resolves secondary variant to the clay secondary utility", () => {
     render(<Button variant="secondary">x</Button>);
     const btn = screen.getByRole("button");
-    expect(btn.className).toContain("btn-shiny-secondary");
+    expect(btn.className).toContain("btn-clay-secondary");
   });
 
-  it("resolves outline variant to the shiny outline utility", () => {
+  it("resolves outline variant to the clay outline utility", () => {
     render(<Button variant="outline">x</Button>);
     const btn = screen.getByRole("button");
-    expect(btn.className).toContain("btn-shiny-outline");
+    expect(btn.className).toContain("btn-clay-outline");
   });
 
-  it("resolves ghost variant to the shiny ghost utility", () => {
+  it("resolves ghost variant to the clay ghost utility", () => {
     render(<Button variant="ghost">x</Button>);
     const btn = screen.getByRole("button");
-    expect(btn.className).toContain("btn-shiny-ghost");
+    expect(btn.className).toContain("btn-clay-ghost");
   });
 
-  it("resolves destructive variant to the shiny destructive utility", () => {
+  it("resolves destructive variant to the clay destructive utility", () => {
     render(<Button variant="destructive">x</Button>);
     const btn = screen.getByRole("button");
-    expect(btn.className).toContain("btn-shiny-destructive");
+    expect(btn.className).toContain("btn-clay-destructive");
   });
 
   it("applies the lg size height", () => {
@@ -128,5 +129,28 @@ describe("Button", () => {
   it("forwards className into the generated class string", () => {
     render(<Button className="my-btn">x</Button>);
     expect(screen.getByRole("button").className).toContain("my-btn");
+  });
+
+  it("applies rounded-xl at default size for the chunky clay silhouette", () => {
+    render(<Button>x</Button>);
+    expect(screen.getByRole("button").className).toContain("rounded-xl");
+  });
+
+  it("wraps the icon prop in a circular sub-wrapper (.btn-clay__icon)", () => {
+    render(
+      <Button icon={<svg data-testid="icon-svg" />}>Send</Button>
+    );
+    const btn = screen.getByRole("button", { name: "Send" });
+    const iconWrapper = btn.querySelector(".btn-clay__icon");
+    expect(iconWrapper).not.toBeNull();
+    expect(iconWrapper?.getAttribute("aria-hidden")).toBe("true");
+    // The icon is rendered inside the wrapper.
+    expect(iconWrapper?.querySelector('[data-testid="icon-svg"]')).not.toBeNull();
+  });
+
+  it("omits the icon sub-wrapper when no icon prop is passed", () => {
+    render(<Button>Plain</Button>);
+    const btn = screen.getByRole("button", { name: "Plain" });
+    expect(btn.querySelector(".btn-clay__icon")).toBeNull();
   });
 });

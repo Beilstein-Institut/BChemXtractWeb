@@ -1,4 +1,9 @@
-import { CheckCircle2Icon, DownloadIcon, XCircleIcon } from "lucide-react";
+import {
+  CheckCircle2Icon,
+  DownloadIcon,
+  PlusIcon,
+  XCircleIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { downloadBatchZip } from "@/lib/apiClient";
@@ -100,7 +105,12 @@ export function BatchSummary({
           Batch complete
         </h2>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={onReset}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onReset}
+            icon={<PlusIcon />}
+          >
             New batch
           </Button>
           <Button
@@ -108,8 +118,8 @@ export function BatchSummary({
             size="sm"
             className="rounded-full"
             onClick={handleDownloadZip}
+            icon={<DownloadIcon />}
           >
-            <DownloadIcon className="size-4" aria-hidden="true" />
             Download ZIP
           </Button>
         </div>

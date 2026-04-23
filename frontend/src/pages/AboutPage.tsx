@@ -146,18 +146,21 @@ function HeroTile() {
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <Link to="/" className={buttonVariants({ size: "lg" })}>
-          Start extracting
+          <span className="btn-clay__icon" aria-hidden="true">
+            <FlaskConicalIcon />
+          </span>
+          <span>Start extracting</span>
         </Link>
         <a
           href="https://github.com/Beilstein-Institut/BChemXtract"
           target="_blank"
           rel="noreferrer"
-          className={
-            buttonVariants({ variant: "outline", size: "lg" }) + " gap-2"
-          }
+          className={buttonVariants({ variant: "outline", size: "lg" })}
         >
-          View on GitHub
-          <ArrowUpRightIcon className="size-4" />
+          <span className="btn-clay__icon" aria-hidden="true">
+            <ArrowUpRightIcon />
+          </span>
+          <span>View on GitHub</span>
         </a>
       </div>
     </article>

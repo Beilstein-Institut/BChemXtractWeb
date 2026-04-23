@@ -398,8 +398,8 @@ function Toolbar({
           disabled={exportDisabled}
           data-slot="history-export-csv"
           aria-label="Export history to CSV"
+          icon={<DownloadIcon />}
         >
-          <DownloadIcon className="size-4" />
           Export CSV
         </Button>
       </div>

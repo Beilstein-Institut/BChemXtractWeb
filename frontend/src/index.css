@@ -51,118 +51,256 @@
   --text-mono-sm:     var(--text-mono-sm);
 }
 
-/* Shiny layered-gradient Button variants (Phase 3 Task 18).
+/* Claymorphism Button variants (Phase 3 Task 20).
  * Utilities that back the CVA in components/ui/button.tsx so the CVA
  * stays terse. Palette references crimson / teal / navy via the token
  * layer's --color-primary / --color-secondary / --color-foreground and
- * --color-destructive vars. Uses plain color-mix(in oklch, …) rather
- * than relative-color syntax for Tailwind-4 friendliness.
+ * --color-destructive vars.
+ *
+ * Claymorphism traits adapted here:
+ *   - Chunky rounded silhouette (radius comes from CVA via `rounded-xl`)
+ *   - 2-stop vertical gradient fills, light-to-dark of the variant hue
+ *   - Soft multi-layer shadows: outer drop + inner top highlight + inner
+ *     bottom depth → pressed-plasticky-clay feel
+ *   - translateY(-3px) lift on hover; scale(0.95) press on active
+ *   - Optional circular icon sub-wrapper (.btn-clay__icon) — semi-
+ *     transparent white that brightens on hover; icon rotates 45°
+ *
+ * Uses plain color-mix(in oklch, …) for Tailwind-4 friendliness. All
+ * motion honors prefers-reduced-motion; fills flatten under
+ * prefers-reduced-transparency.
  */
 @layer components {
-  /* Shared base for all shiny variants */
-  .btn-shiny {
+  /* Shared base for claymorphism buttons */
+  .btn-clay {
     position: relative;
-    overflow: hidden;
-    transition: box-shadow 0.3s ease, transform 0.15s ease;
+    transition:
+      transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.25s ease,
+      background-position 0.3s ease;
+    background-size: 100% 200%;
+    background-position: 0 0;
   }
-  .btn-shiny:hover {
-    box-shadow: 0 0 20px color-mix(in oklch, var(--shiny-accent, var(--color-primary)) 30%, transparent);
+  .btn-clay:hover:not(:disabled) {
+    transform: translateY(-3px);
+  }
+  .btn-clay:active:not(:disabled) {
+    transform: scale(0.95);
+    transition-duration: 0.08s;
   }
 
-  /* Primary: navy base + crimson glow */
-  .btn-shiny-primary {
-    --shiny-accent: var(--color-primary);
-    background-image:
-      linear-gradient(180deg,
-        color-mix(in oklch, var(--color-foreground) 85%, var(--color-primary)) 0%,
-        var(--color-foreground) 50%,
-        color-mix(in oklch, var(--color-foreground) 75%, var(--color-primary)) 100%);
-    color: color-mix(in oklch, var(--color-primary) 40%, white);
+  /* Icon sub-wrapper — circular, semi-transparent white */
+  .btn-clay__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75em;
+    height: 1.75em;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.2);
+    margin-right: 0.45em;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    flex-shrink: 0;
+  }
+  .btn-clay:hover:not(:disabled) .btn-clay__icon {
+    background-color: rgba(255, 255, 255, 0.5);
+  }
+  .btn-clay:hover:not(:disabled) .btn-clay__icon > svg {
+    transform: rotate(45deg);
+  }
+  .btn-clay__icon > svg {
+    width: 1em;
+    height: 1em;
+    transition: transform 0.3s ease;
+  }
+
+  /* Variant fills — vibrant 2-stop gradients */
+
+  /* Primary: crimson */
+  .btn-clay-primary {
+    background-image: linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--color-primary) 65%, white) 0%,
+      var(--color-primary) 100%
+    );
+    color: var(--color-primary-foreground);
     box-shadow:
-      inset 0 0 18px color-mix(in oklch, var(--color-primary) 25%, transparent),
-      inset 0 1px 0 color-mix(in oklch, white 15%, transparent);
-    border: 1px solid color-mix(in oklch, var(--color-primary) 45%, transparent);
+      0 5px 10px color-mix(in oklch, var(--color-primary) 25%, transparent),
+      0 10px 20px color-mix(in oklch, var(--color-primary) 10%, transparent),
+      inset 0 2px 0 rgba(255, 255, 255, 0.35),
+      inset 0 -3px 0 color-mix(in oklch, var(--color-primary) 40%, black);
+    border: none;
   }
-  .btn-shiny-primary:hover {
-    background-image:
-      linear-gradient(180deg,
-        color-mix(in oklch, var(--color-foreground) 75%, var(--color-primary)) 0%,
-        color-mix(in oklch, var(--color-foreground) 92%, var(--color-primary)) 50%,
-        color-mix(in oklch, var(--color-foreground) 70%, var(--color-primary)) 100%);
-  }
-
-  /* Secondary: navy base + teal glow */
-  .btn-shiny-secondary {
-    --shiny-accent: var(--color-secondary);
-    background-image:
-      linear-gradient(180deg,
-        color-mix(in oklch, var(--color-foreground) 85%, var(--color-secondary)) 0%,
-        var(--color-foreground) 50%,
-        color-mix(in oklch, var(--color-foreground) 75%, var(--color-secondary)) 100%);
-    color: color-mix(in oklch, var(--color-secondary) 50%, white);
+  .btn-clay-primary:hover:not(:disabled) {
     box-shadow:
-      inset 0 0 18px color-mix(in oklch, var(--color-secondary) 25%, transparent),
-      inset 0 1px 0 color-mix(in oklch, white 15%, transparent);
-    border: 1px solid color-mix(in oklch, var(--color-secondary) 45%, transparent);
+      0 8px 18px color-mix(in oklch, var(--color-primary) 35%, transparent),
+      0 14px 28px color-mix(in oklch, var(--color-primary) 15%, transparent),
+      inset 0 2px 0 rgba(255, 255, 255, 0.4),
+      inset 0 -3px 0 color-mix(in oklch, var(--color-primary) 45%, black);
   }
-
-  /* Destructive: navy base + red glow */
-  .btn-shiny-destructive {
-    --shiny-accent: var(--color-destructive);
-    background-image:
-      linear-gradient(180deg,
-        color-mix(in oklch, var(--color-foreground) 80%, var(--color-destructive)) 0%,
-        var(--color-foreground) 50%,
-        color-mix(in oklch, var(--color-foreground) 70%, var(--color-destructive)) 100%);
-    color: color-mix(in oklch, var(--color-destructive) 40%, white);
+  .btn-clay-primary:active:not(:disabled) {
     box-shadow:
-      inset 0 0 18px color-mix(in oklch, var(--color-destructive) 25%, transparent),
-      inset 0 1px 0 color-mix(in oklch, white 15%, transparent);
-    border: 1px solid color-mix(in oklch, var(--color-destructive) 45%, transparent);
+      0 2px 5px color-mix(in oklch, var(--color-primary) 25%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      inset 0 -2px 0 color-mix(in oklch, var(--color-primary) 45%, black);
   }
 
-  /* Outline: gradient border, transparent fill */
-  .btn-shiny-outline {
-    --shiny-accent: var(--color-primary);
-    background: transparent;
+  /* Secondary: teal */
+  .btn-clay-secondary {
+    background-image: linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--color-secondary) 60%, white) 0%,
+      var(--color-secondary) 100%
+    );
+    color: var(--color-secondary-foreground);
+    box-shadow:
+      0 5px 10px color-mix(in oklch, var(--color-secondary) 25%, transparent),
+      0 10px 20px color-mix(in oklch, var(--color-secondary) 10%, transparent),
+      inset 0 2px 0 rgba(255, 255, 255, 0.35),
+      inset 0 -3px 0 color-mix(in oklch, var(--color-secondary) 40%, black);
+    border: none;
+  }
+  .btn-clay-secondary:hover:not(:disabled) {
+    box-shadow:
+      0 8px 18px color-mix(in oklch, var(--color-secondary) 35%, transparent),
+      0 14px 28px color-mix(in oklch, var(--color-secondary) 15%, transparent),
+      inset 0 2px 0 rgba(255, 255, 255, 0.4),
+      inset 0 -3px 0 color-mix(in oklch, var(--color-secondary) 45%, black);
+  }
+  .btn-clay-secondary:active:not(:disabled) {
+    box-shadow:
+      0 2px 5px color-mix(in oklch, var(--color-secondary) 25%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      inset 0 -2px 0 color-mix(in oklch, var(--color-secondary) 45%, black);
+  }
+
+  /* Destructive: red-crimson */
+  .btn-clay-destructive {
+    background-image: linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--color-destructive) 65%, white) 0%,
+      var(--color-destructive) 100%
+    );
+    color: white;
+    box-shadow:
+      0 5px 10px color-mix(in oklch, var(--color-destructive) 25%, transparent),
+      0 10px 20px color-mix(in oklch, var(--color-destructive) 10%, transparent),
+      inset 0 2px 0 rgba(255, 255, 255, 0.35),
+      inset 0 -3px 0 color-mix(in oklch, var(--color-destructive) 40%, black);
+    border: none;
+  }
+  .btn-clay-destructive:hover:not(:disabled) {
+    box-shadow:
+      0 8px 18px color-mix(in oklch, var(--color-destructive) 35%, transparent),
+      0 14px 28px color-mix(in oklch, var(--color-destructive) 15%, transparent),
+      inset 0 2px 0 rgba(255, 255, 255, 0.4),
+      inset 0 -3px 0 color-mix(in oklch, var(--color-destructive) 45%, black);
+  }
+  .btn-clay-destructive:active:not(:disabled) {
+    box-shadow:
+      0 2px 5px color-mix(in oklch, var(--color-destructive) 25%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      inset 0 -2px 0 color-mix(in oklch, var(--color-destructive) 45%, black);
+  }
+
+  /* Outline: neutral warm off-white base with crimson accent border */
+  .btn-clay-outline {
+    background-image: linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--color-surface) 95%, white) 0%,
+      var(--color-surface-elevated) 100%
+    );
     color: var(--color-foreground);
-    border: 1px solid transparent;
-    background-image:
-      linear-gradient(var(--color-background), var(--color-background)),
-      linear-gradient(90deg, var(--color-primary), var(--color-secondary), var(--color-primary));
-    background-origin: border-box;
-    background-clip: padding-box, border-box;
+    box-shadow:
+      0 4px 8px rgba(0, 0, 0, 0.08),
+      0 8px 16px rgba(0, 0, 0, 0.04),
+      inset 0 2px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 0 1.5px color-mix(in oklch, var(--color-primary) 30%, transparent);
+    border: none;
   }
-  .btn-shiny-outline:hover {
-    background-image:
-      linear-gradient(color-mix(in oklch, var(--color-primary) 8%, var(--color-background)),
-                      color-mix(in oklch, var(--color-primary) 8%, var(--color-background))),
-      linear-gradient(90deg, var(--color-primary), var(--color-secondary), var(--color-primary));
+  .btn-clay-outline:hover:not(:disabled) {
+    background-image: linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--color-primary) 10%, white) 0%,
+      color-mix(in oklch, var(--color-primary) 15%, var(--color-surface-elevated)) 100%
+    );
     color: var(--color-primary);
+    box-shadow:
+      0 6px 12px rgba(0, 0, 0, 0.1),
+      0 12px 24px rgba(0, 0, 0, 0.05),
+      inset 0 2px 0 rgba(255, 255, 255, 0.55),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 0 1.5px var(--color-primary);
+  }
+  .btn-clay-outline:active:not(:disabled) {
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.05),
+      inset 0 0 0 1.5px var(--color-primary);
+  }
+  .btn-clay-outline .btn-clay__icon {
+    background-color: color-mix(in oklch, var(--color-primary) 15%, transparent);
+  }
+  .btn-clay-outline:hover:not(:disabled) .btn-clay__icon {
+    background-color: color-mix(in oklch, var(--color-primary) 25%, transparent);
   }
 
-  /* Ghost: transparent default, shiny fill on hover */
-  .btn-shiny-ghost {
-    --shiny-accent: var(--color-primary);
-    background: transparent;
+  /* Ghost: transparent default, subtle claymorphism on hover */
+  .btn-clay-ghost {
+    background-image: linear-gradient(to bottom, transparent 0%, transparent 100%);
     color: var(--color-foreground);
-    border: 1px solid transparent;
+    box-shadow: none;
+    border: none;
   }
-  .btn-shiny-ghost:hover {
-    background-image:
-      linear-gradient(180deg,
-        color-mix(in oklch, var(--color-primary) 12%, transparent) 0%,
-        color-mix(in oklch, var(--color-primary) 18%, transparent) 100%);
+  .btn-clay-ghost:hover:not(:disabled) {
+    background-image: linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--color-primary) 12%, transparent) 0%,
+      color-mix(in oklch, var(--color-primary) 18%, transparent) 100%
+    );
     color: var(--color-primary);
-    border-color: color-mix(in oklch, var(--color-primary) 25%, transparent);
+    box-shadow:
+      0 4px 8px color-mix(in oklch, var(--color-primary) 15%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+  .btn-clay-ghost .btn-clay__icon {
+    background-color: color-mix(in oklch, var(--color-primary) 10%, transparent);
+  }
+  .btn-clay-ghost:hover:not(:disabled) .btn-clay__icon {
+    background-color: color-mix(in oklch, var(--color-primary) 30%, transparent);
   }
 
+  /* Reduced motion */
   @media (prefers-reduced-motion: reduce) {
-    .btn-shiny, .btn-shiny:hover { transition: none; }
+    .btn-clay,
+    .btn-clay__icon,
+    .btn-clay__icon > svg {
+      transition: none !important;
+    }
+    .btn-clay:hover:not(:disabled),
+    .btn-clay:active:not(:disabled) {
+      transform: none;
+    }
+    .btn-clay:hover:not(:disabled) .btn-clay__icon > svg {
+      transform: none;
+    }
   }
+
+  /* Reduced transparency — fall back to solid fills */
   @media (prefers-reduced-transparency: reduce) {
-    .btn-shiny-primary, .btn-shiny-secondary, .btn-shiny-destructive {
-      box-shadow: none;
+    .btn-clay-primary {
+      background-image: linear-gradient(to bottom, var(--color-primary), var(--color-primary));
+    }
+    .btn-clay-secondary {
+      background-image: linear-gradient(to bottom, var(--color-secondary), var(--color-secondary));
+    }
+    .btn-clay-destructive {
+      background-image: linear-gradient(to bottom, var(--color-destructive), var(--color-destructive));
+    }
+    .btn-clay-outline {
+      background-image: linear-gradient(to bottom, var(--color-surface), var(--color-surface));
     }
   }
 }

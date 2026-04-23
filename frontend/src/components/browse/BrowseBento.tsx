@@ -25,7 +25,12 @@
  * present, clearly labelled "Featured" in the tile heading.
  */
 import type { MouseEventHandler } from "react";
-import { ArrowRightIcon, FlaskConicalIcon, LayoutGridIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  CompassIcon,
+  FlaskConicalIcon,
+  LayoutGridIcon,
+} from "lucide-react";
 
 import { BentoGrid } from "@/components/layout/BentoGrid";
 import { BentoCell } from "@/components/layout/BentoCell";
@@ -251,6 +256,7 @@ function BrowseAllTile({
           onClick={onClick}
           data-slot="browse-bento-cta-button"
           className="self-start"
+          icon={<CompassIcon />}
         >
           Open grid
           <ArrowRightIcon className="size-3.5" aria-hidden="true" />
