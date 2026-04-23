@@ -41,6 +41,7 @@ function CommandDialog({
   children,
   className,
   showCloseButton = false,
+  "data-slot": dataSlot,
   ...props
 }: Omit<React.ComponentProps<typeof Dialog>, "children"> & {
   title?: string
@@ -48,6 +49,8 @@ function CommandDialog({
   className?: string
   showCloseButton?: boolean
   children: React.ReactNode
+  /** Forwarded to the inner Command root so callers can tag the DOM node. */
+  "data-slot"?: string
 }) {
   return (
     <Dialog {...props}>
@@ -62,7 +65,12 @@ function CommandDialog({
         )}
         showCloseButton={showCloseButton}
       >
-        {children}
+        <Command
+          data-slot={dataSlot ?? "command"}
+          className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-foreground-muted"
+        >
+          {children}
+        </Command>
       </DialogContent>
     </Dialog>
   )

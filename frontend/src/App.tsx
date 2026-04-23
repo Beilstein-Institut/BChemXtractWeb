@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { AppHeader } from "@/components/AppHeader";
+import { CommandPalette } from "@/components/CommandPalette";
 import { SearchResults } from "@/components/SearchResults";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useBatch } from "@/hooks/useBatch";
@@ -229,6 +230,8 @@ function App() {
         <main className="mx-auto max-w-[980px] px-6 pt-24 pb-24">
           {renderRoute()}
         </main>
+        {/* Task 14: globally mounted so ⌘K works from any route. */}
+        <CommandPalette />
       </div>
       <Toaster richColors />
     </ThemeProvider>

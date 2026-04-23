@@ -43,9 +43,10 @@ import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/internal/CopyButton";
 import { ExportMenu } from "@/components/ExportMenu";
 import { StructureDetail } from "@/components/StructureDetail";
+import { useShareLink } from "@/hooks/useShareLink";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { postExport } from "@/lib/apiClient";
-import { safeClipboardText, safeDownloadSlug } from "@/lib/safeStrings";
+import { safeDownloadSlug } from "@/lib/safeStrings";
 import { cn } from "@/lib/utils";
 import type { SubstanceResponse } from "@/types/chemistry";
 import type { ExportFormat } from "@/types/export";
@@ -109,7 +110,7 @@ export function StructureCard({
   className,
 }: StructureCardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [shared, setShared] = useState(false);
+  const { shared, share } = useShareLink();
 
   const svgSrc = useSvgObjectUrl(substance.svg);
 
@@ -143,26 +144,21 @@ export function StructureCard({
     }
   }
 
-  // Inline share action — copies a browse-anchored URL keyed by the InChI
-  // hash so recipients land on the same structure. Task 14 will extract this
-  // into a `useShareLink` hook; keeping it inline here avoids a premature
-  // abstraction.
+  // Delegate to useShareLink (Task 14) — the hook owns URL-building,
+  // clipboard write, the transient "shared" flag, and the 2 s reset-timer
+  // cleanup that was previously inlined here. We still stopPropagation on
+  // the click event so the wrapping card's onClick/keyboard handlers don't
+  // fire when the user taps the share icon.
   const handleShare = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (!substance.inchi_key) return;
       try {
-        const url = `${window.location.origin}/browse#s=${encodeURIComponent(
-          substance.inchi_key
-        )}`;
-        await navigator.clipboard.writeText(safeClipboardText(url));
-        setShared(true);
-        window.setTimeout(() => setShared(false), 2000);
+        await share(substance.inchi_key);
       } catch {
         toast.error("Could not copy share link.");
       }
     },
-    [substance.inchi_key]
+    [share, substance.inchi_key]
   );
 
   /** Shared card inner content (SVG + metadata) used in both render modes. */
