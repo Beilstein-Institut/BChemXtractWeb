@@ -13,7 +13,7 @@ import { BrowseToolbar } from "./BrowseToolbar";
 vi.mock("@base-ui/react/toggle-group", () => {
   const React = require("react");
   return {
-    ToggleGroup: ({ children, value, onValueChange, ...rest }: { children?: React.ReactNode; value?: string; onValueChange?: (v: string) => void; [key: string]: unknown }) =>
+    ToggleGroup: ({ children, value, ...rest }: { children?: React.ReactNode; value?: string; [key: string]: unknown }) =>
       React.createElement("div", { "data-testid": "toggle-group", "data-value": value, ...rest }, children),
   };
 });

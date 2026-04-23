@@ -28,3 +28,25 @@ Object.defineProperty(window, "localStorage", {
   writable: true,
   value: new MemoryStorage(),
 });
+
+// jsdom doesn't ship ResizeObserver — cmdk (Command palette) and several
+// Base UI primitives reference it during mount. Register a no-op globally so
+// individual test files don't have to repeat the stub. (Task 14 M-1 / 15.)
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+(globalThis as unknown as { ResizeObserver: typeof ResizeObserverStub }).ResizeObserver =
+  ResizeObserverStub;
+
+// jsdom elements don't implement scrollIntoView — cmdk calls it when focusing
+// a newly-selected item, and some of our own components scroll targets into
+// view. Stub to a no-op so the mount never throws.
+if (!("scrollIntoView" in Element.prototype)) {
+  Object.defineProperty(Element.prototype, "scrollIntoView", {
+    writable: true,
+    configurable: true,
+    value: () => {},
+  });
+}

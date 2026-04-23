@@ -21,24 +21,8 @@ import {
   vi,
 } from "vitest";
 
-// jsdom doesn't ship ResizeObserver; cmdk references it during mount.
-class ResizeObserverStub {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
-(globalThis as unknown as { ResizeObserver: typeof ResizeObserverStub }).ResizeObserver =
-  ResizeObserverStub;
-
-// jsdom elements don't have scrollIntoView — cmdk calls it when focusing
-// a newly-selected item. Stub to a no-op so the mount doesn't throw.
-if (!("scrollIntoView" in Element.prototype)) {
-  Object.defineProperty(Element.prototype, "scrollIntoView", {
-    writable: true,
-    configurable: true,
-    value: () => {},
-  });
-}
+// ResizeObserver + scrollIntoView stubs live in `src/test-setup.ts` so
+// cmdk and Base UI mounts work across every test file (Task 15 M-1).
 
 // Mock the Base UI Dialog root so the portal always renders children inline.
 vi.mock("@base-ui/react/dialog", async () => {

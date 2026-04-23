@@ -24,7 +24,7 @@ vi.mock("@base-ui/react/checkbox", () => {
   const React = require("react");
   return {
     Checkbox: {
-      Root: ({ children, checked, onCheckedChange, "aria-label": ariaLabel, className, ...rest }: {
+      Root: ({ children: _children, checked, onCheckedChange, "aria-label": ariaLabel, className, ...rest }: {
         children?: React.ReactNode;
         checked?: boolean;
         onCheckedChange?: (checked: boolean) => void;
@@ -101,7 +101,6 @@ function makeSubstance(id: number, overrides?: Partial<SubstanceResponse>): Subs
 }
 
 const noop = () => {};
-const noopAsync = async () => {};
 
 import { StructureTable } from "./StructureTable";
 
