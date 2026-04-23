@@ -191,18 +191,14 @@ export function FileUpload({
       />
 
       <div
-        role="button"
-        tabIndex={0}
-        aria-label="Upload CDX or CDXML file"
         data-slot="drop-zone"
         data-drag-over={isDragOver ? "true" : undefined}
         className={cn(
-          "relative flex min-h-[400px] w-full cursor-pointer flex-col items-center justify-center gap-4 p-8",
+          "relative flex min-h-[400px] w-full flex-col items-center justify-center gap-4 p-8",
           "rounded-xl border-2 border-dashed bg-surface-elevated",
           "transition-colors duration-200",
-          "border-border hover:border-primary/60 hover:bg-accent/30",
+          "border-border has-[button:hover]:border-primary/40",
           "data-[drag-over=true]:border-primary data-[drag-over=true]:bg-accent/40",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         )}
         onDragOver={(e) => {
           e.preventDefault();
@@ -214,13 +210,6 @@ export function FileUpload({
         }}
         onDragLeave={() => setIsDragOver(false)}
         onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            fileInputRef.current?.click();
-          }
-        }}
       >
         <UploadCloudIcon
           aria-hidden="true"
@@ -233,9 +222,9 @@ export function FileUpload({
           <p className="text-sm text-foreground-muted">or click to browse</p>
         </div>
         <StardustButton
-          className="pointer-events-none"
-          tabIndex={-1}
+          aria-label="Upload CDX or CDXML file"
           label="Extract structures"
+          onClick={() => fileInputRef.current?.click()}
         />
         <p className="text-xs text-foreground-muted">
           Supports .cdx and .cdxml &mdash; up to 50 MB &middot; 20 files per batch

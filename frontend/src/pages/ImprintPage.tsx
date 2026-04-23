@@ -43,7 +43,7 @@ const ENTITY: LabelledEntry[] = [
     value: (
       <a
         href="mailto:info@beilstein-institut.de"
-        className="text-primary underline-offset-2 hover:underline"
+        className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
       >
         info@beilstein-institut.de
       </a>
@@ -56,7 +56,7 @@ const ENTITY: LabelledEntry[] = [
         href="https://www.beilstein-institut.de/"
         target="_blank"
         rel="noreferrer"
-        className="text-primary underline-offset-2 hover:underline"
+        className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
       >
         www.beilstein-institut.de
       </a>
@@ -186,7 +186,7 @@ export function ImprintPage() {
           href="https://www.beilstein-institut.de/en/impressum/"
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1 text-primary underline-offset-2 hover:underline"
+          className="inline-flex items-center gap-1 text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
         >
           beilstein-institut.de/en/impressum/
           <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />

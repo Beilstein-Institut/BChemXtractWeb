@@ -44,7 +44,7 @@ const TOPICS: Topic[] = [
           email:{" "}
           <a
             href="mailto:info@beilstein-institut.de"
-            className="text-primary underline-offset-2 hover:underline"
+            className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
           >
             info@beilstein-institut.de
           </a>
@@ -52,7 +52,7 @@ const TOPICS: Topic[] = [
           at{" "}
           <a
             href="mailto:datenschutz@beilstein-institut.de"
-            className="text-primary underline-offset-2 hover:underline"
+            className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
           >
             datenschutz@beilstein-institut.de
           </a>
@@ -80,7 +80,7 @@ const TOPICS: Topic[] = [
           Extracted structures are deduplicated by InChIKey and stored as
           SMILES, InChI, molecular formula, MDL V3000 block, and rendered
           SVG. These records are retained until you delete them via the{" "}
-          <Link to="/history" className="text-primary underline-offset-2 hover:underline">
+          <Link to="/history" className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary">
             History page
           </Link>
           .
@@ -274,7 +274,7 @@ export function PrivacyPage() {
           href="https://www.beilstein-institut.de/en/privacy-policy/"
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1 text-primary underline-offset-2 hover:underline"
+          className="inline-flex items-center gap-1 text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
         >
           Beilstein-Institut's full privacy policy
           <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />

@@ -138,7 +138,7 @@ export function LicensePage() {
             href="https://github.com/Beilstein-Institut/BChemXtractWeb/blob/main/LICENSE"
             target="_blank"
             rel="noreferrer"
-            className="text-primary underline-offset-2 hover:underline"
+            className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
           >
             LICENSE file at the repository root
           </a>
@@ -170,7 +170,7 @@ export function LicensePage() {
             href="https://github.com/Beilstein-Institut/BChemXtractWeb/blob/main/frontend/package.json"
             target="_blank"
             rel="noreferrer"
-            className="text-primary underline-offset-2 hover:underline"
+            className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
           >
             frontend/package.json
           </a>{" "}
@@ -179,7 +179,7 @@ export function LicensePage() {
             href="https://github.com/Beilstein-Institut/BChemXtractWeb/blob/main/backend/requirements.txt"
             target="_blank"
             rel="noreferrer"
-            className="text-primary underline-offset-2 hover:underline"
+            className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
           >
             backend/requirements.txt
           </a>
@@ -243,7 +243,7 @@ export function LicensePage() {
             href="https://github.com/cdk/cdk"
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 text-primary underline-offset-2 hover:underline"
+            className="inline-flex items-center gap-1 text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
           >
             CDK source on GitHub
             <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
