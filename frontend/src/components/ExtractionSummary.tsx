@@ -61,9 +61,7 @@ export function ExtractionSummary({ response, onReset }: ExtractionSummaryProps)
 
       {/* Amber warning Alert — only shown when warnings exist and not dismissed */}
       {!warningsDismissed && response.warnings.length > 0 && (
-        <Alert
-          className="mt-4 border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200"
-        >
+        <Alert className="mt-4 border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
           <AlertTriangleIcon className="size-4 text-amber-600 dark:text-amber-400" />
           <AlertTitle>Warning</AlertTitle>
           <AlertDescription>

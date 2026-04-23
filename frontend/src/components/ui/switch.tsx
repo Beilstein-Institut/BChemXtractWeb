@@ -1,6 +1,6 @@
-import { Switch as SwitchPrimitive } from "@base-ui/react/switch"
+import { Switch as SwitchPrimitive } from "@base-ui/react/switch";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 /**
  * Switch — state tier (Phase 3 Liquid Glass rebuild, Task 5).
@@ -18,7 +18,7 @@ function Switch({
   size = "default",
   ...props
 }: SwitchPrimitive.Root.Props & {
-  size?: "sm" | "default"
+  size?: "sm" | "default";
 }) {
   return (
     <SwitchPrimitive.Root
@@ -36,7 +36,7 @@ function Switch({
         // Sizes
         "data-[size=default]:h-6 data-[size=default]:w-11",
         "data-[size=sm]:h-4 data-[size=sm]:w-7",
-        className
+        className,
       )}
       {...props}
     >
@@ -50,11 +50,11 @@ function Switch({
           "group-data-[size=default]/switch:data-checked:translate-x-[1.375rem]",
           // Small size thumb: size-3, travel 0.875rem
           "group-data-[size=sm]/switch:size-3 group-data-[size=sm]/switch:translate-x-0.5",
-          "group-data-[size=sm]/switch:data-checked:translate-x-[0.875rem]"
+          "group-data-[size=sm]/switch:data-checked:translate-x-[0.875rem]",
         )}
       />
     </SwitchPrimitive.Root>
-  )
+  );
 }
 
-export { Switch }
+export { Switch };

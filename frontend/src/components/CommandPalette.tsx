@@ -101,10 +101,7 @@ function renderPaletteBody({
 }: PaletteBodyArgs) {
   if (!normalisedQuery) {
     return (
-      <div
-        data-slot="command-palette-shortcuts"
-        className="grid grid-cols-4 gap-3 p-6"
-      >
+      <div data-slot="command-palette-shortcuts" className="grid grid-cols-4 gap-3 p-6">
         {shortcuts.map((s) => (
           <button
             key={s.id}
@@ -181,17 +178,10 @@ function renderPaletteBody({
             {cmd.icon}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate font-medium text-foreground">
-              {cmd.label}
-            </span>
-            <span className="block truncate text-xs text-foreground-muted">
-              {cmd.description}
-            </span>
+            <span className="block truncate font-medium text-foreground">{cmd.label}</span>
+            <span className="block truncate text-xs text-foreground-muted">{cmd.description}</span>
           </span>
-          <ChevronRightIcon
-            className="size-4 text-foreground-muted"
-            aria-hidden="true"
-          />
+          <ChevronRightIcon className="size-4 text-foreground-muted" aria-hidden="true" />
         </motion.button>
       ))}
     </div>

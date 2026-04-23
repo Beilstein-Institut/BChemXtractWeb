@@ -19,7 +19,7 @@ vi.mock("@/lib/apiClient", () => ({
       page: 1,
       size: 24,
       warnings: [],
-    })
+    }),
   ),
 }));
 
@@ -72,7 +72,7 @@ describe("useSearch", () => {
     act(() => result.current.setType("substructure"));
     act(() => result.current.submit());
     expect(
-      (mod.postSearch as unknown as ReturnType<typeof vi.fn>).mock.calls.length
+      (mod.postSearch as unknown as ReturnType<typeof vi.fn>).mock.calls.length,
     ).toBeGreaterThan(0);
   });
 });

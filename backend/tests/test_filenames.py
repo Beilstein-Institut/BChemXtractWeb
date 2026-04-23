@@ -8,7 +8,6 @@ import pytest
 
 from app.services.filenames import build_content_disposition, safe_filename
 
-
 # ---------------------------------------------------------------------------
 # safe_filename
 # ---------------------------------------------------------------------------
@@ -74,9 +73,7 @@ def test_crlf_injection_blocked() -> None:
     """CR/LF must be stripped from the ASCII fallback and percent-escaped
     in the UTF-8 portion — neither can terminate the header mid-stream
     so ``Set-Cookie`` or any other header injection is impossible."""
-    header = build_content_disposition(
-        "x.sdf\r\nSet-Cookie: admin=true\r\n"
-    )
+    header = build_content_disposition("x.sdf\r\nSet-Cookie: admin=true\r\n")
     assert "\r" not in header
     assert "\n" not in header
 

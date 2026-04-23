@@ -16,14 +16,7 @@
  * asserts against it.
  */
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock motion/react so the palette renders synchronously without any
 // entrance animation gating test assertions.
@@ -71,8 +64,7 @@ vi.mock("motion/react", async () => {
     {
       get: (_target, key) => {
         const tag = typeof key === "string" ? key : "div";
-        return (props: AnyProps) =>
-          React.createElement(tag, stripMotionProps(props));
+        return (props: AnyProps) => React.createElement(tag, stripMotionProps(props));
       },
     },
   );
@@ -142,49 +134,35 @@ describe("CommandPalette", () => {
 
   it("renders nothing before ⌘K is pressed", () => {
     render(<CommandPalette />);
-    expect(
-      document.querySelector('[data-slot="command-palette"]'),
-    ).toBeNull();
+    expect(document.querySelector('[data-slot="command-palette"]')).toBeNull();
   });
 
   it("opens on Cmd+K", () => {
     render(<CommandPalette />);
     pressMetaK(true);
-    expect(
-      document.querySelector('[data-slot="command-palette"]'),
-    ).not.toBeNull();
+    expect(document.querySelector('[data-slot="command-palette"]')).not.toBeNull();
   });
 
   it("also opens on Ctrl+K (cross-platform)", () => {
     render(<CommandPalette />);
     pressMetaK(false);
-    expect(
-      document.querySelector('[data-slot="command-palette"]'),
-    ).not.toBeNull();
+    expect(document.querySelector('[data-slot="command-palette"]')).not.toBeNull();
   });
 
   it("a second ⌘K toggles the palette closed", () => {
     render(<CommandPalette />);
     pressMetaK(true);
-    expect(
-      document.querySelector('[data-slot="command-palette"]'),
-    ).not.toBeNull();
+    expect(document.querySelector('[data-slot="command-palette"]')).not.toBeNull();
     pressMetaK(true);
-    expect(
-      document.querySelector('[data-slot="command-palette"]'),
-    ).toBeNull();
+    expect(document.querySelector('[data-slot="command-palette"]')).toBeNull();
   });
 
   it("closes on Escape", () => {
     render(<CommandPalette />);
     pressMetaK(true);
-    expect(
-      document.querySelector('[data-slot="command-palette"]'),
-    ).not.toBeNull();
+    expect(document.querySelector('[data-slot="command-palette"]')).not.toBeNull();
     pressEscape();
-    expect(
-      document.querySelector('[data-slot="command-palette"]'),
-    ).toBeNull();
+    expect(document.querySelector('[data-slot="command-palette"]')).toBeNull();
   });
 
   it("renders the search input with data-slot hook", () => {
@@ -200,9 +178,7 @@ describe("CommandPalette", () => {
   it("shows the four chemistry shortcut tiles when query is empty", () => {
     render(<CommandPalette />);
     pressMetaK(true);
-    expect(
-      document.querySelector('[data-slot="command-palette-shortcuts"]'),
-    ).not.toBeNull();
+    expect(document.querySelector('[data-slot="command-palette-shortcuts"]')).not.toBeNull();
     expect(screen.getByText("Extract")).toBeInTheDocument();
     expect(screen.getByText("Browse")).toBeInTheDocument();
     expect(screen.getByText("History")).toBeInTheDocument();
@@ -212,29 +188,19 @@ describe("CommandPalette", () => {
   it("typing switches to filtered results and hides the shortcut grid", () => {
     render(<CommandPalette />);
     pressMetaK(true);
-    const input = document.querySelector(
-      '[data-slot="command-palette-input"]',
-    ) as HTMLInputElement;
+    const input = document.querySelector('[data-slot="command-palette-input"]') as HTMLInputElement;
     fireEvent.change(input, { target: { value: "browse" } });
-    expect(
-      document.querySelector('[data-slot="command-palette-shortcuts"]'),
-    ).toBeNull();
-    expect(
-      document.querySelector('[data-slot="command-palette-results"]'),
-    ).not.toBeNull();
+    expect(document.querySelector('[data-slot="command-palette-shortcuts"]')).toBeNull();
+    expect(document.querySelector('[data-slot="command-palette-results"]')).not.toBeNull();
     expect(screen.getByText("Go to Browse")).toBeInTheDocument();
   });
 
   it("renders an empty state when no commands match the query", () => {
     render(<CommandPalette />);
     pressMetaK(true);
-    const input = document.querySelector(
-      '[data-slot="command-palette-input"]',
-    ) as HTMLInputElement;
+    const input = document.querySelector('[data-slot="command-palette-input"]') as HTMLInputElement;
     fireEvent.change(input, { target: { value: "zzzzzz-nomatch" } });
-    const empty = document.querySelector(
-      '[data-slot="command-palette-empty"]',
-    );
+    const empty = document.querySelector('[data-slot="command-palette-empty"]');
     expect(empty).not.toBeNull();
     expect(empty!.textContent).toMatch(/no commands match/i);
   });
@@ -248,39 +214,27 @@ describe("CommandPalette", () => {
     expect(tile).not.toBeNull();
     fireEvent.click(tile);
     expect(vi.mocked(navigate)).toHaveBeenCalledWith("/browse");
-    expect(
-      document.querySelector('[data-slot="command-palette"]'),
-    ).toBeNull();
+    expect(document.querySelector('[data-slot="command-palette"]')).toBeNull();
   });
 
   it("clicking a filtered theme result calls setTheme and closes", () => {
     render(<CommandPalette />);
     pressMetaK(true);
-    const input = document.querySelector(
-      '[data-slot="command-palette-input"]',
-    ) as HTMLInputElement;
+    const input = document.querySelector('[data-slot="command-palette-input"]') as HTMLInputElement;
     fireEvent.change(input, { target: { value: "dark" } });
     fireEvent.click(screen.getByText("Dark theme"));
     expect(setThemeMock).toHaveBeenCalledWith("dark");
-    expect(
-      document.querySelector('[data-slot="command-palette"]'),
-    ).toBeNull();
+    expect(document.querySelector('[data-slot="command-palette"]')).toBeNull();
   });
 
   it("each filtered result exposes data-slot='command-item' with data-value", () => {
     render(<CommandPalette />);
     pressMetaK(true);
-    const input = document.querySelector(
-      '[data-slot="command-palette-input"]',
-    ) as HTMLInputElement;
+    const input = document.querySelector('[data-slot="command-palette-input"]') as HTMLInputElement;
     fireEvent.change(input, { target: { value: "go to" } });
-    const items = document.querySelectorAll(
-      '[data-slot="command-item"]',
-    );
+    const items = document.querySelectorAll('[data-slot="command-item"]');
     expect(items.length).toBeGreaterThan(0);
-    const values = Array.from(items).map((el) =>
-      el.getAttribute("data-value"),
-    );
+    const values = Array.from(items).map((el) => el.getAttribute("data-value"));
     expect(values).toContain("nav-extract");
     expect(values).toContain("nav-browse");
     expect(values).toContain("nav-history");

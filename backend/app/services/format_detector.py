@@ -51,6 +51,4 @@ def detect_format(file_bytes: bytes) -> str:
             reject_xml_external_entities(file_bytes)
             return "cdxml"
 
-    raise FormatDetectionError(
-        "Unrecognized file format: not CDX binary or CDXML"
-    )
+    raise FormatDetectionError("Unrecognized file format: not CDX binary or CDXML")

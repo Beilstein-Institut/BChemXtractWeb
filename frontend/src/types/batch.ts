@@ -34,7 +34,13 @@ export interface BatchCompleteEvent {
 export type BatchFileStatus =
   | { state: "queued"; filename: string; fileSize: number }
   | { state: "processing"; filename: string; fileSize: number }
-  | { state: "done"; filename: string; fileSize: number; structureCount: number; extractionId: number | null }
+  | {
+      state: "done";
+      filename: string;
+      fileSize: number;
+      structureCount: number;
+      extractionId: number | null;
+    }
   | { state: "failed"; filename: string; fileSize: number; error: string };
 
 /** Summary computed from completed batch */

@@ -108,10 +108,7 @@ function downloadCSV(csv: string, filename: string): void {
  * });
  * ```
  */
-export function useCSVExport<T>(): (
-  items: ReadonlyArray<T>,
-  options: CSVExportOptions<T>,
-) => void {
+export function useCSVExport<T>(): (items: ReadonlyArray<T>, options: CSVExportOptions<T>) => void {
   return useCallback((items, options) => {
     const csv = serializeCSV(items, options.columns);
     downloadCSV(csv, options.filename);

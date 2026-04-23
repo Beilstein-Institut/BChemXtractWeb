@@ -75,9 +75,7 @@ export function StructureDetail({ substance }: StructureDetailProps) {
         <MetadataRow label="InChI Key" value={substance.inchi_key} />
         <MetadataRow label="Molecular Formula" value={substance.molecular_formula} />
         {/* MDL V3000 row is conditional — only render when non-empty */}
-        {substance.mdlv3000 && (
-          <MetadataRow label="MDL V3000" value={substance.mdlv3000} />
-        )}
+        {substance.mdlv3000 && <MetadataRow label="MDL V3000" value={substance.mdlv3000} />}
       </div>
 
       <DialogFooter showCloseButton={true} />

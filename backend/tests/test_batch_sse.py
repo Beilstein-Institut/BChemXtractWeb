@@ -1,5 +1,6 @@
 """Tests for SSE batch progress endpoint."""
-from unittest.mock import MagicMock, patch
+
+from unittest.mock import patch
 
 from tests.conftest import TEST_AUTH_HEADERS
 
@@ -11,6 +12,7 @@ def test_batch_progress_returns_error_event_for_unknown_batch():
     via SSE event type 'error' in the stream body.
     """
     from starlette.testclient import TestClient
+
     from app.main import app
 
     with patch("app.routers.batch.GroupResult") as mock_gr:

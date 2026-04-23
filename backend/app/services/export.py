@@ -537,9 +537,7 @@ async def generate_export(
             )
         png_entries: list[tuple[str, bytes]] = []
         for s in substances:
-            png_bytes = await run_in_jvm_thread(
-                _generate_png_sync, s.get("smiles", "")
-            )
+            png_bytes = await run_in_jvm_thread(_generate_png_sync, s.get("smiles", ""))
             if png_bytes:
                 png_entries.append((_single_filename(s, "png"), png_bytes))
         if len(png_entries) == 1:

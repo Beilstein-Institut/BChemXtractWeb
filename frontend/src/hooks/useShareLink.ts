@@ -27,11 +27,7 @@ export interface UseShareLinkResult {
 }
 
 /** Build the share URL — exported so consumers/tests can assert on shape. */
-export function buildShareUrl(
-  origin: string,
-  inchiKey: string,
-  path = "/browse",
-): string {
+export function buildShareUrl(origin: string, inchiKey: string, path = "/browse"): string {
   return `${origin}${path}#s=${encodeURIComponent(inchiKey)}`;
 }
 
@@ -56,27 +52,24 @@ export function useShareLink(): UseShareLinkResult {
     };
   }, []);
 
-  const share = useCallback(
-    async (key: string | null | undefined): Promise<void> => {
-      if (!key) return;
-      const url = buildShareUrl(window.location.origin, key);
-      // Let the promise reject naturally so callers can surface a toast /
-      // fallback UI. The hook owns the "shared" flag + its cleanup timer,
-      // but it does not own the user-facing error affordance — keeping that
-      // decision at the call site preserves reusability (some contexts may
-      // want a silent no-op, others a visible error).
-      await navigator.clipboard.writeText(safeClipboardText(url));
-      if (timerRef.current !== null) {
-        window.clearTimeout(timerRef.current);
-      }
-      setShared(true);
-      timerRef.current = window.setTimeout(() => {
-        setShared(false);
-        timerRef.current = null;
-      }, COPIED_FLAG_MS);
-    },
-    [],
-  );
+  const share = useCallback(async (key: string | null | undefined): Promise<void> => {
+    if (!key) return;
+    const url = buildShareUrl(window.location.origin, key);
+    // Let the promise reject naturally so callers can surface a toast /
+    // fallback UI. The hook owns the "shared" flag + its cleanup timer,
+    // but it does not own the user-facing error affordance — keeping that
+    // decision at the call site preserves reusability (some contexts may
+    // want a silent no-op, others a visible error).
+    await navigator.clipboard.writeText(safeClipboardText(url));
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+    }
+    setShared(true);
+    timerRef.current = window.setTimeout(() => {
+      setShared(false);
+      timerRef.current = null;
+    }, COPIED_FLAG_MS);
+  }, []);
 
   return { shared, share };
 }

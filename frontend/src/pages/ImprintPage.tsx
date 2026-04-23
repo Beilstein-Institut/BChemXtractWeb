@@ -25,7 +25,10 @@ const ENTITY: LabelledEntry[] = [
     label: "Name",
     value: "Beilstein-Institut zur Förderung der Chemischen Wissenschaften",
   },
-  { label: "Legal form", value: "Civil-law foundation (rechtsfähige Stiftung des bürgerlichen Rechts)" },
+  {
+    label: "Legal form",
+    value: "Civil-law foundation (rechtsfähige Stiftung des bürgerlichen Rechts)",
+  },
   {
     label: "Address",
     value: (
@@ -43,10 +46,7 @@ const ENTITY: LabelledEntry[] = [
   {
     label: "Email",
     value: (
-      <a
-        href="mailto:info@beilstein-institut.de"
-        className={LEGAL_LINK_CLASS}
-      >
+      <a href="mailto:info@beilstein-institut.de" className={LEGAL_LINK_CLASS}>
         info@beilstein-institut.de
       </a>
     ),
@@ -96,19 +96,12 @@ export function ImprintPage() {
         className="mt-10 rounded-lg border border-border bg-surface p-6 sm:p-8"
         data-slot="imprint-entity"
       >
-        <h2
-          id="imprint-entity-heading"
-          className="text-lg font-semibold text-foreground"
-        >
+        <h2 id="imprint-entity-heading" className="text-lg font-semibold text-foreground">
           Operator
         </h2>
         <dl className="mt-5 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-[max-content_1fr]">
           {ENTITY.map(({ label, value }) => (
-            <div
-              key={label}
-              className="contents"
-              data-slot="imprint-entity-row"
-            >
+            <div key={label} className="contents" data-slot="imprint-entity-row">
               <dt className="text-foreground-muted">{label}</dt>
               <dd className="text-foreground">{value}</dd>
             </div>
@@ -121,10 +114,7 @@ export function ImprintPage() {
         className="mt-8 rounded-lg border border-border bg-surface p-6 sm:p-8"
         data-slot="imprint-governance"
       >
-        <h2
-          id="imprint-governance-heading"
-          className="text-lg font-semibold text-foreground"
-        >
+        <h2 id="imprint-governance-heading" className="text-lg font-semibold text-foreground">
           Governance
         </h2>
         <dl className="mt-5 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-[max-content_1fr]">
@@ -142,35 +132,27 @@ export function ImprintPage() {
         className="mt-8 rounded-lg border border-border bg-surface p-6 sm:p-8"
         data-slot="imprint-liability"
       >
-        <h2
-          id="imprint-liability-heading"
-          className="text-lg font-semibold text-foreground"
-        >
+        <h2 id="imprint-liability-heading" className="text-lg font-semibold text-foreground">
           Liability for content and links
         </h2>
         <p className="mt-3 max-w-[70ch] text-sm leading-relaxed text-foreground-muted">
-          The operator takes care to keep the information on this site
-          accurate and up to date but gives no warranty as to its
-          completeness or correctness and accepts no liability for errors or
-          omissions, nor for any results arising from use of the information
-          offered here.
+          The operator takes care to keep the information on this site accurate and up to date but
+          gives no warranty as to its completeness or correctness and accepts no liability for
+          errors or omissions, nor for any results arising from use of the information offered here.
         </p>
         <p className="mt-3 max-w-[70ch] text-sm leading-relaxed text-foreground-muted">
-          This site contains links to external resources over whose content
-          the operator has no control. Liability for such external content
-          rests solely with its respective provider or author. At the time
-          the links were set, no illegal content was identifiable. Ongoing
-          monitoring of linked content is not reasonable without concrete
-          evidence of infringement; on notice of any such infringement the
-          operator will remove the affected link without delay.
+          This site contains links to external resources over whose content the operator has no
+          control. Liability for such external content rests solely with its respective provider or
+          author. At the time the links were set, no illegal content was identifiable. Ongoing
+          monitoring of linked content is not reasonable without concrete evidence of infringement;
+          on notice of any such infringement the operator will remove the affected link without
+          delay.
         </p>
         <p className="mt-3 max-w-[70ch] text-sm leading-relaxed text-foreground-muted">
-          All content produced by the operator on this site is protected by
-          copyright. Reproduction, adaptation, distribution, or any form of
-          exploitation beyond the limits of copyright law requires the
-          written consent of the respective author or creator. Downloads
-          and copies of this page are permitted for private, non-commercial
-          use only.
+          All content produced by the operator on this site is protected by copyright. Reproduction,
+          adaptation, distribution, or any form of exploitation beyond the limits of copyright law
+          requires the written consent of the respective author or creator. Downloads and copies of
+          this page are permitted for private, non-commercial use only.
         </p>
       </section>
 
@@ -185,8 +167,8 @@ export function ImprintPage() {
           beilstein-institut.de/en/impressum/
           <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
         </a>
-        . Reproduced here with attribution so that users of BChemXtractWeb
-        can reach the operator's identification without leaving the site.
+        . Reproduced here with attribution so that users of BChemXtractWeb can reach the operator's
+        identification without leaving the site.
       </p>
     </PageContainer>
   );

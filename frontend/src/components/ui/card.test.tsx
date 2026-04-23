@@ -22,19 +22,19 @@ describe("Card", () => {
     expect(screen.getByText("hello")).toBeInTheDocument();
   });
 
-  it("exposes data-slot=\"card\"", () => {
+  it('exposes data-slot="card"', () => {
     const { container } = render(<Card>x</Card>);
     const root = container.firstChild as HTMLElement;
     expect(root.getAttribute("data-slot")).toBe("card");
   });
 
-  it("defaults to size=\"default\" and applies size token", () => {
+  it('defaults to size="default" and applies size token', () => {
     const { container } = render(<Card>x</Card>);
     const root = container.firstChild as HTMLElement;
     expect(root.getAttribute("data-size")).toBe("default");
   });
 
-  it("honors size=\"sm\"", () => {
+  it('honors size="sm"', () => {
     const { container } = render(<Card size="sm">x</Card>);
     const root = container.firstChild as HTMLElement;
     expect(root.getAttribute("data-size")).toBe("sm");
@@ -53,17 +53,15 @@ describe("Card", () => {
     expect(container.firstChild).toHaveClass("my-card");
   });
 
-  it("renders CardHeader with data-slot=\"card-header\"", () => {
+  it('renders CardHeader with data-slot="card-header"', () => {
     render(
       <Card>
         <CardHeader data-testid="h">
           <CardTitle>Title</CardTitle>
         </CardHeader>
-      </Card>
+      </Card>,
     );
-    expect(screen.getByTestId("h").getAttribute("data-slot")).toBe(
-      "card-header"
-    );
+    expect(screen.getByTestId("h").getAttribute("data-slot")).toBe("card-header");
   });
 
   it("renders CardTitle / CardDescription / CardContent / CardFooter / CardAction with their data-slot hooks", () => {
@@ -76,20 +74,12 @@ describe("Card", () => {
         </CardHeader>
         <CardContent data-testid="c">C</CardContent>
         <CardFooter data-testid="f">F</CardFooter>
-      </Card>
+      </Card>,
     );
     expect(screen.getByTestId("t").getAttribute("data-slot")).toBe("card-title");
-    expect(screen.getByTestId("d").getAttribute("data-slot")).toBe(
-      "card-description"
-    );
-    expect(screen.getByTestId("a").getAttribute("data-slot")).toBe(
-      "card-action"
-    );
-    expect(screen.getByTestId("c").getAttribute("data-slot")).toBe(
-      "card-content"
-    );
-    expect(screen.getByTestId("f").getAttribute("data-slot")).toBe(
-      "card-footer"
-    );
+    expect(screen.getByTestId("d").getAttribute("data-slot")).toBe("card-description");
+    expect(screen.getByTestId("a").getAttribute("data-slot")).toBe("card-action");
+    expect(screen.getByTestId("c").getAttribute("data-slot")).toBe("card-content");
+    expect(screen.getByTestId("f").getAttribute("data-slot")).toBe("card-footer");
   });
 });

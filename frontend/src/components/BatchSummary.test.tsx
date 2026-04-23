@@ -33,9 +33,7 @@ describe("BatchSummary", () => {
         onReset={vi.fn()}
       />,
     );
-    expect(
-      document.querySelector("[data-slot='results-step']"),
-    ).not.toBeNull();
+    expect(document.querySelector("[data-slot='results-step']")).not.toBeNull();
   });
 
   it("renders batch summary stats correctly", () => {

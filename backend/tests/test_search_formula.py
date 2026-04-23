@@ -1,4 +1,5 @@
 """SRCH-02: molecular formula match (Plan 09-03 wave 3)."""
+
 from __future__ import annotations
 
 import pytest
@@ -31,6 +32,4 @@ async def test_formula_match(client: AsyncClient) -> None:
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["total"] >= 1
-    assert all(
-        r["substance"]["molecular_formula"] == "C6H6" for r in body["results"]
-    )
+    assert all(r["substance"]["molecular_formula"] == "C6H6" for r in body["results"])

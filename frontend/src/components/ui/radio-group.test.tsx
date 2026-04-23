@@ -19,7 +19,7 @@ function renderGroup(onValueChange?: (v: string) => void) {
       <RadioGroupItem value="one" aria-label="one" />
       <RadioGroupItem value="two" aria-label="two" />
       <RadioGroupItem value="three" aria-label="three" />
-    </RadioGroup>
+    </RadioGroup>,
   );
 }
 
@@ -29,13 +29,13 @@ describe("RadioGroup", () => {
     expect(screen.getAllByRole("radio")).toHaveLength(3);
   });
 
-  it("exposes data-slot=\"radio-group\" on the group root", () => {
+  it('exposes data-slot="radio-group" on the group root', () => {
     const { container } = renderGroup();
     const root = container.querySelector('[data-slot="radio-group"]');
     expect(root).not.toBeNull();
   });
 
-  it("exposes data-slot=\"radio-group-item\" on every item", () => {
+  it('exposes data-slot="radio-group-item" on every item', () => {
     renderGroup();
     for (const r of screen.getAllByRole("radio")) {
       expect(r.getAttribute("data-slot")).toBe("radio-group-item");
@@ -91,13 +91,11 @@ describe("RadioGroup", () => {
     expect(item.className).toContain("focus-visible:ring-ring");
   });
 
-  it("mounts the Indicator with data-slot=\"radio-group-indicator\"", () => {
+  it('mounts the Indicator with data-slot="radio-group-indicator"', () => {
     const { container } = renderGroup();
     // Click to select first so the indicator is rendered
     fireEvent.click(screen.getAllByRole("radio")[0]);
-    const indicator = container.querySelector(
-      '[data-slot="radio-group-indicator"]'
-    );
+    const indicator = container.querySelector('[data-slot="radio-group-indicator"]');
     expect(indicator).not.toBeNull();
   });
 });

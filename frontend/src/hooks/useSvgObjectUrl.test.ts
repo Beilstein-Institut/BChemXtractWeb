@@ -27,10 +27,9 @@ describe("useSvgObjectUrl", () => {
 
   it("revokes the previous URL when svg changes", () => {
     const revoke = vi.spyOn(URL, "revokeObjectURL");
-    const { result, rerender } = renderHook(
-      ({ svg }: { svg: string }) => useSvgObjectUrl(svg),
-      { initialProps: { svg: "<svg>a</svg>" } },
-    );
+    const { result, rerender } = renderHook(({ svg }: { svg: string }) => useSvgObjectUrl(svg), {
+      initialProps: { svg: "<svg>a</svg>" },
+    });
     const firstUrl = result.current;
     expect(firstUrl).toMatch(/^blob:/);
 
@@ -42,9 +41,7 @@ describe("useSvgObjectUrl", () => {
 
   it("revokes the URL on unmount", () => {
     const revoke = vi.spyOn(URL, "revokeObjectURL");
-    const { result, unmount } = renderHook(() =>
-      useSvgObjectUrl("<svg>x</svg>"),
-    );
+    const { result, unmount } = renderHook(() => useSvgObjectUrl("<svg>x</svg>"));
     const url = result.current;
     expect(url).toMatch(/^blob:/);
 

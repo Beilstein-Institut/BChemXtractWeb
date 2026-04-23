@@ -64,9 +64,7 @@ def initialize_jvm(settings: Settings) -> None:
         return
 
     # Locate the BChemXtract fat JAR
-    jars = glob.glob(
-        f"{settings.jar_path}/bchemxtract-*-jar-with-dependencies.jar"
-    )
+    jars = glob.glob(f"{settings.jar_path}/bchemxtract-*-jar-with-dependencies.jar")
     if not jars:
         raise JVMStartupError(
             f"No BChemXtract JAR found in {settings.jar_path}",

@@ -42,23 +42,17 @@ export function EmptyState({
     <div
       className={cn(
         "rounded-full bg-muted flex items-center justify-center",
-        isLarge ? "size-16" : "size-10"
+        isLarge ? "size-16" : "size-10",
       )}
     >
       {Icon ? (
         <Icon
-          className={cn(
-            "text-muted-foreground",
-            isLarge ? "size-6" : "size-4"
-          )}
+          className={cn("text-muted-foreground", isLarge ? "size-6" : "size-4")}
           aria-hidden="true"
         />
       ) : (
         <PackageOpenIcon
-          className={cn(
-            "text-muted-foreground",
-            isLarge ? "size-6" : "size-4"
-          )}
+          className={cn("text-muted-foreground", isLarge ? "size-6" : "size-4")}
           aria-hidden="true"
         />
       )}
@@ -69,32 +63,25 @@ export function EmptyState({
     <div
       className={cn(
         "flex flex-col items-center text-center",
-        isLarge
-          ? "min-h-[320px] py-16 gap-4 justify-center"
-          : "py-8 gap-3",
-        className
+        isLarge ? "min-h-[320px] py-16 gap-4 justify-center" : "py-8 gap-3",
+        className,
       )}
     >
       {IconSlot}
       <h2
         className={cn(
           "font-semibold tracking-tight text-foreground",
-          isLarge ? "text-sub-heading" : "text-caption"
+          isLarge ? "text-sub-heading" : "text-caption",
         )}
       >
         {title}
       </h2>
       <div
-        className={cn(
-          "text-muted-foreground max-w-[400px]",
-          isLarge ? "text-body" : "text-micro"
-        )}
+        className={cn("text-muted-foreground max-w-[400px]", isLarge ? "text-body" : "text-micro")}
       >
         {message}
       </div>
-      {action && (
-        <div className={cn("mt-2", isLarge ? "mt-6" : "mt-4")}>{action}</div>
-      )}
+      {action && <div className={cn("mt-2", isLarge ? "mt-6" : "mt-4")}>{action}</div>}
     </div>
   );
 }

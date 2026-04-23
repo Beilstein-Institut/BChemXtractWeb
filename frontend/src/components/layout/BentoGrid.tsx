@@ -27,13 +27,7 @@ interface BentoGridProps extends HTMLAttributes<HTMLDivElement> {
   children?: ReactNode;
 }
 
-export function BentoGrid({
-  cols = 4,
-  className,
-  style,
-  children,
-  ...rest
-}: BentoGridProps) {
+export function BentoGrid({ cols = 4, className, style, children, ...rest }: BentoGridProps) {
   const mergedStyle = {
     ...(style ?? {}),
     ["--bento-cols" as unknown as keyof CSSProperties]: String(cols),

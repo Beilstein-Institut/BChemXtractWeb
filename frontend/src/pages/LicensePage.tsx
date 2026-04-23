@@ -119,10 +119,7 @@ export function LicensePage() {
         className="mt-10 rounded-lg border border-border bg-surface p-6 sm:p-8"
         data-slot="license-mit"
       >
-        <h2
-          id="license-mit-heading"
-          className="text-lg font-semibold text-foreground"
-        >
+        <h2 id="license-mit-heading" className="text-lg font-semibold text-foreground">
           BChemXtractWeb — MIT License
         </h2>
         <p className="mt-1 text-caption text-foreground-muted">
@@ -150,15 +147,11 @@ export function LicensePage() {
         className="mt-10"
         data-slot="license-third-party"
       >
-        <h2
-          id="license-third-party-heading"
-          className="text-lg font-semibold text-foreground"
-        >
+        <h2 id="license-third-party-heading" className="text-lg font-semibold text-foreground">
           Third-party components
         </h2>
         <p className="mt-1 max-w-[70ch] text-sm text-foreground-muted">
-          Load-bearing dependencies and their licenses. The complete manifest
-          for the frontend is in{" "}
+          Load-bearing dependencies and their licenses. The complete manifest for the frontend is in{" "}
           <a
             href="https://github.com/Beilstein-Institut/BChemXtractWeb/blob/main/frontend/package.json"
             target="_blank"
@@ -178,15 +171,9 @@ export function LicensePage() {
           </a>
           .
         </p>
-        <ul
-          className="mt-5 flex flex-col gap-3"
-          data-slot="license-third-party-list"
-        >
+        <ul className="mt-5 flex flex-col gap-3" data-slot="license-third-party-list">
           {THIRD_PARTY.map((entry) => (
-            <li
-              key={entry.href}
-              className="rounded-lg border border-border bg-surface p-4 sm:p-5"
-            >
+            <li key={entry.href} className="rounded-lg border border-border bg-surface p-4 sm:p-5">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <a
                   href={entry.href}
@@ -217,19 +204,14 @@ export function LicensePage() {
         className="mt-10 rounded-lg border border-border bg-surface-elevated p-6 sm:p-8"
         data-slot="license-cdk-notice"
       >
-        <h2
-          id="license-cdk-notice-heading"
-          className="text-lg font-semibold text-foreground"
-        >
+        <h2 id="license-cdk-notice-heading" className="text-lg font-semibold text-foreground">
           CDK — LGPL notice
         </h2>
         <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-foreground-muted">
-          BChemXtractWeb ships with the Chemistry Development Kit (CDK 2.12)
-          bundled inside the BChemXtract fat JAR. CDK is distributed under the
-          GNU Lesser General Public License, version 2.1 or later. CDK is
-          dynamically linked by the BChemXtract library; it is not modified.
-          The full, unmodified CDK source is available from the upstream
-          project.
+          BChemXtractWeb ships with the Chemistry Development Kit (CDK 2.12) bundled inside the
+          BChemXtract fat JAR. CDK is distributed under the GNU Lesser General Public License,
+          version 2.1 or later. CDK is dynamically linked by the BChemXtract library; it is not
+          modified. The full, unmodified CDK source is available from the upstream project.
         </p>
         <p className="mt-3 text-sm">
           <a

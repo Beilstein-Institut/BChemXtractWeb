@@ -116,9 +116,7 @@ def _canonicalize_smiles_sync(smiles: str) -> str:
         )
         return str(SmilesGenerator(flavor).create(mol))
     except Exception as exc:  # noqa: BLE001 — D-09: never raise on parse failure
-        logger.warning(
-            "Canonicalization failed for SMILES %r: %s", smiles[:120], exc
-        )
+        logger.warning("Canonicalization failed for SMILES %r: %s", smiles[:120], exc)
         return ""
 
 

@@ -19,12 +19,12 @@ describe("Switch", () => {
     expect(screen.getByRole("switch")).toBeInTheDocument();
   });
 
-  it("exposes data-slot=\"switch\" on the root", () => {
+  it('exposes data-slot="switch" on the root', () => {
     render(<Switch />);
     expect(screen.getByRole("switch").getAttribute("data-slot")).toBe("switch");
   });
 
-  it("exposes data-slot=\"switch-thumb\" on the thumb", () => {
+  it('exposes data-slot="switch-thumb" on the thumb', () => {
     const { container } = render(<Switch />);
     const thumb = container.querySelector('[data-slot="switch-thumb"]');
     expect(thumb).not.toBeNull();
@@ -69,17 +69,13 @@ describe("Switch", () => {
 
   it("applies the white thumb class", () => {
     const { container } = render(<Switch />);
-    const thumb = container.querySelector(
-      '[data-slot="switch-thumb"]'
-    ) as HTMLElement;
+    const thumb = container.querySelector('[data-slot="switch-thumb"]') as HTMLElement;
     expect(thumb.className).toContain("bg-white");
   });
 
   it("applies a transform transition for the slide animation", () => {
     const { container } = render(<Switch />);
-    const thumb = container.querySelector(
-      '[data-slot="switch-thumb"]'
-    ) as HTMLElement;
+    const thumb = container.querySelector('[data-slot="switch-thumb"]') as HTMLElement;
     expect(thumb.className).toContain("transition-transform");
     expect(thumb.className).toContain("duration-150");
   });

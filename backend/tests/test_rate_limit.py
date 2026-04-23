@@ -53,9 +53,7 @@ def _build_app_with_limit(limit: str) -> FastAPI:
     app.state.limiter = limiter
 
     app.add_exception_handler(HTTPException, http_exception_handler)
-    app.add_exception_handler(
-        RequestValidationError, validation_exception_handler
-    )
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(BridgeError, bridge_error_handler)
     app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)

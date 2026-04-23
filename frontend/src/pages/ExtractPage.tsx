@@ -58,10 +58,7 @@ const STEP_ORDER: readonly WizardStepId[] = ["upload", "process", "results"];
  * pin to "process". Everything else (idle, error, cancelled) lands on
  * "upload" so the user can retry or begin a new run.
  */
-function deriveStep(
-  extractState: ExtractState,
-  batchState: BatchState,
-): WizardStepId {
+function deriveStep(extractState: ExtractState, batchState: BatchState): WizardStepId {
   if (batchState === "complete") return "results";
   if (extractState === "loading" || batchState === "processing") {
     return "process";
@@ -94,10 +91,7 @@ export function ExtractPage({
   onResetBatch,
   onViewExtraction,
 }: ExtractPageProps) {
-  const currentStep = useMemo(
-    () => deriveStep(state, batchState),
-    [state, batchState],
-  );
+  const currentStep = useMemo(() => deriveStep(state, batchState), [state, batchState]);
 
   // Single-file path and batch path both land on "process", but BatchProgress
   // renders from `files` + `totalCount`. When a single file is extracting,
@@ -140,16 +134,12 @@ export function ExtractPage({
           ChemDraw, read back.
         </h1>
         <p className="max-w-[60ch] text-base text-foreground-muted">
-          Drop a CDX or CDXML file. Get structures, reactions, and
-          descriptors — SMILES, InChI, RInChI, molecular formula.
+          Drop a CDX or CDXML file. Get structures, reactions, and descriptors — SMILES, InChI,
+          RInChI, molecular formula.
         </p>
       </header>
 
-      <WizardStepper
-        steps={WIZARD_STEPS}
-        currentStep={currentStep}
-        onStepChange={handleStepChange}
-      >
+      <WizardStepper steps={WIZARD_STEPS} currentStep={currentStep} onStepChange={handleStepChange}>
         {currentStep === "upload" && (
           <FileUpload
             onExtract={onExtract}

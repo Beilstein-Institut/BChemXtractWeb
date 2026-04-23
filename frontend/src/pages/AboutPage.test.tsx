@@ -53,19 +53,14 @@ describe("AboutPage", () => {
     expect(start).toHaveAttribute("href", "/");
     // GitHub CTA now points at the web wrapper repo (not the upstream Java lib).
     const github = screen.getByRole("link", { name: /view on github/i });
-    expect(github).toHaveAttribute(
-      "href",
-      "https://github.com/Beilstein-Institut/BChemXtractWeb",
-    );
+    expect(github).toHaveAttribute("href", "https://github.com/Beilstein-Institut/BChemXtractWeb");
     expect(github).toHaveAttribute("target", "_blank");
     expect(github).toHaveAttribute("rel", "noreferrer");
   });
 
   it("renders the version tile with the current version numeral", () => {
     const { container } = render(<AboutPage />);
-    const valueEl = container.querySelector(
-      '[data-slot="about-version-value"]',
-    );
+    const valueEl = container.querySelector('[data-slot="about-version-value"]');
     expect(valueEl).not.toBeNull();
     expect(valueEl?.textContent).toMatch(/\d/);
   });
@@ -113,9 +108,7 @@ describe("AboutPage", () => {
     expect(institute.length).toBeGreaterThanOrEqual(1);
     // Every Beilstein-Institut link should open externally.
     for (const link of institute) {
-      expect(link.getAttribute("href")).toBe(
-        "https://www.beilstein-institut.de/",
-      );
+      expect(link.getAttribute("href")).toBe("https://www.beilstein-institut.de/");
       expect(link.getAttribute("target")).toBe("_blank");
       expect(link.getAttribute("rel")).toBe("noreferrer");
     }

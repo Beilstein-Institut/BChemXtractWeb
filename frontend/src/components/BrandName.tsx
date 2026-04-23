@@ -21,11 +21,7 @@ export interface BrandNameProps extends HTMLAttributes<HTMLSpanElement> {
  * round-trips cleanly — Testing Library's text-matcher + screen-readers
  * both see the single logical word.
  */
-export function BrandName({
-  suffix = null,
-  className,
-  ...rest
-}: BrandNameProps) {
+export function BrandName({ suffix = null, className, ...rest }: BrandNameProps) {
   return (
     <span
       data-slot="brand-name"

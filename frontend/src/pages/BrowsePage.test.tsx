@@ -10,10 +10,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { vi } from "vitest";
 
-import type {
-  ExtractionResponse,
-  SubstanceResponse,
-} from "@/types/chemistry";
+import type { ExtractionResponse, SubstanceResponse } from "@/types/chemistry";
 
 // StructureBrowser talks to useBrowse / apiClient — mock it out so the
 // page-level test stays focused on the bento + SearchFilter wiring.
@@ -78,9 +75,7 @@ function makeResponse(
   };
 }
 
-function makeProps(
-  overrides: Partial<BrowsePageProps> = {},
-): BrowsePageProps {
+function makeProps(overrides: Partial<BrowsePageProps> = {}): BrowsePageProps {
   return {
     activeExtractionId: null,
     activeResult: null,
@@ -117,12 +112,8 @@ describe("BrowsePage", () => {
       />,
     );
 
-    expect(
-      container.querySelector('[data-slot="browse-bento"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-slot="browse-search-filter"]'),
-    ).not.toBeNull();
+    expect(container.querySelector('[data-slot="browse-bento"]')).not.toBeNull();
+    expect(container.querySelector('[data-slot="browse-search-filter"]')).not.toBeNull();
     expect(screen.getByTestId("structure-browser")).toBeInTheDocument();
   });
 

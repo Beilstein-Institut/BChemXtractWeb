@@ -18,10 +18,7 @@ import { HistoryPage } from "@/pages/HistoryPage";
 import { ImprintPage } from "@/pages/ImprintPage";
 import { LicensePage } from "@/pages/LicensePage";
 import { PrivacyPage } from "@/pages/PrivacyPage";
-import type {
-  ExtractionResponse,
-  ReactionExtractionResponse,
-} from "@/types/chemistry";
+import type { ExtractionResponse, ReactionExtractionResponse } from "@/types/chemistry";
 
 /** Events that can change whether `?q=` is present in the URL. */
 const SEARCH_URL_EVENTS = ["popstate", "searchurlchange", "routechange"] as const;
@@ -62,8 +59,9 @@ function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [historicalResult, setHistoricalResult] = useState<ExtractionResponse | null>(null);
   const [activeExtractionId, setActiveExtractionId] = useState<number | null>(null);
-  const [cachedReactionsData, setCachedReactionsData] =
-    useState<ReactionExtractionResponse | null>(null);
+  const [cachedReactionsData, setCachedReactionsData] = useState<ReactionExtractionResponse | null>(
+    null,
+  );
   const [liveReactionCount, setLiveReactionCount] = useState(0);
   const [searchActive, setSearchActive] = useState<boolean>(hasSearchQuery);
 
@@ -242,9 +240,7 @@ function App() {
     <ThemeProvider defaultTheme="system" storageKey="bchemxtract-theme">
       <div className="flex min-h-screen flex-col bg-background text-foreground">
         <AppHeader />
-        <main className="mx-auto w-full max-w-7xl flex-1 px-6 pt-24 pb-12">
-          {renderRoute()}
-        </main>
+        <main className="mx-auto w-full max-w-7xl flex-1 px-6 pt-24 pb-12">{renderRoute()}</main>
         <SiteFooter />
         {/* Task 14: globally mounted so ⌘K works from any route. */}
         <CommandPalette />

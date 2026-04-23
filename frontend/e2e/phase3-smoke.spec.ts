@@ -24,14 +24,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Resolve a CDX fixture relative to the repo so the same spec works both
 // from the frontend/ directory and from a CI runner.
-const FIXTURE_CDX = resolve(
-  __dirname,
-  "..",
-  "..",
-  "..",
-  "Test_files",
-  "test_fixture.cdx",
-);
+const FIXTURE_CDX = resolve(__dirname, "..", "..", "..", "Test_files", "test_fixture.cdx");
 
 /**
  * Probe the backend health endpoint. Returns true only if the backend
@@ -54,9 +47,7 @@ test.describe("Phase 3 — Extract page", () => {
   // fails (frontend-only dev), skip so the rest of the smoke suite still
   // runs. TODO: wire this into the full docker-compose e2e environment
   // once it lands.
-  test("upload → process → results shows ≥1 StructureCard", async ({
-    page,
-  }) => {
+  test("upload → process → results shows ≥1 StructureCard", async ({ page }) => {
     test.skip(
       !existsSync(FIXTURE_CDX),
       `CDX fixture not found at ${FIXTURE_CDX} — skipping backend-dependent smoke.`,
@@ -93,21 +84,15 @@ test.describe("Phase 3 — Browse page", () => {
     // Either the bento renders (we have an active extraction) or the
     // EmptyState shows "No extraction loaded" — both are valid smoke
     // outcomes; we assert on the page root + header.
-    await expect(
-      page.getByRole("heading", { name: "Browse", level: 1 }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Browse", level: 1 })).toBeVisible();
   });
 });
 
 test.describe("Phase 3 — History page", () => {
-  test("loads header + CSV export button (when entries exist)", async ({
-    page,
-  }) => {
+  test("loads header + CSV export button (when entries exist)", async ({ page }) => {
     await page.goto("/history");
     await expect(page.locator('[data-slot="history-page"]')).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: "History", level: 1 }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "History", level: 1 })).toBeVisible();
 
     // The history list is paginated server-side; stats may be zero on a
     // fresh DB. The CSV button lives inside the toolbar and is rendered
@@ -152,9 +137,7 @@ test.describe("Phase 3 — Command palette (⌘K / Ctrl+K)", () => {
 
     const palette = page.locator('[data-slot="command-palette"]');
     await expect(palette).toBeVisible();
-    await expect(
-      page.locator('[data-slot="command-palette-input"]'),
-    ).toBeVisible();
+    await expect(page.locator('[data-slot="command-palette-input"]')).toBeVisible();
 
     // Escape closes the palette.
     await page.keyboard.press("Escape");
@@ -173,9 +156,7 @@ test.describe("Phase 3 — Command palette (⌘K / Ctrl+K)", () => {
 });
 
 test.describe("Phase 3 — Theme switch", () => {
-  test("clicking the flask toggle flips the `.dark` class on <html>", async ({
-    page,
-  }) => {
+  test("clicking the flask toggle flips the `.dark` class on <html>", async ({ page }) => {
     await page.goto("/");
     // Seed a known light baseline so the click always transitions into dark
     // regardless of the runner's OS preference.
@@ -185,9 +166,7 @@ test.describe("Phase 3 — Theme switch", () => {
     await page.reload();
 
     const html = page.locator("html");
-    const toggle = page
-      .locator("header")
-      .locator('[data-slot="theme-switch"]');
+    const toggle = page.locator("header").locator('[data-slot="theme-switch"]');
 
     // The ChemistryThemeSwitch is a plain checkbox-backed label — one click
     // flips state. No menu to open, so the assertion is a direct class

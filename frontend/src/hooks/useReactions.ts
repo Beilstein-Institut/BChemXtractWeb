@@ -58,9 +58,7 @@ export function useReactions(): UseReactionsReturn {
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       if (abortRef.current !== controller) return;
-      setErrorMessage(
-        err instanceof Error ? err.message : "An unexpected error occurred.",
-      );
+      setErrorMessage(err instanceof Error ? err.message : "An unexpected error occurred.");
       setState("error");
     }
   }, []);

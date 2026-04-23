@@ -29,12 +29,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CopyButton } from "@/components/internal/CopyButton";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
@@ -62,9 +57,7 @@ function MetadataRow({ label, value }: { label: string; value: string }) {
       <span className="text-micro font-semibold text-muted-foreground uppercase tracking-widest min-w-[120px] shrink-0">
         {label}
       </span>
-      <span className="text-caption text-foreground font-mono break-all flex-1">
-        {value}
-      </span>
+      <span className="text-caption text-foreground font-mono break-all flex-1">{value}</span>
       <CopyButton value={value} label={label} />
     </div>
   );
@@ -96,7 +89,7 @@ export function StructureSheet({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- prop-sync
     setZoom(1);
-     
+
     setUseCdxCoords(substance ? !substance.svg && !!substance.svg_cdx : false);
   }, [substance]);
 
@@ -117,7 +110,7 @@ export function StructureSheet({
     try {
       await postExport(
         { format, substance_ids: [substance.id] },
-        `${safeDownloadSlug(substance.inchi_key?.slice(0, 8))}_${format}.${FORMAT_EXT[format]}`
+        `${safeDownloadSlug(substance.inchi_key?.slice(0, 8))}_${format}.${FORMAT_EXT[format]}`,
       );
       toast.success("Export ready \u2014 downloading", { id: toastId, duration: 3000 });
     } catch (err) {
@@ -164,8 +157,7 @@ export function StructureSheet({
 
   // WR-05: guard against "1 of 0" when totalSubstances is momentarily 0
   // during a page transition (new page substances array is briefly empty).
-  const positionLabel =
-    totalSubstances > 0 ? `${substanceIndex + 1} of ${totalSubstances}` : "";
+  const positionLabel = totalSubstances > 0 ? `${substanceIndex + 1} of ${totalSubstances}` : "";
   const isPrevDisabled = substanceIndex === 0;
   const isNextDisabled = substanceIndex === totalSubstances - 1;
 
@@ -191,9 +183,7 @@ export function StructureSheet({
             >
               <ChevronLeftIcon className="size-5" />
             </Button>
-            <span className="text-caption text-muted-foreground tabular-nums">
-              {positionLabel}
-            </span>
+            <span className="text-caption text-muted-foreground tabular-nums">{positionLabel}</span>
             <Button
               variant="ghost"
               size="icon-sm"
@@ -340,24 +330,13 @@ export function StructureSheet({
 
             {/* Metadata rows */}
             <div className="space-y-3 mt-4 px-4 pb-6">
-              {substance.smiles && (
-                <MetadataRow label="SMILES" value={substance.smiles} />
-              )}
-              {substance.inchi && (
-                <MetadataRow label="InChI" value={substance.inchi} />
-              )}
-              {substance.inchi_key && (
-                <MetadataRow label="InChI Key" value={substance.inchi_key} />
-              )}
+              {substance.smiles && <MetadataRow label="SMILES" value={substance.smiles} />}
+              {substance.inchi && <MetadataRow label="InChI" value={substance.inchi} />}
+              {substance.inchi_key && <MetadataRow label="InChI Key" value={substance.inchi_key} />}
               {substance.molecular_formula && (
-                <MetadataRow
-                  label="Formula"
-                  value={substance.molecular_formula}
-                />
+                <MetadataRow label="Formula" value={substance.molecular_formula} />
               )}
-              {substance.mdlv3000 && (
-                <MetadataRow label="MDL V3000" value={substance.mdlv3000} />
-              )}
+              {substance.mdlv3000 && <MetadataRow label="MDL V3000" value={substance.mdlv3000} />}
             </div>
           </>
         ) : (

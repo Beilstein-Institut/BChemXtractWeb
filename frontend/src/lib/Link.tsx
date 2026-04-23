@@ -13,14 +13,7 @@ type LinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
 /** Return true when the browser should handle the click natively
  *  (new tab/window, middle-click, prevented by a parent handler). */
 function shouldBypass(e: MouseEvent<HTMLAnchorElement>): boolean {
-  return (
-    e.defaultPrevented ||
-    e.button !== 0 ||
-    e.metaKey ||
-    e.ctrlKey ||
-    e.shiftKey ||
-    e.altKey
-  );
+  return e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
 }
 
 export function Link({ to, onClick, children, ...rest }: LinkProps) {

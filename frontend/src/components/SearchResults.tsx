@@ -100,15 +100,12 @@ export function SearchResults() {
 
   const total = response?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const scopeLabel = scope?.startsWith("extraction:")
-    ? "In this extraction"
-    : "All extractions";
+  const scopeLabel = scope?.startsWith("extraction:") ? "In this extraction" : "All extractions";
 
   const metadataRow = (
     <div className="flex items-center justify-between h-9">
       <div className="text-caption text-muted-foreground">
-        <span>{total}</span>{" "}
-        <span>{total === 1 ? "result" : "results"} for </span>
+        <span>{total}</span> <span>{total === 1 ? "result" : "results"} for </span>
         <code className="font-mono text-foreground">{query}</code>
         <span> · {TYPE_LABEL[type]}</span>
         <span> · {scopeLabel}</span>
@@ -121,8 +118,7 @@ export function SearchResults() {
 
   // DidYouMean only supports non-"auto" search types; coerce "auto" to
   // the "smiles" default the empty-state chip was written for.
-  const didYouMeanType: Exclude<SearchType, "auto"> =
-    type === "auto" ? "smiles" : type;
+  const didYouMeanType: Exclude<SearchType, "auto"> = type === "auto" ? "smiles" : type;
 
   return (
     <section
@@ -156,85 +152,77 @@ export function SearchResults() {
         />
       )}
 
-      {searchState === "success" &&
-        response &&
-        response.results.length === 0 && (
-          <EmptyState
-            icon={SearchXIcon}
-            title={`No matches for ${query}`}
-            message="Try a different spelling, a simpler formula, or a different search type."
-            size="large"
-            action={
-              <DidYouMean
-                type={didYouMeanType}
-                query={query}
-                onSuggest={(upd) => {
-                  if (upd.type) setType(upd.type);
-                  if (upd.query !== undefined) setQuery(upd.query);
-                }}
-              />
-            }
-          />
-        )}
+      {searchState === "success" && response && response.results.length === 0 && (
+        <EmptyState
+          icon={SearchXIcon}
+          title={`No matches for ${query}`}
+          message="Try a different spelling, a simpler formula, or a different search type."
+          size="large"
+          action={
+            <DidYouMean
+              type={didYouMeanType}
+              query={query}
+              onSuggest={(upd) => {
+                if (upd.type) setType(upd.type);
+                if (upd.query !== undefined) setQuery(upd.query);
+              }}
+            />
+          }
+        />
+      )}
 
-      {searchState === "success" &&
-        response &&
-        response.results.length > 0 && (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-6">
-              {response.results.map((r) => (
-                <SearchResultCard
-                  key={r.substance.id}
-                  result={r}
-                  searchType={type}
-                />
-              ))}
-            </div>
+      {searchState === "success" && response && response.results.length > 0 && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-6">
+            {response.results.map((r) => (
+              <SearchResultCard key={r.substance.id} result={r} searchType={type} />
+            ))}
+          </div>
 
-            {totalPages > 1 && (
-              <Pagination className="mt-8">
-                <PaginationContent>
-                  {page > 1 && (
-                    <PaginationItem>
-                      <PaginationPrevious
-                        onClick={(e) => {
-                          e.preventDefault();
-                          goToPage(page - 1);
-                        }}
-                        href="#"
-                      />
-                    </PaginationItem>
-                  )}
-                  {buildPageNumbers(page, totalPages).map((n) => (
-                    <PaginationItem key={n}>
-                      <PaginationLink
-                        isActive={n === page}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          goToPage(n);
-                        }}
-                        href="#"
-                      >
-                        {n}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ))}
-                  {page < totalPages && (
-                    <PaginationItem>
-                      <PaginationNext
-                        onClick={(e) => {
-                          e.preventDefault();
-                          goToPage(page + 1);
-                        }}
-                        href="#"
-                      />
-                    </PaginationItem>
-                  )}
-                </PaginationContent>
-              </Pagination>
-            )}
-          </>
-        )}
+          {totalPages > 1 && (
+            <Pagination className="mt-8">
+              <PaginationContent>
+                {page > 1 && (
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={(e) => {
+                        e.preventDefault();
+                        goToPage(page - 1);
+                      }}
+                      href="#"
+                    />
+                  </PaginationItem>
+                )}
+                {buildPageNumbers(page, totalPages).map((n) => (
+                  <PaginationItem key={n}>
+                    <PaginationLink
+                      isActive={n === page}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        goToPage(n);
+                      }}
+                      href="#"
+                    >
+                      {n}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                {page < totalPages && (
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={(e) => {
+                        e.preventDefault();
+                        goToPage(page + 1);
+                      }}
+                      href="#"
+                    />
+                  </PaginationItem>
+                )}
+              </PaginationContent>
+            </Pagination>
+          )}
+        </>
+      )}
     </section>
   );
 }

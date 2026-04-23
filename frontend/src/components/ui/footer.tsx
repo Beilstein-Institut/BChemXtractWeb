@@ -72,8 +72,7 @@ export function Footer({
   renderLink = defaultRenderLink,
   className,
 }: FooterProps) {
-  const ariaLabel =
-    brandLabel ?? (typeof brandName === "string" ? brandName : undefined);
+  const ariaLabel = brandLabel ?? (typeof brandName === "string" ? brandName : undefined);
   return (
     <footer
       className={cn("pb-6 pt-16 lg:pb-8 lg:pt-24", className)}
@@ -98,9 +97,7 @@ export function Footer({
               {logo}
               {brandName &&
                 (typeof brandName === "string" ? (
-                  <span className="font-display text-xl font-bold tracking-tight">
-                    {brandName}
-                  </span>
+                  <span className="font-display text-xl font-bold tracking-tight">{brandName}</span>
                 ) : (
                   brandName
                 ))}
@@ -137,14 +134,9 @@ export function Footer({
             )}
           >
             <div className="whitespace-nowrap">{copyright.text}</div>
-            {copyright.license && (
-              <div className="whitespace-nowrap">{copyright.license}</div>
-            )}
+            {copyright.license && <div className="whitespace-nowrap">{copyright.license}</div>}
           </div>
-          <nav
-            aria-label="Footer navigation"
-            className="mt-6 lg:col-[9/13] lg:row-[1/2] lg:mt-0"
-          >
+          <nav aria-label="Footer navigation" className="mt-6 lg:col-[9/13] lg:row-[1/2] lg:mt-0">
             <ul className="-my-1 -mx-2 flex list-none flex-wrap lg:justify-end">
               {mainLinks.map((link) => (
                 <li key={link.href} className="my-1 mx-2 shrink-0">

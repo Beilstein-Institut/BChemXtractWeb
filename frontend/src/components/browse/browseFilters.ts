@@ -26,10 +26,5 @@ export const EMPTY_FILTERS: BrowseFilters = Object.freeze({
 
 /** Convenience: `true` when any filter is non-default. */
 export function hasActiveFilters(filters: BrowseFilters): boolean {
-  return (
-    filters.q.trim() !== "" ||
-    filters.hasName ||
-    filters.hasSmiles ||
-    filters.hasInchi
-  );
+  return filters.q.trim() !== "" || filters.hasName || filters.hasSmiles || filters.hasInchi;
 }

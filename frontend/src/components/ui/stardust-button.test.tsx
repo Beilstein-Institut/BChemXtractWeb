@@ -14,23 +14,17 @@ import { StardustButton } from "@/components/ui/stardust-button";
 describe("StardustButton", () => {
   it("renders the default 'Extract structures' label", () => {
     render(<StardustButton />);
-    expect(
-      screen.getByRole("button", { name: /extract structures/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /extract structures/i })).toBeInTheDocument();
   });
 
   it("respects the `label` prop override", () => {
     render(<StardustButton label="Go go go" />);
-    expect(
-      screen.getByRole("button", { name: /go go go/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /go go go/i })).toBeInTheDocument();
   });
 
   it("prefers `children` over `label`", () => {
     render(<StardustButton label="Fallback">Kick off</StardustButton>);
-    expect(
-      screen.getByRole("button", { name: /kick off/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /kick off/i })).toBeInTheDocument();
   });
 
   it("fires onClick when clicked", () => {
@@ -47,7 +41,7 @@ describe("StardustButton", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
-  it("exposes data-slot=\"stardust-button\"", () => {
+  it('exposes data-slot="stardust-button"', () => {
     render(<StardustButton />);
     const btn = screen.getByRole("button");
     expect(btn.getAttribute("data-slot")).toBe("stardust-button");
@@ -61,11 +55,7 @@ describe("StardustButton", () => {
   });
 
   it("renders a custom icon when provided", () => {
-    render(
-      <StardustButton
-        icon={<span data-testid="custom-icon">*</span>}
-      />,
-    );
+    render(<StardustButton icon={<span data-testid="custom-icon">*</span>} />);
     expect(screen.getByTestId("custom-icon")).toBeInTheDocument();
   });
 });

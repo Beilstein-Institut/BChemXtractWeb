@@ -110,7 +110,9 @@ async def test_history_detail_success_path(client: AsyncClient, cdx_file_bytes: 
     # Step 1: create an extraction via POST /api/extract
     upload_response = await client.post(
         "/api/extract",
-        files={"file": ("L-lactic-acid.cdx", cdx_file_bytes, "application/octet-stream")},
+        files={
+            "file": ("L-lactic-acid.cdx", cdx_file_bytes, "application/octet-stream")
+        },
     )
     assert upload_response.status_code == 200, (
         f"POST /api/extract failed: {upload_response.text}"
@@ -156,7 +158,9 @@ async def test_auto_persist_extraction_appears_in_history(
     # POST a CDX file — auto-persist should fire inside extract_file()
     upload_response = await client.post(
         "/api/extract",
-        files={"file": ("L-lactic-acid.cdx", cdx_file_bytes, "application/octet-stream")},
+        files={
+            "file": ("L-lactic-acid.cdx", cdx_file_bytes, "application/octet-stream")
+        },
     )
     assert upload_response.status_code == 200, (
         f"POST /api/extract failed: {upload_response.text}"
@@ -203,9 +207,7 @@ async def test_history_includes_reaction_count_after_reactions_extraction(
             ),
         },
     )
-    assert post_resp.status_code == 200, (
-        f"POST /api/reactions failed: {post_resp.text}"
-    )
+    assert post_resp.status_code == 200, f"POST /api/reactions failed: {post_resp.text}"
     post_data = post_resp.json()
     expected_reaction_count = post_data["reaction_count"]
     assert expected_reaction_count >= 1, (
@@ -216,9 +218,7 @@ async def test_history_includes_reaction_count_after_reactions_extraction(
     history_resp = await client.get("/api/history?limit=all")
     assert history_resp.status_code == 200
     items = history_resp.json()["items"]
-    matching = [
-        item for item in items if item["filename"] == "simple_reaction.cdx"
-    ]
+    matching = [item for item in items if item["filename"] == "simple_reaction.cdx"]
     assert len(matching) >= 1, (
         "POST /api/reactions did not produce a history entry — "
         "auto-persist hook may be broken"

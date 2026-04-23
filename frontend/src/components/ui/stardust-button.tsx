@@ -25,60 +25,56 @@ import { cn } from "@/lib/utils";
  * Default icon is `FlaskConicalIcon` (chemistry-adjacent). Override
  * via the `icon` prop if the CTA repurposes this button elsewhere.
  */
-export interface StardustButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface StardustButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   /** Visible button text. Falls back to "Extract structures". */
   label?: string;
   /** Optional icon override — defaults to FlaskConicalIcon. */
   icon?: React.ReactNode;
 }
 
-export const StardustButton = React.forwardRef<
-  HTMLButtonElement,
-  StardustButtonProps
->(function StardustButton(
-  { label = "Extract structures", icon, className, children, ...props },
-  ref,
-) {
-  const content = children ?? label;
-  const iconNode = icon ?? (
-    <FlaskConicalIcon className="size-5" aria-hidden="true" />
-  );
+export const StardustButton = React.forwardRef<HTMLButtonElement, StardustButtonProps>(
+  function StardustButton(
+    { label = "Extract structures", icon, className, children, ...props },
+    ref,
+  ) {
+    const content = children ?? label;
+    const iconNode = icon ?? <FlaskConicalIcon className="size-5" aria-hidden="true" />;
 
-  return (
-    <>
-      <style>{stardustCss}</style>
-      <button
-        ref={ref}
-        type="button"
-        className={cn("stardust-button", className)}
-        data-slot="stardust-button"
-        {...props}
-      >
-        <span className="stardust-button__wrap">
-          <span className="stardust-button__label">
-            <span
-              className="stardust-button__sparkle stardust-button__sparkle--rest"
-              aria-hidden="true"
-            >
-              ✧
+    return (
+      <>
+        <style>{stardustCss}</style>
+        <button
+          ref={ref}
+          type="button"
+          className={cn("stardust-button", className)}
+          data-slot="stardust-button"
+          {...props}
+        >
+          <span className="stardust-button__wrap">
+            <span className="stardust-button__label">
+              <span
+                className="stardust-button__sparkle stardust-button__sparkle--rest"
+                aria-hidden="true"
+              >
+                ✧
+              </span>
+              <span
+                className="stardust-button__sparkle stardust-button__sparkle--hover"
+                aria-hidden="true"
+              >
+                ✦
+              </span>
+              <span className="stardust-button__icon" aria-hidden="true">
+                {iconNode}
+              </span>
+              <span className="stardust-button__text">{content}</span>
             </span>
-            <span
-              className="stardust-button__sparkle stardust-button__sparkle--hover"
-              aria-hidden="true"
-            >
-              ✦
-            </span>
-            <span className="stardust-button__icon" aria-hidden="true">
-              {iconNode}
-            </span>
-            <span className="stardust-button__text">{content}</span>
           </span>
-        </span>
-      </button>
-    </>
-  );
-});
+        </button>
+      </>
+    );
+  },
+);
 
 StardustButton.displayName = "StardustButton";
 

@@ -1,10 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-  cancelBatch as apiCancelBatch,
-  getBatchSSEUrl,
-  postBatchStart,
-} from "@/lib/apiClient";
+import { cancelBatch as apiCancelBatch, getBatchSSEUrl, postBatchStart } from "@/lib/apiClient";
 import type { BatchFileStatus, FileCompleteEvent } from "@/types/batch";
 
 /**
@@ -22,9 +18,7 @@ function isFileCompleteEvent(x: unknown): x is FileCompleteEvent {
   const res = r as Record<string, unknown>;
   return (
     typeof res.filename === "string" &&
-    (res.error === null ||
-      res.error === undefined ||
-      typeof res.error === "string") &&
+    (res.error === null || res.error === undefined || typeof res.error === "string") &&
     (res.extraction_id === null ||
       res.extraction_id === undefined ||
       typeof res.extraction_id === "number") &&
@@ -32,12 +26,7 @@ function isFileCompleteEvent(x: unknown): x is FileCompleteEvent {
   );
 }
 
-export type BatchState =
-  | "idle"
-  | "processing"
-  | "complete"
-  | "error"
-  | "cancelled";
+export type BatchState = "idle" | "processing" | "complete" | "error" | "cancelled";
 
 export interface UseBatchReturn {
   /** Lifecycle state of the batch */

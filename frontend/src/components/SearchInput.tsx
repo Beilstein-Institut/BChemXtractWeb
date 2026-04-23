@@ -69,12 +69,7 @@ function renderTrailingAffordance(args: {
 }) {
   const { isPending, hasContent, isHeader, showKbdHint, clear } = args;
   if (isPending) {
-    return (
-      <Spinner
-        className="size-4 text-muted-foreground"
-        aria-label="Searching\u2026"
-      />
-    );
+    return <Spinner className="size-4 text-muted-foreground" aria-label="Searching\u2026" />;
   }
   if (hasContent) {
     return (
@@ -91,10 +86,7 @@ function renderTrailingAffordance(args: {
   }
   if (isHeader && showKbdHint) {
     return (
-      <Kbd
-        aria-hidden="true"
-        className="h-5 px-1.5 text-micro border-primary/40 text-primary/60"
-      >
+      <Kbd aria-hidden="true" className="h-5 px-1.5 text-micro border-primary/40 text-primary/60">
         /
       </Kbd>
     );
@@ -234,12 +226,7 @@ export function SearchInput({ className }: { className?: string }) {
         <span id={describedById} className="sr-only">
           Press slash to focus search from anywhere. Press Escape to clear.
         </span>
-        <div
-          className={cn(
-            "absolute flex items-center gap-1",
-            isHeader ? "right-2" : "right-1.5",
-          )}
-        >
+        <div className={cn("absolute flex items-center gap-1", isHeader ? "right-2" : "right-1.5")}>
           {badgeLabel && (
             <Popover>
               <PopoverTrigger

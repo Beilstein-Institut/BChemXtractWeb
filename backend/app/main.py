@@ -97,8 +97,7 @@ _TAGS_METADATA = [
     {
         "name": "batch",
         "description": (
-            "Queue multi-file extractions with Server-Sent Event progress "
-            "streams."
+            "Queue multi-file extractions with Server-Sent Event progress streams."
         ),
     },
     {
@@ -161,9 +160,7 @@ def create_app() -> FastAPI:
         RequestValidationError, validation_exception_handler
     )
     application.add_exception_handler(BridgeError, bridge_error_handler)
-    application.add_exception_handler(
-        RateLimitExceeded, rate_limit_exceeded_handler
-    )
+    application.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
     application.add_exception_handler(Exception, unhandled_exception_handler)
 
     # CORS middleware -- allows frontend dev server access. Must be added
@@ -193,13 +190,12 @@ def create_app() -> FastAPI:
     application.include_router(health.router, prefix="/api")
     protected = [Depends(require_api_key)]
     for router in (extract, history, batch, export, reactions, search):
-        application.include_router(
-            router.router, prefix="/api", dependencies=protected
-        )
+        application.include_router(router.router, prefix="/api", dependencies=protected)
 
     # Redoc is served only when OpenAPI docs are exposed. It requires
     # openapi_url to be non-None, so we gate both behind the same flag.
     if docs_visible:
+
         @application.get("/redoc", include_in_schema=False)
         async def custom_redoc_html() -> HTMLResponse:
             return get_redoc_html(

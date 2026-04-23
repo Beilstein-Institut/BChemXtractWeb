@@ -1,9 +1,4 @@
-import {
-  CheckCircle2Icon,
-  DownloadIcon,
-  PlusIcon,
-  XCircleIcon,
-} from "lucide-react";
+import { CheckCircle2Icon, DownloadIcon, PlusIcon, XCircleIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { downloadBatchZip } from "@/lib/apiClient";
@@ -102,16 +97,9 @@ export function BatchSummary({
   return (
     <div data-slot="results-step" className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-xl font-semibold text-foreground">
-          Batch complete
-        </h2>
+        <h2 className="font-display text-xl font-semibold text-foreground">Batch complete</h2>
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onReset}
-            icon={<PlusIcon />}
-          >
+          <Button variant="ghost" size="sm" onClick={onReset} icon={<PlusIcon />}>
             New batch
           </Button>
           <Button
@@ -126,10 +114,7 @@ export function BatchSummary({
         </div>
       </div>
 
-      <dl
-        data-slot="batch-summary-stats"
-        className="grid grid-cols-2 gap-3 sm:grid-cols-4"
-      >
+      <dl data-slot="batch-summary-stats" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatItem label="Files" value={totalFiles} />
         <StatItem label="Structures" value={totalStructures} />
         <StatItem label="Succeeded" value={succeededCount} tone="secondary" />
@@ -151,19 +136,11 @@ export function BatchSummary({
             data-state={f.state}
             className="flex min-h-[48px] items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted/40"
           >
-            <span className="sr-only">
-              {f.state === "done" ? "Succeeded" : "Failed"}
-            </span>
+            <span className="sr-only">{f.state === "done" ? "Succeeded" : "Failed"}</span>
             {f.state === "done" ? (
-              <CheckCircle2Icon
-                className="size-4 shrink-0 text-secondary"
-                aria-hidden="true"
-              />
+              <CheckCircle2Icon className="size-4 shrink-0 text-secondary" aria-hidden="true" />
             ) : (
-              <XCircleIcon
-                className="size-4 shrink-0 text-destructive"
-                aria-hidden="true"
-              />
+              <XCircleIcon className="size-4 shrink-0 text-destructive" aria-hidden="true" />
             )}
             <span className="min-w-0 flex-1 truncate font-mono text-sm text-foreground">
               {f.filename}

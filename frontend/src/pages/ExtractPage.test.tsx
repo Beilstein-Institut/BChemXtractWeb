@@ -38,55 +38,33 @@ const emptyProps = {
 describe("ExtractPage wizard", () => {
   it("renders inside a PageContainer with data-slot='page-container'", () => {
     render(<ExtractPage {...emptyProps} />);
-    expect(
-      document.querySelector("[data-slot='page-container']"),
-    ).not.toBeNull();
+    expect(document.querySelector("[data-slot='page-container']")).not.toBeNull();
   });
 
   it("renders the WizardStepper", () => {
     render(<ExtractPage {...emptyProps} />);
-    expect(
-      document.querySelector("[data-slot='wizard-stepper']"),
-    ).not.toBeNull();
+    expect(document.querySelector("[data-slot='wizard-stepper']")).not.toBeNull();
   });
 
   it("starts on the Upload step when both hooks are idle", () => {
     render(<ExtractPage {...emptyProps} />);
-    const root = document.querySelector(
-      "[data-slot='wizard-stepper']",
-    ) as HTMLElement;
+    const root = document.querySelector("[data-slot='wizard-stepper']") as HTMLElement;
     expect(root.dataset.current).toBe("upload");
-    expect(
-      document.querySelector("[data-slot='upload-step']"),
-    ).not.toBeNull();
+    expect(document.querySelector("[data-slot='upload-step']")).not.toBeNull();
   });
 
   it("advances to Process step when single extraction is loading", () => {
     render(<ExtractPage {...emptyProps} state="loading" />);
-    const root = document.querySelector(
-      "[data-slot='wizard-stepper']",
-    ) as HTMLElement;
+    const root = document.querySelector("[data-slot='wizard-stepper']") as HTMLElement;
     expect(root.dataset.current).toBe("process");
   });
 
   it("advances to Process step when batch is processing", () => {
-    const files: BatchFileStatus[] = [
-      { state: "queued", filename: "a.cdx", fileSize: 1024 },
-    ];
-    render(
-      <ExtractPage
-        {...emptyProps}
-        batchState="processing"
-        batchFiles={files}
-      />,
-    );
-    const root = document.querySelector(
-      "[data-slot='wizard-stepper']",
-    ) as HTMLElement;
+    const files: BatchFileStatus[] = [{ state: "queued", filename: "a.cdx", fileSize: 1024 }];
+    render(<ExtractPage {...emptyProps} batchState="processing" batchFiles={files} />);
+    const root = document.querySelector("[data-slot='wizard-stepper']") as HTMLElement;
     expect(root.dataset.current).toBe("process");
-    expect(
-      document.querySelector("[data-slot='process-step']"),
-    ).not.toBeNull();
+    expect(document.querySelector("[data-slot='process-step']")).not.toBeNull();
   });
 
   it("advances to Results step when batch completes", () => {
@@ -109,13 +87,9 @@ describe("ExtractPage wizard", () => {
         batchTotalStructures={5}
       />,
     );
-    const root = document.querySelector(
-      "[data-slot='wizard-stepper']",
-    ) as HTMLElement;
+    const root = document.querySelector("[data-slot='wizard-stepper']") as HTMLElement;
     expect(root.dataset.current).toBe("results");
-    expect(
-      document.querySelector("[data-slot='results-step']"),
-    ).not.toBeNull();
+    expect(document.querySelector("[data-slot='results-step']")).not.toBeNull();
     expect(screen.getByText("Batch complete")).toBeInTheDocument();
   });
 

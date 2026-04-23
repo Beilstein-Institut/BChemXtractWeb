@@ -7,23 +7,14 @@
  */
 import { render, screen, fireEvent } from "@testing-library/react";
 import { vi, beforeEach } from "vitest";
-import type {
-  ReactionComponentResponse,
-  ReactionResponse,
-} from "@/types/chemistry";
+import type { ReactionComponentResponse, ReactionResponse } from "@/types/chemistry";
 
 // Mock @base-ui/react/dialog — same shape StructureSheet.test.tsx uses.
 vi.mock("@base-ui/react/dialog", () => {
   const React = require("react");
   return {
     Dialog: {
-      Root: ({
-        children,
-        open,
-      }: {
-        children: React.ReactNode;
-        open?: boolean;
-      }) =>
+      Root: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
         open
           ? React.createElement(React.Fragment, null, children)
           : React.createElement(React.Fragment, null),
@@ -68,35 +59,11 @@ vi.mock("@base-ui/react/dialog", () => {
           children,
         ),
       Close: ({ children }: { children?: React.ReactNode }) =>
-        React.createElement(
-          "button",
-          { "data-testid": "dialog-close" },
-          children ?? null,
-        ),
-      Title: ({
-        children,
-        className,
-      }: {
-        children: React.ReactNode;
-        className?: string;
-      }) =>
-        React.createElement(
-          "h2",
-          { "data-testid": "dialog-title", className },
-          children,
-        ),
-      Description: ({
-        children,
-        className,
-      }: {
-        children: React.ReactNode;
-        className?: string;
-      }) =>
-        React.createElement(
-          "p",
-          { "data-testid": "dialog-description", className },
-          children,
-        ),
+        React.createElement("button", { "data-testid": "dialog-close" }, children ?? null),
+      Title: ({ children, className }: { children: React.ReactNode; className?: string }) =>
+        React.createElement("h2", { "data-testid": "dialog-title", className }, children),
+      Description: ({ children, className }: { children: React.ReactNode; className?: string }) =>
+        React.createElement("p", { "data-testid": "dialog-description", className }, children),
     },
   };
 });
@@ -107,18 +74,9 @@ vi.mock("@base-ui/react/button", () => {
   return {
     Button: React.forwardRef(
       (
-        {
-          children,
-          className,
-          ...props
-        }: React.ComponentProps<"button">,
+        { children, className, ...props }: React.ComponentProps<"button">,
         ref: React.Ref<HTMLButtonElement>,
-      ) =>
-        React.createElement(
-          "button",
-          { ref, className, ...props },
-          children,
-        ),
+      ) => React.createElement("button", { ref, className, ...props }, children),
     ),
   };
 });
@@ -149,9 +107,7 @@ const mkComponent = (
   ...overrides,
 });
 
-const mkReaction = (
-  overrides: Partial<ReactionResponse> = {},
-): ReactionResponse => ({
+const mkReaction = (overrides: Partial<ReactionResponse> = {}): ReactionResponse => ({
   rinchi: "InChI=1S/RInChI",
   rinchi_key: "",
   short_rinchi_key: "Short-ABC",
@@ -164,10 +120,7 @@ const mkReaction = (
     mkComponent({ inchi_key: "KEY-B" }),
     mkComponent({ inchi_key: "KEY-C" }),
   ],
-  products: [
-    mkComponent({ inchi_key: "KEY-P1" }),
-    mkComponent({ inchi_key: "KEY-P2" }),
-  ],
+  products: [mkComponent({ inchi_key: "KEY-P1" }), mkComponent({ inchi_key: "KEY-P2" })],
   agents: [],
   svg: "<svg xmlns='http://www.w3.org/2000/svg'/>",
   ...overrides,
@@ -192,9 +145,7 @@ function renderSheet(overrides: Partial<SheetProps> = {}) {
 describe("ReactionSheet component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (
-      navigator.clipboard.writeText as ReturnType<typeof vi.fn>
-    ).mockResolvedValue(undefined);
+    (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
   });
 
   it("renders with aria-label='Reaction detail'", () => {
@@ -211,12 +162,8 @@ describe("ReactionSheet component", () => {
 
   it("prev/next buttons have correct aria-labels", () => {
     renderSheet();
-    expect(
-      screen.getByRole("button", { name: /Previous reaction/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Next reaction/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Previous reaction/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Next reaction/i })).toBeInTheDocument();
   });
 
   it("renders reaction identifier MetadataRows (SMILES/RInChI/keys/aux)", () => {

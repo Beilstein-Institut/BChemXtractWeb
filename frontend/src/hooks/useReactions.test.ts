@@ -34,8 +34,7 @@ const buildResponse = (
   ...overrides,
 });
 
-const mkFile = () =>
-  new File(["data"], "test.cdx", { type: "chemical/x-cdx" });
+const mkFile = () => new File(["data"], "test.cdx", { type: "chemical/x-cdx" });
 
 describe("useReactions hook", () => {
   beforeEach(() => {
@@ -116,24 +115,18 @@ describe("useReactions hook", () => {
     const capturedSignals: (AbortSignal | undefined)[] = [];
 
     // First call: hangs until its signal is aborted, then rejects with AbortError.
-    mockPostReactions.mockImplementationOnce(
-      async (_file: File, signal?: AbortSignal) => {
-        capturedSignals.push(signal);
-        await new Promise<never>((_, reject) => {
-          signal?.addEventListener("abort", () =>
-            reject(new DOMException("aborted", "AbortError")),
-          );
-        });
-        return buildResponse(); // never reached
-      },
-    );
+    mockPostReactions.mockImplementationOnce(async (_file: File, signal?: AbortSignal) => {
+      capturedSignals.push(signal);
+      await new Promise<never>((_, reject) => {
+        signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+      });
+      return buildResponse(); // never reached
+    });
     // Second call: resolves successfully.
-    mockPostReactions.mockImplementationOnce(
-      async (_file: File, signal?: AbortSignal) => {
-        capturedSignals.push(signal);
-        return buildResponse({ reaction_count: 5 });
-      },
-    );
+    mockPostReactions.mockImplementationOnce(async (_file: File, signal?: AbortSignal) => {
+      capturedSignals.push(signal);
+      return buildResponse({ reaction_count: 5 });
+    });
 
     const { result } = renderHook(() => useReactions());
 
@@ -155,17 +148,13 @@ describe("useReactions hook", () => {
   it("aborts in-flight request on unmount (no state leaks)", async () => {
     let capturedSignal: AbortSignal | undefined;
 
-    mockPostReactions.mockImplementation(
-      async (_file: File, signal?: AbortSignal) => {
-        capturedSignal = signal;
-        await new Promise<never>((_, reject) => {
-          signal?.addEventListener("abort", () =>
-            reject(new DOMException("aborted", "AbortError")),
-          );
-        });
-        return buildResponse();
-      },
-    );
+    mockPostReactions.mockImplementation(async (_file: File, signal?: AbortSignal) => {
+      capturedSignal = signal;
+      await new Promise<never>((_, reject) => {
+        signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+      });
+      return buildResponse();
+    });
 
     const { result, unmount } = renderHook(() => useReactions());
 

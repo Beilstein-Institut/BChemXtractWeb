@@ -36,7 +36,15 @@ vi.mock("@base-ui/react/dialog", () => {
     Dialog: {
       Root: ({ children }: { children: React.ReactNode }) =>
         React.createElement(React.Fragment, null, children),
-      Trigger: ({ children, render: renderProp, ...rest }: { children?: React.ReactNode; render?: React.ReactElement; [key: string]: unknown }) => {
+      Trigger: ({
+        children,
+        render: renderProp,
+        ...rest
+      }: {
+        children?: React.ReactNode;
+        render?: React.ReactElement;
+        [key: string]: unknown;
+      }) => {
         if (renderProp) {
           return React.cloneElement(renderProp, rest, children);
         }
@@ -47,7 +55,11 @@ vi.mock("@base-ui/react/dialog", () => {
       Backdrop: ({ className }: { className?: string }) =>
         React.createElement("div", { "data-testid": "dialog-backdrop", className }),
       Popup: ({ children, className }: { children: React.ReactNode; className?: string }) =>
-        React.createElement("div", { "data-testid": "dialog-popup", role: "dialog", className }, children),
+        React.createElement(
+          "div",
+          { "data-testid": "dialog-popup", role: "dialog", className },
+          children,
+        ),
       Close: ({ children }: { children?: React.ReactNode }) =>
         React.createElement("button", { "data-testid": "dialog-close" }, children ?? null),
       Title: ({ children, className }: { children: React.ReactNode; className?: string }) =>
@@ -67,7 +79,15 @@ vi.mock("@base-ui/react/tooltip", () => {
         React.createElement(React.Fragment, null, children),
       Root: ({ children }: { children: React.ReactNode }) =>
         React.createElement(React.Fragment, null, children),
-      Trigger: ({ children, render: renderProp, ...rest }: { children?: React.ReactNode; render?: React.ReactElement; [key: string]: unknown }) => {
+      Trigger: ({
+        children,
+        render: renderProp,
+        ...rest
+      }: {
+        children?: React.ReactNode;
+        render?: React.ReactElement;
+        [key: string]: unknown;
+      }) => {
         if (renderProp) {
           return React.cloneElement(renderProp, rest, children);
         }
@@ -89,8 +109,10 @@ vi.mock("@base-ui/react/button", () => {
   const React = require("react");
   return {
     Button: React.forwardRef(
-      ({ children, className, ...props }: React.ComponentProps<"button">, ref: React.Ref<HTMLButtonElement>) =>
-        React.createElement("button", { ref, className, ...props }, children)
+      (
+        { children, className, ...props }: React.ComponentProps<"button">,
+        ref: React.Ref<HTMLButtonElement>,
+      ) => React.createElement("button", { ref, className, ...props }, children),
     ),
   };
 });
@@ -144,9 +166,7 @@ describe("StructureCard component", () => {
 
   it("renders molecular formula with <sub> elements for digit runs", () => {
     render(<StructureCard substance={mockSubstance} />);
-    const formula = document.querySelector(
-      "[data-slot='structure-card-formula']"
-    );
+    const formula = document.querySelector("[data-slot='structure-card-formula']");
     expect(formula).not.toBeNull();
     // "C6H6" → "C", <sub>6</sub>, "H", <sub>6</sub>
     const subs = formula!.querySelectorAll("sub");
@@ -157,22 +177,14 @@ describe("StructureCard component", () => {
   });
 
   it("renders em-dash in the formula slot when molecular_formula is empty", () => {
-    render(
-      <StructureCard
-        substance={{ ...mockSubstance, molecular_formula: "" }}
-      />
-    );
-    const formula = document.querySelector(
-      "[data-slot='structure-card-formula']"
-    );
+    render(<StructureCard substance={{ ...mockSubstance, molecular_formula: "" }} />);
+    const formula = document.querySelector("[data-slot='structure-card-formula']");
     expect(formula!.textContent).toBe("\u2014");
   });
 
   it("renders SMILES in the Geist Mono truncated slot with title attr", () => {
     render(<StructureCard substance={mockSubstance} />);
-    const smilesEls = document.querySelectorAll(
-      "[data-slot='structure-card-smiles']"
-    );
+    const smilesEls = document.querySelectorAll("[data-slot='structure-card-smiles']");
     expect(smilesEls.length).toBeGreaterThan(0);
     const smilesEl = smilesEls[0] as HTMLElement;
     expect(smilesEl.textContent).toBe("c1ccccc1");
@@ -193,9 +205,7 @@ describe("StructureCard component", () => {
 
   it("renders the white sub-surface with min-h-[160px] and bg-white", () => {
     render(<StructureCard substance={mockSubstance} />);
-    const imageSurfaces = document.querySelectorAll(
-      "[data-slot='structure-card-image']"
-    );
+    const imageSurfaces = document.querySelectorAll("[data-slot='structure-card-image']");
     expect(imageSurfaces.length).toBeGreaterThan(0);
     const surface = imageSurfaces[0] as HTMLElement;
     expect(surface.className).toMatch(/bg-white/);
@@ -205,7 +215,7 @@ describe("StructureCard component", () => {
   it("PNG image has group-hover scale class", () => {
     render(<StructureCard substance={mockSubstance} />);
     const img = document.querySelector(
-      "[data-slot='structure-card-image'] img"
+      "[data-slot='structure-card-image'] img",
     ) as HTMLImageElement | null;
     expect(img).not.toBeNull();
     expect(img!.className).toMatch(/group-hover:scale-\[1\.02\]/);
@@ -220,7 +230,7 @@ describe("StructureCard component", () => {
   it("renders an img with a Blob URL src when svg is present", () => {
     render(<StructureCard substance={mockSubstance} />);
     const img = document.querySelector(
-      "[data-slot='structure-card-image'] img"
+      "[data-slot='structure-card-image'] img",
     ) as HTMLImageElement | null;
     expect(img).not.toBeNull();
     expect(img!.src).toMatch(/^blob:/);
@@ -251,38 +261,29 @@ describe("StructureCard component", () => {
 
   it("renders a share button with data-slot='structure-card-share'", () => {
     render(<StructureCard substance={mockSubstance} />);
-    const shareBtns = document.querySelectorAll(
-      "[data-slot='structure-card-share']"
-    );
+    const shareBtns = document.querySelectorAll("[data-slot='structure-card-share']");
     expect(shareBtns.length).toBeGreaterThan(0);
     expect(shareBtns[0].getAttribute("aria-label")).toBe("Copy share link");
   });
 
   it("clicking share copies a URL containing the InChI key to the clipboard", async () => {
     render(<StructureCard substance={mockSubstance} />);
-    const shareBtn = document.querySelector(
-      "[data-slot='structure-card-share']"
-    ) as HTMLElement;
+    const shareBtn = document.querySelector("[data-slot='structure-card-share']") as HTMLElement;
     fireEvent.click(shareBtn);
     await waitFor(() => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(1);
     });
-    const call = (navigator.clipboard.writeText as ReturnType<typeof vi.fn>)
-      .mock.calls[0][0];
+    const call = (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(call).toContain(`#s=${encodeURIComponent(mockSubstance.inchi_key)}`);
     expect(call).toContain("/browse");
   });
 
   it("after share, the share button flips to 'Share link copied' aria-label", async () => {
     render(<StructureCard substance={mockSubstance} />);
-    const shareBtn = document.querySelector(
-      "[data-slot='structure-card-share']"
-    ) as HTMLElement;
+    const shareBtn = document.querySelector("[data-slot='structure-card-share']") as HTMLElement;
     fireEvent.click(shareBtn);
     await waitFor(() => {
-      const after = document.querySelector(
-        "[data-slot='structure-card-share']"
-      ) as HTMLElement;
+      const after = document.querySelector("[data-slot='structure-card-share']") as HTMLElement;
       expect(after.getAttribute("aria-label")).toBe("Share link copied");
     });
   });
@@ -294,12 +295,10 @@ describe("StructureCard component", () => {
     // via sonner's toast.error.
     const { toast } = await import("sonner");
     (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-      new Error("denied")
+      new Error("denied"),
     );
     render(<StructureCard substance={mockSubstance} />);
-    const shareBtn = document.querySelector(
-      "[data-slot='structure-card-share']"
-    ) as HTMLElement;
+    const shareBtn = document.querySelector("[data-slot='structure-card-share']") as HTMLElement;
     fireEvent.click(shareBtn);
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Could not copy share link.");
@@ -317,10 +316,12 @@ describe("StructureCard component", () => {
     render(
       <div onClick={handleParentClick} data-testid="parent-wrapper">
         <StructureCard substance={mockSubstance} />
-      </div>
+      </div>,
     );
     const cardTrigger = screen.getByRole("button", { name: /View details for C6H6/ });
-    const copyBtns = within(cardTrigger).getAllByRole("button", { name: "Copy SMILES to clipboard" });
+    const copyBtns = within(cardTrigger).getAllByRole("button", {
+      name: "Copy SMILES to clipboard",
+    });
     fireEvent.click(copyBtns[0]);
     expect(handleParentClick).not.toHaveBeenCalled();
   });
@@ -330,11 +331,9 @@ describe("StructureCard component", () => {
     render(
       <div onClick={handleParentClick} data-testid="parent-wrapper">
         <StructureCard substance={mockSubstance} />
-      </div>
+      </div>,
     );
-    const shareBtn = document.querySelector(
-      "[data-slot='structure-card-share']"
-    ) as HTMLElement;
+    const shareBtn = document.querySelector("[data-slot='structure-card-share']") as HTMLElement;
     fireEvent.click(shareBtn);
     expect(handleParentClick).not.toHaveBeenCalled();
   });

@@ -35,16 +35,12 @@ describe("FileUpload component", () => {
 
   it("renders the Upload CDX or CDXML aria-label on the drop target", () => {
     render(<FileUpload onExtract={vi.fn()} isLoading={false} />);
-    expect(
-      screen.getByRole("button", { name: "Upload CDX or CDXML file" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Upload CDX or CDXML file" })).toBeInTheDocument();
   });
 
   it("renders helper text 'Drag & drop your CDX or CDXML file'", () => {
     render(<FileUpload onExtract={vi.fn()} isLoading={false} />);
-    expect(
-      screen.getByText("Drag & drop your CDX or CDXML file"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Drag & drop your CDX or CDXML file")).toBeInTheDocument();
   });
 
   it("renders 'or click to browse' helper copy", () => {
@@ -54,34 +50,24 @@ describe("FileUpload component", () => {
 
   it("rejects .pdf files via toast.error", () => {
     render(<FileUpload onExtract={vi.fn()} isLoading={false} />);
-    const input = document.querySelector(
-      'input[type="file"]',
-    ) as HTMLInputElement;
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = makeFile("document.pdf");
     fireEvent.change(input, { target: { files: [file] } });
-    expect(mockToastError).toHaveBeenCalledWith(
-      "Only .cdx and .cdxml files are supported.",
-    );
+    expect(mockToastError).toHaveBeenCalledWith("Only .cdx and .cdxml files are supported.");
   });
 
   it("rejects files >50 MB via toast.error when dropped as a single file", () => {
     render(<FileUpload onExtract={vi.fn()} isLoading={false} />);
-    const input = document.querySelector(
-      'input[type="file"]',
-    ) as HTMLInputElement;
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = makeFile("large.cdx", 52_428_801);
     fireEvent.change(input, { target: { files: [file] } });
-    expect(mockToastError).toHaveBeenCalledWith(
-      "File exceeds the 50 MB limit.",
-    );
+    expect(mockToastError).toHaveBeenCalledWith("File exceeds the 50 MB limit.");
   });
 
   it("calls onExtract fast-path when a single valid .cdx file is selected with empty queue", () => {
     const onExtract = vi.fn();
     render(<FileUpload onExtract={onExtract} isLoading={false} />);
-    const input = document.querySelector(
-      'input[type="file"]',
-    ) as HTMLInputElement;
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = makeFile("sample.cdx");
     fireEvent.change(input, { target: { files: [file] } });
     expect(onExtract).toHaveBeenCalledWith(file);
@@ -90,9 +76,7 @@ describe("FileUpload component", () => {
 
   it("queues 2 files and shows the Extract N files CTA", () => {
     render(<FileUpload onExtract={vi.fn()} isLoading={false} />);
-    const input = document.querySelector(
-      'input[type="file"]',
-    ) as HTMLInputElement;
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const a = makeFile("a.cdx");
     const b = makeFile("b.cdx");
     fireEvent.change(input, { target: { files: [a, b] } });
@@ -100,16 +84,12 @@ describe("FileUpload component", () => {
     expect(screen.getByText("a.cdx")).toBeInTheDocument();
     expect(screen.getByText("b.cdx")).toBeInTheDocument();
     // CTA reflects queue length
-    expect(
-      screen.getByRole("button", { name: /Extract 2 files/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Extract 2 files/i })).toBeInTheDocument();
   });
 
   it("removing a queued file drops it from the list", () => {
     render(<FileUpload onExtract={vi.fn()} isLoading={false} />);
-    const input = document.querySelector(
-      'input[type="file"]',
-    ) as HTMLInputElement;
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, {
       target: { files: [makeFile("a.cdx"), makeFile("b.cdx")] },
     });
@@ -121,16 +101,8 @@ describe("FileUpload component", () => {
 
   it("Extract N files CTA fires onStartBatch with queued files", () => {
     const onStartBatch = vi.fn();
-    render(
-      <FileUpload
-        onExtract={vi.fn()}
-        onStartBatch={onStartBatch}
-        isLoading={false}
-      />,
-    );
-    const input = document.querySelector(
-      'input[type="file"]',
-    ) as HTMLInputElement;
+    render(<FileUpload onExtract={vi.fn()} onStartBatch={onStartBatch} isLoading={false} />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const a = makeFile("a.cdx");
     const b = makeFile("b.cdx");
     fireEvent.change(input, { target: { files: [a, b] } });
@@ -147,13 +119,7 @@ describe("FileUpload component", () => {
   });
 
   it("renders aria-live loading message when isLoading is true", () => {
-    render(
-      <FileUpload
-        onExtract={vi.fn()}
-        isLoading={true}
-        loadingFilename="sample.cdx"
-      />,
-    );
+    render(<FileUpload onExtract={vi.fn()} isLoading={true} loadingFilename="sample.cdx" />);
     const liveRegion = document.querySelector('[aria-live="polite"]');
     expect(liveRegion).toBeInTheDocument();
     expect(liveRegion?.textContent).toContain("Extracting structures");

@@ -19,10 +19,7 @@ import type { BrowseFilters } from "./browseFilters";
  * Return true when `substance` matches the active filters. An empty
  * filter set (no query + no chips) matches everything.
  */
-export function matchesFilters(
-  substance: SubstanceResponse,
-  filters: BrowseFilters,
-): boolean {
+export function matchesFilters(substance: SubstanceResponse, filters: BrowseFilters): boolean {
   if (filters.hasName && !substance.iupac_name?.trim()) return false;
   if (filters.hasSmiles && !substance.smiles?.trim()) return false;
   if (filters.hasInchi && !substance.inchi?.trim()) return false;

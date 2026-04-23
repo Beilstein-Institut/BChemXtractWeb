@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 from httpx import AsyncClient
 
-
 APPROVED_OPERATION_IDS = {
     # extraction
     "extractFile",
@@ -64,9 +63,7 @@ async def test_every_route_has_operation_id_and_tags(
             assert spec.get("operationId"), (
                 f"{method.upper()} {path} missing operationId"
             )
-            assert spec.get("tags"), (
-                f"{method.upper()} {path} missing tags"
-            )
+            assert spec.get("tags"), f"{method.upper()} {path} missing tags"
 
 
 @pytest.mark.asyncio

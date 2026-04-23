@@ -1,12 +1,6 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-  AlertTriangleIcon,
-  FileIcon,
-  SparklesIcon,
-  UploadCloudIcon,
-  XIcon,
-} from "lucide-react";
+import { AlertTriangleIcon, FileIcon, SparklesIcon, UploadCloudIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -98,8 +92,7 @@ export function FileUpload({
 
   // ── Loading state — preserved for legacy rendering paths ────────────────
   if (isLoading) {
-    const sizeSuffix =
-      loadingFileSize !== undefined ? ` (${formatBytes(loadingFileSize)})` : "";
+    const sizeSuffix = loadingFileSize !== undefined ? ` (${formatBytes(loadingFileSize)})` : "";
     const loadingMessage = loadingFilename
       ? `Extracting structures from ${loadingFilename}${sizeSuffix}\u2026`
       : "Extracting structures\u2026";
@@ -144,10 +137,7 @@ export function FileUpload({
         if (toAdd.length < available) toAdd.push(file);
       }
 
-      if (
-        prev.length + toAdd.length >= MAX_BATCH_FILES &&
-        incoming.length > available
-      ) {
+      if (prev.length + toAdd.length >= MAX_BATCH_FILES && incoming.length > available) {
         toast.error("Batch limit reached. Maximum 20 files per batch.");
       }
 
@@ -211,10 +201,7 @@ export function FileUpload({
         onDragLeave={() => setIsDragOver(false)}
         onDrop={handleDrop}
       >
-        <UploadCloudIcon
-          aria-hidden="true"
-          className="size-12 text-foreground-muted"
-        />
+        <UploadCloudIcon aria-hidden="true" className="size-12 text-foreground-muted" />
         <div className="space-y-2 text-center">
           <p className="text-base font-medium text-foreground">
             Drag &amp; drop your CDX or CDXML file
@@ -245,13 +232,8 @@ export function FileUpload({
                     oversize && "bg-destructive/5",
                   )}
                 >
-                  <FileIcon
-                    className="size-4 shrink-0 text-foreground-muted"
-                    aria-hidden="true"
-                  />
-                  <span className="flex-1 truncate text-sm text-foreground">
-                    {file.name}
-                  </span>
+                  <FileIcon className="size-4 shrink-0 text-foreground-muted" aria-hidden="true" />
+                  <span className="flex-1 truncate text-sm text-foreground">{file.name}</span>
                   {oversize && (
                     <AlertTriangleIcon
                       className="size-4 shrink-0 text-destructive"

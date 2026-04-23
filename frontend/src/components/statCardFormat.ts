@@ -7,10 +7,7 @@
 export type StatCardFormat = "count" | "duration" | "percent";
 
 /** Format a numeric value for display on a bento stat tile. Pure. */
-export function formatStatValue(
-  value: number,
-  format: StatCardFormat = "count",
-): string {
+export function formatStatValue(value: number, format: StatCardFormat = "count"): string {
   if (!Number.isFinite(value)) return "—";
   switch (format) {
     case "duration": {

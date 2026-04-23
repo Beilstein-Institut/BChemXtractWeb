@@ -46,8 +46,7 @@ async def test_history_detail_backfills_missing_svg_cdx(
     assert sub["svg"] == "<svg>existing-cdk</svg>"
     # svg_cdx was empty — must be filled by backfill
     assert sub["svg_cdx"], (
-        "svg_cdx was empty and molblock was present — backfill should "
-        "have rendered it"
+        "svg_cdx was empty and molblock was present — backfill should have rendered it"
     )
 
     # Second call reads the persisted value without re-rendering. Verify
@@ -57,9 +56,7 @@ async def test_history_detail_backfills_missing_svg_cdx(
 
     # Direct DB read confirms the backfill was persisted.
     row = (
-        await db_session.execute(
-            text("SELECT svg_cdx FROM substances WHERE id = 9100")
-        )
+        await db_session.execute(text("SELECT svg_cdx FROM substances WHERE id = 9100"))
     ).one()
     assert row[0] == sub["svg_cdx"]
 

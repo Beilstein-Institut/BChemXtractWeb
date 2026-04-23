@@ -30,9 +30,7 @@ async def test_fragment_path_empty_svg_when_cdk_layout_fails(
 
     def _run() -> list[dict]:
         document = extractor._read_document(cdx_file_bytes, "cdx")
-        with patch.object(
-            extractor, "_render_with_cdk_layout", return_value=""
-        ):
+        with patch.object(extractor, "_render_with_cdk_layout", return_value=""):
             results, _info = extractor._extract_fragments_from_document(document)
         return results
 

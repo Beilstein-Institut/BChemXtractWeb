@@ -13,10 +13,7 @@ import {
   postExport,
   parseContentDispositionFilename,
 } from "./apiClient";
-import type {
-  ExtractionResponse,
-  ReactionExtractionResponse,
-} from "../types/chemistry";
+import type { ExtractionResponse, ReactionExtractionResponse } from "../types/chemistry";
 
 const makeMockResponse = (): ExtractionResponse => ({
   substances: [],
@@ -84,7 +81,7 @@ describe("postExtract", () => {
     const file = new File(["data"], "test.cdx");
 
     await expect(postExtract(file)).rejects.toThrow(
-      "Could not reach the extraction server — check your connection."
+      "Could not reach the extraction server — check your connection.",
     );
   });
 });
@@ -135,9 +132,7 @@ describe("postReactions", () => {
       json: () => Promise.resolve(mockResponse),
     } as Response);
 
-    const result = await postReactions(
-      new File(["data"], "test.cdx", { type: "chemical/x-cdx" }),
-    );
+    const result = await postReactions(new File(["data"], "test.cdx", { type: "chemical/x-cdx" }));
 
     expect(result.reaction_count).toBe(2);
     expect(result.format).toBe("cdx");
@@ -274,29 +269,22 @@ describe("parseContentDispositionFilename", () => {
     expect(parseContentDispositionFilename("")).toBeNull();
   });
 
-  it("parses plain ASCII filename=\"...\"", () => {
-    expect(
-      parseContentDispositionFilename('attachment; filename="export.svg"'),
-    ).toBe("export.svg");
+  it('parses plain ASCII filename="..."', () => {
+    expect(parseContentDispositionFilename('attachment; filename="export.svg"')).toBe("export.svg");
   });
 
   it("parses unquoted filename=value", () => {
-    expect(
-      parseContentDispositionFilename("attachment; filename=export.zip"),
-    ).toBe("export.zip");
+    expect(parseContentDispositionFilename("attachment; filename=export.zip")).toBe("export.zip");
   });
 
   it("prefers filename* over filename when both are present (RFC 6266)", () => {
-    const header =
-      "attachment; filename=\"fallback.svg\"; filename*=UTF-8''preferred.svg";
+    const header = "attachment; filename=\"fallback.svg\"; filename*=UTF-8''preferred.svg";
     expect(parseContentDispositionFilename(header)).toBe("preferred.svg");
   });
 
   it("percent-decodes filename* values", () => {
     const header = "attachment; filename*=UTF-8''bchemxtract_export_svg_20260421.zip";
-    expect(parseContentDispositionFilename(header)).toBe(
-      "bchemxtract_export_svg_20260421.zip",
-    );
+    expect(parseContentDispositionFilename(header)).toBe("bchemxtract_export_svg_20260421.zip");
   });
 
   it("decodes unicode code points in filename*", () => {
@@ -305,8 +293,7 @@ describe("parseContentDispositionFilename", () => {
   });
 
   it("falls back to ASCII filename when filename* percent-encoding is malformed", () => {
-    const header =
-      'attachment; filename="safe.svg"; filename*=UTF-8\'\'%E6%97%';
+    const header = "attachment; filename=\"safe.svg\"; filename*=UTF-8''%E6%97%";
     expect(parseContentDispositionFilename(header)).toBe("safe.svg");
   });
 
@@ -363,10 +350,7 @@ describe("postExport", () => {
       blob: () => Promise.resolve(new Blob(["zip-bytes"])),
     } as unknown as Response);
 
-    await postExport(
-      { format: "svg", substance_ids: [1, 2] },
-      "wrong-suggestion.svg",
-    );
+    await postExport({ format: "svg", substance_ids: [1, 2] }, "wrong-suggestion.svg");
 
     expect(clickSpy).toHaveBeenCalledOnce();
     expect(getAnchor().download).toBe("bchemxtract_export_svg_20260421.zip");

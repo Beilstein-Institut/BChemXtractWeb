@@ -9,6 +9,7 @@ deadlock or raise. The pool type is asserted at ``worker_process_init``
 so a misconfigured ``--pool=prefork`` refuses to start rather than
 silently running broken tasks.
 """
+
 from __future__ import annotations
 
 import logging
@@ -36,8 +37,8 @@ celery_app.conf.update(
     task_acks_late=True,
     worker_concurrency=1,
     result_expires=3600,
-    task_soft_time_limit=120,   # SoftTimeLimitExceeded after 120s — task can clean up
-    task_time_limit=150,        # hard kill after 150s — prevents indefinite hang
+    task_soft_time_limit=120,  # SoftTimeLimitExceeded after 120s — task can clean up
+    task_time_limit=150,  # hard kill after 150s — prevents indefinite hang
     include=["app.tasks.extraction"],
     # SEC H-03: mandatory solo pool. worker_pool honoured unless the CLI
     # overrides it; the assertion below catches the CLI case.
@@ -80,6 +81,7 @@ def init_jvm_for_worker(**kwargs: object) -> None:
     """Initialize JVM in Celery worker via the solo-pool init signal."""
     _assert_solo_pool()
     from app.services.jvm_bridge import initialize_jvm  # noqa: PLC0415
+
     initialize_jvm(settings)
     logger.info(
         "Celery worker ready (pool=solo, concurrency=%d, pid=%d)",

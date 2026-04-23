@@ -142,8 +142,7 @@ def reject_xml_external_entities(file_bytes: bytes) -> None:
 
     if b"[" in doctype_decl:
         raise FormatDetectionError(
-            "CDXML DOCTYPE contains an internal subset, which is not "
-            "permitted."
+            "CDXML DOCTYPE contains an internal subset, which is not permitted."
         )
 
     external_id = _EXTERNAL_ID_RE.search(doctype_decl)
@@ -151,9 +150,7 @@ def reject_xml_external_entities(file_bytes: bytes) -> None:
         return
 
     keyword = external_id.group(1).upper()
-    literal = (
-        external_id.group(3) if keyword == b"SYSTEM" else external_id.group(5)
-    )
+    literal = external_id.group(3) if keyword == b"SYSTEM" else external_id.group(5)
     if literal is None or literal not in _ALLOWED_SYSTEM_IDS:
         raise FormatDetectionError(
             "CDXML DOCTYPE references an external identifier that is "

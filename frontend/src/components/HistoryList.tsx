@@ -21,22 +21,12 @@
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { format, formatDistanceToNow, differenceInDays } from "date-fns";
-import {
-  ClockIcon,
-  DownloadIcon,
-  SearchIcon,
-  Trash2Icon,
-} from "lucide-react";
+import { ClockIcon, DownloadIcon, SearchIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useCSVExport, type CSVColumn } from "@/hooks/useCSVExport";
@@ -158,21 +148,14 @@ function HistoryRow({
         }}
         aria-label={`Open extraction ${entry.filename}`}
       >
-        <span
-          className="min-w-0 truncate font-mono text-foreground"
-          title={entry.filename}
-        >
+        <span className="min-w-0 truncate font-mono text-foreground" title={entry.filename}>
           {entry.filename}
         </span>
-        <span className="whitespace-nowrap text-foreground-muted">
-          {dateLabel}
-        </span>
+        <span className="whitespace-nowrap text-foreground-muted">{dateLabel}</span>
         <span className="w-16 text-right tabular-nums text-foreground">
           {entry.structure_count}
         </span>
-        <span className="w-16 text-right tabular-nums text-foreground">
-          {entry.reaction_count}
-        </span>
+        <span className="w-16 text-right tabular-nums text-foreground">{entry.reaction_count}</span>
         <div
           className="flex items-center gap-1"
           // Swallow activation on the actions column so clicking an action
@@ -270,12 +253,7 @@ export function HistoryList({
         data-slot="history-list"
         className="overflow-hidden rounded-lg border border-border bg-surface"
       >
-        <Toolbar
-          search=""
-          onSearchChange={() => {}}
-          onExport={() => {}}
-          exportDisabled
-        />
+        <Toolbar search="" onSearchChange={() => {}} onExport={() => {}} exportDisabled />
         <Header />
         <div className="divide-y divide-border">
           {[0, 1, 2].map((i) => (
@@ -381,16 +359,11 @@ function Toolbar({
             "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0",
           )}
         >
-          <SearchIcon
-            className="size-4 shrink-0 text-foreground-muted"
-            aria-hidden="true"
-          />
+          <SearchIcon className="size-4 shrink-0 text-foreground-muted" aria-hidden="true" />
           <input
             type="search"
             value={search}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              onSearchChange(e.target.value)
-            }
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSearchChange(e.target.value)}
             placeholder="Search by filename or format"
             aria-label="Search history"
             data-slot="history-search"

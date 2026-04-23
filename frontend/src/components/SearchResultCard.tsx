@@ -15,11 +15,7 @@
  */
 import { BoxesIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { StructureCard } from "@/components/StructureCard";
 import type { SearchResult, SearchType } from "@/types/search";
 import type { SubstanceResponse } from "@/types/chemistry";
@@ -31,10 +27,7 @@ export interface SearchResultCardProps {
   searchType: SearchType;
 }
 
-export function SearchResultCard({
-  result,
-  searchType,
-}: SearchResultCardProps) {
+export function SearchResultCard({ result, searchType }: SearchResultCardProps) {
   const isSubstructure = searchType === "substructure";
   // For substructure hits, swap the displayed svg to the highlighted one.
   // Preserve all other substance fields so StructureCard's copy-SMILES
@@ -55,10 +48,7 @@ export function SearchResultCard({
         </div>
       )}
       <StructureCard substance={substanceForDisplay} />
-      <AttributionChip
-        count={result.extraction_count}
-        extractions={result.extractions}
-      />
+      <AttributionChip count={result.extraction_count} extractions={result.extractions} />
     </div>
   );
 }
@@ -80,7 +70,7 @@ function AttributionChip({ count, extractions }: AttributionChipProps) {
             aria-haspopup="dialog"
             className={cn(
               "self-start focus-visible:outline-none",
-              "focus-visible:ring-2 focus-visible:ring-primary rounded"
+              "focus-visible:ring-2 focus-visible:ring-primary rounded",
             )}
           />
         }
@@ -111,7 +101,7 @@ function AttributionChip({ count, extractions }: AttributionChipProps) {
                     className={cn(
                       "block p-1 rounded hover:text-primary",
                       "focus-visible:outline-none focus-visible:ring-2",
-                      "focus-visible:ring-primary"
+                      "focus-visible:ring-primary",
                     )}
                   >
                     <div className="text-caption text-foreground truncate">

@@ -12,13 +12,7 @@
  *   - "Show all N" link only when total > 10.
  */
 import { describe, it, expect, vi } from "vitest";
-import {
-  render,
-  screen,
-  fireEvent,
-  act,
-  waitFor,
-} from "@testing-library/react";
+import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 
 import { HistoryList } from "./HistoryList";
 import type { HistoryListItem } from "@/types/history";
@@ -69,9 +63,7 @@ describe("HistoryList — Phase 3", () => {
       />,
     );
     expect(screen.getByText("No extractions yet")).toBeInTheDocument();
-    expect(
-      screen.getByText("Upload a CDX or CDXML file to get started."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Upload a CDX or CDXML file to get started.")).toBeInTheDocument();
   });
 
   it("renders toolbar with search and CSV export affordances", () => {
@@ -89,9 +81,7 @@ describe("HistoryList — Phase 3", () => {
     );
     expect(screen.getByText("Recent extractions")).toBeInTheDocument();
     expect(screen.getByLabelText("Search history")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /export history to csv/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /export history to csv/i })).toBeInTheDocument();
   });
 
   it("renders sticky column header + zebra row layout", () => {
@@ -112,9 +102,7 @@ describe("HistoryList — Phase 3", () => {
         onReloadSuccess={noopReloadSuccess}
       />,
     );
-    expect(
-      container.querySelector('[data-slot="history-header"]'),
-    ).not.toBeNull();
+    expect(container.querySelector('[data-slot="history-header"]')).not.toBeNull();
     const rows = container.querySelectorAll('[data-slot="history-row"]');
     expect(rows.length).toBe(3);
     // index 0 → even (no elevated bg), index 1 → odd (elevated), index 2 → even.
@@ -228,12 +216,8 @@ describe("HistoryList — Phase 3", () => {
   });
 
   it("clicking Export CSV triggers URL.createObjectURL + anchor click", async () => {
-    const createSpy = vi
-      .spyOn(URL, "createObjectURL")
-      .mockReturnValue("blob:mock-csv");
-    const revokeSpy = vi
-      .spyOn(URL, "revokeObjectURL")
-      .mockImplementation(() => {});
+    const createSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock-csv");
+    const revokeSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     const anchorClick = vi.fn();
     const originalCreate = document.createElement.bind(document);
     const createElementSpy = vi
@@ -256,9 +240,7 @@ describe("HistoryList — Phase 3", () => {
         onReloadSuccess={noopReloadSuccess}
       />,
     );
-    fireEvent.click(
-      screen.getByRole("button", { name: /export history to csv/i }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /export history to csv/i }));
     expect(createSpy).toHaveBeenCalledTimes(1);
     expect(anchorClick).toHaveBeenCalledTimes(1);
     expect(revokeSpy).toHaveBeenCalledWith("blob:mock-csv");

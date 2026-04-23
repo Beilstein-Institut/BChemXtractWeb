@@ -10,9 +10,7 @@ from httpx import AsyncClient
 class TestUploadCDX:
     """Tests for CDX binary file upload (UPLD-01, UPLD-03, DISP-01, DISP-02)."""
 
-    async def test_upload_cdx(
-        self, client: AsyncClient, cdx_file_bytes: bytes
-    ) -> None:
+    async def test_upload_cdx(self, client: AsyncClient, cdx_file_bytes: bytes) -> None:
         """Upload a CDX file and verify extraction returns substances.
 
         UPLD-01: User can upload a CDX file.
@@ -229,10 +227,7 @@ class TestFileSizeValidation:
         # D-17: unified ErrorResponse shape — ``detail`` + ``code``.
         assert "detail" in data
         assert data.get("code") == "FILE_TOO_LARGE"
-        assert (
-            "50 MB" in data["detail"]
-            or "size limit" in data["detail"].lower()
-        )
+        assert "50 MB" in data["detail"] or "size limit" in data["detail"].lower()
 
 
 class TestFormatRejection:
@@ -280,9 +275,7 @@ class TestExtensionMismatch:
         assert response.status_code == 200
         data = response.json()
         assert len(data["warnings"]) > 0
-        assert any(
-            "CDX binary" in w or "CDXML" in w for w in data["warnings"]
-        )
+        assert any("CDX binary" in w or "CDXML" in w for w in data["warnings"])
 
     async def test_matching_extension_no_warning(
         self, client: AsyncClient, cdx_file_bytes: bytes
@@ -351,9 +344,7 @@ class TestResponseShape:
                 "svg",
             ]
             for field in substance_fields:
-                assert field in substance, (
-                    f"Missing substance field: {field}"
-                )
+                assert field in substance, f"Missing substance field: {field}"
 
         # Info fields
         info_fields = [
@@ -362,6 +353,4 @@ class TestResponseShape:
             "no_substances",
         ]
         for field in info_fields:
-            assert field in data["info"], (
-                f"Missing info field: {field}"
-            )
+            assert field in data["info"], f"Missing info field: {field}"

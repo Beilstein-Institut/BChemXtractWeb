@@ -42,13 +42,7 @@ vi.mock("@base-ui/react/menu", () => {
     React.createElement(React.Fragment, null, children);
 
   // Popup is always rendered (simulates open dropdown)
-  const Popup = ({
-    children,
-    className,
-  }: {
-    children: React.ReactNode;
-    className?: string;
-  }) =>
+  const Popup = ({ children, className }: { children: React.ReactNode; className?: string }) =>
     React.createElement("div", { "data-testid": "dropdown-content", className }, children);
 
   const Item = ({
@@ -73,7 +67,7 @@ vi.mock("@base-ui/react/menu", () => {
         "aria-disabled": ariaDisabled,
         ...rest,
       },
-      children
+      children,
     );
 
   const GroupLabel = ({
@@ -193,8 +187,8 @@ vi.mock("@base-ui/react/button", () => {
     Button: React.forwardRef(
       (
         { children, className, ...props }: React.ComponentProps<"button">,
-        ref: React.Ref<HTMLButtonElement>
-      ) => React.createElement("button", { ref, className, ...props }, children)
+        ref: React.Ref<HTMLButtonElement>,
+      ) => React.createElement("button", { ref, className, ...props }, children),
     ),
   };
 });
@@ -255,9 +249,7 @@ describe("ExportMenu", () => {
 
   it("icon variant renders DownloadIcon button without text label", () => {
     render(<ExportMenu onExport={vi.fn()} triggerVariant="icon" />);
-    expect(
-      screen.getByRole("button", { name: "Export structure" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Export structure" })).toBeInTheDocument();
     // No standalone "Export" text button visible
     expect(screen.queryByRole("button", { name: /^export$/i })).not.toBeInTheDocument();
   });

@@ -40,10 +40,7 @@ describe("ExtractionTabs", () => {
 
   function renderTabs() {
     return render(
-      <ExtractionTabs
-        substanceCount={12}
-        reactionsTabProps={{ file: null }}
-      >
+      <ExtractionTabs substanceCount={12} reactionsTabProps={{ file: null }}>
         <div data-testid="substances-content">Substances body</div>
       </ExtractionTabs>,
     );

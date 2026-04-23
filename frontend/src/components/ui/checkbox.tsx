@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox"
-import { CheckIcon } from "lucide-react"
+import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox";
+import { CheckIcon } from "lucide-react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 /**
  * Checkbox — state tier (Phase 3 Liquid Glass rebuild, Task 5).
@@ -29,7 +29,7 @@ function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
         "disabled:cursor-not-allowed disabled:opacity-50 data-disabled:cursor-not-allowed data-disabled:opacity-50",
         // Invalid (field context)
         "aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/40",
-        className
+        className,
       )}
       {...props}
     >
@@ -40,7 +40,7 @@ function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
         <CheckIcon className="size-3 text-primary-foreground" />
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
-  )
+  );
 }
 
-export { Checkbox }
+export { Checkbox };

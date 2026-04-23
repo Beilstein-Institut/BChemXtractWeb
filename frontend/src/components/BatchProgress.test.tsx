@@ -17,9 +17,7 @@ const files: BatchFileStatus[] = [
 
 describe("BatchProgress", () => {
   it("renders per-file status rows", () => {
-    render(
-      <BatchProgress files={files} totalCount={3} onCancel={vi.fn()} />,
-    );
+    render(<BatchProgress files={files} totalCount={3} onCancel={vi.fn()} />);
     expect(screen.getByText("a.cdx")).toBeDefined();
     expect(screen.getByText("5 structures")).toBeDefined();
     expect(screen.getByText("b.cdx")).toBeDefined();
@@ -33,9 +31,7 @@ describe("BatchProgress", () => {
   });
 
   it("renders the 3-up stat strip with Total / Completed / Failed labels", () => {
-    render(
-      <BatchProgress files={files} totalCount={3} onCancel={vi.fn()} />,
-    );
+    render(<BatchProgress files={files} totalCount={3} onCancel={vi.fn()} />);
     const stats = document.querySelector("[data-slot='batch-stats']");
     expect(stats).not.toBeNull();
     expect(screen.getByText("Total")).toBeDefined();
@@ -44,21 +40,13 @@ describe("BatchProgress", () => {
   });
 
   it("renders the process-step root slot and file-progress-list", () => {
-    render(
-      <BatchProgress files={files} totalCount={3} onCancel={vi.fn()} />,
-    );
-    expect(
-      document.querySelector("[data-slot='process-step']"),
-    ).not.toBeNull();
-    expect(
-      document.querySelector("[data-slot='file-progress-list']"),
-    ).not.toBeNull();
+    render(<BatchProgress files={files} totalCount={3} onCancel={vi.fn()} />);
+    expect(document.querySelector("[data-slot='process-step']")).not.toBeNull();
+    expect(document.querySelector("[data-slot='file-progress-list']")).not.toBeNull();
   });
 
   it("file names use Geist Mono (font-mono class)", () => {
-    render(
-      <BatchProgress files={files} totalCount={3} onCancel={vi.fn()} />,
-    );
+    render(<BatchProgress files={files} totalCount={3} onCancel={vi.fn()} />);
     const nameEl = screen.getByText("a.cdx");
     expect(nameEl.className).toMatch(/font-mono/);
   });
@@ -67,13 +55,9 @@ describe("BatchProgress", () => {
     // 1 done + 1 failed + 1 queued out of 3 total -> 2/3 processed ~= 67%.
     // The old behaviour advanced only on done, which would stall the bar
     // at 1/3 = 33% even though the worker had finished 2 of 3 files.
-    const { container } = render(
-      <BatchProgress files={files} totalCount={3} onCancel={vi.fn()} />,
-    );
+    const { container } = render(<BatchProgress files={files} totalCount={3} onCancel={vi.fn()} />);
     // Indicator width should be ~66.67% (2 processed out of 3).
-    const indicator = container.querySelector(
-      '[data-slot="progress-indicator"]',
-    ) as HTMLElement;
+    const indicator = container.querySelector('[data-slot="progress-indicator"]') as HTMLElement;
     expect(indicator.style.width.startsWith("66.6")).toBe(true);
     // The ProgressLabel mirrors the processed count.
     expect(screen.getByText("2 of 3 files")).toBeDefined();
@@ -82,9 +66,7 @@ describe("BatchProgress", () => {
   });
 
   it("Completed stat still reflects succeeded-only count (not processed)", () => {
-    render(
-      <BatchProgress files={files} totalCount={3} onCancel={vi.fn()} />,
-    );
+    render(<BatchProgress files={files} totalCount={3} onCancel={vi.fn()} />);
     // files fixture has 1 done + 1 failed. Completed cell should show 1,
     // Failed cell should show 1, Total 3 — the stat strip is a
     // different semantic than the progress bar.
@@ -112,9 +94,7 @@ describe("BatchProgress", () => {
       const { container } = render(
         <BatchProgress files={inFlight} totalCount={2} onCancel={vi.fn()} />,
       );
-      const elapsed = container.querySelector(
-        "[data-slot='batch-elapsed']",
-      ) as HTMLElement;
+      const elapsed = container.querySelector("[data-slot='batch-elapsed']") as HTMLElement;
       expect(elapsed).not.toBeNull();
       expect(elapsed.textContent).toContain("Elapsed:");
       expect(elapsed.textContent).toContain("0s");
@@ -132,9 +112,7 @@ describe("BatchProgress", () => {
       act(() => {
         vi.advanceTimersByTime(12_000);
       });
-      const elapsed = container.querySelector(
-        "[data-slot='batch-elapsed']",
-      ) as HTMLElement;
+      const elapsed = container.querySelector("[data-slot='batch-elapsed']") as HTMLElement;
       expect(elapsed.textContent).toContain("12s");
     });
 
@@ -149,9 +127,7 @@ describe("BatchProgress", () => {
       act(() => {
         vi.advanceTimersByTime(83_000); // 1:23
       });
-      const elapsed = container.querySelector(
-        "[data-slot='batch-elapsed']",
-      ) as HTMLElement;
+      const elapsed = container.querySelector("[data-slot='batch-elapsed']") as HTMLElement;
       expect(elapsed.textContent).toContain("1:23");
     });
 
@@ -169,9 +145,7 @@ describe("BatchProgress", () => {
       const { container } = render(
         <BatchProgress files={done} totalCount={1} onCancel={vi.fn()} />,
       );
-      const elapsed = container.querySelector(
-        "[data-slot='batch-elapsed']",
-      ) as HTMLElement;
+      const elapsed = container.querySelector("[data-slot='batch-elapsed']") as HTMLElement;
       const initial = elapsed.textContent;
       act(() => {
         vi.advanceTimersByTime(5_000);

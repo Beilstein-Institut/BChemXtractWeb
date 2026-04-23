@@ -68,9 +68,7 @@ describe("useKeyboardShortcut", () => {
 
   it("respects the shift modifier as an exact match", () => {
     const handler = vi.fn();
-    renderHook(() =>
-      useKeyboardShortcut({ key: "/", shift: true }, handler),
-    );
+    renderHook(() => useKeyboardShortcut({ key: "/", shift: true }, handler));
     press("/");
     expect(handler).not.toHaveBeenCalled();
     press("/", { shift: true });
@@ -96,9 +94,7 @@ describe("useKeyboardShortcut", () => {
 
   it("removes the listener on unmount", () => {
     const handler = vi.fn();
-    const { unmount } = renderHook(() =>
-      useKeyboardShortcut({ key: "k", meta: true }, handler),
-    );
+    const { unmount } = renderHook(() => useKeyboardShortcut({ key: "k", meta: true }, handler));
     unmount();
     press("k", { meta: true });
     expect(handler).not.toHaveBeenCalled();

@@ -40,16 +40,13 @@ _bearer_scheme = HTTPBearer(
     ),
 )
 
-_BearerCreds = Annotated[
-    HTTPAuthorizationCredentials | None, Depends(_bearer_scheme)
-]
+_BearerCreds = Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer_scheme)]
 
 
 def _check_key(presented: str) -> bool:
     """Constant-time lookup of ``presented`` against :attr:`Settings.api_keys`."""
     return any(
-        hmac.compare_digest(candidate, presented)
-        for candidate in settings.api_keys
+        hmac.compare_digest(candidate, presented) for candidate in settings.api_keys
     )
 
 

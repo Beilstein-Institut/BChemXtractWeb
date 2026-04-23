@@ -48,14 +48,17 @@ _BACKEND_DIR = Path(__file__).parent.parent
 
 def _reset_alembic_db() -> None:
     """Drop and recreate the isolated alembic-backfill test database."""
-    with psycopg.connect(
-        dbname="postgres",
-        user="postgres",
-        password="postgres",
-        host="localhost",
-        port=5432,
-        autocommit=True,
-    ) as conn, conn.cursor() as cur:
+    with (
+        psycopg.connect(
+            dbname="postgres",
+            user="postgres",
+            password="postgres",
+            host="localhost",
+            port=5432,
+            autocommit=True,
+        ) as conn,
+        conn.cursor() as cur,
+    ):
         cur.execute(
             "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
             "WHERE datname = %s AND pid <> pg_backend_pid()",
@@ -121,16 +124,12 @@ def test_upgrade_adds_schema_only(fresh_alembic_db: str) -> None:
     with sync_engine.begin() as conn:
         # Column exists.
         row = conn.execute(
-            text(
-                "SELECT canonical_smiles FROM substances WHERE inchi_key = :k"
-            ),
+            text("SELECT canonical_smiles FROM substances WHERE inchi_key = :k"),
             {"k": "TESTBENZENEAAA-UHFFFAOYSA-N"},
         ).first()
         # Index exists.
         indexes = conn.execute(
-            text(
-                "SELECT indexname FROM pg_indexes WHERE tablename = 'substances'"
-            )
+            text("SELECT indexname FROM pg_indexes WHERE tablename = 'substances'")
         ).fetchall()
     sync_engine.dispose()
 
@@ -173,9 +172,7 @@ def test_backfill_populates_canonical_smiles(fresh_alembic_db: str) -> None:
 
     with sync_engine.connect() as conn:
         row = conn.execute(
-            text(
-                "SELECT canonical_smiles FROM substances WHERE inchi_key = :k"
-            ),
+            text("SELECT canonical_smiles FROM substances WHERE inchi_key = :k"),
             {"k": "TESTBENZENEAAA-UHFFFAOYSA-N"},
         ).first()
     sync_engine.dispose()
@@ -230,9 +227,7 @@ def test_backfill_leaves_unparsable_as_null(fresh_alembic_db: str) -> None:
         result = backfill_canonical_smiles(conn, batch_size=100)
 
         row = conn.execute(
-            text(
-                "SELECT canonical_smiles FROM substances WHERE inchi_key = :k"
-            ),
+            text("SELECT canonical_smiles FROM substances WHERE inchi_key = :k"),
             {"k": "BADSMILESKEYAA-UHFFFAOYSA-N"},
         ).first()
     sync_engine.dispose()

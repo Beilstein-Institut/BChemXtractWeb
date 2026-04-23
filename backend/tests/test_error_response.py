@@ -25,7 +25,8 @@ async def test_validation_error_shape(
 ) -> None:
     """Pydantic validation failure emits code=VALIDATION_ERROR + fields."""
     resp = await client_no_jvm.post(
-        "/api/search", json={"query": ""}  # min_length=1 violated
+        "/api/search",
+        json={"query": ""},  # min_length=1 violated
     )
     assert resp.status_code == 422
     body = resp.json()
@@ -38,7 +39,8 @@ async def test_validation_error_shape(
 async def test_bad_request_shape(client_no_jvm: AsyncClient) -> None:
     """Export endpoint 400 path emits code=BAD_REQUEST."""
     resp = await client_no_jvm.post(
-        "/api/export", json={"format": "sdf"}  # no substance_ids or extraction_id
+        "/api/export",
+        json={"format": "sdf"},  # no substance_ids or extraction_id
     )
     assert resp.status_code == 400
     body = resp.json()

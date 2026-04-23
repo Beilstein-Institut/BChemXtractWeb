@@ -20,11 +20,9 @@ describe("Checkbox", () => {
     expect(screen.getByRole("checkbox")).toBeInTheDocument();
   });
 
-  it("exposes data-slot=\"checkbox\" on the root", () => {
+  it('exposes data-slot="checkbox" on the root', () => {
     render(<Checkbox />);
-    expect(screen.getByRole("checkbox").getAttribute("data-slot")).toBe(
-      "checkbox"
-    );
+    expect(screen.getByRole("checkbox").getAttribute("data-slot")).toBe("checkbox");
   });
 
   it("exposes aria-checked on the root", () => {
@@ -82,11 +80,9 @@ describe("Checkbox", () => {
     expect(cb.className).toContain("focus-visible:ring-ring");
   });
 
-  it("mounts the Indicator element with data-slot=\"checkbox-indicator\"", () => {
+  it('mounts the Indicator element with data-slot="checkbox-indicator"', () => {
     const { container } = render(<Checkbox defaultChecked />);
-    const indicator = container.querySelector(
-      '[data-slot="checkbox-indicator"]'
-    );
+    const indicator = container.querySelector('[data-slot="checkbox-indicator"]');
     expect(indicator).not.toBeNull();
   });
 });

@@ -17,7 +17,7 @@ describe("postBatchStart", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({ batch_id: "abc", task_ids: ["t1"], file_count: 1 }),
-      })
+      }),
     );
 
     const files = [new File(["content"], "test.cdx")];
@@ -37,7 +37,7 @@ describe("postBatchStart", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/batch",
-      expect.objectContaining({ method: "POST" })
+      expect.objectContaining({ method: "POST" }),
     );
   });
 
@@ -48,26 +48,22 @@ describe("postBatchStart", () => {
         ok: false,
         status: 400,
         json: async () => ({ detail: "Batch exceeds 20-file limit" }),
-      })
+      }),
     );
 
     await expect(postBatchStart([new File([""], "a.cdx")])).rejects.toThrow(
-      "Batch exceeds 20-file limit"
+      "Batch exceeds 20-file limit",
     );
   });
 });
 
 describe("getBatchSSEUrl", () => {
   it("returns the expected URL shape for a given batchId", () => {
-    expect(getBatchSSEUrl("test-batch-123")).toBe(
-      "/api/batch/test-batch-123/progress"
-    );
+    expect(getBatchSSEUrl("test-batch-123")).toBe("/api/batch/test-batch-123/progress");
   });
 
   it("URL-encodes the batchId", () => {
-    expect(getBatchSSEUrl("id with spaces")).toBe(
-      "/api/batch/id%20with%20spaces/progress"
-    );
+    expect(getBatchSSEUrl("id with spaces")).toBe("/api/batch/id%20with%20spaces/progress");
   });
 });
 
@@ -80,7 +76,7 @@ describe("cancelBatch", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/batch/my-batch-id",
-      expect.objectContaining({ method: "DELETE" })
+      expect.objectContaining({ method: "DELETE" }),
     );
   });
 

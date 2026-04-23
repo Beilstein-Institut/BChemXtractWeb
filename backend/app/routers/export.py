@@ -49,9 +49,7 @@ _EXPORT_SIZE_HARD_LIMIT_BYTES = 500 * 1024 * 1024
 _EXPORT_SIZE_HARD_LIMIT_MB = _EXPORT_SIZE_HARD_LIMIT_BYTES // (1024 * 1024)
 
 
-async def _fetch_substances(
-    payload: ExportRequest, db: AsyncSession
-) -> list[dict]:
+async def _fetch_substances(payload: ExportRequest, db: AsyncSession) -> list[dict]:
     """Fetch substance dicts for the export request.
 
     If substance_ids is non-empty, fetch those specific substances.
@@ -91,9 +89,7 @@ async def _fetch_substances(
             select(Extraction).where(Extraction.id == payload.extraction_id)
         )
         if ext_result.scalar_one_or_none() is None:
-            raise HTTPException(
-                status_code=404, detail="Extraction not found"
-            )
+            raise HTTPException(status_code=404, detail="Extraction not found")
         result = await db.execute(
             select(Substance)
             .join(
@@ -111,9 +107,7 @@ async def _fetch_substances(
         )
 
     if not substances:
-        raise HTTPException(
-            status_code=404, detail="No substances found for export"
-        )
+        raise HTTPException(status_code=404, detail="No substances found for export")
 
     return [
         {
@@ -132,9 +126,7 @@ async def _fetch_substances(
     ]
 
 
-async def _fetch_reactions(
-    payload: ExportRequest, db: AsyncSession
-) -> list[dict]:
+async def _fetch_reactions(payload: ExportRequest, db: AsyncSession) -> list[dict]:
     """Fetch reaction dicts for RXN export. IDOR-safe (Plan 10 T-10-04).
 
     Mirrors _fetch_substances IDOR protection:
@@ -155,9 +147,7 @@ async def _fetch_reactions(
             .distinct()
         )
         if payload.extraction_id is not None:
-            stmt = stmt.where(
-                ExtractionReaction.extraction_id == payload.extraction_id
-            )
+            stmt = stmt.where(ExtractionReaction.extraction_id == payload.extraction_id)
         result = await db.execute(stmt)
         reactions = result.scalars().all()
     elif payload.extraction_id is not None:
@@ -165,9 +155,7 @@ async def _fetch_reactions(
             select(Extraction).where(Extraction.id == payload.extraction_id)
         )
         if ext_result.scalar_one_or_none() is None:
-            raise HTTPException(
-                status_code=404, detail="Extraction not found"
-            )
+            raise HTTPException(status_code=404, detail="Extraction not found")
         result = await db.execute(
             select(Reaction)
             .join(
@@ -185,9 +173,7 @@ async def _fetch_reactions(
         )
 
     if not reactions:
-        raise HTTPException(
-            status_code=404, detail="No reactions found for export."
-        )
+        raise HTTPException(status_code=404, detail="No reactions found for export.")
 
     return [
         {

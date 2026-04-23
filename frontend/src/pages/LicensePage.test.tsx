@@ -13,9 +13,7 @@ describe("LicensePage", () => {
     const { container } = render(<LicensePage />);
     const section = container.querySelector('[data-slot="license-mit"]');
     expect(section).not.toBeNull();
-    const preEl = container.querySelector(
-      '[data-slot="license-mit-text"]',
-    ) as HTMLElement | null;
+    const preEl = container.querySelector('[data-slot="license-mit-text"]') as HTMLElement | null;
     expect(preEl).not.toBeNull();
     const text = preEl!.textContent ?? "";
     // Spot-check the load-bearing clauses that must reach the reader.
@@ -29,9 +27,7 @@ describe("LicensePage", () => {
 
   it("renders a third-party components list with outbound links only", () => {
     const { container } = render(<LicensePage />);
-    const list = container.querySelector(
-      '[data-slot="license-third-party-list"]',
-    );
+    const list = container.querySelector('[data-slot="license-third-party-list"]');
     expect(list).not.toBeNull();
     const anchors = list!.querySelectorAll("a");
     expect(anchors.length).toBeGreaterThanOrEqual(5);

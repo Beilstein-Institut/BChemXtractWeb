@@ -52,17 +52,13 @@ describe("ExperimentalBanner", () => {
   it("click dismiss unmounts the banner", () => {
     const { container } = render(<ExperimentalBanner />);
     expect(container.querySelector("[role='note']")).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: /dismiss experimental/i }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /dismiss experimental/i }));
     expect(container.querySelector("[role='note']")).toBeNull();
   });
 
   it("click dismiss writes sessionStorage bcx.reactions.experimentalBannerDismissed = '1'", () => {
     render(<ExperimentalBanner />);
-    fireEvent.click(
-      screen.getByRole("button", { name: /dismiss experimental/i }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /dismiss experimental/i }));
     expect(window.sessionStorage.getItem(STORAGE_KEY)).toBe("1");
   });
 
@@ -77,9 +73,7 @@ describe("ExperimentalBanner", () => {
       value: localStorageStub,
     });
     render(<ExperimentalBanner />);
-    fireEvent.click(
-      screen.getByRole("button", { name: /dismiss experimental/i }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /dismiss experimental/i }));
     expect(localStorageStub.setItem).not.toHaveBeenCalled();
   });
 

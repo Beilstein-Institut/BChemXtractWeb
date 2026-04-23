@@ -20,12 +20,12 @@ describe("Toggle", () => {
     expect(screen.getByRole("button", { name: "Bold" })).toBeInTheDocument();
   });
 
-  it("exposes data-slot=\"toggle\"", () => {
+  it('exposes data-slot="toggle"', () => {
     render(<Toggle>x</Toggle>);
     expect(screen.getByRole("button").getAttribute("data-slot")).toBe("toggle");
   });
 
-  it("defaults data-variant to \"default\" and data-size to \"default\"", () => {
+  it('defaults data-variant to "default" and data-size to "default"', () => {
     render(<Toggle>x</Toggle>);
     const btn = screen.getByRole("button");
     expect(btn.getAttribute("data-variant")).toBe("default");
@@ -53,7 +53,7 @@ describe("Toggle", () => {
     render(
       <Toggle disabled onPressedChange={onChange}>
         x
-      </Toggle>
+      </Toggle>,
     );
     const btn = screen.getByRole("button");
     fireEvent.click(btn);

@@ -3,14 +3,7 @@
  * Matches backend ExportRequest Pydantic model exactly.
  */
 
-export type ExportFormat =
-  | "sdf"
-  | "json"
-  | "csv"
-  | "png"
-  | "svg"
-  | "v3000"
-  | "rxn";
+export type ExportFormat = "sdf" | "json" | "csv" | "png" | "svg" | "v3000" | "rxn";
 
 /** Human-readable labels for each format. Ordered as shown in UI-SPEC dropdown. */
 export const FORMAT_LABELS: Record<ExportFormat, string> = {

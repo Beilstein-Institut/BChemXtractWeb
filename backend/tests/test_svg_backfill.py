@@ -18,9 +18,7 @@ class _Sub:
 
 
 @pytest.mark.asyncio
-async def test_backfill_renders_both_when_both_missing(
-    started_app, simple_v3000_block
-):
+async def test_backfill_renders_both_when_both_missing(started_app, simple_v3000_block):
     sub = _Sub(svg="", svg_cdx="", mdlv3000=simple_v3000_block)
     result = await render_svgs_from_mdlv3000(sub)
     assert isinstance(result, BackfilledSvgs)
@@ -30,9 +28,7 @@ async def test_backfill_renders_both_when_both_missing(
 
 
 @pytest.mark.asyncio
-async def test_backfill_leaves_populated_field_alone(
-    started_app, simple_v3000_block
-):
+async def test_backfill_leaves_populated_field_alone(started_app, simple_v3000_block):
     sub = _Sub(svg="<svg>already</svg>", svg_cdx="", mdlv3000=simple_v3000_block)
     result = await render_svgs_from_mdlv3000(sub)
     assert result.changed is True

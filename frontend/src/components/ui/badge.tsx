@@ -1,8 +1,8 @@
-import { mergeProps } from "@base-ui/react/merge-props"
-import { useRender } from "@base-ui/react/use-render"
-import { cva, type VariantProps } from "class-variance-authority"
+import { mergeProps } from "@base-ui/react/merge-props";
+import { useRender } from "@base-ui/react/use-render";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 /**
  * Badge — surface tier chip for tags / counts / status.
@@ -25,12 +25,9 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default:
-          "bg-primary text-primary-foreground [a]:hover:opacity-90",
-        secondary:
-          "bg-secondary text-secondary-foreground [a]:hover:opacity-90",
-        outline:
-          "border-border bg-transparent text-foreground [a]:hover:bg-accent",
+        default: "bg-primary text-primary-foreground [a]:hover:opacity-90",
+        secondary: "bg-secondary text-secondary-foreground [a]:hover:opacity-90",
+        outline: "border-border bg-transparent text-foreground [a]:hover:bg-accent",
         success:
           "bg-[color-mix(in_oklch,oklch(0.65_0.16_155)_18%,transparent)] text-[oklch(0.35_0.16_155)] dark:text-[oklch(0.80_0.14_155)]",
         warning:
@@ -40,8 +37,8 @@ const badgeVariants = cva(
     defaultVariants: {
       variant: "default",
     },
-  }
-)
+  },
+);
 
 function Badge({
   className,
@@ -57,14 +54,14 @@ function Badge({
         "data-variant": variant,
         className: cn(badgeVariants({ variant }), className),
       } as React.ComponentProps<"span">,
-      props
+      props,
     ),
     render,
     state: {
       slot: "badge",
       variant,
     },
-  })
+  });
 }
 
-export { Badge, badgeVariants }
+export { Badge, badgeVariants };

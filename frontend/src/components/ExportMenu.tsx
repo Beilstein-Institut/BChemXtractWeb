@@ -31,11 +31,7 @@ import {
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import type { ExportFormat } from "@/types/export";
 import { FORMAT_LABELS } from "@/types/export";
 
@@ -88,14 +84,7 @@ const FORMAT_ICONS: Record<ExportFormat, React.ReactNode> = {
 };
 
 /** Ordered format list as shown in dropdown (D-05, UI-SPEC format list order). */
-const FORMAT_ORDER: ExportFormat[] = [
-  "sdf",
-  "json",
-  "csv",
-  "png",
-  "svg",
-  "v3000",
-];
+const FORMAT_ORDER: ExportFormat[] = ["sdf", "json", "csv", "png", "svg", "v3000"];
 
 /**
  * ExportMenu — the shared format picker dropdown.
@@ -132,12 +121,7 @@ export function ExportMenu({
         <TooltipContent>Export structure</TooltipContent>
       </Tooltip>
     ) : (
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={disabled}
-        onClick={onTriggerClick}
-      >
+      <Button variant="outline" size="sm" disabled={disabled} onClick={onTriggerClick}>
         <DownloadIcon className="size-4 mr-1.5" />
         {triggerLabel}
       </Button>
@@ -145,9 +129,7 @@ export function ExportMenu({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<span />}>
-        {trigger}
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger render={<span />}>{trigger}</DropdownMenuTrigger>
       <DropdownMenuContent align={align} className="w-48">
         <DropdownMenuGroup>
           <DropdownMenuLabel className="text-micro font-semibold uppercase tracking-widest text-muted-foreground px-3 py-1.5">

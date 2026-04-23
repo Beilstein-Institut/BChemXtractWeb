@@ -35,9 +35,7 @@ export function useExtract(): UseExtractReturn {
       setResult(data);
       setState("success");
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "An unexpected error occurred.",
-      );
+      setErrorMessage(err instanceof Error ? err.message : "An unexpected error occurred.");
       setState("error");
     }
   }, []);

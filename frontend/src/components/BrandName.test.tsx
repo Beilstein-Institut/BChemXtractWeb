@@ -13,18 +13,14 @@ describe("BrandName", () => {
 
   it("applies brand font + medium weight on the outer span", () => {
     const { container } = render(<BrandName />);
-    const root = container.querySelector(
-      '[data-slot="brand-name"]',
-    ) as HTMLElement;
+    const root = container.querySelector('[data-slot="brand-name"]') as HTMLElement;
     expect(root.className).toContain("font-brand");
     expect(root.className).toContain("font-medium");
   });
 
   it("bolds the BC and X fragments", () => {
     const { container } = render(<BrandName />);
-    const bolded = container.querySelectorAll(
-      '[data-slot="brand-name"] > .font-bold',
-    );
+    const bolded = container.querySelectorAll('[data-slot="brand-name"] > .font-bold');
     expect(bolded).toHaveLength(2);
     expect(bolded[0].textContent).toBe("BC");
     expect(bolded[1].textContent).toBe("X");
@@ -46,19 +42,13 @@ describe("BrandName", () => {
     const root = container.querySelector('[data-slot="brand-name"]');
     expect(root!.textContent).toBe("BChemXtractWeb");
     // "Web" is an unbolded fragment; only BC and X stay bold.
-    const bolded = container.querySelectorAll(
-      '[data-slot="brand-name"] > .font-bold',
-    );
+    const bolded = container.querySelectorAll('[data-slot="brand-name"] > .font-bold');
     expect(bolded).toHaveLength(2);
   });
 
   it("forwards arbitrary span props (className, data-*)", () => {
-    const { container } = render(
-      <BrandName className="custom-x" data-testid="brand" />,
-    );
-    const root = container.querySelector(
-      '[data-slot="brand-name"]',
-    ) as HTMLElement;
+    const { container } = render(<BrandName className="custom-x" data-testid="brand" />);
+    const root = container.querySelector('[data-slot="brand-name"]') as HTMLElement;
     expect(root.className).toContain("custom-x");
     expect(root.getAttribute("data-testid")).toBe("brand");
   });

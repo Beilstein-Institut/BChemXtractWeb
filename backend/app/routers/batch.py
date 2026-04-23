@@ -69,9 +69,7 @@ def _task_completion_event(async_result: AsyncResult) -> ServerSentEvent:
     raw_result = async_result.result
     if isinstance(raw_result, BaseException):
         # Task entered FAILURE state via broker/worker error.
-        serializable = {
-            "error": str(raw_result)[:_ERROR_DETAIL_MAX_CHARS]
-        }
+        serializable = {"error": str(raw_result)[:_ERROR_DETAIL_MAX_CHARS]}
     else:
         serializable = raw_result
     try:
@@ -88,9 +86,9 @@ def _task_completion_event(async_result: AsyncResult) -> ServerSentEvent:
                 "task_id": async_result.id,
                 "state": "FAILURE",
                 "result": {
-                    "error": (
-                        f"Result not serializable: {exc!s}"
-                    )[:_ERROR_DETAIL_MAX_CHARS]
+                    "error": (f"Result not serializable: {exc!s}")[
+                        :_ERROR_DETAIL_MAX_CHARS
+                    ]
                 },
             }
         )
@@ -126,9 +124,7 @@ def _task_completion_event(async_result: AsyncResult) -> ServerSentEvent:
     tags=["batch"],
 )
 @limiter.limit(settings.rate_limit_batch)
-async def start_batch(
-    request: Request, files: UploadFiles
-) -> BatchStartResponse:
+async def start_batch(request: Request, files: UploadFiles) -> BatchStartResponse:
     """Start a batch extraction. Returns batch_id for progress tracking.
 
     Validates file count (<= 20) and file size (<= 50 MB) before enqueueing.
@@ -199,9 +195,7 @@ async def start_batch(
     ),
     responses={
         200: {
-            "description": (
-                "Progress stream opened. Media type is text/event-stream."
-            ),
+            "description": ("Progress stream opened. Media type is text/event-stream."),
         },
         404: {
             "model": ErrorResponse,
@@ -333,9 +327,7 @@ async def download_batch_zip(batch_id: str, db: DbDep) -> StreamingResponse:
     Raises:
         HTTPException 404: No extractions found for this batch_id.
     """
-    result = await db.execute(
-        select(Extraction).where(Extraction.batch_id == batch_id)
-    )
+    result = await db.execute(select(Extraction).where(Extraction.batch_id == batch_id))
     extractions = result.scalars().all()
 
     if not extractions:
@@ -371,9 +363,7 @@ async def download_batch_zip(batch_id: str, db: DbDep) -> StreamingResponse:
             # SEC M-03: centralised allowlist-based sanitisation covers
             # path traversal, control chars, null bytes, and unprintables.
             safe_name = safe_filename(extraction.filename)
-            zf.writestr(
-                f"{safe_name}.json", json.dumps(response_dict, indent=2)
-            )
+            zf.writestr(f"{safe_name}.json", json.dumps(response_dict, indent=2))
 
     buf.seek(0)
     zip_filename = f"batch_{safe_filename(batch_id)[:8]}.zip"

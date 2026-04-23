@@ -20,11 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CopyButton } from "@/components/internal/CopyButton";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
@@ -145,13 +141,7 @@ function truncate(value: string, max: number): string {
   return value.length > max ? value.slice(0, max) + "\u2026" : value;
 }
 
-function StructureTableRow({
-  substance,
-  index,
-  selected,
-  onToggleSelect,
-  onOpen,
-}: RowProps) {
+function StructureTableRow({ substance, index, selected, onToggleSelect, onOpen }: RowProps) {
   const svgSrc = useSvgObjectUrl(substance.svg);
 
   const smilesTruncated = truncate(substance.smiles, SMILES_MAX);
@@ -161,16 +151,13 @@ function StructureTableRow({
     <TableRow
       className={cn(
         "min-h-[56px] cursor-pointer hover:bg-muted/50 transition-colors",
-        selected && "bg-primary/5"
+        selected && "bg-primary/5",
       )}
       data-selected={selected}
       onClick={() => onOpen(index)}
     >
       {/* Checkbox cell — stop propagation to prevent row click */}
-      <TableCell
-        onClick={(e) => e.stopPropagation()}
-        className="w-10"
-      >
+      <TableCell onClick={(e) => e.stopPropagation()} className="w-10">
         <Checkbox
           checked={selected}
           onCheckedChange={() => onToggleSelect(substance.id)}
@@ -202,9 +189,7 @@ function StructureTableRow({
       <TableCell>
         <Tooltip>
           <TooltipTrigger
-            render={
-              <span className="block max-w-[200px] truncate text-xs text-muted-foreground" />
-            }
+            render={<span className="block max-w-[200px] truncate text-xs text-muted-foreground" />}
           >
             {smilesTruncated}
           </TooltipTrigger>
@@ -216,9 +201,7 @@ function StructureTableRow({
       <TableCell className="hidden md:table-cell">
         <Tooltip>
           <TooltipTrigger
-            render={
-              <span className="block text-xs text-muted-foreground font-mono" />
-            }
+            render={<span className="block text-xs text-muted-foreground font-mono" />}
           >
             {inchiKeyTruncated}
           </TooltipTrigger>
@@ -227,16 +210,8 @@ function StructureTableRow({
       </TableCell>
 
       {/* Copy SMILES button — stop propagation to prevent row click */}
-      <TableCell
-        onClick={(e) => e.stopPropagation()}
-        className="w-10"
-      >
-        <CopyButton
-          value={substance.smiles}
-          label="SMILES"
-          stopPropagation
-          mutedIcon
-        />
+      <TableCell onClick={(e) => e.stopPropagation()} className="w-10">
+        <CopyButton value={substance.smiles} label="SMILES" stopPropagation mutedIcon />
       </TableCell>
     </TableRow>
   );

@@ -14,13 +14,13 @@ describe("Badge", () => {
     expect(screen.getByText("new")).toBeInTheDocument();
   });
 
-  it("exposes data-slot=\"badge\"", () => {
+  it('exposes data-slot="badge"', () => {
     const { container } = render(<Badge>x</Badge>);
     const root = container.firstChild as HTMLElement;
     expect(root.getAttribute("data-slot")).toBe("badge");
   });
 
-  it("defaults to variant=\"default\"", () => {
+  it('defaults to variant="default"', () => {
     const { container } = render(<Badge>x</Badge>);
     const root = container.firstChild as HTMLElement;
     expect(root.getAttribute("data-variant")).toBe("default");

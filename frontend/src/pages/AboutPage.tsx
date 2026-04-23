@@ -21,12 +21,7 @@
  * without depending on class names.
  */
 import type { ReactNode } from "react";
-import {
-  ArrowUpRightIcon,
-  ExternalLinkIcon,
-  FlaskConicalIcon,
-  BookOpenIcon,
-} from "lucide-react";
+import { ArrowUpRightIcon, ExternalLinkIcon, FlaskConicalIcon, BookOpenIcon } from "lucide-react";
 
 import { BentoCell } from "@/components/layout/BentoCell";
 import { BentoGrid } from "@/components/layout/BentoGrid";
@@ -81,12 +76,7 @@ const LINKS: LinkEntry[] = [
     label: "Chemistry Development Kit",
     description: "Open-source cheminformatics library (CDK 2.12) powering descriptor generation.",
     icon: (
-      <img
-        src="/cdk-logo.png"
-        alt=""
-        aria-hidden="true"
-        className="h-5 w-auto object-contain"
-      />
+      <img src="/cdk-logo.png" alt="" aria-hidden="true" className="h-5 w-auto object-contain" />
     ),
   },
 ];
@@ -99,17 +89,12 @@ export function AboutPage() {
           About
         </h1>
         <p className="text-base text-foreground-muted">
-          A browser wrapper around the <BrandName /> Java library — built at
-          the Beilstein-Institut to make ChemDraw extraction accessible to
-          anyone.
+          A browser wrapper around the <BrandName /> Java library — built at the Beilstein-Institut
+          to make ChemDraw extraction accessible to anyone.
         </p>
       </header>
 
-      <BentoGrid
-        cols={3}
-        className="mt-8 auto-rows-[minmax(180px,auto)]"
-        data-slot="about-bento"
-      >
+      <BentoGrid cols={3} className="mt-8 auto-rows-[minmax(180px,auto)]" data-slot="about-bento">
         <BentoCell span="2:2" data-slot="about-hero-cell">
           <HeroTile />
         </BentoCell>
@@ -142,15 +127,13 @@ function HeroTile() {
           Chemistry · Extraction
         </Badge>
         <h2 className="font-display text-[clamp(2rem,4vw,3.25rem)] font-semibold leading-[1.05] tracking-tight text-foreground">
-          ChemDraw, decoded for{" "}
-          <span className="text-primary">anyone</span>.
+          ChemDraw, decoded for <span className="text-primary">anyone</span>.
         </h2>
         <p className="max-w-[52ch] text-base leading-relaxed text-foreground-muted">
-          <BrandName suffix="Web" /> parses CDX and CDXML files, extracts structures
-          and reactions, and enriches them with computed descriptors —
-          InChI, SMILES, RInChI, molecular formulas — all without
-          installing Java or touching a command line. Drop a file, read
-          the structures back as JSON, SDF, or CSV.
+          <BrandName suffix="Web" /> parses CDX and CDXML files, extracts structures and reactions,
+          and enriches them with computed descriptors — InChI, SMILES, RInChI, molecular formulas —
+          all without installing Java or touching a command line. Drop a file, read the structures
+          back as JSON, SDF, or CSV.
         </p>
       </div>
       <div className="relative z-10 flex flex-wrap items-center gap-3">
@@ -191,9 +174,7 @@ function VersionTile() {
       >
         {VERSION}
       </span>
-      <span className="text-caption text-foreground-muted">
-        {BUILD_LABEL}
-      </span>
+      <span className="text-caption text-foreground-muted">{BUILD_LABEL}</span>
     </article>
   );
 }
@@ -226,9 +207,7 @@ function LinksTile() {
                 <span className="text-sm font-medium text-foreground group-hover/link:text-primary">
                   {label}
                 </span>
-                <span className="text-caption text-foreground-muted">
-                  {description}
-                </span>
+                <span className="text-caption text-foreground-muted">{description}</span>
               </span>
               <ExternalLinkIcon
                 aria-hidden="true"
@@ -252,18 +231,12 @@ function TechStackTile() {
         <span className="text-caption font-semibold uppercase tracking-wide text-foreground-muted">
           Tech stack
         </span>
-        <span className="text-caption text-foreground-muted">
-          Simplest tool at every layer.
-        </span>
+        <span className="text-caption text-foreground-muted">Simplest tool at every layer.</span>
       </div>
       <ul className="flex flex-wrap gap-2" data-slot="about-tech-list">
         {TECH_STACK.map(({ label, detail }) => (
           <li key={label}>
-            <Badge
-              variant="outline"
-              className="font-mono text-[0.7rem]"
-              title={detail}
-            >
+            <Badge variant="outline" className="font-mono text-[0.7rem]" title={detail}>
               {label}
             </Badge>
           </li>
@@ -302,13 +275,11 @@ function CreditsTile() {
           >
             Beilstein-Institut
           </a>
-          , an independent non-profit foundation advancing the chemical
-          sciences.
+          , an independent non-profit foundation advancing the chemical sciences.
         </p>
         <p className="text-caption text-foreground-muted">
-          Built with CDK 2.12 for descriptors, FastAPI + JPype to bridge
-          Python and the JVM, and React 19 for the interface.
-          Contributions, feedback, and issue reports welcome upstream.
+          Built with CDK 2.12 for descriptors, FastAPI + JPype to bridge Python and the JVM, and
+          React 19 for the interface. Contributions, feedback, and issue reports welcome upstream.
         </p>
       </div>
       <div className="mt-auto flex flex-wrap gap-2 pt-2">
@@ -316,9 +287,7 @@ function CreditsTile() {
           href="https://github.com/Beilstein-Institut/BChemXtractWeb"
           target="_blank"
           rel="noreferrer"
-          className={
-            buttonVariants({ variant: "outline", size: "sm" }) + " gap-1.5"
-          }
+          className={buttonVariants({ variant: "outline", size: "sm" }) + " gap-1.5"}
         >
           <BrandName suffix="Web" /> repo
           <ArrowUpRightIcon className="size-3.5" />
@@ -327,9 +296,7 @@ function CreditsTile() {
           href="https://github.com/Beilstein-Institut/BChemXtract"
           target="_blank"
           rel="noreferrer"
-          className={
-            buttonVariants({ variant: "outline", size: "sm" }) + " gap-1.5"
-          }
+          className={buttonVariants({ variant: "outline", size: "sm" }) + " gap-1.5"}
         >
           <BrandName /> repo
           <ArrowUpRightIcon className="size-3.5" />
@@ -338,9 +305,7 @@ function CreditsTile() {
           href="https://www.beilstein-institut.de/"
           target="_blank"
           rel="noreferrer"
-          className={
-            buttonVariants({ variant: "ghost", size: "sm" }) + " gap-1.5"
-          }
+          className={buttonVariants({ variant: "ghost", size: "sm" }) + " gap-1.5"}
         >
           Beilstein-Institut
           <ArrowUpRightIcon className="size-3.5" />

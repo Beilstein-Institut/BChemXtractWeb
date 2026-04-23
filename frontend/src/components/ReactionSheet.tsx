@@ -15,12 +15,7 @@
  * SVG rendered via a Blob URL in `<img src>` (T-10-05) — never innerHTML.
  */
 import { useEffect, useState } from "react";
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ZoomInIcon,
-  ZoomOutIcon,
-} from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -32,10 +27,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { CopyButton } from "@/components/internal/CopyButton";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
-import type {
-  ReactionComponentResponse,
-  ReactionResponse,
-} from "@/types/chemistry";
+import type { ReactionComponentResponse, ReactionResponse } from "@/types/chemistry";
 
 /**
  * MetadataRow — label + monospace value + copy button. Suppressed when
@@ -48,9 +40,7 @@ function MetadataRow({ label, value }: { label: string; value: string }) {
       <span className="text-micro font-semibold text-muted-foreground uppercase tracking-widest min-w-[120px] shrink-0">
         {label}
       </span>
-      <span className="text-caption text-foreground font-mono break-all flex-1">
-        {value}
-      </span>
+      <span className="text-caption text-foreground font-mono break-all flex-1">{value}</span>
       <CopyButton value={value} label={label.toLowerCase()} />
     </div>
   );
@@ -71,9 +61,7 @@ function ComponentBlock({
   if (!component.inchi && !component.inchi_key) return null;
   return (
     <div className="ml-4 pl-4 border-l border-border">
-      <p className="text-micro text-muted-foreground mb-1 px-4">
-        #{index + 1}
-      </p>
+      <p className="text-micro text-muted-foreground mb-1 px-4">#{index + 1}</p>
       <MetadataRow label="InChI" value={component.inchi} />
       <MetadataRow label="InChI Key" value={component.inchi_key} />
     </div>
@@ -216,10 +204,7 @@ export function ReactionSheet({
             >
               <ChevronLeftIcon className="size-5" aria-hidden="true" />
             </Button>
-            <span
-              aria-live="polite"
-              className="text-caption text-muted-foreground tabular-nums"
-            >
+            <span aria-live="polite" className="text-caption text-muted-foreground tabular-nums">
               Reaction {reactionIndex + 1} of {totalCount}
             </span>
             <Button
@@ -301,18 +286,9 @@ export function ReactionSheet({
         <div className="space-y-0">
           <MetadataRow label="SMILES" value={reaction.reaction_smiles} />
           <MetadataRow label="RInChI" value={reaction.rinchi} />
-          <MetadataRow
-            label="RInChI Key (short)"
-            value={reaction.short_rinchi_key}
-          />
-          <MetadataRow
-            label="RInChI Key (long)"
-            value={reaction.long_rinchi_key}
-          />
-          <MetadataRow
-            label="RInChI Key (web)"
-            value={reaction.web_rinchi_key}
-          />
+          <MetadataRow label="RInChI Key (short)" value={reaction.short_rinchi_key} />
+          <MetadataRow label="RInChI Key (long)" value={reaction.long_rinchi_key} />
+          <MetadataRow label="RInChI Key (web)" value={reaction.web_rinchi_key} />
           <MetadataRow label="Aux Info" value={reaction.aux_info} />
         </div>
 

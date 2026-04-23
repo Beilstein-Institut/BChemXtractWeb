@@ -13,8 +13,20 @@ import { BrowseToolbar } from "./BrowseToolbar";
 vi.mock("@base-ui/react/toggle-group", () => {
   const React = require("react");
   return {
-    ToggleGroup: ({ children, value, ...rest }: { children?: React.ReactNode; value?: string; [key: string]: unknown }) =>
-      React.createElement("div", { "data-testid": "toggle-group", "data-value": value, ...rest }, children),
+    ToggleGroup: ({
+      children,
+      value,
+      ...rest
+    }: {
+      children?: React.ReactNode;
+      value?: string;
+      [key: string]: unknown;
+    }) =>
+      React.createElement(
+        "div",
+        { "data-testid": "toggle-group", "data-value": value, ...rest },
+        children,
+      ),
   };
 });
 
@@ -22,8 +34,22 @@ vi.mock("@base-ui/react/toggle-group", () => {
 vi.mock("@base-ui/react/toggle", () => {
   const React = require("react");
   return {
-    Toggle: ({ children, value, "aria-label": ariaLabel, ...rest }: { children?: React.ReactNode; value?: string; "aria-label"?: string; [key: string]: unknown }) =>
-      React.createElement("button", { "data-testid": `toggle-${value}`, "aria-label": ariaLabel, ...rest }, children),
+    Toggle: ({
+      children,
+      value,
+      "aria-label": ariaLabel,
+      ...rest
+    }: {
+      children?: React.ReactNode;
+      value?: string;
+      "aria-label"?: string;
+      [key: string]: unknown;
+    }) =>
+      React.createElement(
+        "button",
+        { "data-testid": `toggle-${value}`, "aria-label": ariaLabel, ...rest },
+        children,
+      ),
   };
 });
 
@@ -34,8 +60,16 @@ vi.mock("@base-ui/react/select", () => {
     Select: {
       Root: ({ children }: { children: React.ReactNode }) =>
         React.createElement(React.Fragment, null, children),
-      Trigger: ({ children, "aria-label": ariaLabel, className }: { children?: React.ReactNode; "aria-label"?: string; className?: string; [key: string]: unknown }) =>
-        React.createElement("button", { "aria-label": ariaLabel, className }, children),
+      Trigger: ({
+        children,
+        "aria-label": ariaLabel,
+        className,
+      }: {
+        children?: React.ReactNode;
+        "aria-label"?: string;
+        className?: string;
+        [key: string]: unknown;
+      }) => React.createElement("button", { "aria-label": ariaLabel, className }, children),
       Value: ({ children }: { children?: React.ReactNode }) =>
         React.createElement("span", null, children),
       Icon: () => null,
@@ -70,7 +104,15 @@ vi.mock("@base-ui/react/popover", () => {
     Popover: {
       Root: ({ children }: { children: React.ReactNode }) =>
         React.createElement(React.Fragment, null, children),
-      Trigger: ({ children, render: renderProp, ...rest }: { children?: React.ReactNode; render?: React.ReactElement; [key: string]: unknown }) => {
+      Trigger: ({
+        children,
+        render: renderProp,
+        ...rest
+      }: {
+        children?: React.ReactNode;
+        render?: React.ReactElement;
+        [key: string]: unknown;
+      }) => {
         if (renderProp) {
           return React.cloneElement(renderProp, rest, children);
         }
@@ -91,15 +133,23 @@ vi.mock("@base-ui/react/button", () => {
   const React = require("react");
   return {
     Button: React.forwardRef(
-      ({ children, className, ...props }: React.ComponentProps<"button">, ref: React.Ref<HTMLButtonElement>) =>
-        React.createElement("button", { ref, className, ...props }, children)
+      (
+        { children, className, ...props }: React.ComponentProps<"button">,
+        ref: React.Ref<HTMLButtonElement>,
+      ) => React.createElement("button", { ref, className, ...props }, children),
     ),
   };
 });
 
 // Mock @base-ui/react/use-render
 vi.mock("@base-ui/react/use-render", () => ({
-  useRender: ({ props, defaultTagName }: { props: Record<string, unknown>; defaultTagName: string }) => {
+  useRender: ({
+    props,
+    defaultTagName,
+  }: {
+    props: Record<string, unknown>;
+    defaultTagName: string;
+  }) => {
     const React = require("react");
     return React.createElement(defaultTagName, props);
   },

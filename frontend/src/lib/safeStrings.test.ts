@@ -77,9 +77,7 @@ describe("safeClipboardText", () => {
 
   it("leaves benign SMILES alone", () => {
     expect(safeClipboardText("c1ccccc1")).toBe("c1ccccc1");
-    expect(safeClipboardText("CC(=O)Oc1ccccc1C(=O)O")).toBe(
-      "CC(=O)Oc1ccccc1C(=O)O",
-    );
+    expect(safeClipboardText("CC(=O)Oc1ccccc1C(=O)O")).toBe("CC(=O)Oc1ccccc1C(=O)O");
   });
 });
 

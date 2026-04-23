@@ -33,8 +33,7 @@ export function StructureGrid({ response, onReset }: StructureGridProps) {
         <FlaskConicalIcon className="size-12 text-muted-foreground" />
         <h2 className="text-sub-heading font-semibold">No structures found</h2>
         <p className="text-body text-muted-foreground max-w-[400px]">
-          {response.filename} did not contain any extractable structures. Try a
-          different file.
+          {response.filename} did not contain any extractable structures. Try a different file.
         </p>
         <Button variant="default" onClick={onReset}>
           Upload another file

@@ -18,16 +18,12 @@ describe("EmptyState", () => {
   });
 
   it("renders large variant min-h-320", () => {
-    const { container } = render(
-      <EmptyState title="t" message="m" size="large" />
-    );
+    const { container } = render(<EmptyState title="t" message="m" size="large" />);
     expect(container.firstChild).toHaveClass("min-h-[320px]");
   });
 
   it("renders compact variant py-8", () => {
-    const { container } = render(
-      <EmptyState title="t" message="m" size="compact" />
-    );
+    const { container } = render(<EmptyState title="t" message="m" size="compact" />);
     expect(container.firstChild).toHaveClass("py-8");
   });
 
@@ -39,13 +35,7 @@ describe("EmptyState", () => {
   });
 
   it("renders action slot", () => {
-    render(
-      <EmptyState
-        title="t"
-        message="m"
-        action={<button>Do it</button>}
-      />
-    );
+    render(<EmptyState title="t" message="m" action={<button>Do it</button>} />);
     expect(screen.getByText("Do it")).toBeInTheDocument();
   });
 
@@ -62,15 +52,13 @@ describe("EmptyState", () => {
         message="m"
         illustration={<span data-testid="custom">C</span>}
         icon={ClockIcon}
-      />
+      />,
     );
     expect(screen.getByTestId("custom")).toBeInTheDocument();
   });
 
   it("applies className prop to root", () => {
-    const { container } = render(
-      <EmptyState title="t" message="m" className="my-extra" />
-    );
+    const { container } = render(<EmptyState title="t" message="m" className="my-extra" />);
     expect(container.firstChild).toHaveClass("my-extra");
   });
 });

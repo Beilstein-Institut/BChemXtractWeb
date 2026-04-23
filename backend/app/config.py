@@ -112,9 +112,7 @@ class Settings(BaseSettings):
     def _validate_jar_path(self) -> "Settings":
         """Reject path traversal in jar_path and resolve to absolute."""
         if ".." in self.jar_path:
-            raise ValueError(
-                f"jar_path must not contain '..': {self.jar_path}"
-            )
+            raise ValueError(f"jar_path must not contain '..': {self.jar_path}")
         self.jar_path = str(Path(self.jar_path).resolve())
         return self
 
@@ -132,7 +130,7 @@ class Settings(BaseSettings):
         if any(len(k) < 16 for k in unique):
             raise ValueError(
                 "API_KEYS entries must be at least 16 characters "
-                "(use `python -c \"import secrets; print(secrets.token_urlsafe(32))\"` "
+                '(use `python -c "import secrets; print(secrets.token_urlsafe(32))"` '
                 "to generate one)."
             )
         if not unique and not self.debug:

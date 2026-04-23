@@ -12,10 +12,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
 
 import { SearchFilter } from "./SearchFilter";
-import {
-  EMPTY_FILTERS,
-  type BrowseFilters,
-} from "./browse/browseFilters";
+import { EMPTY_FILTERS, type BrowseFilters } from "./browse/browseFilters";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -94,12 +91,7 @@ describe("SearchFilter", () => {
     expect(onChange).toHaveBeenCalledWith({ ...EMPTY_FILTERS, hasName: true });
 
     // Simulate the parent flushing that change back down.
-    rerender(
-      <SearchFilter
-        value={{ ...EMPTY_FILTERS, hasName: true }}
-        onChange={onChange}
-      />,
-    );
+    rerender(<SearchFilter value={{ ...EMPTY_FILTERS, hasName: true }} onChange={onChange} />);
     const toggled = screen.getByRole("button", { name: /has iupac name/i });
     expect(toggled.getAttribute("data-active")).toBe("true");
     expect(toggled.getAttribute("aria-pressed")).toBe("true");
@@ -109,12 +101,7 @@ describe("SearchFilter", () => {
     const { rerender, onChange } = renderSearchFilter();
     expect(screen.queryByRole("button", { name: /clear all filters/i })).toBeNull();
 
-    rerender(
-      <SearchFilter
-        value={{ ...EMPTY_FILTERS, hasSmiles: true }}
-        onChange={onChange}
-      />,
-    );
+    rerender(<SearchFilter value={{ ...EMPTY_FILTERS, hasSmiles: true }} onChange={onChange} />);
     const clearBtn = screen.getByRole("button", { name: /clear all filters/i });
     expect(clearBtn).toBeInTheDocument();
 
@@ -135,17 +122,12 @@ describe("SearchFilter", () => {
     // for another keystroke.
     const onChange = vi.fn();
     const { rerender } = render(
-      <SearchFilter
-        value={{ ...EMPTY_FILTERS, q: "benzene" }}
-        onChange={onChange}
-      />,
+      <SearchFilter value={{ ...EMPTY_FILTERS, q: "benzene" }} onChange={onChange} />,
     );
     const input = screen.getByRole("searchbox") as HTMLInputElement;
     expect(input.value).toBe("benzene");
 
-    rerender(
-      <SearchFilter value={{ ...EMPTY_FILTERS }} onChange={onChange} />,
-    );
+    rerender(<SearchFilter value={{ ...EMPTY_FILTERS }} onChange={onChange} />);
     const refreshed = screen.getByRole("searchbox") as HTMLInputElement;
     expect(refreshed.value).toBe("");
   });

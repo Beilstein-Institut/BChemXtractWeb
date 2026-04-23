@@ -45,12 +45,7 @@ function Logo() {
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-full",
       )}
     >
-      <img
-        src="/bchemxtract-logo.svg"
-        alt=""
-        aria-hidden="true"
-        className="h-8 w-8 shrink-0"
-      />
+      <img src="/bchemxtract-logo.svg" alt="" aria-hidden="true" className="h-8 w-8 shrink-0" />
       <BrandName />
     </Link>
   );
@@ -104,10 +99,7 @@ export function AppHeader() {
           CTA slot, though we keep it as a tight flex row rather than a
           wrapping pill so the chem flask toggle can breathe.
         */}
-        <div
-          data-slot="header-right-cluster"
-          className="flex items-center gap-3"
-        >
+        <div data-slot="header-right-cluster" className="flex items-center gap-3">
           <SearchInput />
           <ChemistryThemeSwitch />
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>

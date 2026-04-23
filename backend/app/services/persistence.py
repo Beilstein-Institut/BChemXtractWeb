@@ -444,9 +444,7 @@ async def save_reactions(
     ]
     if join_rows:
         await db.execute(
-            pg_insert(ExtractionReaction)
-            .values(join_rows)
-            .on_conflict_do_nothing()
+            pg_insert(ExtractionReaction).values(join_rows).on_conflict_do_nothing()
         )
 
     # Update reaction_count on Extraction (D-16)
@@ -515,8 +513,7 @@ async def get_extraction_reactions(
                     for c in components.get("products", [])
                 ],
                 agents=[
-                    ReactionComponentResponse(**c)
-                    for c in components.get("agents", [])
+                    ReactionComponentResponse(**c) for c in components.get("agents", [])
                 ],
                 svg=row.svg or "",
             )

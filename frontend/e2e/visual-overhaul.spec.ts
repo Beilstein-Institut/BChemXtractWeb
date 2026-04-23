@@ -29,7 +29,7 @@ test.describe("AppHeader", () => {
   test("header has glass backdrop-filter effect", async ({ page }) => {
     const header = page.locator('header[data-slot="app-header"]');
     const backdropFilter = await header.evaluate(
-      (el) => getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter
+      (el) => getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter,
     );
     expect(backdropFilter).toContain("blur");
   });
@@ -56,15 +56,11 @@ test.describe("ChemistryThemeSwitch (flask slider)", () => {
   });
 
   test("theme-switch toggle exists in header", async ({ page }) => {
-    const toggle = page
-      .locator("header")
-      .locator('[data-slot="theme-switch"]');
+    const toggle = page.locator("header").locator('[data-slot="theme-switch"]');
     await expect(toggle).toBeVisible();
   });
 
-  test("clicking the flask toggle adds the dark class on <html>", async ({
-    page,
-  }) => {
+  test("clicking the flask toggle adds the dark class on <html>", async ({ page }) => {
     // Start from a known light baseline regardless of OS preference. The
     // ThemeProvider persists this to localStorage.bchemxtract-theme.
     await page.evaluate(() => {
@@ -73,25 +69,19 @@ test.describe("ChemistryThemeSwitch (flask slider)", () => {
     await page.reload();
 
     const html = page.locator("html");
-    const toggle = page
-      .locator("header")
-      .locator('[data-slot="theme-switch"]');
+    const toggle = page.locator("header").locator('[data-slot="theme-switch"]');
     await toggle.click();
     await expect(html).toHaveClass(/dark/);
   });
 
-  test("clicking the flask toggle again removes the dark class on <html>", async ({
-    page,
-  }) => {
+  test("clicking the flask toggle again removes the dark class on <html>", async ({ page }) => {
     await page.evaluate(() => {
       localStorage.setItem("bchemxtract-theme", "dark");
     });
     await page.reload();
 
     const html = page.locator("html");
-    const toggle = page
-      .locator("header")
-      .locator('[data-slot="theme-switch"]');
+    const toggle = page.locator("header").locator('[data-slot="theme-switch"]');
     await toggle.click();
     await expect(html).not.toHaveClass(/dark/);
   });
@@ -142,9 +132,7 @@ test.describe("Mobile Navigation", () => {
   });
 
   test("theme-switch visible on mobile", async ({ page }) => {
-    const toggle = page
-      .locator("header")
-      .locator('[data-slot="theme-switch"]');
+    const toggle = page.locator("header").locator('[data-slot="theme-switch"]');
     await expect(toggle).toBeVisible();
   });
 });
@@ -154,9 +142,7 @@ test.describe("Typography and Spacing", () => {
     await page.goto("/");
   });
 
-  test("hero h1 renders the Extract page tagline in the display scale", async ({
-    page,
-  }) => {
+  test("hero h1 renders the Extract page tagline in the display scale", async ({ page }) => {
     const h1 = page.locator("h1").filter({ hasText: /ChemDraw, read back\./i });
     await expect(h1).toBeVisible();
 
@@ -174,9 +160,7 @@ test.describe("Typography and Spacing", () => {
     });
     await expect(subtitle).toBeVisible();
 
-    const fontSize = await subtitle.evaluate(
-      (el) => getComputedStyle(el).fontSize,
-    );
+    const fontSize = await subtitle.evaluate((el) => getComputedStyle(el).fontSize);
     const size = parseFloat(fontSize);
     // text-base = 16px; allow a small tolerance either way.
     expect(size).toBeGreaterThanOrEqual(14);
@@ -204,9 +188,9 @@ test.describe("FileUpload Styling", () => {
   });
 
   test("drop zone is visible with rounded corners", async ({ page }) => {
-    const dropZone = page.locator("[data-testid='drop-zone']").or(
-      page.locator(".rounded-xl.border-dashed").first()
-    );
+    const dropZone = page
+      .locator("[data-testid='drop-zone']")
+      .or(page.locator(".rounded-xl.border-dashed").first());
     // The drop zone should be visible in idle state
     await expect(dropZone).toBeVisible();
   });

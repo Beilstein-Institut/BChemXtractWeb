@@ -51,10 +51,7 @@ export function safeDisplayFilename(name: string | null | undefined): string {
  * [A-Za-z0-9_-] prefix so a malformed InChI key from the backend can
  * never produce an empty or odd suggested filename.
  */
-export function safeDownloadSlug(
-  raw: string | null | undefined,
-  fallback = "structure",
-): string {
+export function safeDownloadSlug(raw: string | null | undefined, fallback = "structure"): string {
   if (!raw) return fallback;
   const cleaned = raw.replace(SLUG_RE, "_").replace(/^_+|_+$/g, "");
   return (cleaned || fallback).slice(0, MAX_DOWNLOAD_SLUG_LEN);
@@ -81,10 +78,7 @@ export function safeClipboardText(value: string | null | undefined): string {
  */
 export function safePositiveInt(
   value: unknown,
-  {
-    fallback = 1,
-    max = Number.MAX_SAFE_INTEGER,
-  }: { fallback?: number; max?: number } = {},
+  { fallback = 1, max = Number.MAX_SAFE_INTEGER }: { fallback?: number; max?: number } = {},
 ): number {
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) return fallback;

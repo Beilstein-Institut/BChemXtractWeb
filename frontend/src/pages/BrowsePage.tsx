@@ -26,10 +26,7 @@ import { filterSubstances } from "@/components/browse/filterSubstances";
 import { ExtractionTabs } from "@/components/ExtractionTabs";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { SearchFilter } from "@/components/SearchFilter";
-import {
-  EMPTY_FILTERS,
-  type BrowseFilters,
-} from "@/components/browse/browseFilters";
+import { EMPTY_FILTERS, type BrowseFilters } from "@/components/browse/browseFilters";
 import { StructureBrowser } from "@/components/StructureBrowser";
 import { StructureDetail } from "@/components/StructureDetail";
 import { Dialog } from "@/components/ui/dialog";
@@ -70,8 +67,7 @@ export function BrowsePage({
   const hasExtraction = activeExtractionId !== null && activeResult !== null;
 
   const [filters, setFilters] = useState<BrowseFilters>({ ...EMPTY_FILTERS });
-  const [activeSubstance, setActiveSubstance] =
-    useState<SubstanceResponse | null>(null);
+  const [activeSubstance, setActiveSubstance] = useState<SubstanceResponse | null>(null);
 
   const browserRef = useRef<HTMLDivElement | null>(null);
 
@@ -119,18 +115,13 @@ export function BrowsePage({
             message="Upload a ChemDraw file or reload one from your history to start browsing."
             action={
               <div className="flex flex-wrap justify-center gap-3">
-                <Link
-                  to="/"
-                  className={buttonVariants({ size: "lg" }) + " gap-2"}
-                >
+                <Link to="/" className={buttonVariants({ size: "lg" }) + " gap-2"}>
                   <FileUpIcon className="size-4" />
                   Upload a file
                 </Link>
                 <Link
                   to="/history"
-                  className={
-                    buttonVariants({ variant: "outline", size: "lg" }) + " gap-2"
-                  }
+                  className={buttonVariants({ variant: "outline", size: "lg" }) + " gap-2"}
                 >
                   <HistoryIcon className="size-4" />
                   Open history
@@ -155,11 +146,7 @@ export function BrowsePage({
             </div>
           )}
 
-          <SearchFilter
-            value={filters}
-            onChange={setFilters}
-            className="mt-6"
-          />
+          <SearchFilter value={filters} onChange={setFilters} className="mt-6" />
 
           <section className="mt-6">
             <BrowseBento

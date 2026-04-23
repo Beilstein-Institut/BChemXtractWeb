@@ -52,27 +52,13 @@ describe("BrowseBento", () => {
       />,
     );
 
-    expect(
-      container.querySelector('[data-slot="browse-bento"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-slot="browse-bento-cell-recent"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-slot="browse-bento-cell-total"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-slot="browse-bento-cell-unique"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-slot="browse-bento-cell-cta"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-slot="browse-bento-cell-popular"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-slot="browse-bento-cell-format"]'),
-    ).not.toBeNull();
+    expect(container.querySelector('[data-slot="browse-bento"]')).not.toBeNull();
+    expect(container.querySelector('[data-slot="browse-bento-cell-recent"]')).not.toBeNull();
+    expect(container.querySelector('[data-slot="browse-bento-cell-total"]')).not.toBeNull();
+    expect(container.querySelector('[data-slot="browse-bento-cell-unique"]')).not.toBeNull();
+    expect(container.querySelector('[data-slot="browse-bento-cell-cta"]')).not.toBeNull();
+    expect(container.querySelector('[data-slot="browse-bento-cell-popular"]')).not.toBeNull();
+    expect(container.querySelector('[data-slot="browse-bento-cell-format"]')).not.toBeNull();
   });
 
   it("shows the filtered count and total count", () => {
@@ -87,9 +73,7 @@ describe("BrowseBento", () => {
     );
     expect(screen.getByText(/structures in view/i)).toBeInTheDocument();
     // "Filtered from 10 total." caption.
-    expect(
-      screen.getByText(/filtered from 10 total/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/filtered from 10 total/i)).toBeInTheDocument();
   });
 
   it("counts unique InChI keys in the current slice", () => {
@@ -131,16 +115,9 @@ describe("BrowseBento", () => {
 
   it("renders empty-state copy inside Recent tile when no matches", () => {
     render(
-      <BrowseBento
-        substances={[]}
-        totalSubstances={5}
-        format="cdxml"
-        onBrowseAll={vi.fn()}
-      />,
+      <BrowseBento substances={[]} totalSubstances={5} format="cdxml" onBrowseAll={vi.fn()} />,
     );
-    expect(
-      screen.getByText(/adjust your search to see structures/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/adjust your search to see structures/i)).toBeInTheDocument();
   });
 
   it("calls onOpenSubstance with the absolute index for Recent thumbnails", () => {

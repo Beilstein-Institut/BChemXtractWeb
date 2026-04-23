@@ -10,12 +10,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  deleteHistoryEntry,
-  getHistory,
-  getHistoryDetail,
-  getStats,
-} from "@/lib/apiClient";
+import { deleteHistoryEntry, getHistory, getHistoryDetail, getStats } from "@/lib/apiClient";
 import type { ExtractionResponse } from "@/types/chemistry";
 import type { HistoryListItem, StatsResponse } from "@/types/history";
 

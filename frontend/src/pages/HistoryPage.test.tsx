@@ -32,17 +32,16 @@ const baseEntry: HistoryListItem = {
 
 const noopToggle = () => {};
 const noopDelete = async () => {};
-const noopReload = async () =>
-  ({
-    substances: [],
-    info: { no_fragments: 0, no_inchis: 0, no_substances: 0 },
-    format: "cdx" as const,
-    filename: "x",
-    file_size: 0,
-    structure_count: 0,
-    extraction_time_ms: 0,
-    warnings: [],
-  });
+const noopReload = async () => ({
+  substances: [],
+  info: { no_fragments: 0, no_inchis: 0, no_substances: 0 },
+  format: "cdx" as const,
+  filename: "x",
+  file_size: 0,
+  structure_count: 0,
+  extraction_time_ms: 0,
+  warnings: [],
+});
 const noopReloadSuccess = () => {};
 
 describe("computeHistoryStats", () => {
@@ -148,9 +147,7 @@ describe("HistoryPage", () => {
         onReloadSuccess={noopReloadSuccess}
       />,
     );
-    expect(
-      container.querySelector('[data-slot="history-page"]'),
-    ).not.toBeNull();
+    expect(container.querySelector('[data-slot="history-page"]')).not.toBeNull();
   });
 
   it("renders empty state with CTA when zero extractions", () => {
@@ -187,21 +184,11 @@ describe("HistoryPage", () => {
         onReloadSuccess={noopReloadSuccess}
       />,
     );
-    expect(
-      container.querySelector('[data-slot="history-stats"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-slot="history-stat-total"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-slot="history-stat-structures"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-slot="history-stat-reactions"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-slot="history-stat-avg-time"]'),
-    ).not.toBeNull();
+    expect(container.querySelector('[data-slot="history-stats"]')).not.toBeNull();
+    expect(container.querySelector('[data-slot="history-stat-total"]')).not.toBeNull();
+    expect(container.querySelector('[data-slot="history-stat-structures"]')).not.toBeNull();
+    expect(container.querySelector('[data-slot="history-stat-reactions"]')).not.toBeNull();
+    expect(container.querySelector('[data-slot="history-stat-avg-time"]')).not.toBeNull();
 
     expect(screen.getByText("Total extractions")).toBeInTheDocument();
     expect(screen.getByText("Structures found")).toBeInTheDocument();
@@ -243,9 +230,7 @@ describe("HistoryPage", () => {
       />,
     );
     // Skeletons use data-loading="true" on the stat-card slot.
-    const skeletons = container.querySelectorAll(
-      '[data-slot="stat-card"][data-loading="true"]',
-    );
+    const skeletons = container.querySelectorAll('[data-slot="stat-card"][data-loading="true"]');
     expect(skeletons.length).toBe(4);
   });
 

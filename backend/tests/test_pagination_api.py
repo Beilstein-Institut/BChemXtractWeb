@@ -58,9 +58,7 @@ async def test_get_substances_page_formula_sort(
     extraction_id = upload.json().get("extraction_id")
     assert extraction_id is not None
 
-    resp = await client.get(
-        f"/api/extractions/{extraction_id}/substances?sort=formula"
-    )
+    resp = await client.get(f"/api/extractions/{extraction_id}/substances?sort=formula")
     assert resp.status_code == 200
     assert "items" in resp.json()
 
@@ -96,9 +94,7 @@ async def test_get_substances_page_out_of_range_returns_empty(
     extraction_id = upload.json().get("extraction_id")
     assert extraction_id is not None
 
-    resp = await client.get(
-        f"/api/extractions/{extraction_id}/substances?page=9999"
-    )
+    resp = await client.get(f"/api/extractions/{extraction_id}/substances?page=9999")
     assert resp.status_code == 200
     assert resp.json()["items"] == []
 

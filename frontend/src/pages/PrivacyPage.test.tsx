@@ -35,24 +35,18 @@ describe("PrivacyPage", () => {
     ) as HTMLElement | null;
     expect(section).not.toBeNull();
     const text = section!.textContent ?? "";
-    expect(text).toMatch(
-      /Beilstein-Institut zur Förderung der Chemischen Wissenschaften/,
-    );
+    expect(text).toMatch(/Beilstein-Institut zur Förderung der Chemischen Wissenschaften/);
     expect(text).toMatch(/datenschutz@beilstein-institut\.de/);
   });
 
   it("discloses that uploads are persisted and can be deleted from History", () => {
     const { container } = render(<PrivacyPage />);
-    const section = container.querySelector(
-      '[data-slot="privacy-uploads"]',
-    ) as HTMLElement | null;
+    const section = container.querySelector('[data-slot="privacy-uploads"]') as HTMLElement | null;
     expect(section).not.toBeNull();
     expect(section!.textContent).toMatch(/PostgreSQL/);
     expect(section!.textContent).toMatch(/InChIKey/);
     // Internal Link to the History page so users can act on their erasure right.
-    const historyLink = section!.querySelector(
-      'a[href="/history"]',
-    ) as HTMLAnchorElement | null;
+    const historyLink = section!.querySelector('a[href="/history"]') as HTMLAnchorElement | null;
     expect(historyLink).not.toBeNull();
   });
 
@@ -74,9 +68,7 @@ describe("PrivacyPage", () => {
       '[data-slot="privacy-supervisory-authority"]',
     ) as HTMLElement | null;
     expect(section).not.toBeNull();
-    expect(section!.textContent).toMatch(
-      /Hessian Commissioner for Data Protection/i,
-    );
+    expect(section!.textContent).toMatch(/Hessian Commissioner for Data Protection/i);
     expect(section!.textContent).toMatch(/Wiesbaden/);
   });
 
@@ -85,9 +77,6 @@ describe("PrivacyPage", () => {
     const link = screen.getByRole("link", {
       name: /full privacy policy/i,
     });
-    expect(link).toHaveAttribute(
-      "href",
-      "https://www.beilstein-institut.de/en/privacy-policy/",
-    );
+    expect(link).toHaveAttribute("href", "https://www.beilstein-institut.de/en/privacy-policy/");
   });
 });

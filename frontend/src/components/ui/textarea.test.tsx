@@ -16,7 +16,7 @@ describe("Textarea", () => {
     expect(screen.getByPlaceholderText("notes")).toBeInTheDocument();
   });
 
-  it("exposes data-slot=\"textarea\"", () => {
+  it('exposes data-slot="textarea"', () => {
     render(<Textarea placeholder="x" />);
     const textarea = screen.getByPlaceholderText("x");
     expect(textarea.getAttribute("data-slot")).toBe("textarea");
@@ -24,9 +24,7 @@ describe("Textarea", () => {
 
   it("forwards value and fires onChange", () => {
     const onChange = vi.fn();
-    render(
-      <Textarea value="hello" onChange={onChange} placeholder="x" />
-    );
+    render(<Textarea value="hello" onChange={onChange} placeholder="x" />);
     const textarea = screen.getByPlaceholderText("x") as HTMLTextAreaElement;
     expect(textarea.value).toBe("hello");
     fireEvent.change(textarea, { target: { value: "hello world" } });

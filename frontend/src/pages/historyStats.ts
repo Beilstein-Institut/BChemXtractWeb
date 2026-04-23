@@ -29,23 +29,12 @@ export function computeHistoryStats(
   total: number,
 ): ComputedHistoryStats {
   const sampled = entries.length;
-  const totalExtractions = Math.max(
-    stats?.total_extractions ?? 0,
-    total,
-    sampled,
-  );
+  const totalExtractions = Math.max(stats?.total_extractions ?? 0, total, sampled);
   const structuresFound =
-    stats?.unique_structures ??
-    entries.reduce((acc, e) => acc + (e.structure_count ?? 0), 0);
-  const reactionsFound = entries.reduce(
-    (acc, e) => acc + (e.reaction_count ?? 0),
-    0,
-  );
+    stats?.unique_structures ?? entries.reduce((acc, e) => acc + (e.structure_count ?? 0), 0);
+  const reactionsFound = entries.reduce((acc, e) => acc + (e.reaction_count ?? 0), 0);
   const avgProcessingTimeMs =
-    sampled === 0
-      ? 0
-      : entries.reduce((acc, e) => acc + (e.extraction_time_ms ?? 0), 0) /
-        sampled;
+    sampled === 0 ? 0 : entries.reduce((acc, e) => acc + (e.extraction_time_ms ?? 0), 0) / sampled;
   return {
     totalExtractions,
     structuresFound,

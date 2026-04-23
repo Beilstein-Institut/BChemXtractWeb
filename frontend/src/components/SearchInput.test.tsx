@@ -22,7 +22,7 @@ vi.mock("@/lib/apiClient", () => ({
       page: 1,
       size: 24,
       warnings: [],
-    })
+    }),
   ),
 }));
 
@@ -51,18 +51,8 @@ vi.mock("@base-ui/react/popover", () => {
         React.createElement(React.Fragment, null, children),
       Positioner: ({ children }: { children: React.ReactNode }) =>
         React.createElement(React.Fragment, null, children),
-      Popup: ({
-        children,
-        className,
-      }: {
-        children: React.ReactNode;
-        className?: string;
-      }) =>
-        React.createElement(
-          "div",
-          { "data-testid": "popover-content", className },
-          children
-        ),
+      Popup: ({ children, className }: { children: React.ReactNode; className?: string }) =>
+        React.createElement("div", { "data-testid": "popover-content", className }, children),
     },
   };
 });
@@ -93,18 +83,8 @@ vi.mock("@base-ui/react/dialog", () => {
       Portal: ({ children }: { children: React.ReactNode }) =>
         React.createElement(React.Fragment, null, children),
       Backdrop: () => null,
-      Popup: ({
-        children,
-        className,
-      }: {
-        children: React.ReactNode;
-        className?: string;
-      }) =>
-        React.createElement(
-          "div",
-          { "data-testid": "sheet-content", className },
-          children
-        ),
+      Popup: ({ children, className }: { children: React.ReactNode; className?: string }) =>
+        React.createElement("div", { "data-testid": "sheet-content", className }, children),
       Title: ({ children }: { children?: React.ReactNode }) =>
         React.createElement("h2", null, children),
       Description: ({ children }: { children?: React.ReactNode }) =>
@@ -119,18 +99,9 @@ vi.mock("@base-ui/react/button", () => {
   return {
     Button: React.forwardRef(
       (
-        {
-          children,
-          className,
-          ...props
-        }: React.ComponentProps<"button">,
-        ref: React.Ref<HTMLButtonElement>
-      ) =>
-        React.createElement(
-          "button",
-          { ref, className, ...props },
-          children
-        )
+        { children, className, ...props }: React.ComponentProps<"button">,
+        ref: React.Ref<HTMLButtonElement>,
+      ) => React.createElement("button", { ref, className, ...props }, children),
     ),
   };
 });
@@ -140,10 +111,8 @@ vi.mock("@base-ui/react/input", () => {
   const React = require("react");
   return {
     Input: React.forwardRef(
-      (
-        props: React.ComponentProps<"input">,
-        ref: React.Ref<HTMLInputElement>
-      ) => React.createElement("input", { ref, ...props }),
+      (props: React.ComponentProps<"input">, ref: React.Ref<HTMLInputElement>) =>
+        React.createElement("input", { ref, ...props }),
     ),
   };
 });
@@ -164,8 +133,7 @@ vi.mock("@base-ui/react/use-render", () => ({
 
 // Mock @base-ui/react/merge-props
 vi.mock("@base-ui/react/merge-props", () => ({
-  mergeProps: (...args: Record<string, unknown>[]) =>
-    Object.assign({}, ...args),
+  mergeProps: (...args: Record<string, unknown>[]) => Object.assign({}, ...args),
 }));
 
 // Import AFTER the mocks so the module graph picks them up.
@@ -182,9 +150,7 @@ describe("SearchInput", () => {
 
   it("renders placeholder", () => {
     render(<SearchInput />);
-    expect(
-      screen.getAllByPlaceholderText("Search structures…").length
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByPlaceholderText("Search structures…").length).toBeGreaterThan(0);
   });
 
   it("publishes its input element to searchInputRef on mount (fix #8)", () => {
@@ -198,9 +164,7 @@ describe("SearchInput", () => {
   it("focuses on `/` keydown from body", () => {
     render(<SearchInput />);
     // Desktop input is first; mobile sheet is hidden (md:hidden).
-    const input = screen.getAllByPlaceholderText(
-      "Search structures…"
-    )[0] as HTMLInputElement;
+    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
     expect(document.activeElement).not.toBe(input);
     fireEvent.keyDown(window, { key: "/" });
     expect(document.activeElement).toBe(input);
@@ -211,7 +175,7 @@ describe("SearchInput", () => {
       <>
         <input data-testid="other" />
         <SearchInput />
-      </>
+      </>,
     );
     const other = screen.getByTestId("other") as HTMLInputElement;
     other.focus();
@@ -221,9 +185,7 @@ describe("SearchInput", () => {
 
   it("clears + blurs on Escape", () => {
     render(<SearchInput />);
-    const input = screen.getAllByPlaceholderText(
-      "Search structures…"
-    )[0] as HTMLInputElement;
+    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
     input.focus();
     fireEvent.change(input, { target: { value: "foo" } });
     expect(input.value).toBe("foo");
@@ -233,36 +195,26 @@ describe("SearchInput", () => {
 
   it("shows type badge after ≥ 2 chars are typed (Formula detection)", () => {
     render(<SearchInput />);
-    const input = screen.getAllByPlaceholderText(
-      "Search structures…"
-    )[0] as HTMLInputElement;
+    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "C6H6" } });
     expect(screen.getAllByText("Formula").length).toBeGreaterThan(0);
   });
 
   it("does not render Submit search button when query is empty", () => {
     render(<SearchInput />);
-    expect(
-      screen.queryByRole("button", { name: "Submit search" })
-    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Submit search" })).toBeNull();
   });
 
   it("renders Submit search button once query has content", () => {
     render(<SearchInput />);
-    const input = screen.getAllByPlaceholderText(
-      "Search structures…"
-    )[0] as HTMLInputElement;
+    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "C" } });
-    expect(
-      screen.getAllByRole("button", { name: "Submit search" }).length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Submit search" }).length).toBeGreaterThan(0);
   });
 
   it("detects a 14-char partial InChI key as type 'InChI key'", () => {
     render(<SearchInput />);
-    const input = screen.getAllByPlaceholderText(
-      "Search structures…"
-    )[0] as HTMLInputElement;
+    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "JVTAAEKCZFNVCJ" } });
     // The badge's trigger button exposes the detected type via aria-label.
     // This pins the badge specifically — the popover radio list always
@@ -277,9 +229,7 @@ describe("SearchInput", () => {
 
   it("detects a 14-10 partial InChI key as type 'InChI key'", () => {
     render(<SearchInput />);
-    const input = screen.getAllByPlaceholderText(
-      "Search structures…"
-    )[0] as HTMLInputElement;
+    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
     fireEvent.change(input, {
       target: { value: "JVTAAEKCZFNVCJ-REOHCLBHSA" },
     });
@@ -293,9 +243,7 @@ describe("SearchInput", () => {
   it("clicking Submit search fires a search request", () => {
     const mockPost = vi.mocked(postSearch);
     render(<SearchInput />);
-    const input = screen.getAllByPlaceholderText(
-      "Search structures…"
-    )[0] as HTMLInputElement;
+    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "C6H6" } });
     mockPost.mockClear();
     const btn = screen.getAllByRole("button", { name: "Submit search" })[0];

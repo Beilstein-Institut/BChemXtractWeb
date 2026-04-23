@@ -22,8 +22,7 @@ const initialState: ThemeProviderState = {
 // Keeping the context here co-locates it with the provider component it
 // backs; the hook-only file preserves the Fast-Refresh component boundary.
 // eslint-disable-next-line react-refresh/only-export-components
-export const ThemeProviderContext =
-  createContext<ThemeProviderState>(initialState);
+export const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
 export function ThemeProvider({
   children,

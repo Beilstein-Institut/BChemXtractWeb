@@ -169,12 +169,15 @@ async def get_substances_page(
     if not exists:
         raise HTTPException(status_code=404, detail="Extraction not found")
 
-    total = await db.scalar(
-        select(func.count())
-        .select_from(Substance)
-        .join(ExtractionSubstance, Substance.id == ExtractionSubstance.substance_id)
-        .where(ExtractionSubstance.extraction_id == extraction_id)
-    ) or 0
+    total = (
+        await db.scalar(
+            select(func.count())
+            .select_from(Substance)
+            .join(ExtractionSubstance, Substance.id == ExtractionSubstance.substance_id)
+            .where(ExtractionSubstance.extraction_id == extraction_id)
+        )
+        or 0
+    )
 
     order_col = (
         Substance.molecular_formula.asc()

@@ -7,8 +7,6 @@ storage.
 
 from __future__ import annotations
 
-import pytest
-
 from app.services.depiction import sanitize_svg
 
 
@@ -26,10 +24,7 @@ def test_benign_svg_unchanged() -> None:
 
 
 def test_script_tag_stripped() -> None:
-    svg = (
-        '<svg><script>alert(1)</script>'
-        '<circle cx="1" cy="1" r="1"/></svg>'
-    )
+    svg = '<svg><script>alert(1)</script><circle cx="1" cy="1" r="1"/></svg>'
     out = sanitize_svg(svg)
     assert "script" not in out.lower()
     assert "alert" not in out
@@ -45,12 +40,12 @@ def test_script_tag_with_attrs_stripped() -> None:
 
 def test_foreign_object_stripped() -> None:
     svg = (
-        '<svg>'
+        "<svg>"
         '<foreignObject width="100" height="100">'
         '<body onload="alert(1)"><b>x</b></body>'
-        '</foreignObject>'
+        "</foreignObject>"
         '<circle cx="1" cy="1" r="1"/>'
-        '</svg>'
+        "</svg>"
     )
     out = sanitize_svg(svg)
     assert "foreignObject" not in out
@@ -92,7 +87,7 @@ def test_mixed_case_event_handler_stripped() -> None:
 
 
 def test_unicode_content_preserved() -> None:
-    svg = '<svg><text>Caffeine: C₈H₁₀N₄O₂</text></svg>'
+    svg = "<svg><text>Caffeine: C₈H₁₀N₄O₂</text></svg>"
     out = sanitize_svg(svg)
     assert "Caffeine" in out
     assert "C₈H₁₀N₄O₂" in out

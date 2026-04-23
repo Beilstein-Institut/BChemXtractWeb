@@ -25,6 +25,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 class Base(DeclarativeBase):
     """Declarative base for all ORM models. Alembic reads Base.metadata."""
+
     pass
 
 
@@ -49,9 +50,7 @@ class Extraction(Base):
         server_default=func.now(),
         nullable=False,
     )
-    batch_id: Mapped[str | None] = mapped_column(
-        String(36), nullable=True, index=True
-    )
+    batch_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
     # Plan 10 D-16: reaction_count populated by save_reactions; 0 until user
     # re-extracts reactions for this file.
@@ -150,9 +149,7 @@ class Reaction(Base):
 
     __tablename__ = "reactions"
 
-    id: Mapped[int] = mapped_column(
-        BigInteger, primary_key=True, autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     # D-18 amended: the real dedup key.
     long_rinchi_key: Mapped[str] = mapped_column(
         String(256), unique=True, nullable=False
@@ -191,9 +188,7 @@ class ExtractionReaction(Base):
 
     __tablename__ = "extraction_reactions"
     __table_args__ = (
-        UniqueConstraint(
-            "extraction_id", "reaction_id", name="uq_extraction_reaction"
-        ),
+        UniqueConstraint("extraction_id", "reaction_id", name="uq_extraction_reaction"),
     )
 
     extraction_id: Mapped[int] = mapped_column(

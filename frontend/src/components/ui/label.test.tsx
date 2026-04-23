@@ -15,7 +15,7 @@ describe("Label", () => {
     expect(screen.getByText("Email")).toBeInTheDocument();
   });
 
-  it("exposes data-slot=\"label\"", () => {
+  it('exposes data-slot="label"', () => {
     const { container } = render(<Label>x</Label>);
     const root = container.firstChild as HTMLElement;
     expect(root.getAttribute("data-slot")).toBe("label");
@@ -26,7 +26,7 @@ describe("Label", () => {
       <>
         <Label htmlFor="email">Email</Label>
         <input id="email" />
-      </>
+      </>,
     );
     const label = screen.getByText("Email") as HTMLLabelElement;
     expect(label.htmlFor).toBe("email");

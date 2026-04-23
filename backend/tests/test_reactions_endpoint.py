@@ -2,6 +2,7 @@
 
 Plan 10 RXTN-01 / RXTN-04 / D-06 / D-23 / D-25.
 """
+
 from httpx import AsyncClient
 
 
@@ -37,13 +38,15 @@ async def test_response_has_svg(
     """
     response = await client.post(
         "/api/reactions",
-        files={"file": ("simple_reaction.cdx", cdx_reaction_file_bytes, "chemical/x-cdx")},
+        files={
+            "file": ("simple_reaction.cdx", cdx_reaction_file_bytes, "chemical/x-cdx")
+        },
     )
     assert response.status_code == 200
     reactions = response.json()["reactions"]
-    assert any(
-        r["svg"].startswith("<svg") or "<svg" in r["svg"] for r in reactions
-    ), f"No rendered SVG: {reactions!r}"
+    assert any(r["svg"].startswith("<svg") or "<svg" in r["svg"] for r in reactions), (
+        f"No rendered SVG: {reactions!r}"
+    )
 
 
 async def test_response_has_rinchi_fields(
@@ -52,12 +55,19 @@ async def test_response_has_rinchi_fields(
     """RXTN-03: Every reaction has rinchi, short/long/web_rinchi_key, reaction_smiles."""
     response = await client.post(
         "/api/reactions",
-        files={"file": ("simple_reaction.cdx", cdx_reaction_file_bytes, "chemical/x-cdx")},
+        files={
+            "file": ("simple_reaction.cdx", cdx_reaction_file_bytes, "chemical/x-cdx")
+        },
     )
     reactions = response.json()["reactions"]
     for r in reactions:
-        for field in ("rinchi", "short_rinchi_key", "long_rinchi_key",
-                      "web_rinchi_key", "reaction_smiles"):
+        for field in (
+            "rinchi",
+            "short_rinchi_key",
+            "long_rinchi_key",
+            "web_rinchi_key",
+            "reaction_smiles",
+        ):
             assert field in r, f"RXTN-03 missing {field}"
 
 
@@ -68,16 +78,20 @@ async def test_timeout_returns_200_with_warning(
 ) -> None:
     """D-06: On timeout, returns HTTP 200 with reactions=[] + warning (NOT 408/503)."""
     from app.config import settings as app_settings
+
     monkeypatch.setattr(app_settings, "reaction_timeout_secs", 0.001)
     response = await client.post(
         "/api/reactions",
-        files={"file": ("simple_reaction.cdx", cdx_reaction_file_bytes, "chemical/x-cdx")},
+        files={
+            "file": ("simple_reaction.cdx", cdx_reaction_file_bytes, "chemical/x-cdx")
+        },
     )
     assert response.status_code == 200  # NOT 408/503
     data = response.json()
     assert data["reactions"] == []
-    assert any("timeout" in w.lower() or "exceeded" in w.lower()
-               for w in data["warnings"])
+    assert any(
+        "timeout" in w.lower() or "exceeded" in w.lower() for w in data["warnings"]
+    )
 
 
 async def test_error_response_shapes(client: AsyncClient) -> None:
@@ -114,7 +128,9 @@ async def test_get_extraction_reactions_returns_cached(
     # First extract to populate the DB
     post_resp = await client.post(
         "/api/reactions",
-        files={"file": ("simple_reaction.cdx", cdx_reaction_file_bytes, "chemical/x-cdx")},
+        files={
+            "file": ("simple_reaction.cdx", cdx_reaction_file_bytes, "chemical/x-cdx")
+        },
     )
     assert post_resp.status_code == 200
     post_data = post_resp.json()
@@ -131,13 +147,18 @@ async def test_get_extraction_reactions_returns_cached(
     assert len(get_data["reactions"]) == expected_count
     # Shape mirrors ReactionResponse
     for r in get_data["reactions"]:
-        for field in ("rinchi", "short_rinchi_key", "long_rinchi_key",
-                      "reaction_smiles", "svg"):
+        for field in (
+            "rinchi",
+            "short_rinchi_key",
+            "long_rinchi_key",
+            "reaction_smiles",
+            "svg",
+        ):
             assert field in r
 
 
 async def test_get_extraction_reactions_404_unknown_extraction(
-    client: AsyncClient
+    client: AsyncClient,
 ) -> None:
     """GET /api/extractions/{id}/reactions returns 404 when extraction doesn't exist."""
     resp = await client.get("/api/extractions/999999999/reactions")

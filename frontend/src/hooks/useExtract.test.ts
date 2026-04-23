@@ -51,7 +51,11 @@ describe("useExtract hook", () => {
   it('extract() transitions state from "idle" to "loading"', async () => {
     // Delay resolution so we can observe loading state
     let resolve!: (v: ExtractionResponse) => void;
-    mockPostExtract.mockReturnValue(new Promise<ExtractionResponse>((r) => { resolve = r; }));
+    mockPostExtract.mockReturnValue(
+      new Promise<ExtractionResponse>((r) => {
+        resolve = r;
+      }),
+    );
 
     const { result } = renderHook(() => useExtract());
     const file = new File(["data"], "test.cdx", { type: "chemical/x-cdx" });
@@ -63,7 +67,9 @@ describe("useExtract hook", () => {
     expect(result.current.state).toBe("loading");
 
     // Clean up: resolve the promise
-    await act(async () => { resolve(makeMockResponse()); });
+    await act(async () => {
+      resolve(makeMockResponse());
+    });
   });
 
   it('transitions to "success" with result set when postExtract resolves', async () => {

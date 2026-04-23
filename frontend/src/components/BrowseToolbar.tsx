@@ -293,4 +293,3 @@ function renderPageSizeSelect(
     </Select>
   );
 }
-

@@ -20,11 +20,7 @@
  * entirely and renders the cached list immediately.
  */
 import { useEffect, useRef, useState } from "react";
-import {
-  AlertCircleIcon,
-  ArrowRightLeftIcon,
-  UploadIcon,
-} from "lucide-react";
+import { AlertCircleIcon, ArrowRightLeftIcon, UploadIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
   Empty,
@@ -102,15 +98,14 @@ export function ReactionsTab({
   const reactions: ReactionResponse[] = isCached
     ? cachedReactions!
     : state === "success"
-      ? result?.reactions ?? []
+      ? (result?.reactions ?? [])
       : [];
 
   useEffect(() => {
     onReactionsCountChange?.(reactions.length);
   }, [reactions.length, onReactionsCountChange]);
 
-  const displayFilename =
-    filename ?? file?.name ?? result?.filename ?? "this file";
+  const displayFilename = filename ?? file?.name ?? result?.filename ?? "this file";
 
   function handleExtract() {
     if (!file) return;
@@ -136,9 +131,7 @@ export function ReactionsTab({
   }
   const branch = pickBranch();
 
-  const extractionTimeMs = isCached
-    ? cachedExtractionTimeMs
-    : result?.extraction_time_ms;
+  const extractionTimeMs = isCached ? cachedExtractionTimeMs : result?.extraction_time_ms;
   const displayFormat = isCached ? cachedFormat : result?.format;
 
   return (
@@ -158,9 +151,7 @@ export function ReactionsTab({
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button onClick={handleExtract}>
-              Extract reactions from this file
-            </Button>
+            <Button onClick={handleExtract}>Extract reactions from this file</Button>
           </EmptyContent>
         </Empty>
       )}
@@ -174,8 +165,7 @@ export function ReactionsTab({
             </EmptyMedia>
             <EmptyTitle>Re-upload to extract reactions</EmptyTitle>
             <EmptyDescription>
-              Your ChemDraw file isn't in memory — re-select it to extract
-              reactions.
+              Your ChemDraw file isn't in memory — re-select it to extract reactions.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
@@ -196,11 +186,7 @@ export function ReactionsTab({
 
       {/* Loading — extract in flight */}
       {branch === "loading" && (
-        <div
-          className="flex flex-col items-center gap-4 py-16"
-          role="status"
-          aria-live="polite"
-        >
+        <div className="flex flex-col items-center gap-4 py-16" role="status" aria-live="polite">
           <Spinner className="size-8" />
           <p className="text-body text-muted-foreground">
             Extracting reactions from {displayFilename}…
@@ -231,22 +217,16 @@ export function ReactionsTab({
             ))}
           </ul>
           <ReactionSheet
-            reaction={
-              sheetIndex !== null ? reactions[sheetIndex] ?? null : null
-            }
+            reaction={sheetIndex !== null ? (reactions[sheetIndex] ?? null) : null}
             reactionIndex={sheetIndex ?? 0}
             totalCount={reactions.length}
             open={sheetIndex !== null}
             onOpenChange={(open) => {
               if (!open) setSheetIndex(null);
             }}
-            onPrev={() =>
-              setSheetIndex((i) => (i !== null && i > 0 ? i - 1 : i))
-            }
+            onPrev={() => setSheetIndex((i) => (i !== null && i > 0 ? i - 1 : i))}
             onNext={() =>
-              setSheetIndex((i) =>
-                i !== null && i < reactions.length - 1 ? i + 1 : i,
-              )
+              setSheetIndex((i) => (i !== null && i < reactions.length - 1 ? i + 1 : i))
             }
           />
         </>
@@ -261,8 +241,8 @@ export function ReactionsTab({
             </EmptyMedia>
             <EmptyTitle>No reactions detected in this file</EmptyTitle>
             <EmptyDescription>
-              {displayFilename} didn't contain any detectable reactions. Try a
-              different ChemDraw file.
+              {displayFilename} didn't contain any detectable reactions. Try a different ChemDraw
+              file.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

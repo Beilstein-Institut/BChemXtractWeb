@@ -18,8 +18,10 @@ vi.mock("@base-ui/react/button", () => {
   const React = require("react");
   return {
     Button: React.forwardRef(
-      ({ children, className, ...props }: React.ComponentProps<"button">, ref: React.Ref<HTMLButtonElement>) =>
-        React.createElement("button", { ref, className, ...props }, children)
+      (
+        { children, className, ...props }: React.ComponentProps<"button">,
+        ref: React.Ref<HTMLButtonElement>,
+      ) => React.createElement("button", { ref, className, ...props }, children),
     ),
   };
 });

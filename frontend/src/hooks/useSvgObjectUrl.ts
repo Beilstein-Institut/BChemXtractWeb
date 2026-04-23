@@ -21,9 +21,7 @@ import { useEffect, useMemo } from "react";
  * and keeps the computed value in sync with the input without a set-state
  * inside an effect.
  */
-export function useSvgObjectUrl(
-  svg: string | null | undefined,
-): string | null {
+export function useSvgObjectUrl(svg: string | null | undefined): string | null {
   const url = useMemo(() => {
     if (!svg) return null;
     const blob = new Blob([svg], { type: "image/svg+xml" });

@@ -81,7 +81,4 @@ def build_content_disposition(filename: str, *, disposition: str = "attachment")
         raise ValueError(f"unsupported disposition: {disposition!r}")
     ascii_fallback = safe_filename(filename)
     encoded = quote(filename or ascii_fallback, safe="")
-    return (
-        f'{disposition}; filename="{ascii_fallback}"; '
-        f"filename*=UTF-8''{encoded}"
-    )
+    return f"{disposition}; filename=\"{ascii_fallback}\"; filename*=UTF-8''{encoded}"

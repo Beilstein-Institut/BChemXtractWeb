@@ -19,11 +19,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { postSearch } from "@/lib/apiClient";
-import type {
-  SearchMatch,
-  SearchResponse,
-  SearchType,
-} from "@/types/search";
+import type { SearchMatch, SearchResponse, SearchType } from "@/types/search";
 
 export type SearchState = "idle" | "loading" | "success" | "error";
 
@@ -85,13 +81,9 @@ function readUrlParams(): SearchParams {
   const rawQuery = params.get("q") ?? "";
   return {
     q: rawQuery.slice(0, MAX_QUERY_LEN),
-    type: VALID_TYPES.includes(rawType as SearchType)
-      ? (rawType as SearchType)
-      : "auto",
+    type: VALID_TYPES.includes(rawType as SearchType) ? (rawType as SearchType) : "auto",
     scope: SCOPE_RE.test(rawScope) ? rawScope : "global",
-    match: VALID_MATCH.includes(rawMatch as SearchMatch)
-      ? (rawMatch as SearchMatch)
-      : "canonical",
+    match: VALID_MATCH.includes(rawMatch as SearchMatch) ? (rawMatch as SearchMatch) : "canonical",
     page: isNaN(rawPage) || rawPage < 1 ? 1 : Math.min(rawPage, MAX_PAGE),
   };
 }

@@ -148,9 +148,7 @@ def _parse_scope(scope: str) -> int | None:
     if not scope.startswith("extraction:"):
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Invalid scope. Must be 'global' or 'extraction:<integer id>'."
-            ),
+            detail=("Invalid scope. Must be 'global' or 'extraction:<integer id>'."),
         )
     try:
         eid = int(scope.split(":", 1)[1])
@@ -230,9 +228,7 @@ async def _search_inchi_key(
     if len(normalized) == 27:
         stmt = base.where(Substance.inchi_key == normalized)
     else:
-        stmt = base.where(
-            Substance.inchi_key.like(f"{normalized}-%")
-        )
+        stmt = base.where(Substance.inchi_key.like(f"{normalized}-%"))
     return list((await db.execute(stmt)).scalars().all())
 
 
@@ -272,9 +268,7 @@ async def _search_smiles(
 
     canonical = await canonicalize_smiles(q)
     if not canonical:
-        raise InvalidSmilesError(
-            "The SMILES string could not be parsed by CDK."
-        )
+        raise InvalidSmilesError("The SMILES string could not be parsed by CDK.")
     stmt = _base_substance_select(scope_eid).where(
         Substance.canonical_smiles == canonical
     )
@@ -347,9 +341,7 @@ def _substructure_sync(
     except jpype.JException as exc:
         # Truncate the Java message — full stack stays server-side
         # (threat model T-09-03-07: no Java frames in response).
-        raise InvalidSmartsError(
-            f"Invalid SMARTS pattern: {str(exc)[:200]}"
-        ) from exc
+        raise InvalidSmartsError(f"Invalid SMARTS pattern: {str(exc)[:200]}") from exc
 
     # Accessibility title embedded in each highlighted SVG per UI-SPEC
     # §Accessibility. The helper HTML-escapes the title to prevent
@@ -425,9 +417,7 @@ async def _search_substructure(
     candidate_stmt = _base_substance_select(scope_eid).where(
         func.length(Substance.smiles) <= MAX_SUBSTRUCT_SMILES_LEN
     )
-    candidate_rows = list(
-        (await db.execute(candidate_stmt)).scalars().all()
-    )
+    candidate_rows = list((await db.execute(candidate_stmt)).scalars().all())
 
     # Separately count rows excluded by the polymer-SMILES prefilter so
     # the user sees "N substances could not be parsed and were skipped"
@@ -435,33 +425,29 @@ async def _search_substructure(
     # (D-09: the UX distinction is "we tried but couldn't process this",
     # not "why"). Scope-restricted when applicable so the count matches
     # the candidate universe.
-    oversize_stmt = select(func.count()).select_from(Substance).where(
-        func.length(Substance.smiles) > MAX_SUBSTRUCT_SMILES_LEN
+    oversize_stmt = (
+        select(func.count())
+        .select_from(Substance)
+        .where(func.length(Substance.smiles) > MAX_SUBSTRUCT_SMILES_LEN)
     )
     if scope_eid is not None:
         oversize_stmt = oversize_stmt.join(
             ExtractionSubstance,
             Substance.id == ExtractionSubstance.substance_id,
         ).where(ExtractionSubstance.extraction_id == scope_eid)
-    oversize_count = int(
-        (await db.execute(oversize_stmt)).scalar_one() or 0
-    )
+    oversize_count = int((await db.execute(oversize_stmt)).scalar_one() or 0)
 
     id_smi = [(int(s.id), s.smiles or "") for s in candidate_rows]
 
     # :func:`_substructure_sync` now returns (id, atoms, match_svg) triples
     # so we can thread the per-hit SVG directly into SearchResult.match_svg
     # without a second JVM round-trip.
-    hits, skipped = await run_in_jvm_thread(
-        _substructure_sync, smarts, id_smi
-    )
+    hits, skipped = await run_in_jvm_thread(_substructure_sync, smarts, id_smi)
     hit_ids = {sid for sid, _, _ in hits}
     atom_map: dict[int, list[int]] = {sid: atoms for sid, atoms, _ in hits}
     # Only keep non-empty SVGs in the map — _to_substance_response default
     # (match_svg=None) applies for hits whose render fell through to "".
-    svg_map: dict[int, str] = {
-        sid: svg for sid, _, svg in hits if svg
-    }
+    svg_map: dict[int, str] = {sid: svg for sid, _, svg in hits if svg}
 
     # Preserve substance row order from the initial SELECT so downstream
     # pagination is deterministic across repeated queries.
@@ -548,19 +534,17 @@ def _to_substance_response(s: Substance) -> SubstanceResponse:
         inchi=s.inchi,
         smiles=s.smiles,
         extended_smiles=s.extended_smiles,
-        iupac_name="",         # DTO-only default — not stored on Substance ORM
+        iupac_name="",  # DTO-only default — not stored on Substance ORM
         molecular_formula=s.molecular_formula,
-        aux_info="",           # DTO-only default — not stored on Substance ORM
+        aux_info="",  # DTO-only default — not stored on Substance ORM
         mdlv3000=s.mdlv3000,
-        abbreviations={},      # DTO-only default — not stored on Substance ORM
+        abbreviations={},  # DTO-only default — not stored on Substance ORM
         svg=s.svg,
         svg_cdx=s.svg_cdx,
     )
 
 
-async def execute_search(
-    payload: SearchRequest, db: AsyncSession
-) -> SearchResponse:
+async def execute_search(payload: SearchRequest, db: AsyncSession) -> SearchResponse:
     """Execute a search and return paginated results + attribution.
 
     Flow:
@@ -588,9 +572,7 @@ async def execute_search(
     elif effective_type == "formula":
         substances = await _search_formula(payload.query, scope_eid, db)
     elif effective_type == "smiles":
-        substances = await _search_smiles(
-            payload.query, payload.match, scope_eid, db
-        )
+        substances = await _search_smiles(payload.query, payload.match, scope_eid, db)
     elif effective_type == "substructure":
         substances, atom_map, svg_map, skipped_count = await _search_substructure(
             payload.query, scope_eid, db

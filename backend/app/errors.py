@@ -126,9 +126,7 @@ _BRIDGE_ERROR_MAP: list[tuple[type[BridgeError], int, str]] = [
 ]
 
 
-async def http_exception_handler(
-    request: Request, exc: HTTPException
-) -> JSONResponse:
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     """Map FastAPI :class:`HTTPException` to :class:`ErrorResponse` (D-17).
 
     Existing routers call ``raise HTTPException(status_code=N, detail='msg')``
@@ -174,9 +172,7 @@ async def validation_exception_handler(
     )
 
 
-async def bridge_error_handler(
-    request: Request, exc: BridgeError
-) -> JSONResponse:
+async def bridge_error_handler(request: Request, exc: BridgeError) -> JSONResponse:
     """Map :class:`BridgeError` subtypes to :class:`ErrorResponse` (D-17).
 
     Replaces the legacy ``{"error": str(exc)}`` shape. Status + stable
@@ -193,9 +189,7 @@ async def bridge_error_handler(
     )
 
 
-async def rate_limit_exceeded_handler(
-    request: Request, exc: Exception
-) -> JSONResponse:
+async def rate_limit_exceeded_handler(request: Request, exc: Exception) -> JSONResponse:
     """Normalise slowapi's RateLimitExceeded into the unified ErrorResponse.
 
     slowapi ships its own ``_rate_limit_exceeded_handler`` which returns a
@@ -235,9 +229,7 @@ async def rate_limit_exceeded_handler(
     )
 
 
-async def unhandled_exception_handler(
-    request: Request, exc: Exception
-) -> JSONResponse:
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Catch-all for unexpected errors.
 
     Logs the full traceback server-side, returns a generic message in the
@@ -258,9 +250,7 @@ async def unhandled_exception_handler(
                 code="JVM_TIMEOUT",
             ).model_dump(),
         )
-    logger.exception(
-        "Unhandled exception on %s: %s", request.url.path, exc
-    )
+    logger.exception("Unhandled exception on %s: %s", request.url.path, exc)
     return JSONResponse(
         status_code=500,
         content=ErrorResponse(

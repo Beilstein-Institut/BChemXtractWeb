@@ -14,12 +14,7 @@
  * invocations across a full tab-switch cycle.
  */
 import { useState, type ReactNode } from "react";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ReactionsTab, type ReactionsTabProps } from "@/components/ReactionsTab";
@@ -50,9 +45,7 @@ export function ExtractionTabs({
         <TabsTrigger value="substances">
           <span className="flex items-center gap-2">
             Substances
-            <span className="text-muted-foreground tabular-nums">
-              ({substanceCount})
-            </span>
+            <span className="text-muted-foreground tabular-nums">({substanceCount})</span>
           </span>
         </TabsTrigger>
         <TabsTrigger value="reactions">

@@ -32,8 +32,7 @@ interface ApiFetchOptions extends Omit<RequestInit, "body"> {
   errorPrefix: string;
 }
 
-const DEFAULT_CONNECTION_ERROR =
-  "Could not reach the server — check your connection.";
+const DEFAULT_CONNECTION_ERROR = "Could not reach the server — check your connection.";
 
 function isAbortError(err: unknown): err is DOMException {
   return err instanceof DOMException && err.name === "AbortError";
@@ -107,9 +106,7 @@ function triggerDownload(blob: Blob, filename: string): void {
  * or the charset is not UTF-8. Returns ``null`` when no filename can be
  * recovered so callers can fall back to their own suggestion.
  */
-export function parseContentDispositionFilename(
-  header: string | null,
-): string | null {
+export function parseContentDispositionFilename(header: string | null): string | null {
   if (!header) return null;
 
   // filename*=charset'lang'percent-encoded (RFC 5987).
@@ -152,14 +149,11 @@ export async function postExtract(file: File): Promise<ExtractionResponse> {
   const response = await apiFetch("/api/extract", {
     method: "POST",
     body: formData,
-    connectionError:
-      "Could not reach the extraction server — check your connection.",
+    connectionError: "Could not reach the extraction server — check your connection.",
     errorPrefix: "Extraction failed",
   });
-  return parseJsonEnvelope<ExtractionResponse>(
-    response,
-    "Extraction failed",
-    (b) => Array.isArray((b as { substances?: unknown }).substances),
+  return parseJsonEnvelope<ExtractionResponse>(response, "Extraction failed", (b) =>
+    Array.isArray((b as { substances?: unknown }).substances),
   );
 }
 
@@ -167,9 +161,7 @@ export async function postExtract(file: File): Promise<ExtractionResponse> {
  * Fetch extraction history list.
  * @param limit - Number of entries to fetch. Use "all" for no limit.
  */
-export async function getHistory(
-  limit: number | "all" = 10,
-): Promise<HistoryListResponse> {
+export async function getHistory(limit: number | "all" = 10): Promise<HistoryListResponse> {
   const response = await apiFetch(`/api/history?limit=${limit}`, {
     errorPrefix: "Failed to load history",
   });
@@ -297,10 +289,7 @@ export async function downloadBatchZip(batchId: string): Promise<void> {
  * @param payload - ExportRequest with format and substance_ids or extraction_id
  * @param suggestedFilename - Fallback filename when Content-Disposition is absent
  */
-export async function postExport(
-  payload: ExportRequest,
-  suggestedFilename: string,
-): Promise<void> {
+export async function postExport(payload: ExportRequest, suggestedFilename: string): Promise<void> {
   const response = await apiFetch("/api/export", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -351,8 +340,7 @@ export async function postReactions(
     method: "POST",
     body: formData,
     signal,
-    connectionError:
-      "Could not reach the reaction server — check your connection.",
+    connectionError: "Could not reach the reaction server — check your connection.",
     errorPrefix: "Reaction extraction failed",
   });
   return parseJsonEnvelope<ReactionExtractionResponse>(
@@ -381,8 +369,7 @@ export async function getExtractionReactions(
   const response = await apiFetch(`/api/extractions/${extractionId}/reactions`, {
     method: "GET",
     signal,
-    connectionError:
-      "Could not reach the reaction server — check your connection.",
+    connectionError: "Could not reach the reaction server — check your connection.",
     errorPrefix: "Loading cached reactions failed",
   });
   return parseJsonEnvelope<ReactionExtractionResponse>(

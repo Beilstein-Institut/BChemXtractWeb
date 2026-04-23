@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { Toggle as TogglePrimitive } from "@base-ui/react/toggle"
-import { cva, type VariantProps } from "class-variance-authority"
+import { Toggle as TogglePrimitive } from "@base-ui/react/toggle";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 /**
  * Toggle — state tier (Phase 3 Liquid Glass rebuild, Task 5).
@@ -28,13 +28,12 @@ const toggleVariants = cva(
     // Invalid
     "aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/40",
     // Icon defaults
-    "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+    "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   ),
   {
     variants: {
       variant: {
-        default:
-          "bg-transparent text-foreground rounded-md hover:bg-accent hover:text-foreground",
+        default: "bg-transparent text-foreground rounded-md hover:bg-accent hover:text-foreground",
         outline:
           "border border-border bg-transparent text-foreground rounded-md hover:bg-accent hover:text-foreground",
       },
@@ -48,8 +47,8 @@ const toggleVariants = cva(
       variant: "default",
       size: "default",
     },
-  }
-)
+  },
+);
 
 function Toggle({
   className,
@@ -65,7 +64,7 @@ function Toggle({
       className={cn(toggleVariants({ variant, size, className }))}
       {...props}
     />
-  )
+  );
 }
 
-export { Toggle, toggleVariants }
+export { Toggle, toggleVariants };

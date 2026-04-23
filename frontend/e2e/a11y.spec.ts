@@ -21,9 +21,7 @@ const ROUTES: ReadonlyArray<{ path: string; label: string }> = [
 
 test.describe("a11y — axe-core sweep", () => {
   for (const { path, label } of ROUTES) {
-    test(`${label} (${path}) has no serious or critical violations`, async ({
-      page,
-    }) => {
+    test(`${label} (${path}) has no serious or critical violations`, async ({ page }) => {
       await page.goto(path);
       // Let any lazy content + fonts settle before running axe.
       await page.waitForLoadState("networkidle");
@@ -32,8 +30,8 @@ test.describe("a11y — axe-core sweep", () => {
         .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
         .analyze();
 
-      const severe = results.violations.filter((v) =>
-        v.impact === "serious" || v.impact === "critical",
+      const severe = results.violations.filter(
+        (v) => v.impact === "serious" || v.impact === "critical",
       );
 
       if (severe.length > 0) {

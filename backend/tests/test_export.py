@@ -18,7 +18,6 @@ import json
 import zipfile
 from unittest.mock import AsyncMock, patch
 
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
@@ -161,7 +160,15 @@ async def test_json_export(client: AsyncClient) -> None:
     assert isinstance(data, list)
     assert len(data) == 1
     row = data[0]
-    for key in ("id", "inchi_key", "smiles", "molecular_formula", "inchi", "iupac_name", "extended_smiles"):
+    for key in (
+        "id",
+        "inchi_key",
+        "smiles",
+        "molecular_formula",
+        "inchi",
+        "iupac_name",
+        "extended_smiles",
+    ):
         assert key in row, f"Missing key {key!r} in JSON export row"
 
 
@@ -177,7 +184,10 @@ async def test_csv_export(client: AsyncClient) -> None:
     assert "text/csv" in resp.headers["content-type"]
     text = resp.content.decode("utf-8")
     first_line = text.splitlines()[0]
-    assert first_line == "id,inchi_key,smiles,molecular_formula,inchi,iupac_name,extended_smiles"
+    assert (
+        first_line
+        == "id,inchi_key,smiles,molecular_formula,inchi,iupac_name,extended_smiles"
+    )
 
 
 async def test_svg_export_single_returns_svg(client: AsyncClient) -> None:
@@ -266,7 +276,11 @@ async def test_png_limit(client: AsyncClient) -> None:
     """POST /api/export format=png with 201 substance IDs returns HTTP 400."""
     # Build 201 dummy substances
     many_subs = [
-        {**TEST_SUBSTANCE, "id": i, "inchi_key": f"AAAAAAAA{'A' * (17 - len(str(i)))}{i}-UHFFFAOYSA-N"}
+        {
+            **TEST_SUBSTANCE,
+            "id": i,
+            "inchi_key": f"AAAAAAAA{'A' * (17 - len(str(i)))}{i}-UHFFFAOYSA-N",
+        }
         for i in range(1, 202)
     ]
 

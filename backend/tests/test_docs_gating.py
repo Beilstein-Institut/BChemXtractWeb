@@ -54,6 +54,5 @@ async def test_docs_suppressed_when_expose_flag_false(monkeypatch) -> None:
         for path in ("/docs", "/redoc", "/openapi.json"):
             r = await ac.get(path)
             assert r.status_code == 404, (
-                f"{path} must 404 when expose_openapi_docs=False, "
-                f"got {r.status_code}"
+                f"{path} must 404 when expose_openapi_docs=False, got {r.status_code}"
             )

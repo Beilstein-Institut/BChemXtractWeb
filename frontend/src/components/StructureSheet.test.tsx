@@ -14,13 +14,7 @@ import type { SubstanceResponse } from "@/types/chemistry";
 vi.mock("@base-ui/react/dialog", () => {
   return {
     Dialog: {
-      Root: ({
-        children,
-        open,
-      }: {
-        children: React.ReactNode;
-        open?: boolean;
-      }) =>
+      Root: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
         open
           ? React.createElement(React.Fragment, null, children)
           : React.createElement(React.Fragment, null),
@@ -45,48 +39,18 @@ vi.mock("@base-ui/react/dialog", () => {
           "data-testid": "dialog-backdrop",
           className,
         }),
-      Popup: ({
-        children,
-        className,
-      }: {
-        children: React.ReactNode;
-        className?: string;
-      }) =>
+      Popup: ({ children, className }: { children: React.ReactNode; className?: string }) =>
         React.createElement(
           "div",
           { "data-testid": "dialog-popup", role: "dialog", className },
-          children
+          children,
         ),
       Close: ({ children }: { children?: React.ReactNode }) =>
-        React.createElement(
-          "button",
-          { "data-testid": "dialog-close" },
-          children ?? null
-        ),
-      Title: ({
-        children,
-        className,
-      }: {
-        children: React.ReactNode;
-        className?: string;
-      }) =>
-        React.createElement(
-          "h2",
-          { "data-testid": "dialog-title", className },
-          children
-        ),
-      Description: ({
-        children,
-        className,
-      }: {
-        children: React.ReactNode;
-        className?: string;
-      }) =>
-        React.createElement(
-          "p",
-          { "data-testid": "dialog-description", className },
-          children
-        ),
+        React.createElement("button", { "data-testid": "dialog-close" }, children ?? null),
+      Title: ({ children, className }: { children: React.ReactNode; className?: string }) =>
+        React.createElement("h2", { "data-testid": "dialog-title", className }, children),
+      Description: ({ children, className }: { children: React.ReactNode; className?: string }) =>
+        React.createElement("p", { "data-testid": "dialog-description", className }, children),
     },
   };
 });
@@ -96,14 +60,9 @@ vi.mock("@base-ui/react/button", () => {
   return {
     Button: React.forwardRef(
       (
-        {
-          children,
-          className,
-          ...props
-        }: React.ComponentProps<"button">,
-        ref: React.Ref<HTMLButtonElement>
-      ) =>
-        React.createElement("button", { ref, className, ...props }, children)
+        { children, className, ...props }: React.ComponentProps<"button">,
+        ref: React.Ref<HTMLButtonElement>,
+      ) => React.createElement("button", { ref, className, ...props }, children),
     ),
   };
 });
@@ -139,11 +98,7 @@ vi.mock("@base-ui/react/tooltip", () => {
       Positioner: ({ children }: { children: React.ReactNode }) =>
         React.createElement(React.Fragment, null, children),
       Popup: ({ children }: { children: React.ReactNode }) =>
-        React.createElement(
-          "div",
-          { "data-testid": "tooltip-content" },
-          children
-        ),
+        React.createElement("div", { "data-testid": "tooltip-content" }, children),
       Arrow: () => null,
     },
   };
@@ -195,7 +150,7 @@ describe("StructureSheet component", () => {
         totalSubstances={10}
         onPrev={vi.fn()}
         onNext={vi.fn()}
-      />
+      />,
     );
     expect(screen.getByText("3 of 10")).toBeInTheDocument();
   });
@@ -210,7 +165,7 @@ describe("StructureSheet component", () => {
         totalSubstances={10}
         onPrev={vi.fn()}
         onNext={vi.fn()}
-      />
+      />,
     );
     const prevBtn = screen.getByRole("button", { name: "Previous structure" });
     expect(prevBtn).toBeDisabled();
@@ -226,7 +181,7 @@ describe("StructureSheet component", () => {
         totalSubstances={10}
         onPrev={vi.fn()}
         onNext={vi.fn()}
-      />
+      />,
     );
     const nextBtn = screen.getByRole("button", { name: "Next structure" });
     expect(nextBtn).toBeDisabled();
@@ -243,7 +198,7 @@ describe("StructureSheet component", () => {
         totalSubstances={10}
         onPrev={onPrev}
         onNext={vi.fn()}
-      />
+      />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Previous structure" }));
     expect(onPrev).toHaveBeenCalledTimes(1);
@@ -260,7 +215,7 @@ describe("StructureSheet component", () => {
         totalSubstances={10}
         onPrev={vi.fn()}
         onNext={onNext}
-      />
+      />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Next structure" }));
     expect(onNext).toHaveBeenCalledTimes(1);
@@ -276,7 +231,7 @@ describe("StructureSheet component", () => {
         totalSubstances={1}
         onPrev={vi.fn()}
         onNext={vi.fn()}
-      />
+      />,
     );
     const imgs = document.querySelectorAll("img");
     expect(imgs.length).toBeGreaterThan(0);
@@ -293,7 +248,7 @@ describe("StructureSheet component", () => {
         totalSubstances={10}
         onPrev={vi.fn()}
         onNext={vi.fn()}
-      />
+      />,
     );
     expect(screen.queryByText("1 of 10")).not.toBeInTheDocument();
   });

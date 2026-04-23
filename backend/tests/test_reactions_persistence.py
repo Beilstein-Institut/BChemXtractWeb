@@ -10,6 +10,7 @@ Covers:
 - get_or_create_extraction_row idempotence (Pitfall 9)
 - get_extraction_reactions ordered by position (D-23)
 """
+
 from sqlalchemy import select
 
 from app.models.chemistry import (
@@ -110,9 +111,7 @@ async def test_save_reactions_updates_extraction_reaction_count(db_session):
         eid,
         [_mk_reaction(long_key="K-1"), _mk_reaction(long_key="K-2")],
     )
-    result = await db_session.execute(
-        select(Extraction).where(Extraction.id == eid)
-    )
+    result = await db_session.execute(select(Extraction).where(Extraction.id == eid))
     assert result.scalar_one().reaction_count == 2
 
 
@@ -120,9 +119,7 @@ async def test_save_reactions_empty_list_sets_count_zero(db_session):
     """Empty reactions list still updates reaction_count to 0."""
     eid = await _mk_extraction(db_session)
     await save_reactions(db_session, eid, [])
-    result = await db_session.execute(
-        select(Extraction).where(Extraction.id == eid)
-    )
+    result = await db_session.execute(select(Extraction).where(Extraction.id == eid))
     assert result.scalar_one().reaction_count == 0
 
 

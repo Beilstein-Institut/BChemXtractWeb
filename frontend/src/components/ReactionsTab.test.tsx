@@ -45,20 +45,8 @@ vi.mock("@/components/ReactionCard", () => ({
 
 // Mock ReactionSheet — exposes an identifying marker + totalCount for assertion.
 vi.mock("@/components/ReactionSheet", () => ({
-  ReactionSheet: ({
-    open,
-    totalCount,
-  }: {
-    open: boolean;
-    totalCount: number;
-  }) =>
-    open ? (
-      <div
-        data-testid="reaction-sheet"
-        data-open="true"
-        data-total={totalCount}
-      />
-    ) : null,
+  ReactionSheet: ({ open, totalCount }: { open: boolean; totalCount: number }) =>
+    open ? <div data-testid="reaction-sheet" data-open="true" data-total={totalCount} /> : null,
 }));
 
 import { ReactionsTab } from "./ReactionsTab";
@@ -119,13 +107,9 @@ describe("ReactionsTab", () => {
     useReactionsSpy.mockReturnValue(mkHookReturn());
     render(<ReactionsTab file={null} />);
     // Title and button both read "Re-upload to extract reactions" — match all.
-    expect(
-      screen.getAllByText(/Re-upload to extract reactions/i).length,
-    ).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Re-upload to extract reactions/i).length).toBeGreaterThanOrEqual(1);
     // Hidden <input type="file"> is present for the re-upload picker.
-    const hiddenInput = document.querySelector(
-      "input[type='file']",
-    ) as HTMLInputElement | null;
+    const hiddenInput = document.querySelector("input[type='file']") as HTMLInputElement | null;
     expect(hiddenInput).not.toBeNull();
   });
 
@@ -145,9 +129,7 @@ describe("ReactionsTab", () => {
   it("loading state shows spinner + filename in message", () => {
     useReactionsSpy.mockReturnValue(mkHookReturn({ state: "loading" }));
     render(<ReactionsTab file={mkFile()} />);
-    expect(
-      screen.getByText(/Extracting reactions from simple_reaction.cdx/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Extracting reactions from simple_reaction.cdx/i)).toBeInTheDocument();
     // Both the spinner and its live-region container carry role=status —
     // assert at least one is present.
     expect(screen.getAllByRole("status").length).toBeGreaterThanOrEqual(1);
@@ -189,9 +171,7 @@ describe("ReactionsTab", () => {
       }),
     );
     render(<ReactionsTab file={mkFile()} />);
-    expect(
-      screen.getByText(/No reactions detected in this file/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/No reactions detected in this file/i)).toBeInTheDocument();
   });
 
   it("success state with warnings fires toast exactly once", () => {
@@ -200,9 +180,7 @@ describe("ReactionsTab", () => {
         state: "success",
         result: mkResponse({
           reactions: [],
-          warnings: [
-            "Reaction extraction exceeded 30s timeout and was aborted.",
-          ],
+          warnings: ["Reaction extraction exceeded 30s timeout and was aborted."],
         }),
       }),
     );
@@ -223,9 +201,7 @@ describe("ReactionsTab", () => {
       }),
     );
     render(<ReactionsTab file={mkFile()} />);
-    expect(
-      screen.getByText(/Reaction extraction didn't work/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Reaction extraction didn't work/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Try again/i }));
     expect(extract).toHaveBeenCalled();
   });
@@ -287,11 +263,7 @@ describe("ReactionsTab", () => {
     // Should render the ReactionCard — NOT the "Re-upload" EmptyState nor the
     // "Extract reactions" EmptyState.
     expect(screen.getByTestId("reaction-card-0")).toBeInTheDocument();
-    expect(
-      screen.queryByText(/Re-upload to extract reactions/i),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/No reactions extracted yet/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Re-upload to extract reactions/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No reactions extracted yet/i)).not.toBeInTheDocument();
   });
 });

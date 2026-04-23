@@ -1,4 +1,5 @@
 """SRCH-03: SMILES match — canonical (default) + literal (Plan 09-03 wave 3)."""
+
 from __future__ import annotations
 
 import pytest

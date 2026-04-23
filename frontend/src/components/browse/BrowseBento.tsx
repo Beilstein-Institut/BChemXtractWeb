@@ -25,11 +25,7 @@
  * present, clearly labelled "Featured" in the tile heading.
  */
 import type { MouseEventHandler } from "react";
-import {
-  CompassIcon,
-  FlaskConicalIcon,
-  LayoutGridIcon,
-} from "lucide-react";
+import { CompassIcon, FlaskConicalIcon, LayoutGridIcon } from "lucide-react";
 
 import { BentoGrid } from "@/components/layout/BentoGrid";
 import { BentoCell } from "@/components/layout/BentoCell";
@@ -80,10 +76,7 @@ function StructureThumb({
             className="max-h-full max-w-full object-contain"
           />
         ) : (
-          <FlaskConicalIcon
-            className="size-6 text-foreground-muted"
-            aria-hidden="true"
-          />
+          <FlaskConicalIcon className="size-6 text-foreground-muted" aria-hidden="true" />
         )}
       </div>
       <p className="mt-2 line-clamp-1 text-caption font-medium text-foreground">
@@ -134,10 +127,7 @@ function RecentExtractionsTile({
   onOpenSubstance?: (index: number) => void;
 }) {
   return (
-    <Card
-      data-slot="browse-bento-recent"
-      className="flex h-full flex-col bg-surface"
-    >
+    <Card data-slot="browse-bento-recent" className="flex h-full flex-col bg-surface">
       <CardContent className="flex flex-1 flex-col gap-4">
         <header className="space-y-1">
           <p className="text-caption font-medium uppercase tracking-wide text-foreground-muted">
@@ -158,9 +148,7 @@ function RecentExtractionsTile({
               <StructureThumb
                 key={s.id ?? `${s.inchi_key}-${index}`}
                 substance={s}
-                onClick={
-                  onOpenSubstance ? () => onOpenSubstance(index) : undefined
-                }
+                onClick={onOpenSubstance ? () => onOpenSubstance(index) : undefined}
               />
             ))}
           </div>
@@ -172,10 +160,7 @@ function RecentExtractionsTile({
             )}
           >
             <div className="space-y-1">
-              <LayoutGridIcon
-                className="mx-auto size-6 text-foreground-muted"
-                aria-hidden="true"
-              />
+              <LayoutGridIcon className="mx-auto size-6 text-foreground-muted" aria-hidden="true" />
               <p className="text-sm text-foreground-muted">
                 Adjust your search to see structures here.
               </p>
@@ -198,8 +183,7 @@ function StatTile({
   tone?: "primary" | "secondary";
   hint?: string;
 }) {
-  const toneClass =
-    tone === "secondary" ? "text-secondary" : "text-primary";
+  const toneClass = tone === "secondary" ? "text-secondary" : "text-primary";
   return (
     <Card
       data-slot="browse-bento-stat"
@@ -207,27 +191,17 @@ function StatTile({
       className="flex h-full flex-col justify-between bg-surface"
     >
       <CardContent className="flex h-full flex-col justify-between gap-2">
-        <p className={cn("font-display text-4xl font-semibold tabular-nums", toneClass)}>
-          {value}
-        </p>
+        <p className={cn("font-display text-4xl font-semibold tabular-nums", toneClass)}>{value}</p>
         <div>
           <p className="text-sm font-medium text-foreground">{label}</p>
-          {hint && (
-            <p className="mt-1 text-caption text-foreground-muted">{hint}</p>
-          )}
+          {hint && <p className="mt-1 text-caption text-foreground-muted">{hint}</p>}
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function BrowseAllTile({
-  count,
-  onClick,
-}: {
-  count: number;
-  onClick: () => void;
-}) {
+function BrowseAllTile({ count, onClick }: { count: number; onClick: () => void }) {
   return (
     <Card
       data-slot="browse-bento-cta"
@@ -274,13 +248,9 @@ function PopularStructuresTile({
   /** Absolute index offset for onOpenSubstance callbacks. */
   offset: number;
 }) {
-  const label =
-    substances.length > 0 ? "Featured structures" : "No featured yet";
+  const label = substances.length > 0 ? "Featured structures" : "No featured yet";
   return (
-    <Card
-      data-slot="browse-bento-popular"
-      className="flex h-full flex-col bg-surface"
-    >
+    <Card data-slot="browse-bento-popular" className="flex h-full flex-col bg-surface">
       <CardContent className="flex flex-1 flex-col gap-3">
         <header className="flex items-end justify-between gap-2">
           <div className="space-y-1">
@@ -291,9 +261,7 @@ function PopularStructuresTile({
               {label}
             </h2>
           </div>
-          <p className="text-caption text-foreground-muted">
-            {substances.length} shown
-          </p>
+          <p className="text-caption text-foreground-muted">{substances.length} shown</p>
         </header>
         {substances.length > 0 ? (
           <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
@@ -301,11 +269,7 @@ function PopularStructuresTile({
               <StructureThumb
                 key={s.id ?? `${s.inchi_key}-${i}`}
                 substance={s}
-                onClick={
-                  onOpenSubstance
-                    ? () => onOpenSubstance(offset + i)
-                    : undefined
-                }
+                onClick={onOpenSubstance ? () => onOpenSubstance(offset + i) : undefined}
               />
             ))}
           </div>
@@ -344,9 +308,7 @@ export function BrowseBento({
 
   const filteredCount = substances.length;
   const uniqueInchiCount = new Set(
-    substances
-      .map((s) => s.inchi_key?.trim())
-      .filter((key): key is string => !!key),
+    substances.map((s) => s.inchi_key?.trim()).filter((key): key is string => !!key),
   ).size;
 
   return (

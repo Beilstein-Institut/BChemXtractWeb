@@ -1,7 +1,7 @@
-import { Button as ButtonPrimitive } from "@base-ui/react/button"
-import { cva, type VariantProps } from "class-variance-authority"
+import { Button as ButtonPrimitive } from "@base-ui/react/button";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 /**
  * Button — surface tier (Phase 3 Liquid Glass rebuild, Task 20 claymorphism).
@@ -72,12 +72,10 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  }
-)
+  },
+);
 
-export interface ButtonProps
-  extends ButtonPrimitive.Props,
-    VariantProps<typeof buttonVariants> {
+export interface ButtonProps extends ButtonPrimitive.Props, VariantProps<typeof buttonVariants> {
   /**
    * Optional icon rendered inside a circular sub-wrapper before the label.
    * Pass a lucide (or other inline SVG) icon — the CSS gives it a
@@ -85,7 +83,7 @@ export interface ButtonProps
    * rotates the icon 45°. Omit for icon-only buttons (size="icon*");
    * those pass the icon as their main child.
    */
-  icon?: React.ReactNode
+  icon?: React.ReactNode;
 }
 
 function Button({
@@ -114,7 +112,7 @@ function Button({
         children
       )}
     </ButtonPrimitive>
-  )
+  );
 }
 
-export { Button, buttonVariants }
+export { Button, buttonVariants };

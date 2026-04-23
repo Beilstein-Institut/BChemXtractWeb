@@ -75,9 +75,7 @@ export interface StructureCardProps {
  * Render a molecular formula (e.g. "C6H12O6") with digit runs wrapped in
  * `<sub>` tags so the output reads C₆H₁₂O₆ visually. Returns "—" for empty.
  */
-function renderFormulaWithSubscripts(
-  formula: string | null | undefined
-): React.ReactNode {
+function renderFormulaWithSubscripts(formula: string | null | undefined): React.ReactNode {
   if (!formula) return "—";
   const parts = formula.split(/(\d+)/).filter((part) => part.length > 0);
   return parts.map((part, i) =>
@@ -87,7 +85,7 @@ function renderFormulaWithSubscripts(
       </sub>
     ) : (
       <span key={i}>{part}</span>
-    )
+    ),
   );
 }
 
@@ -135,7 +133,7 @@ export function StructureCard({
     try {
       await postExport(
         { format, substance_ids: [substance.id] },
-        `${safeDownloadSlug(substance.inchi_key?.slice(0, 8))}_${format}.${FORMAT_EXT[format]}`
+        `${safeDownloadSlug(substance.inchi_key?.slice(0, 8))}_${format}.${FORMAT_EXT[format]}`,
       );
       toast.success("Export ready \u2014 downloading", { id: toastId, duration: 3000 });
     } catch (err) {
@@ -158,7 +156,7 @@ export function StructureCard({
         toast.error("Could not copy share link.");
       }
     },
-    [share, substance.inchi_key]
+    [share, substance.inchi_key],
   );
 
   /** Shared card inner content (SVG + metadata) used in both render modes. */
@@ -170,7 +168,7 @@ export function StructureCard({
         "transition-[box-shadow,transform] duration-200",
         "hover:ring-2 hover:ring-primary/20",
         isChecked && "ring-2 ring-primary",
-        className
+        className,
       )}
     >
       {/* White sub-surface — structure depictions always render on white
@@ -209,18 +207,10 @@ export function StructureCard({
           >
             {substance.smiles || "\u2014"}
           </span>
-          <CopyButton
-            value={substance.smiles}
-            label="SMILES"
-            stopPropagation
-            mutedIcon
-          />
+          <CopyButton value={substance.smiles} label="SMILES" stopPropagation mutedIcon />
         </div>
 
-        <div
-          data-slot="structure-card-formula"
-          className="font-sans text-sm text-foreground-muted"
-        >
+        <div data-slot="structure-card-formula" className="font-sans text-sm text-foreground-muted">
           {renderFormulaWithSubscripts(substance.molecular_formula)}
         </div>
 
@@ -237,20 +227,13 @@ export function StructureCard({
               {shared ? (
                 <Check className="size-3.5 text-primary" aria-hidden="true" />
               ) : (
-                <Share2
-                  className="size-3.5 text-foreground-muted"
-                  aria-hidden="true"
-                />
+                <Share2 className="size-3.5 text-foreground-muted" aria-hidden="true" />
               )}
             </Button>
             {/* Polite live region so screen readers announce the copy
                 confirmation. The visible state change is on the button icon;
                 this lets non-sighted users hear the same feedback. */}
-            <span
-              data-slot="structure-card-share-status"
-              aria-live="polite"
-              className="sr-only"
-            >
+            <span data-slot="structure-card-share-status" aria-live="polite" className="sr-only">
               {shared ? "Share link copied to clipboard" : ""}
             </span>
           </div>
@@ -271,7 +254,7 @@ export function StructureCard({
     <div
       className={cn(
         "absolute top-2 left-2 z-10 transition-opacity",
-        isChecked ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+        isChecked ? "opacity-100" : "opacity-0 group-hover:opacity-100",
       )}
       onClick={(e) => e.stopPropagation()}
     >
@@ -291,15 +274,8 @@ export function StructureCard({
         {/* Per-card export icon overlay (D-04) — top-2 right-2, mirrors checkbox at top-2 left-2 */}
         {/* WR-04: stopPropagation on wrapper div covers trigger button, its span wrapper,
             and the icon itself — prevents card onClick firing when export area is clicked. */}
-        <div
-          className="absolute top-2 right-2 z-10"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <ExportMenu
-            onExport={handleExport}
-            triggerVariant="icon"
-            align="start"
-          />
+        <div className="absolute top-2 right-2 z-10" onClick={(e) => e.stopPropagation()}>
+          <ExportMenu onExport={handleExport} triggerVariant="icon" align="start" />
         </div>
         <div
           role="button"

@@ -56,9 +56,7 @@ def _extraction_to_list_item(e: Extraction) -> HistoryListItem:
     )
 
 
-async def _backfill_missing_svgs(
-    db: AsyncSession, substances: list[Substance]
-) -> None:
+async def _backfill_missing_svgs(db: AsyncSession, substances: list[Substance]) -> None:
     """Render + persist any substance rows with empty svg / svg_cdx.
 
     Best-effort. Commits after each successful UPDATE so one broken row
@@ -85,9 +83,7 @@ async def _backfill_missing_svgs(
             await db.commit()
             await db.refresh(s)
         except Exception:  # noqa: BLE001 — self-heal is best-effort
-            logger.exception(
-                "SVG backfill persist failed for substance %s", s.id
-            )
+            logger.exception("SVG backfill persist failed for substance %s", s.id)
             await db.rollback()
 
 
@@ -299,7 +295,7 @@ async def delete_history_entry(extraction_id: int, db: DbDep) -> None:
     description=(
         "Return total extraction count, unique-substance count (by InChI "
         "key), and the most frequently occurring molecular formula across "
-        "the entire store (HIST-04, D-08). `most_common_formula` is `\"\"` "
+        'the entire store (HIST-04, D-08). `most_common_formula` is `""` '
         "when no substances exist."
     ),
     responses={
@@ -326,13 +322,13 @@ async def get_stats(db: DbDep) -> StatsResponse:
         StatsResponse with total_extractions, unique_structures, most_common_formula.
         most_common_formula is "" when no substances exist.
     """
-    total_extractions = await db.scalar(
-        select(func.count()).select_from(Extraction)
-    ) or 0
+    total_extractions = (
+        await db.scalar(select(func.count()).select_from(Extraction)) or 0
+    )
 
-    unique_structures = await db.scalar(
-        select(func.count()).select_from(Substance)
-    ) or 0
+    unique_structures = (
+        await db.scalar(select(func.count()).select_from(Substance)) or 0
+    )
 
     formula_result = await db.execute(
         select(Substance.molecular_formula, func.count().label("n"))

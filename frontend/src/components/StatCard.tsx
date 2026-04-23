@@ -115,10 +115,7 @@ export function StatCard({
         {icon && (
           <span
             aria-hidden="true"
-            className={cn(
-              "flex size-5 items-center justify-center [&_svg]:size-5",
-              iconToneClass,
-            )}
+            className={cn("flex size-5 items-center justify-center [&_svg]:size-5", iconToneClass)}
           >
             {icon}
           </span>

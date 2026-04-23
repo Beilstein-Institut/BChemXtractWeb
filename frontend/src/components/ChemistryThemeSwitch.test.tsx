@@ -27,7 +27,7 @@ beforeEach(() => {
 });
 
 describe("ChemistryThemeSwitch", () => {
-  it("exposes data-slot=\"theme-switch\" on the root label", () => {
+  it('exposes data-slot="theme-switch" on the root label', () => {
     renderWithProvider();
     const root = document.querySelector('[data-slot="theme-switch"]');
     expect(root).not.toBeNull();

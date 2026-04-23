@@ -54,22 +54,16 @@ interface WizardStepperProps {
   className?: string;
 }
 
-function computeStatus(
-  index: number,
-  activeIndex: number,
-): WizardStepStatus {
+function computeStatus(index: number, activeIndex: number): WizardStepStatus {
   if (index < activeIndex) return "complete";
   if (index === activeIndex) return "active";
   return "pending";
 }
 
 const PILL_STATUS_CLASSES: Record<WizardStepStatus, string> = {
-  pending:
-    "bg-surface-muted text-foreground-muted ring-border",
-  active:
-    "bg-primary text-primary-foreground ring-primary",
-  complete:
-    "bg-secondary text-secondary-foreground ring-secondary",
+  pending: "bg-surface-muted text-foreground-muted ring-border",
+  active: "bg-primary text-primary-foreground ring-primary",
+  complete: "bg-secondary text-secondary-foreground ring-secondary",
 };
 
 const LABEL_STATUS_CLASSES: Record<WizardStepStatus, string> = {
@@ -143,10 +137,7 @@ export function WizardStepper({
           return (
             <li
               key={step.id}
-              className={cn(
-                "flex shrink-0 items-center gap-2",
-                !isLast && "flex-1",
-              )}
+              className={cn("flex shrink-0 items-center gap-2", !isLast && "flex-1")}
             >
               <button
                 type="button"
@@ -175,12 +166,7 @@ export function WizardStepper({
                 >
                   {step.icon ?? index + 1}
                 </span>
-                <span
-                  className={cn(
-                    "text-sm transition-colors",
-                    LABEL_STATUS_CLASSES[status],
-                  )}
-                >
+                <span className={cn("text-sm transition-colors", LABEL_STATUS_CLASSES[status])}>
                   {step.label}
                 </span>
               </button>
@@ -200,9 +186,7 @@ export function WizardStepper({
         })}
       </ol>
 
-      {children !== undefined && (
-        <div data-slot="wizard-content">{children}</div>
-      )}
+      {children !== undefined && <div data-slot="wizard-content">{children}</div>}
     </div>
   );
 }

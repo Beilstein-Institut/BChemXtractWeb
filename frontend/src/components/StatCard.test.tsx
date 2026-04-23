@@ -37,22 +37,14 @@ describe("StatCard", () => {
   });
 
   it("renders skeleton when loading and hides the value", () => {
-    const { container } = render(
-      <StatCard label="Unique structures" value={0} loading />,
-    );
+    const { container } = render(<StatCard label="Unique structures" value={0} loading />);
     expect(screen.queryByText("0")).toBeNull();
-    expect(
-      container.querySelector('[data-slot="stat-card"][data-loading="true"]'),
-    ).not.toBeNull();
+    expect(container.querySelector('[data-slot="stat-card"][data-loading="true"]')).not.toBeNull();
   });
 
   it("applies the primary tone class to the numeral", () => {
-    const { container } = render(
-      <StatCard label="Total" value={12} tone="primary" />,
-    );
-    const numeral = container.querySelector(
-      '[data-slot="stat-card-value"]',
-    ) as HTMLElement | null;
+    const { container } = render(<StatCard label="Total" value={12} tone="primary" />);
+    const numeral = container.querySelector('[data-slot="stat-card-value"]') as HTMLElement | null;
     expect(numeral).not.toBeNull();
     expect(numeral?.className).toContain("text-primary");
     expect(container.querySelector('[data-slot="stat-card"]')).toHaveAttribute(
@@ -62,44 +54,26 @@ describe("StatCard", () => {
   });
 
   it("applies the secondary tone class to the numeral", () => {
-    const { container } = render(
-      <StatCard label="Total" value={12} tone="secondary" />,
-    );
-    const numeral = container.querySelector(
-      '[data-slot="stat-card-value"]',
-    ) as HTMLElement | null;
+    const { container } = render(<StatCard label="Total" value={12} tone="secondary" />);
+    const numeral = container.querySelector('[data-slot="stat-card-value"]') as HTMLElement | null;
     expect(numeral?.className).toContain("text-secondary");
   });
 
   it("defaults to neutral foreground numeral when tone is omitted", () => {
     const { container } = render(<StatCard label="Total" value={12} />);
-    const numeral = container.querySelector(
-      '[data-slot="stat-card-value"]',
-    ) as HTMLElement | null;
+    const numeral = container.querySelector('[data-slot="stat-card-value"]') as HTMLElement | null;
     expect(numeral?.className).toContain("text-foreground");
   });
 
   it("renders an up trend with secondary tint", () => {
-    render(
-      <StatCard
-        label="Total"
-        value={100}
-        trend={{ direction: "up", value: "+12%" }}
-      />,
-    );
+    render(<StatCard label="Total" value={100} trend={{ direction: "up", value: "+12%" }} />);
     const trend = screen.getByText(/\+12%/);
     expect(trend.textContent).toContain("↑");
     expect(trend.className).toContain("text-secondary");
   });
 
   it("renders a down trend with destructive tint", () => {
-    render(
-      <StatCard
-        label="Total"
-        value={100}
-        trend={{ direction: "down", value: "5%" }}
-      />,
-    );
+    render(<StatCard label="Total" value={100} trend={{ direction: "down", value: "5%" }} />);
     const trend = screen.getByText(/5%/);
     expect(trend.textContent).toContain("↓");
     expect(trend.className).toContain("text-destructive");
@@ -107,19 +81,12 @@ describe("StatCard", () => {
 
   it("renders the icon slot with tone-tinted wrapper", () => {
     const { container } = render(
-      <StatCard
-        label="Total"
-        value={12}
-        tone="secondary"
-        icon={<svg data-testid="stat-icon" />}
-      />,
+      <StatCard label="Total" value={12} tone="secondary" icon={<svg data-testid="stat-icon" />} />,
     );
     const iconWrap = screen.getByTestId("stat-icon").parentElement;
     expect(iconWrap?.className).toContain("text-secondary");
     // The card still exposes the correct data-slot.
-    expect(
-      container.querySelector('[data-slot="stat-card"]'),
-    ).not.toBeNull();
+    expect(container.querySelector('[data-slot="stat-card"]')).not.toBeNull();
   });
 });
 

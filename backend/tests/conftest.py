@@ -51,12 +51,7 @@ TEST_API_KEY = settings.api_keys[0]
 TEST_AUTH_HEADERS = {"Authorization": f"Bearer {TEST_API_KEY}"}
 
 FIXTURES_DIR = (
-    Path(__file__).parent.parent
-    / "lib"
-    / "bchemxtract"
-    / "src"
-    / "test"
-    / "resources"
+    Path(__file__).parent.parent / "lib" / "bchemxtract" / "src" / "test" / "resources"
 )
 
 # --- Phase 10: local reaction fixtures dir ---

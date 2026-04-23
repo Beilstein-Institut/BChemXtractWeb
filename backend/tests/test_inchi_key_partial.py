@@ -9,6 +9,7 @@ PubChem lets users search by just the first block (all stereo variants of
 the same skeleton) or the first two blocks (same skeleton + stereo,
 different protonation). We mirror that behaviour.
 """
+
 from __future__ import annotations
 
 import pytest

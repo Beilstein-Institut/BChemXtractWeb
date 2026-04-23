@@ -51,9 +51,7 @@ async def test_non_bearer_scheme_returns_401(
 async def test_bearer_without_value_returns_401(
     unauth_client: AsyncClient,
 ) -> None:
-    r = await unauth_client.get(
-        "/api/history", headers={"Authorization": "Bearer"}
-    )
+    r = await unauth_client.get("/api/history", headers={"Authorization": "Bearer"})
     assert r.status_code == 401
 
 
@@ -80,9 +78,7 @@ async def test_wrong_length_bearer_rejected(
     unauth_client: AsyncClient,
 ) -> None:
     """Constant-time compare still correctly rejects differently-sized keys."""
-    r = await unauth_client.get(
-        "/api/history", headers={"Authorization": "Bearer x"}
-    )
+    r = await unauth_client.get("/api/history", headers={"Authorization": "Bearer x"})
     assert r.status_code == 401
 
 
@@ -131,9 +127,7 @@ async def test_health_detail_requires_auth(
 async def test_health_detail_accessible_with_key(
     unauth_client: AsyncClient,
 ) -> None:
-    r = await unauth_client.get(
-        "/api/health/detail", headers=TEST_AUTH_HEADERS
-    )
+    r = await unauth_client.get("/api/health/detail", headers=TEST_AUTH_HEADERS)
     # With JVM lifecycle not started here (unauth_client uses the app
     # without LifespanManager), response may be 200 "degraded" or 500.
     # The critical assertion is "not 401".

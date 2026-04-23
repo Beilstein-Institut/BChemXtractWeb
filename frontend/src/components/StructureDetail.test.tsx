@@ -34,7 +34,11 @@ vi.mock("@base-ui/react/dialog", () => {
         React.createElement(React.Fragment, null, children),
       Backdrop: () => React.createElement("div", { "data-testid": "dialog-backdrop" }),
       Popup: ({ children, className }: { children: React.ReactNode; className?: string }) =>
-        React.createElement("div", { "data-testid": "dialog-popup", role: "dialog", className }, children),
+        React.createElement(
+          "div",
+          { "data-testid": "dialog-popup", role: "dialog", className },
+          children,
+        ),
       Close: ({ children }: { children?: React.ReactNode }) =>
         React.createElement("button", { "data-testid": "dialog-close" }, children),
       Title: ({ children, className }: { children: React.ReactNode; className?: string }) =>
@@ -50,8 +54,10 @@ vi.mock("@base-ui/react/button", () => {
   const React = require("react");
   return {
     Button: React.forwardRef(
-      ({ children, className, ...props }: React.ComponentProps<"button">, ref: React.Ref<HTMLButtonElement>) =>
-        React.createElement("button", { ref, className, ...props }, children)
+      (
+        { children, className, ...props }: React.ComponentProps<"button">,
+        ref: React.Ref<HTMLButtonElement>,
+      ) => React.createElement("button", { ref, className, ...props }, children),
     ),
   };
 });
@@ -135,7 +141,9 @@ describe("StructureDetail component", () => {
     expect(screen.getByRole("button", { name: "Copy SMILES to clipboard" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy InChI to clipboard" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy InChI Key to clipboard" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Copy Molecular Formula to clipboard" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Copy Molecular Formula to clipboard" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy MDL V3000 to clipboard" })).toBeInTheDocument();
   });
 });

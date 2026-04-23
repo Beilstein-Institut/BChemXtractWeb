@@ -162,17 +162,12 @@ def _coerce_reaction(java_rxn) -> dict:
         "reaction_smiles": str(java_rxn.getReactionSmiles() or ""),
         "aux_info": str(java_rxn.getAuxInfo() or ""),
         "reactants": [
-            _coerce_reaction_component(c)
-            for c in (java_rxn.getReactants() or [])
+            _coerce_reaction_component(c) for c in (java_rxn.getReactants() or [])
         ],
         "products": [
-            _coerce_reaction_component(c)
-            for c in (java_rxn.getProducts() or [])
+            _coerce_reaction_component(c) for c in (java_rxn.getProducts() or [])
         ],
-        "agents": [
-            _coerce_reaction_component(c)
-            for c in (java_rxn.getAgents() or [])
-        ],
+        "agents": [_coerce_reaction_component(c) for c in (java_rxn.getAgents() or [])],
     }
 
 
@@ -217,18 +212,12 @@ def _read_document(file_bytes: bytes, format_type: str):
     try:
         input_stream = ByteArrayInputStream(file_bytes)
     except TypeError:
-        input_stream = ByteArrayInputStream(
-            jpype.JArray(jpype.JByte)(file_bytes)
-        )
+        input_stream = ByteArrayInputStream(jpype.JArray(jpype.JByte)(file_bytes))
 
     if format_type == "cdx":
-        reader_cls = jpype.JClass(
-            "org.beilstein.chemxtract.cdx.reader.CDXReader"
-        )
+        reader_cls = jpype.JClass("org.beilstein.chemxtract.cdx.reader.CDXReader")
     else:
-        reader_cls = jpype.JClass(
-            "org.beilstein.chemxtract.cdx.reader.CDXMLReader"
-        )
+        reader_cls = jpype.JClass("org.beilstein.chemxtract.cdx.reader.CDXMLReader")
 
     return reader_cls.readDocument(input_stream)
 
@@ -273,9 +262,7 @@ def _extract_substances_sync(
         raise ExtractionError("Failed to extract substances from file") from exc
 
 
-def _extract_reactions_sync(
-    file_bytes: bytes, format_type: str
-) -> list[dict]:
+def _extract_reactions_sync(file_bytes: bytes, format_type: str) -> list[dict]:
     """Extract reactions from file bytes (blocking, runs in thread pool).
 
     Args:
@@ -511,9 +498,7 @@ def _extract_with_fallback_sync(
         raise ExtractionError("Failed to parse file") from exc
 
     # Stage 1: always run fragment extraction first (fast, reliable)
-    fragment_results, fragment_info = _extract_fragments_from_document(
-        document
-    )
+    fragment_results, fragment_info = _extract_fragments_from_document(document)
     logger.info(
         "Fragment extraction: %d substances from %d fragments",
         fragment_info["no_substances"],
@@ -666,7 +651,8 @@ def _extract_fragments_from_document(document) -> tuple[list[dict], dict]:
                     # Skip trivial fragments: H2, single atoms, etc.
                     # These are not meaningful chemical structures.
                     heavy_count = sum(
-                        1 for j in range(atom_count)
+                        1
+                        for j in range(atom_count)
                         if component.getAtom(j).getAtomicNumber() > 1
                     )
                     if heavy_count < 1:
@@ -681,13 +667,9 @@ def _extract_fragments_from_document(document) -> tuple[list[dict], dict]:
 
                     formula = ""
                     with contextlib.suppress(Exception):
-                        mf = MolecularFormulaManipulator.getMolecularFormula(
-                            component
-                        )
+                        mf = MolecularFormulaManipulator.getMolecularFormula(component)
                         if mf is not None:
-                            formula = str(
-                                MolecularFormulaManipulator.getString(mf)
-                            )
+                            formula = str(MolecularFormulaManipulator.getString(mf))
 
                     # No cross-fallback — empty stays empty so the frontend can accurately
                     # disable the corresponding layout button.
@@ -721,9 +703,10 @@ def _extract_fragments_from_document(document) -> tuple[list[dict], dict]:
         }
 
         logger.info(
-            "Fragment fallback: %d fragments → %d unique substances "
-            "(%d errors)",
-            total_fragments, len(results), errors,
+            "Fragment fallback: %d fragments → %d unique substances (%d errors)",
+            total_fragments,
+            len(results),
+            errors,
         )
         return results, info
 
@@ -803,7 +786,9 @@ async def extract_substances_with_svg(
     # a Java exception. This avoids thread-pool contention where a hung
     # xtractUnique thread blocks fallback calls on separate threads.
     raw_substances, raw_info, used_fallback = await run_in_jvm_thread(
-        _extract_with_fallback_sync, file_bytes, format_type,
+        _extract_with_fallback_sync,
+        file_bytes,
+        format_type,
         timeout=_FRAGMENT_FALLBACK_TIMEOUT,
     )
 

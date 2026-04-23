@@ -24,7 +24,14 @@ vi.mock("@base-ui/react/checkbox", () => {
   const React = require("react");
   return {
     Checkbox: {
-      Root: ({ children: _children, checked, onCheckedChange, "aria-label": ariaLabel, className, ...rest }: {
+      Root: ({
+        children: _children,
+        checked,
+        onCheckedChange,
+        "aria-label": ariaLabel,
+        className,
+        ...rest
+      }: {
         children?: React.ReactNode;
         checked?: boolean;
         onCheckedChange?: (checked: boolean) => void;
@@ -55,7 +62,15 @@ vi.mock("@base-ui/react/tooltip", () => {
         React.createElement(React.Fragment, null, children),
       Root: ({ children }: { children: React.ReactNode }) =>
         React.createElement(React.Fragment, null, children),
-      Trigger: ({ children, render: renderProp, ...rest }: { children?: React.ReactNode; render?: React.ReactElement; [key: string]: unknown }) => {
+      Trigger: ({
+        children,
+        render: renderProp,
+        ...rest
+      }: {
+        children?: React.ReactNode;
+        render?: React.ReactElement;
+        [key: string]: unknown;
+      }) => {
         if (renderProp) {
           return React.cloneElement(renderProp, rest, children);
         }
@@ -77,8 +92,10 @@ vi.mock("@base-ui/react/button", () => {
   const React = require("react");
   return {
     Button: React.forwardRef(
-      ({ children, className, ...props }: React.ComponentProps<"button">, ref: React.Ref<HTMLButtonElement>) =>
-        React.createElement("button", { ref, className, ...props }, children)
+      (
+        { children, className, ...props }: React.ComponentProps<"button">,
+        ref: React.Ref<HTMLButtonElement>,
+      ) => React.createElement("button", { ref, className, ...props }, children),
     ),
   };
 });
@@ -120,7 +137,7 @@ describe("StructureTable", () => {
         onSelectAll={noop}
         allSelected={false}
         onOpen={noop}
-      />
+      />,
     );
 
     // 3 molecular formula cells should exist (one per substance row)
@@ -137,7 +154,7 @@ describe("StructureTable", () => {
         onSelectAll={noop}
         allSelected={false}
         onOpen={noop}
-      />
+      />,
     );
     // tbody should have no data rows (only header)
     const rows = container.querySelectorAll("tbody tr");
@@ -154,7 +171,7 @@ describe("StructureTable", () => {
         allSelected={false}
         onOpen={noop}
         loading={true}
-      />
+      />,
     );
     const skeletonRows = container.querySelectorAll("tbody tr");
     expect(skeletonRows.length).toBe(12);
@@ -172,7 +189,7 @@ describe("StructureTable", () => {
         onSelectAll={noop}
         allSelected={false}
         onOpen={noop}
-      />
+      />,
     );
 
     // Find checkboxes for row selection (aria-label "Select C1H2")
@@ -193,7 +210,7 @@ describe("StructureTable", () => {
         onSelectAll={onSelectAll}
         allSelected={false}
         onOpen={noop}
-      />
+      />,
     );
 
     const headerCheckbox = screen.getByLabelText("Select all on page");
@@ -213,7 +230,7 @@ describe("StructureTable", () => {
         onSelectAll={noop}
         allSelected={false}
         onOpen={onOpen}
-      />
+      />,
     );
 
     // Click second row (tbody tr:nth-child(2))
@@ -233,7 +250,7 @@ describe("StructureTable", () => {
         onSelectAll={noop}
         allSelected={false}
         onOpen={noop}
-      />
+      />,
     );
 
     const img = container.querySelector("img");
@@ -252,7 +269,7 @@ describe("StructureTable", () => {
         onSelectAll={noop}
         allSelected={false}
         onOpen={noop}
-      />
+      />,
     );
 
     const img = container.querySelector("img");
@@ -270,7 +287,7 @@ describe("StructureTable", () => {
         onSelectAll={noop}
         allSelected={false}
         onOpen={noop}
-      />
+      />,
     );
 
     const rows = container.querySelectorAll("tbody tr");
@@ -289,7 +306,7 @@ describe("StructureTable", () => {
         onSelectAll={noop}
         allSelected={false}
         onOpen={noop}
-      />
+      />,
     );
 
     // Find cells with hidden md:table-cell
@@ -308,7 +325,7 @@ describe("StructureTable", () => {
         onSelectAll={noop}
         allSelected={false}
         onOpen={noop}
-      />
+      />,
     );
 
     const copyBtn = screen.getByLabelText("Copy SMILES to clipboard");

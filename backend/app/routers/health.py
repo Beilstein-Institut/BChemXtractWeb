@@ -33,15 +33,13 @@ def _get_jar_version() -> str:
     ``{version}``. Returns ``""`` when no matching JAR exists and the
     full filename when the JAR is present but doesn't match the pattern.
     """
-    matches = sorted(Path(settings.jar_path).glob(
-        f"{_JAR_NAME_PREFIX}*{_JAR_NAME_SUFFIX}"
-    ))
+    matches = sorted(
+        Path(settings.jar_path).glob(f"{_JAR_NAME_PREFIX}*{_JAR_NAME_SUFFIX}")
+    )
     if not matches:
         return ""
     filename = matches[0].name
-    if filename.startswith(_JAR_NAME_PREFIX) and filename.endswith(
-        _JAR_NAME_SUFFIX
-    ):
+    if filename.startswith(_JAR_NAME_PREFIX) and filename.endswith(_JAR_NAME_SUFFIX):
         return filename[len(_JAR_NAME_PREFIX) : -len(_JAR_NAME_SUFFIX)]
     return filename
 
@@ -53,7 +51,7 @@ def _get_jar_version() -> str:
     summary="Liveness check",
     description=(
         "Minimal health check suitable for Docker HEALTHCHECK probes. "
-        "Returns `\"ok\"` if the JVM is running, `\"degraded\"` otherwise. "
+        'Returns `"ok"` if the JVM is running, `"degraded"` otherwise. '
         "No JVM calls — only reads the started flag — so it is fast and "
         "cheap to poll."
     ),
@@ -96,9 +94,7 @@ def _collect_jvm_diagnostics() -> dict:
     return {
         "jvm_version": str(jpype.getJVMVersion()),
         "heap_max_mb": int(rt.maxMemory() / (1024 * 1024)),
-        "heap_used_mb": int(
-            (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024)
-        ),
+        "heap_used_mb": int((rt.totalMemory() - rt.freeMemory()) / (1024 * 1024)),
         "heap_free_mb": int(rt.freeMemory() / (1024 * 1024)),
         "available_processors": int(rt.availableProcessors()),
     }
@@ -114,7 +110,7 @@ def _collect_jvm_diagnostics() -> dict:
         "processors, thread-pool workers/active counts, JVM version, and "
         "JAR version parsed from the BChemXtract fat-JAR filename. JVM "
         "diagnostic calls run in the thread pool to avoid blocking the "
-        "event loop. When the JVM is not running, returns `status=\"degraded\"` "
+        'event loop. When the JVM is not running, returns `status="degraded"` '
         "with `jvm_running=false` and the remaining fields defaulted.\n\n"
         "Requires an API key — unlike `/health`, this endpoint discloses "
         "internal JVM/CDK/BChemXtract versions useful for targeted CVE "
@@ -154,9 +150,7 @@ async def health_detail() -> HealthDetailResponse:
         )
 
     # Collect JVM diagnostics via thread pool (blocking JVM call)
-    diagnostics = await run_in_jvm_thread(
-        _collect_jvm_diagnostics, timeout=5.0
-    )
+    diagnostics = await run_in_jvm_thread(_collect_jvm_diagnostics, timeout=5.0)
 
     # Thread pool stats (Python-side, no JVM call needed)
     pool_stats = get_pool_stats()

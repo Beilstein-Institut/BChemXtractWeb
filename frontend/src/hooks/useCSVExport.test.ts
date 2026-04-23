@@ -12,12 +12,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 
-import {
-  escapeCSVCell,
-  serializeCSV,
-  useCSVExport,
-  type CSVColumn,
-} from "./useCSVExport";
+import { escapeCSVCell, serializeCSV, useCSVExport, type CSVColumn } from "./useCSVExport";
 
 interface Row {
   id: number;
@@ -62,13 +57,7 @@ describe("serializeCSV", () => {
       { id: 2, name: "Beta", note: "also fine" },
     ];
     const csv = serializeCSV(rows, columns);
-    expect(csv).toBe(
-      [
-        "Id,Name,Note",
-        "1,Alpha,plain",
-        "2,Beta,also fine",
-      ].join("\r\n"),
-    );
+    expect(csv).toBe(["Id,Name,Note", "1,Alpha,plain", "2,Beta,also fine"].join("\r\n"));
   });
 
   it("escapes cells with commas, quotes, and newlines", () => {
@@ -122,12 +111,8 @@ describe("serializeCSV", () => {
 describe("useCSVExport", () => {
   it("creates an object URL, clicks an anchor, and revokes the URL", () => {
     // Mock URL + anchor so JSDOM does not actually navigate / download.
-    const createSpy = vi
-      .spyOn(URL, "createObjectURL")
-      .mockReturnValue("blob:mock-url");
-    const revokeSpy = vi
-      .spyOn(URL, "revokeObjectURL")
-      .mockImplementation(() => {});
+    const createSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock-url");
+    const revokeSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
 
     const anchorClick = vi.fn();
     const realCreateElement = document.createElement.bind(document);

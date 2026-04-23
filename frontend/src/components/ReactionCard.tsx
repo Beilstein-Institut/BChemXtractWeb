@@ -12,11 +12,7 @@
 import { ArrowRightLeftIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CopyButton } from "@/components/internal/CopyButton";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { cn } from "@/lib/utils";
@@ -62,8 +58,7 @@ export function ReactionCard({
 
   // Prefer the short key for display/copy; fall back to the (currently
   // unpopulated) rinchi_key for forward-compat.
-  const displayedRinchiKey =
-    reaction.short_rinchi_key || reaction.rinchi_key || "";
+  const displayedRinchiKey = reaction.short_rinchi_key || reaction.rinchi_key || "";
 
   return (
     <Card
@@ -97,13 +92,8 @@ export function ReactionCard({
             className="flex flex-col items-center gap-2"
             aria-label="Reaction depiction unavailable"
           >
-            <ArrowRightLeftIcon
-              className="size-8 text-muted-foreground"
-              aria-hidden="true"
-            />
-            <span className="text-caption text-muted-foreground">
-              Depiction unavailable
-            </span>
+            <ArrowRightLeftIcon className="size-8 text-muted-foreground" aria-hidden="true" />
+            <span className="text-caption text-muted-foreground">Depiction unavailable</span>
           </div>
         )}
       </div>
@@ -118,18 +108,14 @@ export function ReactionCard({
             {reaction.reaction_smiles ? (
               <Tooltip>
                 <TooltipTrigger
-                  render={
-                    <p className="text-caption font-mono text-foreground truncate" />
-                  }
+                  render={<p className="text-caption font-mono text-foreground truncate" />}
                 >
                   {reaction.reaction_smiles}
                 </TooltipTrigger>
                 <TooltipContent>{reaction.reaction_smiles}</TooltipContent>
               </Tooltip>
             ) : (
-              <p className="text-caption font-mono text-foreground truncate">
-                {"\u2014"}
-              </p>
+              <p className="text-caption font-mono text-foreground truncate">{"\u2014"}</p>
             )}
           </div>
           <CopyButton
@@ -160,10 +146,7 @@ export function ReactionCard({
 
         {/* Summary row: component chip + view-details affordance */}
         <div className="flex items-center justify-between">
-          <Badge
-            variant="secondary"
-            className="h-5 text-micro font-semibold gap-1"
-          >
+          <Badge variant="secondary" className="h-5 text-micro font-semibold gap-1">
             {componentSummary}
           </Badge>
           <span className="text-caption text-muted-foreground hidden sm:inline">

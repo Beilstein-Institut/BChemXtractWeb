@@ -13,28 +13,22 @@ import { Button } from "@/components/ui/button";
 describe("Button", () => {
   it("renders children", () => {
     render(<Button>Click me</Button>);
-    expect(
-      screen.getByRole("button", { name: "Click me" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Click me" })).toBeInTheDocument();
   });
 
-  it("exposes data-slot=\"button\"", () => {
+  it('exposes data-slot="button"', () => {
     render(<Button>x</Button>);
     expect(screen.getByRole("button").getAttribute("data-slot")).toBe("button");
   });
 
   it("reflects the selected variant via data-variant", () => {
     render(<Button variant="secondary">x</Button>);
-    expect(screen.getByRole("button").getAttribute("data-variant")).toBe(
-      "secondary"
-    );
+    expect(screen.getByRole("button").getAttribute("data-variant")).toBe("secondary");
   });
 
-  it("defaults variant to \"default\"", () => {
+  it('defaults variant to "default"', () => {
     render(<Button>x</Button>);
-    expect(screen.getByRole("button").getAttribute("data-variant")).toBe(
-      "default"
-    );
+    expect(screen.getByRole("button").getAttribute("data-variant")).toBe("default");
   });
 
   it("fires onClick when clicked", () => {
@@ -49,7 +43,7 @@ describe("Button", () => {
     render(
       <Button onClick={onClick} disabled>
         Nope
-      </Button>
+      </Button>,
     );
     fireEvent.click(screen.getByRole("button", { name: "Nope" }));
     expect(onClick).not.toHaveBeenCalled();
@@ -137,9 +131,7 @@ describe("Button", () => {
   });
 
   it("wraps the icon prop in a circular sub-wrapper (.btn-clay__icon)", () => {
-    render(
-      <Button icon={<svg data-testid="icon-svg" />}>Send</Button>
-    );
+    render(<Button icon={<svg data-testid="icon-svg" />}>Send</Button>);
     const btn = screen.getByRole("button", { name: "Send" });
     const iconWrapper = btn.querySelector(".btn-clay__icon");
     expect(iconWrapper).not.toBeNull();

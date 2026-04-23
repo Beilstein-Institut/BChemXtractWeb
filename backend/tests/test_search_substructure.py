@@ -5,6 +5,7 @@ this file flips the other four: benzene-in-naphthalene, invalid
 SMARTS, skip-and-warn on unparsable stored SMILES (D-09), and
 attribution aggregation (D-10).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -65,9 +66,7 @@ async def test_substructure_invalid_smarts(client: AsyncClient) -> None:
         json={"query": "c1ccc(((", "type": "substructure"},
         timeout=60.0,
     )
-    assert resp.status_code == 422, (
-        f"expected 422, got {resp.status_code}: {resp.text}"
-    )
+    assert resp.status_code == 422, f"expected 422, got {resp.status_code}: {resp.text}"
     assert resp.json().get("code") == "INVALID_SMARTS", (
         f"expected code=INVALID_SMARTS, got body={resp.text}"
     )

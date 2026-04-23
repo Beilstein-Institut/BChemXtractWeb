@@ -1,7 +1,7 @@
-import { Radio as RadioPrimitive } from "@base-ui/react/radio"
-import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group"
+import { Radio as RadioPrimitive } from "@base-ui/react/radio";
+import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 /**
  * RadioGroup — state tier (Phase 3 Liquid Glass rebuild, Task 5).
@@ -20,7 +20,7 @@ function RadioGroup({ className, ...props }: RadioGroupPrimitive.Props) {
       className={cn("flex flex-col gap-3", className)}
       {...props}
     />
-  )
+  );
 }
 
 function RadioGroupItem({ className, ...props }: RadioPrimitive.Root.Props) {
@@ -39,7 +39,7 @@ function RadioGroupItem({ className, ...props }: RadioPrimitive.Root.Props) {
         "disabled:cursor-not-allowed disabled:opacity-50 data-disabled:cursor-not-allowed data-disabled:opacity-50",
         // Invalid
         "aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/40",
-        className
+        className,
       )}
       {...props}
     >
@@ -50,7 +50,7 @@ function RadioGroupItem({ className, ...props }: RadioPrimitive.Root.Props) {
         <span className="size-2 rounded-full bg-primary-foreground" />
       </RadioPrimitive.Indicator>
     </RadioPrimitive.Root>
-  )
+  );
 }
 
-export { RadioGroup, RadioGroupItem }
+export { RadioGroup, RadioGroupItem };

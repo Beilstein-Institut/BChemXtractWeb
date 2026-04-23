@@ -21,7 +21,7 @@ export const glassSurfaceClasses = [
   "backdrop-blur-[var(--glass-blur)] backdrop-saturate-[var(--glass-saturate)]",
   "border border-[var(--glass-border)]",
   "shadow-lg",
-].join(" ")
+].join(" ");
 
 /**
  * Overlay/backdrop class cluster — token-driven dim layer for modal surfaces
@@ -29,5 +29,4 @@ export const glassSurfaceClasses = [
  * alpha so the dim inherits the palette hue (warm-navy in light, near-white
  * in dark) instead of a hard `black/50`.
  */
-export const glassOverlayClasses =
-  "bg-foreground/30 supports-backdrop-filter:backdrop-blur-sm"
+export const glassOverlayClasses = "bg-foreground/30 supports-backdrop-filter:backdrop-blur-sm";

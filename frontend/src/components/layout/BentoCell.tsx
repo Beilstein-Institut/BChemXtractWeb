@@ -38,12 +38,7 @@ interface BentoCellProps extends HTMLAttributes<HTMLDivElement> {
   children?: ReactNode;
 }
 
-export function BentoCell({
-  span,
-  className,
-  children,
-  ...rest
-}: BentoCellProps) {
+export function BentoCell({ span, className, children, ...rest }: BentoCellProps) {
   const resolvedSpan = span ?? "1:1";
   const { colSpan, rowSpan } = parseSpan(resolvedSpan);
   // Clamp to the lookup's supported range so an unusual span ("5:1", "0:0")

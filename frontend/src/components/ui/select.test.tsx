@@ -34,19 +34,17 @@ function renderSelect(onValueChange?: (v: string) => void) {
         <SelectItem value="banana">Banana</SelectItem>
         <SelectItem value="cherry">Cherry</SelectItem>
       </SelectContent>
-    </Select>
+    </Select>,
   );
 }
 
 describe("Select", () => {
   it("renders the trigger", () => {
     renderSelect();
-    expect(
-      screen.getByRole("combobox", { name: "fruit" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "fruit" })).toBeInTheDocument();
   });
 
-  it("exposes data-slot=\"select-trigger\" on the trigger", () => {
+  it('exposes data-slot="select-trigger" on the trigger', () => {
     renderSelect();
     const trigger = screen.getByRole("combobox", { name: "fruit" });
     expect(trigger.getAttribute("data-slot")).toBe("select-trigger");
@@ -71,9 +69,7 @@ describe("Select", () => {
     const user = userEvent.setup();
     renderSelect();
     await user.click(screen.getByRole("combobox", { name: "fruit" }));
-    expect(
-      await screen.findByRole("option", { name: "Apple" })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Apple" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Banana" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Cherry" })).toBeInTheDocument();
   });
@@ -89,13 +85,13 @@ describe("Select", () => {
     expect(onValueChange.mock.calls[0][0]).toBe("banana");
   });
 
-  it("exposes data-slot=\"select-content\" on the popup once open", async () => {
+  it('exposes data-slot="select-content" on the popup once open', async () => {
     const user = userEvent.setup();
     renderSelect();
     await user.click(screen.getByRole("combobox", { name: "fruit" }));
     // findByRole wait for the popup render; then resolve its data-slot.
     const option = await screen.findByRole("option", { name: "Apple" });
-    const popup = option.closest("[data-slot=\"select-content\"]");
+    const popup = option.closest('[data-slot="select-content"]');
     expect(popup).not.toBeNull();
   });
 
@@ -104,14 +100,12 @@ describe("Select", () => {
     renderSelect();
     await user.click(screen.getByRole("combobox", { name: "fruit" }));
     const option = await screen.findByRole("option", { name: "Apple" });
-    const popup = option.closest("[data-slot=\"select-content\"]") as HTMLElement;
+    const popup = option.closest('[data-slot="select-content"]') as HTMLElement;
     expect(popup).not.toBeNull();
     expect(popup.className).toContain("bg-[var(--glass-tint-light)]");
     expect(popup.className).toContain("dark:bg-[var(--glass-tint-dark)]");
     expect(popup.className).toContain("backdrop-blur-[var(--glass-blur)]");
-    expect(popup.className).toContain(
-      "backdrop-saturate-[var(--glass-saturate)]"
-    );
+    expect(popup.className).toContain("backdrop-saturate-[var(--glass-saturate)]");
     expect(popup.className).toContain("border-[var(--glass-border)]");
   });
 });

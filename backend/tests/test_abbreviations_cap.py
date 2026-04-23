@@ -8,7 +8,6 @@ payloads can't drive unbounded memory growth in responses.
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from app.services.extractor import (

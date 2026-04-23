@@ -11,12 +11,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function renderTabs() {
   return render(
@@ -29,7 +24,7 @@ function renderTabs() {
       <TabsContent value="a">Panel A</TabsContent>
       <TabsContent value="b">Panel B</TabsContent>
       <TabsContent value="c">Panel C</TabsContent>
-    </Tabs>
+    </Tabs>,
   );
 }
 
@@ -41,13 +36,13 @@ describe("Tabs", () => {
     expect(screen.getByRole("tab", { name: "Tab C" })).toBeInTheDocument();
   });
 
-  it("exposes data-slot=\"tabs-list\" on the list", () => {
+  it('exposes data-slot="tabs-list" on the list', () => {
     const { container } = renderTabs();
     const list = container.querySelector('[data-slot="tabs-list"]');
     expect(list).not.toBeNull();
   });
 
-  it("exposes data-slot=\"tabs-trigger\" on every trigger", () => {
+  it('exposes data-slot="tabs-trigger" on every trigger', () => {
     renderTabs();
     const triggers = screen.getAllByRole("tab");
     for (const t of triggers) {
@@ -55,7 +50,7 @@ describe("Tabs", () => {
     }
   });
 
-  it("exposes data-slot=\"tabs-panel\" on the visible panel", () => {
+  it('exposes data-slot="tabs-panel" on the visible panel', () => {
     renderTabs();
     const panel = screen.getByRole("tabpanel");
     expect(panel.getAttribute("data-slot")).toBe("tabs-panel");
@@ -91,9 +86,7 @@ describe("Tabs", () => {
 
   it("applies pill-shaped list styling (bg-surface-muted, rounded-full)", () => {
     const { container } = renderTabs();
-    const list = container.querySelector(
-      '[data-slot="tabs-list"]'
-    ) as HTMLElement;
+    const list = container.querySelector('[data-slot="tabs-list"]') as HTMLElement;
     expect(list.className).toContain("bg-surface-muted");
     expect(list.className).toContain("rounded-full");
   });
@@ -102,10 +95,10 @@ describe("Tabs", () => {
     renderTabs();
     const trigger = screen.getByRole("tab", { name: "Tab A" });
     expect(trigger.className).toContain(
-      "group-data-[variant=default]/tabs-list:data-active:bg-primary"
+      "group-data-[variant=default]/tabs-list:data-active:bg-primary",
     );
     expect(trigger.className).toContain(
-      "group-data-[variant=default]/tabs-list:data-active:text-primary-foreground"
+      "group-data-[variant=default]/tabs-list:data-active:text-primary-foreground",
     );
   });
 
@@ -118,9 +111,7 @@ describe("Tabs", () => {
 
   it("reflects the List variant via data-variant (default)", () => {
     const { container } = renderTabs();
-    const list = container.querySelector(
-      '[data-slot="tabs-list"]'
-    ) as HTMLElement;
+    const list = container.querySelector('[data-slot="tabs-list"]') as HTMLElement;
     expect(list.getAttribute("data-variant")).toBe("default");
   });
 });

@@ -185,7 +185,9 @@ class TestThreadPool:
                                     nonlocal detach_called
                                     detach_called = True
                                     return original_jpype.java.lang.Thread.detach()
+
                         return _LangProxy()
+
                 return _JavaProxy()
 
         bridge_mod.jpype = _JpypeProxy()

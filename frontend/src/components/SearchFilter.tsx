@@ -32,10 +32,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  EMPTY_FILTERS,
-  type BrowseFilters,
-} from "@/components/browse/browseFilters";
+import { EMPTY_FILTERS, type BrowseFilters } from "@/components/browse/browseFilters";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { cn } from "@/lib/utils";
 
@@ -86,12 +83,7 @@ function FilterChip({
   );
 }
 
-export function SearchFilter({
-  value,
-  onChange,
-  debounceMs = 250,
-  className,
-}: SearchFilterProps) {
+export function SearchFilter({ value, onChange, debounceMs = 250, className }: SearchFilterProps) {
   // Locally owned input state — we only flush up to the parent after the
   // debounce window so the bento tiles don't recalc on every keystroke.
   const [q, setQ] = useState(value.q);
@@ -126,8 +118,7 @@ export function SearchFilter({
 
   // Compute active state from the local input so the Clear button shows
   // immediately on typing rather than one debounce cycle late.
-  const anyActive =
-    q.trim() !== "" || value.hasName || value.hasSmiles || value.hasInchi;
+  const anyActive = q.trim() !== "" || value.hasName || value.hasSmiles || value.hasInchi;
 
   const handleClearAll = () => {
     lastFlushedRef.current = "";
@@ -152,10 +143,7 @@ export function SearchFilter({
           "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0",
         )}
       >
-        <SearchIcon
-          aria-hidden="true"
-          className="size-4 shrink-0 text-foreground-muted"
-        />
+        <SearchIcon aria-hidden="true" className="size-4 shrink-0 text-foreground-muted" />
         <input
           type="search"
           aria-label="Search structures in this extraction"

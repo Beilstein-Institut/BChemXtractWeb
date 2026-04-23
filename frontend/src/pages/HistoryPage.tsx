@@ -30,13 +30,7 @@
  * `useHistory` and passes down via props; no new hooks or endpoints.
  */
 import { useMemo } from "react";
-import {
-  BeakerIcon,
-  FileUpIcon,
-  FlaskConicalIcon,
-  LayersIcon,
-  TimerIcon,
-} from "lucide-react";
+import { BeakerIcon, FileUpIcon, FlaskConicalIcon, LayersIcon, TimerIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { BentoCell } from "@/components/layout/BentoCell";
@@ -77,10 +71,7 @@ export function HistoryPage({
   onDelete,
   onReloadSuccess,
 }: HistoryPageProps) {
-  const hasAny =
-    total > 0 ||
-    entries.length > 0 ||
-    (stats !== null && stats.total_extractions > 0);
+  const hasAny = total > 0 || entries.length > 0 || (stats !== null && stats.total_extractions > 0);
 
   const computed = useMemo(
     () => computeHistoryStats(entries, stats, total),
@@ -90,8 +81,7 @@ export function HistoryPage({
   // Stat tiles are considered "loading" while the first server stats call
   // is still in-flight AND we haven't received any entries yet; once the
   // list arrives we compute client-side totals so the top bar feels live.
-  const statsLoadingVisible =
-    statsLoading && stats === null && entries.length === 0;
+  const statsLoadingVisible = statsLoading && stats === null && entries.length === 0;
 
   async function handleDelete(id: number) {
     try {

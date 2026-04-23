@@ -26,14 +26,12 @@ describe("NavLinks", () => {
     expect(screen.getByText("About")).toBeInTheDocument();
   });
 
-  it("exposes data-slot=\"nav-links\" on the nav wrapper", () => {
+  it('exposes data-slot="nav-links" on the nav wrapper', () => {
     render(<NavLinks />);
-    expect(screen.getByLabelText("Main navigation").getAttribute("data-slot")).toBe(
-      "nav-links",
-    );
+    expect(screen.getByLabelText("Main navigation").getAttribute("data-slot")).toBe("nav-links");
   });
 
-  it("stamps data-slot=\"nav-link\" on each link", () => {
+  it('stamps data-slot="nav-link" on each link', () => {
     render(<NavLinks />);
     const links = document.querySelectorAll('[data-slot="nav-link"]');
     expect(links.length).toBe(4);

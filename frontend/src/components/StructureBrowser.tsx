@@ -33,10 +33,7 @@ import { StructureCard } from "@/components/StructureCard";
 import { StructureTable } from "@/components/StructureTable";
 import { StructureSheet } from "@/components/StructureSheet";
 import { filterSubstances } from "@/components/browse/filterSubstances";
-import {
-  hasActiveFilters,
-  type BrowseFilters,
-} from "@/components/browse/browseFilters";
+import { hasActiveFilters, type BrowseFilters } from "@/components/browse/browseFilters";
 
 export interface StructureBrowserProps {
   /** The extraction ID to browse. Null/undefined renders idle state. */
@@ -196,11 +193,7 @@ export function StructureBrowser({
       {browseState === "success" && substances.length === 0 && (
         <EmptyState
           icon={LayoutGridIcon}
-          title={
-            filtersActive
-              ? "No structures match these filters"
-              : "Nothing to browse yet"
-          }
+          title={filtersActive ? "No structures match these filters" : "Nothing to browse yet"}
           message={
             filtersActive
               ? "Clear a chip or change the search query to see more results."

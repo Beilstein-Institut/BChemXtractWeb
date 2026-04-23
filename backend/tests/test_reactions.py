@@ -7,6 +7,7 @@ is a live integration test against the simple_reaction.cdx fixture.
 The last test stays skipped — triggering a deterministic JPype JException
 during parseReactionSmiles is tricky and not worth monkeypatching for v1.
 """
+
 import asyncio
 
 import pytest

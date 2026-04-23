@@ -16,7 +16,7 @@ describe("Input", () => {
     expect(screen.getByPlaceholderText("type here")).toBeInTheDocument();
   });
 
-  it("exposes data-slot=\"input\"", () => {
+  it('exposes data-slot="input"', () => {
     render(<Input placeholder="x" />);
     const input = screen.getByPlaceholderText("x");
     expect(input.getAttribute("data-slot")).toBe("input");
@@ -41,7 +41,7 @@ describe("Input", () => {
     expect(input.disabled).toBe(true);
   });
 
-  it("forwards the type attribute (e.g. type=\"email\")", () => {
+  it('forwards the type attribute (e.g. type="email")', () => {
     render(<Input type="email" placeholder="x" />);
     const input = screen.getByPlaceholderText("x") as HTMLInputElement;
     expect(input.type).toBe("email");

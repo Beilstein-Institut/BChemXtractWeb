@@ -64,19 +64,16 @@ export function ExperimentalBanner() {
         aria-hidden="true"
       />
       <p className="flex-1 text-caption leading-[1.29] tracking-[-0.016em] text-amber-900 dark:text-amber-200">
-        <span className="font-semibold">Experimental.</span>{" "}
-        Reaction extraction from ChemDraw files is a best-effort feature of{" "}
-        <BrandName />. Results may be incomplete or inaccurate — verify before use.
+        <span className="font-semibold">Experimental.</span> Reaction extraction from ChemDraw files
+        is a best-effort feature of <BrandName />. Results may be incomplete or inaccurate — verify
+        before use.
       </p>
       <Button
         variant="ghost"
         size="icon-sm"
         aria-label="Dismiss experimental disclaimer"
         onClick={handleDismiss}
-        className={cn(
-          "shrink-0 -mr-1 -mt-1",
-          "hover:bg-amber-100 dark:hover:bg-amber-900/40",
-        )}
+        className={cn("shrink-0 -mr-1 -mt-1", "hover:bg-amber-100 dark:hover:bg-amber-900/40")}
       >
         <XIcon className="size-3.5 text-amber-700 dark:text-amber-500" />
       </Button>

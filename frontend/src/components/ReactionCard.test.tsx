@@ -23,18 +23,9 @@ vi.mock("@base-ui/react/button", () => {
   return {
     Button: React.forwardRef(
       (
-        {
-          children,
-          className,
-          ...props
-        }: React.ComponentProps<"button">,
+        { children, className, ...props }: React.ComponentProps<"button">,
         ref: React.Ref<HTMLButtonElement>,
-      ) =>
-        React.createElement(
-          "button",
-          { ref, className, ...props },
-          children,
-        ),
+      ) => React.createElement("button", { ref, className, ...props }, children),
     ),
   };
 });
@@ -67,11 +58,7 @@ vi.mock("@base-ui/react/tooltip", () => {
       Positioner: ({ children }: { children: React.ReactNode }) =>
         React.createElement(React.Fragment, null, children),
       Popup: ({ children }: { children: React.ReactNode }) =>
-        React.createElement(
-          "div",
-          { "data-testid": "tooltip-content" },
-          children,
-        ),
+        React.createElement("div", { "data-testid": "tooltip-content" }, children),
       Arrow: () => null,
     },
   };
@@ -92,9 +79,7 @@ Object.defineProperty(navigator, "clipboard", {
 
 import { ReactionCard } from "./ReactionCard";
 
-const mkReaction = (
-  overrides: Partial<ReactionResponse> = {},
-): ReactionResponse => ({
+const mkReaction = (overrides: Partial<ReactionResponse> = {}): ReactionResponse => ({
   rinchi: "InChI=1S/RInChI",
   rinchi_key: "",
   short_rinchi_key: "QDQJI-UBKILYX-N",
@@ -130,20 +115,12 @@ const mkReaction = (
 describe("ReactionCard component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (
-      navigator.clipboard.writeText as ReturnType<typeof vi.fn>
-    ).mockResolvedValue(undefined);
+    (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
   });
 
   it("renders with role='button' + tabIndex + aria-label", () => {
     const onOpen = vi.fn();
-    render(
-      <ReactionCard
-        reaction={mkReaction()}
-        reactionIndex={0}
-        onOpen={onOpen}
-      />,
-    );
+    render(<ReactionCard reaction={mkReaction()} reactionIndex={0} onOpen={onOpen} />);
     const btn = screen.getByRole("button", {
       name: /View reaction details/i,
     });
@@ -152,81 +129,37 @@ describe("ReactionCard component", () => {
   });
 
   it("renders SVG via a Blob URL (T-10-05)", () => {
-    render(
-      <ReactionCard
-        reaction={mkReaction()}
-        reactionIndex={0}
-        onOpen={vi.fn()}
-      />,
-    );
+    render(<ReactionCard reaction={mkReaction()} reactionIndex={0} onOpen={vi.fn()} />);
     const img = screen.getByRole("img") as HTMLImageElement;
     expect(img.src).toMatch(/^blob:/);
   });
 
   it("renders 'Depiction unavailable' fallback when svg is empty (D-13)", () => {
-    render(
-      <ReactionCard
-        reaction={mkReaction({ svg: "" })}
-        reactionIndex={0}
-        onOpen={vi.fn()}
-      />,
-    );
+    render(<ReactionCard reaction={mkReaction({ svg: "" })} reactionIndex={0} onOpen={vi.fn()} />);
     expect(screen.getByText("Depiction unavailable")).toBeInTheDocument();
   });
 
   it("renders reaction_smiles with copy button", () => {
-    render(
-      <ReactionCard
-        reaction={mkReaction()}
-        reactionIndex={0}
-        onOpen={vi.fn()}
-      />,
-    );
-    expect(
-      screen.getByRole("button", { name: /copy reaction SMILES/i }),
-    ).toBeInTheDocument();
+    render(<ReactionCard reaction={mkReaction()} reactionIndex={0} onOpen={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /copy reaction SMILES/i })).toBeInTheDocument();
   });
 
   it("copy button click calls writeText + stopPropagation so onOpen is NOT fired", () => {
     const onOpen = vi.fn();
-    render(
-      <ReactionCard
-        reaction={mkReaction()}
-        reactionIndex={0}
-        onOpen={onOpen}
-      />,
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: /copy reaction SMILES/i }),
-    );
+    render(<ReactionCard reaction={mkReaction()} reactionIndex={0} onOpen={onOpen} />);
+    fireEvent.click(screen.getByRole("button", { name: /copy reaction SMILES/i }));
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith("CC>>CCO");
     expect(onOpen).not.toHaveBeenCalled();
   });
 
   it("renders short_rinchi_key with copy button", () => {
-    render(
-      <ReactionCard
-        reaction={mkReaction()}
-        reactionIndex={0}
-        onOpen={vi.fn()}
-      />,
-    );
-    expect(
-      screen.getByRole("button", { name: /copy short RInChI key/i }),
-    ).toBeInTheDocument();
+    render(<ReactionCard reaction={mkReaction()} reactionIndex={0} onOpen={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /copy short RInChI key/i })).toBeInTheDocument();
   });
 
   it("component chip reads '1 reactants · 1 products' (no agents segment when 0)", () => {
-    render(
-      <ReactionCard
-        reaction={mkReaction()}
-        reactionIndex={0}
-        onOpen={vi.fn()}
-      />,
-    );
-    expect(
-      screen.getByText(/1 reactants · 1 products/),
-    ).toBeInTheDocument();
+    render(<ReactionCard reaction={mkReaction()} reactionIndex={0} onOpen={vi.fn()} />);
+    expect(screen.getByText(/1 reactants · 1 products/)).toBeInTheDocument();
   });
 
   it("component chip includes agent segment when agents > 0", () => {
@@ -253,28 +186,14 @@ describe("ReactionCard component", () => {
 
   it("card click invokes onOpen(reactionIndex)", () => {
     const onOpen = vi.fn();
-    render(
-      <ReactionCard
-        reaction={mkReaction()}
-        reactionIndex={3}
-        onOpen={onOpen}
-      />,
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: /View reaction details/i }),
-    );
+    render(<ReactionCard reaction={mkReaction()} reactionIndex={3} onOpen={onOpen} />);
+    fireEvent.click(screen.getByRole("button", { name: /View reaction details/i }));
     expect(onOpen).toHaveBeenCalledWith(3);
   });
 
   it("Enter key invokes onOpen; Space key too", () => {
     const onOpen = vi.fn();
-    render(
-      <ReactionCard
-        reaction={mkReaction()}
-        reactionIndex={5}
-        onOpen={onOpen}
-      />,
-    );
+    render(<ReactionCard reaction={mkReaction()} reactionIndex={5} onOpen={onOpen} />);
     const card = screen.getByRole("button", {
       name: /View reaction details/i,
     });

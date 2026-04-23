@@ -38,7 +38,9 @@ vi.mock("./lib/apiClient", () => ({
 }));
 vi.mock("./components/FileUpload", () => ({
   FileUpload: ({ isLoading }: { isLoading: boolean }) => (
-    <div data-testid="file-upload" data-loading={isLoading}>FileUpload</div>
+    <div data-testid="file-upload" data-loading={isLoading}>
+      FileUpload
+    </div>
   ),
 }));
 vi.mock("./components/StructureBrowser", () => ({
@@ -105,9 +107,7 @@ describe("App", () => {
   it("advances the wizard to the Process step in loading state", () => {
     mockExtract({ state: "loading" });
     render(<App />);
-    const stepper = document.querySelector(
-      "[data-slot='wizard-stepper']",
-    ) as HTMLElement | null;
+    const stepper = document.querySelector("[data-slot='wizard-stepper']") as HTMLElement | null;
     expect(stepper).not.toBeNull();
     expect(stepper!.dataset.current).toBe("process");
   });
@@ -124,9 +124,7 @@ describe("App", () => {
     const pushSpy = vi.spyOn(window.history, "pushState");
     mockExtract({ state: "success", result: SUCCESS_RESULT });
     render(<App />);
-    const browseCalls = pushSpy.mock.calls.filter(
-      (call) => call[2] === "/browse",
-    );
+    const browseCalls = pushSpy.mock.calls.filter((call) => call[2] === "/browse");
     expect(browseCalls).toHaveLength(0);
   });
 });

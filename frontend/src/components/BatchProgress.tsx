@@ -1,10 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  CheckCircle2Icon,
-  ClockIcon,
-  LoaderIcon,
-  XCircleIcon,
-} from "lucide-react";
+import { CheckCircle2Icon, ClockIcon, LoaderIcon, XCircleIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
 import {
@@ -146,41 +141,19 @@ function Stat({
 function FileStatusIcon({ state }: { state: BatchFileStatus["state"] }) {
   switch (state) {
     case "queued":
-      return (
-        <ClockIcon
-          className="size-4 shrink-0 text-foreground-muted"
-          aria-hidden="true"
-        />
-      );
+      return <ClockIcon className="size-4 shrink-0 text-foreground-muted" aria-hidden="true" />;
     case "processing":
       return (
-        <LoaderIcon
-          className="size-4 shrink-0 animate-spin text-primary"
-          aria-hidden="true"
-        />
+        <LoaderIcon className="size-4 shrink-0 animate-spin text-primary" aria-hidden="true" />
       );
     case "done":
-      return (
-        <CheckCircle2Icon
-          className="size-4 shrink-0 text-secondary"
-          aria-hidden="true"
-        />
-      );
+      return <CheckCircle2Icon className="size-4 shrink-0 text-secondary" aria-hidden="true" />;
     case "failed":
-      return (
-        <XCircleIcon
-          className="size-4 shrink-0 text-destructive"
-          aria-hidden="true"
-        />
-      );
+      return <XCircleIcon className="size-4 shrink-0 text-destructive" aria-hidden="true" />;
   }
 }
 
-export function BatchProgress({
-  files,
-  totalCount,
-  onCancel,
-}: BatchProgressProps) {
+export function BatchProgress({ files, totalCount, onCancel }: BatchProgressProps) {
   const failedCount = files.filter((f) => f.state === "failed").length;
   const succeededCount = files.filter((f) => f.state === "done").length;
   // Progress bar should advance for every file that has FINISHED, regardless
@@ -188,8 +161,7 @@ export function BatchProgress({
   // bar mid-run even though the worker is making forward progress. The
   // succeededCount is still surfaced in the Completed stat cell below.
   const processedCount = succeededCount + failedCount;
-  const progressValue =
-    totalCount > 0 ? (processedCount / totalCount) * 100 : 0;
+  const progressValue = totalCount > 0 ? (processedCount / totalCount) * 100 : 0;
   const progressPercent = Math.round(progressValue);
 
   // Timer is active only while the batch has files queued AND the worker
@@ -201,10 +173,7 @@ export function BatchProgress({
 
   return (
     <div data-slot="process-step" className="space-y-6">
-      <div
-        data-slot="batch-stats"
-        className="grid grid-cols-3 gap-3"
-      >
+      <div data-slot="batch-stats" className="grid grid-cols-3 gap-3">
         <Stat label="Total" value={totalCount} />
         <Stat label="Completed" value={succeededCount} tone="secondary" />
         <Stat label="Failed" value={failedCount} tone="destructive" />
@@ -218,10 +187,7 @@ export function BatchProgress({
             </ProgressLabel>
             <ProgressValue>{() => `${progressPercent}%`}</ProgressValue>
           </Progress>
-          <p
-            data-slot="batch-elapsed"
-            className="text-caption font-mono text-foreground-muted"
-          >
+          <p data-slot="batch-elapsed" className="text-caption font-mono text-foreground-muted">
             Elapsed: {formatElapsed(elapsedSeconds)}
           </p>
         </div>
@@ -242,8 +208,7 @@ export function BatchProgress({
             <AlertDialogHeader>
               <AlertDialogTitle>Cancel batch?</AlertDialogTitle>
               <AlertDialogDescription>
-                Processing will stop after the current file finishes. Completed
-                results are kept.
+                Processing will stop after the current file finishes. Completed results are kept.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -288,9 +253,7 @@ export function BatchProgress({
                 {f.error.slice(0, 80)}
               </span>
             )}
-            <span className="shrink-0 text-xs capitalize text-foreground-muted">
-              {f.state}
-            </span>
+            <span className="shrink-0 text-xs capitalize text-foreground-muted">{f.state}</span>
           </li>
         ))}
       </ul>

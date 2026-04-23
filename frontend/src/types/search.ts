@@ -11,12 +11,7 @@
  */
 import type { SubstanceResponse } from "@/types/chemistry";
 
-export type SearchType =
-  | "auto"
-  | "inchi_key"
-  | "formula"
-  | "smiles"
-  | "substructure";
+export type SearchType = "auto" | "inchi_key" | "formula" | "smiles" | "substructure";
 
 export type SearchMatch = "canonical" | "literal";
 

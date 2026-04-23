@@ -37,13 +37,7 @@ interface LegalPageHeaderProps {
  * Header block used by every legal page. The eyebrow uses the same
  * surface-elevated pill treatment as the About page's section tags.
  */
-export function LegalPageHeader({
-  icon,
-  eyebrow,
-  title,
-  lede,
-  className,
-}: LegalPageHeaderProps) {
+export function LegalPageHeader({ icon, eyebrow, title, lede, className }: LegalPageHeaderProps) {
   return (
     <header className={cn("space-y-3", className)}>
       <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-elevated px-3 py-1 text-caption uppercase tracking-wider text-foreground-muted">
