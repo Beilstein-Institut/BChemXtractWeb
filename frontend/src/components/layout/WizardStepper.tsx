@@ -93,34 +93,27 @@ export function WizardStepper({
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLOListElement>) => {
       if (!onStepChange || steps.length === 0) return;
+      const lastIndex = steps.length - 1;
+      let targetIndex: number;
       switch (event.key) {
-        case "ArrowRight": {
-          event.preventDefault();
-          const next = steps[Math.min(activeIndex + 1, steps.length - 1)];
-          if (next && next.id !== currentStep) onStepChange(next.id);
+        case "ArrowRight":
+          targetIndex = Math.min(activeIndex + 1, lastIndex);
           break;
-        }
-        case "ArrowLeft": {
-          event.preventDefault();
-          const prev = steps[Math.max(activeIndex - 1, 0)];
-          if (prev && prev.id !== currentStep) onStepChange(prev.id);
+        case "ArrowLeft":
+          targetIndex = Math.max(activeIndex - 1, 0);
           break;
-        }
-        case "Home": {
-          event.preventDefault();
-          const first = steps[0];
-          if (first && first.id !== currentStep) onStepChange(first.id);
+        case "Home":
+          targetIndex = 0;
           break;
-        }
-        case "End": {
-          event.preventDefault();
-          const last = steps[steps.length - 1];
-          if (last && last.id !== currentStep) onStepChange(last.id);
+        case "End":
+          targetIndex = lastIndex;
           break;
-        }
         default:
-          break;
+          return;
       }
+      event.preventDefault();
+      const target = steps[targetIndex];
+      if (target && target.id !== currentStep) onStepChange(target.id);
     },
     [onStepChange, steps, activeIndex, currentStep],
   );
