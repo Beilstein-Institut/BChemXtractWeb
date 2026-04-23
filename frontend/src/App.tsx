@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { AppHeader } from "@/components/AppHeader";
-import { CommandPalette } from "@/components/CommandPalette";
-import { SearchResults } from "@/components/SearchResults";
+import { DeferredCommandPalette } from "@/components/DeferredCommandPalette";
+import { PageSuspenseFallback } from "@/components/PageSuspenseFallback";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useBatch } from "@/hooks/useBatch";
@@ -11,14 +11,31 @@ import { useHistory } from "@/hooks/useHistory";
 import { getExtractionReactions } from "@/lib/apiClient";
 import { navigate, useRoute } from "@/lib/router";
 import { searchInputRef } from "@/lib/searchFocus";
-import { AboutPage } from "@/pages/AboutPage";
 import { BrowsePage } from "@/pages/BrowsePage";
 import { ExtractPage } from "@/pages/ExtractPage";
 import { HistoryPage } from "@/pages/HistoryPage";
-import { ImprintPage } from "@/pages/ImprintPage";
-import { LicensePage } from "@/pages/LicensePage";
-import { PrivacyPage } from "@/pages/PrivacyPage";
 import type { ExtractionResponse, ReactionExtractionResponse } from "@/types/chemistry";
+
+// Lazy-loaded routes: kept out of the initial bundle because they're
+// only rendered in response to explicit navigation (legal pages via
+// the footer, /about from nav, SearchResults only when ?q= is in the
+// URL). BrowsePage/ExtractPage/HistoryPage are eager — users hit them
+// on the default flow and lazy-loading would introduce a skeleton flash.
+const AboutPage = lazy(() =>
+  import("@/pages/AboutPage").then((m) => ({ default: m.AboutPage })),
+);
+const ImprintPage = lazy(() =>
+  import("@/pages/ImprintPage").then((m) => ({ default: m.ImprintPage })),
+);
+const LicensePage = lazy(() =>
+  import("@/pages/LicensePage").then((m) => ({ default: m.LicensePage })),
+);
+const PrivacyPage = lazy(() =>
+  import("@/pages/PrivacyPage").then((m) => ({ default: m.PrivacyPage })),
+);
+const SearchResults = lazy(() =>
+  import("@/components/SearchResults").then((m) => ({ default: m.SearchResults })),
+);
 
 /** Events that can change whether `?q=` is present in the URL. */
 const SEARCH_URL_EVENTS = ["popstate", "searchurlchange", "routechange"] as const;
@@ -240,10 +257,15 @@ function App() {
     <ThemeProvider defaultTheme="system" storageKey="bchemxtract-theme">
       <div className="flex min-h-screen flex-col bg-background text-foreground">
         <AppHeader />
-        <main className="mx-auto w-full max-w-7xl flex-1 px-6 pt-24 pb-12">{renderRoute()}</main>
+        <main className="mx-auto w-full max-w-7xl flex-1 px-6 pt-24 pb-12">
+          <Suspense fallback={<PageSuspenseFallback />}>{renderRoute()}</Suspense>
+        </main>
         <SiteFooter />
-        {/* Task 14: globally mounted so ⌘K works from any route. */}
-        <CommandPalette />
+        {/* Task 14: globally mounted so ⌘K works from any route.
+         *  Lazy-loaded on first ⌘K to keep motion/react out of the
+         *  initial bundle — see DeferredCommandPalette.
+         */}
+        <DeferredCommandPalette />
       </div>
       <Toaster richColors />
     </ThemeProvider>
