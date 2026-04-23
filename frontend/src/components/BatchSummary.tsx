@@ -49,6 +49,12 @@ export interface BatchSummaryProps {
 
 type StatTone = "default" | "secondary" | "destructive";
 
+const STAT_TONE_CLASS: Record<StatTone, string> = {
+  default: "text-foreground",
+  secondary: "text-secondary",
+  destructive: "text-destructive",
+};
+
 function StatItem({
   label,
   value,
@@ -58,12 +64,7 @@ function StatItem({
   value: number;
   tone?: StatTone;
 }) {
-  const toneClass =
-    tone === "secondary"
-      ? "text-secondary"
-      : tone === "destructive"
-        ? "text-destructive"
-        : "text-foreground";
+  const toneClass = STAT_TONE_CLASS[tone];
   return (
     <div
       data-slot="batch-summary-stat"
