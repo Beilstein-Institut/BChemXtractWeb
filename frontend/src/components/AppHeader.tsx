@@ -79,17 +79,38 @@ export function AppHeader() {
         "border-b border-[var(--glass-border)]",
       )}
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-6">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-6">
         <Logo />
 
-        <NavLinks className="hidden lg:flex" />
-
-        <div className="flex flex-1 items-center justify-end gap-3">
-          <SearchInput />
-          <ChemistryThemeSwitch />
+        {/*
+          Center nav pill — secretlevel.co-style centered container
+          around NavLinks. Uses a plain div so NavLinks keeps its
+          own <nav aria-label="Main navigation"> semantic root
+          without nesting <nav> inside <nav>.
+        */}
+        <div
+          data-slot="nav-pill"
+          className={cn(
+            "hidden lg:flex items-center",
+            "rounded-full border border-border bg-surface-muted/60",
+            "px-2 py-1.5 backdrop-blur-sm",
+          )}
+        >
+          <NavLinks className="flex" />
         </div>
 
-        <div className="flex items-center">
+        {/*
+          Right-cluster — search + theme toggle + (mobile) hamburger.
+          Sits in its own group mirroring the secretlevel.co right-pill
+          CTA slot, though we keep it as a tight flex row rather than a
+          wrapping pill so the chem flask toggle can breathe.
+        */}
+        <div
+          data-slot="header-right-cluster"
+          className="flex items-center gap-3"
+        >
+          <SearchInput />
+          <ChemistryThemeSwitch />
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger
               render={

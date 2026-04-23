@@ -1,13 +1,11 @@
 /**
- * ChemistryThemeSwitch — tests for the claymorphism sky slider with
- * the conical (Erlenmeyer) flask puck (Phase 3 Task 21).
- *
- * The component is a plain `<label>` wrapping a hidden checkbox whose
- * state drives the ThemeProvider. Assertions cover the data-slot
- * contract, aria-label polarity, the new DOM shape
- * (theme-switch__container / theme-switch__clouds /
- * theme-switch__stars-container / theme-switch__flask), and
- * Light↔Dark persistence through localStorage.bchemxtract-theme.
+ * ChemistryThemeSwitch — tests for the original chemistry-themed
+ * light/dark toggle. The component is a plain `<label>` wrapping a
+ * hidden checkbox whose state drives the ThemeProvider. Assertions
+ * cover the data-slot contract, aria-label polarity, the DOM shape
+ * (chem-toggle__container / chem-toggle__scenery / .flask +
+ * .flask__neck + .flask__body), and Light↔Dark persistence through
+ * localStorage.bchemxtract-theme.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -52,33 +50,32 @@ describe("ChemistryThemeSwitch", () => {
     expect(screen.getByLabelText("Switch to light theme")).toBeInTheDocument();
   });
 
-  it("applies the theme-switch class cluster for the scoped CSS", () => {
+  it("applies the chem-toggle class cluster for the scoped CSS", () => {
     renderWithProvider();
     const root = document.querySelector('[data-slot="theme-switch"]');
-    expect(root?.className).toContain("theme-switch");
-    expect(document.querySelector(".theme-switch__container")).not.toBeNull();
-    expect(document.querySelector(".theme-switch__clouds")).not.toBeNull();
-    expect(document.querySelector(".theme-switch__stars-container")).not.toBeNull();
-    expect(document.querySelector(".theme-switch__circle-container")).not.toBeNull();
-    expect(document.querySelector(".theme-switch__flask")).not.toBeNull();
+    expect(root?.className).toContain("chem-toggle");
+    expect(document.querySelector(".chem-toggle__container")).not.toBeNull();
+    expect(document.querySelector(".chem-toggle__scenery")).not.toBeNull();
+    expect(document.querySelector(".flask")).not.toBeNull();
+    expect(document.querySelector(".flask__neck")).not.toBeNull();
+    expect(document.querySelector(".flask__body")).not.toBeNull();
   });
 
-  it("renders the Erlenmeyer flask body + liquid inside the puck", () => {
+  it("renders the full scenery — 7 stars, sun, moon, craters, 3 clouds", () => {
     renderWithProvider();
-    expect(document.querySelector(".theme-switch__flask-body")).not.toBeNull();
-    expect(document.querySelector(".theme-switch__flask-liquid")).not.toBeNull();
-    // Bubbles inside the liquid — cosmetic detail that should exist.
-    expect(
-      document.querySelectorAll(".theme-switch__flask-bubble").length,
-    ).toBeGreaterThan(0);
+    expect(document.querySelectorAll(".chem-toggle__star").length).toBe(7);
+    expect(document.querySelector(".sun-primary")).not.toBeNull();
+    expect(document.querySelector(".sun-secondary")).not.toBeNull();
+    expect(document.querySelector(".moon")).not.toBeNull();
+    expect(document.querySelector(".moon-crater-1")).not.toBeNull();
+    expect(document.querySelector(".moon-crater-2")).not.toBeNull();
+    expect(document.querySelectorAll(".chem-toggle__cloud").length).toBe(3);
   });
 
-  it("defines light + dark liquid gradients in the SVG <defs>", () => {
+  it("renders the flask neck container with vapor puffs", () => {
     renderWithProvider();
-    expect(
-      document.querySelector("#chem-flask-liquid-light"),
-    ).not.toBeNull();
-    expect(document.querySelector("#chem-flask-liquid-dark")).not.toBeNull();
+    expect(document.querySelector(".flask__neck-container")).not.toBeNull();
+    expect(document.querySelectorAll(".flask__vapor").length).toBe(2);
   });
 
   it("toggling the checkbox from light persists 'dark' to localStorage", () => {

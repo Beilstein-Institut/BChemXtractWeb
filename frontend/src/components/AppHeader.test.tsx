@@ -72,6 +72,25 @@ describe("AppHeader", () => {
     expect(nav.getAttribute("data-slot")).toBe("nav-links");
   });
 
+  it("wraps NavLinks in a centered pill container", () => {
+    render(<AppHeader />);
+    const pill = document.querySelector('[data-slot="nav-pill"]');
+    expect(pill).not.toBeNull();
+    expect(pill?.className).toContain("rounded-full");
+    // NavLinks lives inside the pill.
+    expect(pill?.querySelector('[data-slot="nav-links"]')).not.toBeNull();
+  });
+
+  it("groups search + theme switch in the right-cluster slot", () => {
+    render(<AppHeader />);
+    const cluster = document.querySelector(
+      '[data-slot="header-right-cluster"]',
+    );
+    expect(cluster).not.toBeNull();
+    expect(cluster?.querySelector('[data-testid="search-input"]')).not.toBeNull();
+    expect(cluster?.querySelector('[data-slot="theme-switch"]')).not.toBeNull();
+  });
+
   it("renders the stubbed ChemistryThemeSwitch trigger", () => {
     render(<AppHeader />);
     expect(
