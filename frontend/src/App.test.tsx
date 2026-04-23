@@ -91,13 +91,10 @@ describe("App", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders the heading on /", () => {
+  it("renders the hero tagline on /", () => {
     render(<App />);
-    // BrandName splits the wordmark across styled spans, so we match on
-    // the composed textContent of the page heading rather than a single
-    // text node.
     const heading = screen.getByRole("heading", { level: 1 });
-    expect(heading).toHaveTextContent("BChemXtractWeb");
+    expect(heading).toHaveTextContent(/ChemDraw, read back\./i);
   });
 
   it("shows FileUpload in idle state on /", () => {

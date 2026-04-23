@@ -28,10 +28,16 @@ export interface FooterProps {
    */
   logo?: ReactNode;
   /**
-   * Brand wordmark text displayed next to the logo. Also used as the
-   * `aria-label` on the home-link anchor.
+   * Brand wordmark displayed next to the logo. Accepts plain text or a
+   * composed node (e.g. a styled wordmark component). `brandLabel`
+   * supplies the aria-label when brandName is not a simple string.
    */
-  brandName?: string;
+  brandName?: ReactNode;
+  /**
+   * Accessible name for the home-link anchor. Falls back to `brandName`
+   * when that prop is a string; otherwise required for screen readers.
+   */
+  brandLabel?: string;
   socialLinks: FooterSocialLink[];
   mainLinks: FooterTextLink[];
   legalLinks: FooterTextLink[];
@@ -57,6 +63,7 @@ function defaultRenderLink(link: FooterTextLink, className: string): ReactNode {
 export function Footer({
   logo,
   brandName,
+  brandLabel,
   socialLinks,
   mainLinks,
   legalLinks,
@@ -65,6 +72,8 @@ export function Footer({
   renderLink = defaultRenderLink,
   className,
 }: FooterProps) {
+  const ariaLabel =
+    brandLabel ?? (typeof brandName === "string" ? brandName : undefined);
   return (
     <footer
       className={cn("pb-6 pt-16 lg:pb-8 lg:pt-24", className)}
@@ -84,14 +93,17 @@ export function Footer({
             <a
               href="/"
               className="flex items-center gap-x-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
-              aria-label={brandName}
+              aria-label={ariaLabel}
             >
               {logo}
-              {brandName && (
-                <span className="font-display text-xl font-bold tracking-tight">
-                  {brandName}
-                </span>
-              )}
+              {brandName &&
+                (typeof brandName === "string" ? (
+                  <span className="font-display text-xl font-bold tracking-tight">
+                    {brandName}
+                  </span>
+                ) : (
+                  brandName
+                ))}
             </a>
           )}
           <ul className={cn("flex list-none space-x-3", (logo || brandName) && "mt-6 md:mt-0")}>

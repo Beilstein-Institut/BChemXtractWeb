@@ -74,6 +74,16 @@ function renderInternalLink(
 export function SiteFooter() {
   return (
     <Footer
+      logo={
+        <img
+          src="/bchemxtract-logo.svg"
+          alt=""
+          aria-hidden="true"
+          className="h-8 w-8 shrink-0"
+        />
+      }
+      brandName={<BrandName className="text-xl" />}
+      brandLabel="BChemXtract"
       renderLink={renderInternalLink}
       socialLinks={[
         {

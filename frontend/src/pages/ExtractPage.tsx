@@ -22,7 +22,6 @@ import { useCallback, useMemo } from "react";
 import { CheckIcon, LoaderIcon, UploadIcon } from "lucide-react";
 import { BatchProgress } from "@/components/BatchProgress";
 import { BatchSummary } from "@/components/BatchSummary";
-import { BrandName } from "@/components/BrandName";
 import { FileUpload } from "@/components/FileUpload";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { WizardStepper, type WizardStep } from "@/components/layout/WizardStepper";
@@ -137,11 +136,12 @@ export function ExtractPage({
   return (
     <PageContainer>
       <header className="mb-8 space-y-3">
-        <h1 className="text-3xl text-foreground sm:text-4xl">
-          <BrandName suffix="Web" />
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+          ChemDraw, read back.
         </h1>
-        <p className="text-base text-foreground-muted">
-          Extract chemical structures from ChemDraw files.
+        <p className="max-w-[60ch] text-base text-foreground-muted">
+          Drop a CDX or CDXML file. Get structures, reactions, and
+          descriptors — SMILES, InChI, RInChI, molecular formula.
         </p>
       </header>
 
