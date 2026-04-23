@@ -10,17 +10,14 @@ import { Link } from "@/lib/Link";
 import { useRoute } from "@/lib/router";
 import { cn } from "@/lib/utils";
 
+import { isRouteActive } from "./navActive";
+
 const LINKS = [
   { to: "/", label: "Extract" },
   { to: "/browse", label: "Browse" },
   { to: "/history", label: "History" },
   { to: "/about", label: "About" },
 ] as const;
-
-function isActive(route: string, to: string): boolean {
-  if (to === "/") return route === "/";
-  return route === to || route.startsWith(`${to}/`);
-}
 
 export function NavLinks({ className }: { className?: string }) {
   const route = useRoute();
@@ -32,7 +29,7 @@ export function NavLinks({ className }: { className?: string }) {
       className={cn("items-center gap-1", className)}
     >
       {LINKS.map((link) => {
-        const active = isActive(route, link.to);
+        const active = isRouteActive(route, link.to);
         return (
           <Link
             key={link.label}

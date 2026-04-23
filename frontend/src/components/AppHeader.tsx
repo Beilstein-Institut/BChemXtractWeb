@@ -4,6 +4,7 @@ import { BrandName } from "@/components/BrandName";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/SearchInput";
 import { NavLinks } from "@/components/nav/NavLinks";
+import { isRouteActive } from "@/components/nav/navActive";
 import { ChemistryThemeSwitch } from "@/components/ChemistryThemeSwitch";
 import {
   Sheet,
@@ -23,11 +24,6 @@ const MOBILE_LINKS = [
   { label: "History", to: "/history" },
   { label: "About", to: "/about" },
 ] as const;
-
-function isActive(route: string, to: string): boolean {
-  if (to === "/") return route === "/";
-  return route === to || route.startsWith(`${to}/`);
-}
 
 /**
  * Logo — inline wordmark for the Liquid Glass AppHeader (Task 7).
@@ -135,7 +131,7 @@ export function AppHeader() {
               </SheetHeader>
               <nav aria-label="Mobile navigation" className="flex flex-col">
                 {MOBILE_LINKS.map((link) => {
-                  const active = isActive(route, link.to);
+                  const active = isRouteActive(route, link.to);
                   return (
                     <SheetClose
                       key={link.label}
