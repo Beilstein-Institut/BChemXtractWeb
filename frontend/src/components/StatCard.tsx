@@ -30,6 +30,27 @@ import { formatStatValue, type StatCardFormat } from "./statCardFormat";
 export type StatCardTone = "primary" | "secondary" | "neutral";
 export type { StatCardFormat };
 
+const NUMERAL_TONE_CLASS: Record<StatCardTone, string> = {
+  primary: "text-primary",
+  secondary: "text-secondary",
+  neutral: "text-foreground",
+};
+
+const ICON_TONE_CLASS: Record<StatCardTone, string> = {
+  primary: "text-primary",
+  secondary: "text-secondary",
+  neutral: "text-foreground-muted",
+};
+
+function resolveDisplayValue(
+  value: number | string | null | undefined,
+  format: StatCardFormat,
+): string {
+  if (value === "" || value === null || value === undefined) return "—";
+  if (typeof value === "number") return formatStatValue(value, format);
+  return value;
+}
+
 export interface StatCardTrend {
   direction: "up" | "down";
   /** Pre-formatted label (e.g. `"+12%"`). */
@@ -73,27 +94,9 @@ export function StatCard({
     );
   }
 
-  const isEmpty =
-    value === "" || value === null || value === undefined;
-  const displayValue = isEmpty
-    ? "—"
-    : typeof value === "number"
-      ? formatStatValue(value, format)
-      : value;
-
-  const numeralToneClass =
-    tone === "primary"
-      ? "text-primary"
-      : tone === "secondary"
-        ? "text-secondary"
-        : "text-foreground";
-
-  const iconToneClass =
-    tone === "primary"
-      ? "text-primary"
-      : tone === "secondary"
-        ? "text-secondary"
-        : "text-foreground-muted";
+  const displayValue = resolveDisplayValue(value, format);
+  const numeralToneClass = NUMERAL_TONE_CLASS[tone];
+  const iconToneClass = ICON_TONE_CLASS[tone];
 
   return (
     <div
