@@ -99,6 +99,26 @@ export function ExtractPage({
     [state, batchState],
   );
 
+  // Single-file path and batch path both land on "process", but BatchProgress
+  // renders from `files` + `totalCount`. When a single file is extracting,
+  // useBatch has not started — batchFiles is [] — so the bar was stuck at
+  // "0 of 0 files, 0%, Elapsed 0s". Synthesize a 1-item pseudo-batch from the
+  // selected File while useExtract is loading so the Process step has data
+  // to animate against.
+  const progressFiles = useMemo<BatchFileStatus[]>(() => {
+    if (batchFiles.length > 0) return batchFiles;
+    if (state === "loading" && selectedFile) {
+      return [
+        {
+          state: "processing",
+          filename: selectedFile.name,
+          fileSize: selectedFile.size,
+        },
+      ];
+    }
+    return [];
+  }, [batchFiles, state, selectedFile]);
+
   // Manual back-nav: any backward click in the stepper resets the batch and
   // returns to Upload. Forward clicks are ignored — forward transitions are
   // driven by hook state (useExtract / useBatch auto-advance).
@@ -142,8 +162,8 @@ export function ExtractPage({
 
         {currentStep === "process" && (
           <BatchProgress
-            files={batchFiles}
-            totalCount={batchFiles.length}
+            files={progressFiles}
+            totalCount={progressFiles.length}
             onCancel={onCancelBatch}
           />
         )}
