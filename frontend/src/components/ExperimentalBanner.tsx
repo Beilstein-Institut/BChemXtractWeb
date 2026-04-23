@@ -12,6 +12,7 @@
  */
 import { useState, useEffect } from "react";
 import { AlertTriangleIcon, XIcon } from "lucide-react";
+import { BrandName } from "@/components/BrandName";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -64,8 +65,8 @@ export function ExperimentalBanner() {
       />
       <p className="flex-1 text-caption leading-[1.29] tracking-[-0.016em] text-amber-900 dark:text-amber-200">
         <span className="font-semibold">Experimental.</span>{" "}
-        Reaction extraction from ChemDraw files is a best-effort feature of
-        BChemXtract. Results may be incomplete or inaccurate — verify before use.
+        Reaction extraction from ChemDraw files is a best-effort feature of{" "}
+        <BrandName />. Results may be incomplete or inaccurate — verify before use.
       </p>
       <Button
         variant="ghost"

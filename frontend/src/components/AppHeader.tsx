@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MenuIcon } from "lucide-react";
+import { BrandName } from "@/components/BrandName";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/SearchInput";
 import { NavLinks } from "@/components/nav/NavLinks";
@@ -44,15 +45,17 @@ function Logo() {
       data-slot="app-logo"
       className={cn(
         "group inline-flex items-center gap-2",
-        "font-display text-lg tracking-tight text-foreground",
+        "text-lg text-foreground",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-full",
       )}
     >
-      <span className="font-semibold">BChemXtract</span>
-      <span
+      <img
+        src="/bchemxtract-logo.svg"
+        alt=""
         aria-hidden="true"
-        className="size-1.5 rounded-full bg-primary"
+        className="h-8 w-8 shrink-0"
       />
+      <BrandName />
     </Link>
   );
 }
@@ -126,8 +129,8 @@ export function AppHeader() {
             </SheetTrigger>
             <SheetContent side="left" className="w-[280px] sm:w-[320px]">
               <SheetHeader className="mb-6">
-                <SheetTitle className="font-display text-lg font-semibold">
-                  BChemXtract
+                <SheetTitle className="text-lg">
+                  <BrandName />
                 </SheetTitle>
               </SheetHeader>
               <nav aria-label="Mobile navigation" className="flex flex-col">

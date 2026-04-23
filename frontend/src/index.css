@@ -36,6 +36,7 @@
   --font-sans:    var(--font-sans);
   --font-mono:    var(--font-mono);
   --font-display: var(--font-display);
+  --font-brand:   var(--font-brand);
 
   /* Typography scale aliases — register with `@theme` so Tailwind generates
    * `text-caption`, `text-display-lg`, etc. as real utilities. Without this
@@ -850,5 +851,47 @@ body {
   }
   .theme-switch__checkbox:checked + .theme-switch__container .flask__body {
     transform: none;
+  }
+}
+
+/* -------------------------------------------------------------------- *
+ * Coffee-steam wisps for the SiteFooter "Built with ☕" line.
+ * Two tiny vertical puffs above the cup with staggered keyframes so
+ * they rise and fade in alternation. Honors prefers-reduced-motion.
+ * -------------------------------------------------------------------- */
+.coffee-steam {
+  padding-left: 0.35rem;
+}
+.coffee-steam__puff {
+  position: absolute;
+  bottom: 100%;
+  display: block;
+  width: 2px;
+  height: 6px;
+  border-radius: 9999px;
+  background-color: var(--color-foreground-muted);
+  opacity: 0;
+  transform: translateY(0) scale(1);
+  animation: coffee-steam-rise 1.8s ease-in-out infinite;
+}
+.coffee-steam__puff--1 {
+  left: 0.5rem;
+  animation-delay: 0s;
+}
+.coffee-steam__puff--2 {
+  left: 0.85rem;
+  animation-delay: 0.55s;
+  height: 5px;
+}
+@keyframes coffee-steam-rise {
+  0%   { opacity: 0; transform: translateY(0) scale(1); }
+  30%  { opacity: 0.55; }
+  100% { opacity: 0; transform: translateY(-8px) scale(1.35); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .coffee-steam__puff {
+    animation: none;
+    opacity: 0.3;
+    transform: translateY(-4px);
   }
 }

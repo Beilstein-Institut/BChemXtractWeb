@@ -160,6 +160,7 @@ profile_default/
 ipython_config.py
 CLAUDE.md
 DESIGN.md
+DESIGN-LEGACY.md
 .planning/
 test-results/
 

@@ -59,6 +59,12 @@
   --font-sans:    "JetBrains Mono Variable", ui-monospace, "SF Mono", monospace;
   --font-mono:    "JetBrains Mono Variable", ui-monospace, "SF Mono", monospace;
 
+  /* Brand wordmark font — Clan Pro (commercial, not bundled).
+   * Consumers pulling in the webfont should add an @font-face rule
+   * naming one of the first three families. Falls back to the display
+   * stack so the wordmark degrades gracefully without the license. */
+  --font-brand: "Clan Pro", "FF Clan Pro", "Clan OT", var(--font-display);
+
   --text-display-2xl: clamp(2.5rem, 5vw, 4rem);
   --text-display-xl:  clamp(2rem,   4vw, 3rem);
   --text-display-lg:  clamp(1.5rem, 3vw, 2.25rem);

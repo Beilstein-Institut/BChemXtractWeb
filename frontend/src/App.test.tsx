@@ -93,7 +93,11 @@ describe("App", () => {
 
   it("renders the heading on /", () => {
     render(<App />);
-    expect(screen.getByText("BChemXtractWeb")).toBeInTheDocument();
+    // BrandName splits the wordmark across styled spans, so we match on
+    // the composed textContent of the page heading rather than a single
+    // text node.
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading).toHaveTextContent("BChemXtractWeb");
   });
 
   it("shows FileUpload in idle state on /", () => {
