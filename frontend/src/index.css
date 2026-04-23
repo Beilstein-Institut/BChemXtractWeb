@@ -320,8 +320,8 @@ body {
 
 /* ============================================================
    Chemistry Theme Switch — claymorphism sky slider with a
-   conical (Erlenmeyer) flask as the slider puck (Phase 3
-   Task 21). Structure:
+   round-bottom flask as the slider puck (Phase 3 Task 21).
+   Structure:
 
      label.theme-switch
        input.theme-switch__checkbox            (visually hidden)
@@ -330,7 +330,7 @@ body {
          div.theme-switch__stars-container     (dark-side, svg)
          div.theme-switch__circle-container    (sliding puck)
            div.theme-switch__sun-moon-container
-             svg.theme-switch__flask           (Erlenmeyer + liquid)
+             svg.theme-switch__flask           (round-bottom flask + liquid)
 
    Claymorphism treatment:
      - Vibrant 2-stop sky gradient on .theme-switch__container
@@ -338,7 +338,7 @@ body {
      - Multi-layer outer drop + inner highlight/depth shadows on the
        container for "pressed plasticky-clay" feel
      - drop-shadow float on the flask SVG (2-layer) for puck lift
-     - Pour-tilt rotate(18deg) on active click
+     - Full 360° swirl on the flask on every state flip
      - Clouds slide down + stars slide in on :checked
 
    Sizing driven by --toggle-size; all inner metrics in em so the
@@ -441,19 +441,23 @@ body {
 }
 
 .theme-switch__sun-moon-container {
+  pointer-events: auto;
   position: relative;
+  z-index: 2;
   width: var(--sun-moon-diameter);
   height: var(--sun-moon-diameter);
   margin: auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  pointer-events: auto;
-  z-index: 2;
   filter:
     drop-shadow(0.062em 0.125em 0.125em rgba(0, 0, 0, 0.2))
     drop-shadow(0 0.062em 0.125em rgba(0, 0, 0, 0.15));
-  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  /* 360° swirl: rotation is driven by the checked state. When the
+     checkbox flips, the transform target changes and the transition
+     animates the rotation. Browsers interpolate the full 360° arc. */
+  transform: rotate(0deg);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .theme-switch__flask {
@@ -466,7 +470,12 @@ body {
   fill: rgba(255, 255, 255, 0.92);
   stroke: rgba(255, 255, 255, 0.98);
   stroke-width: 0.4;
-  stroke-linejoin: round;
+}
+
+.theme-switch__flask-neck {
+  fill: rgba(255, 255, 255, 0.88);
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 0.3;
 }
 
 .theme-switch__flask-liquid {
@@ -478,8 +487,12 @@ body {
   fill: rgba(255, 255, 255, 0.75);
 }
 
+.theme-switch__flask-meniscus {
+  fill: rgba(255, 255, 255, 0.25);
+}
+
 .theme-switch__flask-bubble {
-  fill: rgba(255, 255, 255, 0.6);
+  fill: rgba(255, 255, 255, 0.55);
 }
 
 /* ── Clouds (light-side scenery) — box-shadow cloud pattern ── */
@@ -581,14 +594,15 @@ body {
   );
 }
 
-/* ── Pour tilt on active click ── */
-.theme-switch__container:active .theme-switch__sun-moon-container {
-  transform: rotate(18deg);
-}
+/* ── 360° swirl on checked-state flip ──
+   The sun-moon container starts at rotate(0deg) and the :checked
+   rule below drives it to rotate(360deg). Because the transition
+   on .theme-switch__sun-moon-container animates the transform,
+   browsers interpolate the full rotation arc on every flip. */
 .theme-switch__checkbox:checked
-  + .theme-switch__container:active
+  + .theme-switch__container
   .theme-switch__sun-moon-container {
-  transform: rotate(-18deg);
+  transform: rotate(360deg);
 }
 
 /* ── Keyboard focus ring ── */
@@ -607,9 +621,8 @@ body {
   .theme-switch__stars-container {
     transition: none !important;
   }
-  .theme-switch__container:active .theme-switch__sun-moon-container,
   .theme-switch__checkbox:checked
-    + .theme-switch__container:active
+    + .theme-switch__container
     .theme-switch__sun-moon-container {
     transform: none;
   }

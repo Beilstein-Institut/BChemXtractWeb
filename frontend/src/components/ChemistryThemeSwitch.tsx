@@ -1,6 +1,6 @@
 /**
- * ChemistryThemeSwitch — claymorphism sky slider with a conical
- * (Erlenmeyer) flask as the slider puck.
+ * ChemistryThemeSwitch — claymorphism sky slider with a round-bottom
+ * flask as the slider puck.
  *
  * Structure mirrors the canonical "theme-switch" sky-slider:
  *
@@ -11,13 +11,14 @@
  *       div.theme-switch__stars-container    (dark-side scenery, SVG)
  *       div.theme-switch__circle-container   (the sliding puck)
  *         div.theme-switch__sun-moon-container
- *           svg.theme-switch__flask          (Erlenmeyer glass + liquid)
+ *           svg.theme-switch__flask          (round-bottom flask + liquid)
  *
- * Instead of a sun↔moon, the puck is an Erlenmeyer flask whose
- * liquid transitions teal (light) → navy (dark) via two linear
- * gradients in <defs>. Clicking the label toggles ThemeProvider
- * between `"light"` and `"dark"`. When the provider's theme is
- * `"system"`, `resolvedDark` mirrors the OS preference via
+ * Instead of a sun↔moon, the puck is a round-bottom flask (narrow
+ * rectangular neck above a circular glass body) whose liquid
+ * transitions teal (light) → navy (dark) via two linear gradients
+ * in <defs>. Clicking the label toggles ThemeProvider between
+ * `"light"` and `"dark"`. When the provider's theme is `"system"`,
+ * `resolvedDark` mirrors the OS preference via
  * `matchMedia("(prefers-color-scheme: dark)")`.
  *
  * Exposes `data-slot="theme-switch"` so AppHeader,
@@ -26,8 +27,8 @@
  *
  * Styling lives under `.theme-switch` in `src/index.css`
  * (claymorphism: vibrant 2-stop sky gradients, multi-layer
- * outer+inner shadows, drop-shadow float on the flask, pour-tilt
- * on active click).
+ * outer+inner shadows, drop-shadow float on the flask, full 360°
+ * swirl on every state flip).
  */
 import { useEffect, useState } from "react";
 import { useTheme } from "@/components/theme-provider";
@@ -139,48 +140,77 @@ export function ChemistryThemeSwitch() {
                   <stop offset="0%" stopColor="#2B4780" />
                   <stop offset="100%" stopColor="#072563" />
                 </linearGradient>
+                <clipPath id="chem-flask-body-clip">
+                  <circle cx="20" cy="26" r="10" />
+                </clipPath>
               </defs>
 
-              {/* Erlenmeyer body: narrow neck on top, triangular flared body,
-                  flat wide base. */}
-              <path
+              {/* Neck — narrow rectangular stem above the round body. */}
+              <rect
+                className="theme-switch__flask-neck"
+                x="18"
+                y="5"
+                width="4"
+                height="12"
+                rx="0.8"
+              />
+
+              {/* Round body (glass). */}
+              <circle
                 className="theme-switch__flask-body"
-                d="M17 5 H23 V13 L33 33 H7 L17 13 Z"
+                cx="20"
+                cy="26"
+                r="10"
               />
 
-              {/* Liquid — bottom ~40% of body, clipped by the body outline. */}
-              <path
+              {/* Liquid fill — lower portion of the round body, clipped
+                  to the body circle so the top edge appears flat. */}
+              <rect
                 className="theme-switch__flask-liquid"
-                d="M13.5 21 L33 33 H7 L13.5 21 Z"
+                x="10"
+                y="24"
+                width="20"
+                height="14"
+                clipPath="url(#chem-flask-body-clip)"
               />
 
-              {/* Neck highlight — slim vertical shine inside the neck. */}
+              {/* Neck highlight — slim vertical shine on the neck. */}
               <rect
                 className="theme-switch__flask-shine"
-                x="18"
+                x="18.5"
                 y="6"
-                width="1.3"
-                height="7"
-                rx="0.5"
+                width="1"
+                height="9"
+                rx="0.4"
+              />
+
+              {/* Meniscus tint at the liquid surface. */}
+              <rect
+                className="theme-switch__flask-meniscus"
+                x="10"
+                y="23.5"
+                width="20"
+                height="1"
+                clipPath="url(#chem-flask-body-clip)"
               />
 
               {/* Bubbles inside the liquid. */}
               <circle
                 className="theme-switch__flask-bubble"
-                cx="14"
-                cy="29"
+                cx="16"
+                cy="30"
                 r="0.9"
               />
               <circle
                 className="theme-switch__flask-bubble"
-                cx="25"
-                cy="31"
+                cx="24"
+                cy="32"
                 r="0.7"
               />
               <circle
                 className="theme-switch__flask-bubble"
                 cx="20"
-                cy="27"
+                cy="28"
                 r="0.5"
               />
             </svg>
