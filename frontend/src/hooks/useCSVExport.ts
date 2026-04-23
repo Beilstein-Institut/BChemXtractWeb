@@ -77,10 +77,9 @@ export function serializeCSV<T>(
 
 /**
  * Trigger a browser download of a generated CSV. Uses a Blob + anchor
- * click. Exported separately from the React hook so it can be exercised
- * in tests without needing a hook host.
+ * click. Private to this module — the hook is the only caller.
  */
-export function downloadCSV(csv: string, filename: string): void {
+function downloadCSV(csv: string, filename: string): void {
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
