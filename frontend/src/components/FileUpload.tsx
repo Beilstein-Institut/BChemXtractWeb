@@ -10,6 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { StardustButton } from "@/components/ui/stardust-button";
 
 /**
  * FileUpload — Phase 3 Liquid Glass wizard Step 1 (Task 10 rewrite).
@@ -231,15 +232,11 @@ export function FileUpload({
           </p>
           <p className="text-sm text-foreground-muted">or click to browse</p>
         </div>
-        <Button
-          variant="primary"
-          size="lg"
-          className="pointer-events-none rounded-full"
+        <StardustButton
+          className="pointer-events-none"
           tabIndex={-1}
-          type="button"
-        >
-          Extract structures
-        </Button>
+          label="Extract structures"
+        />
         <p className="text-xs text-foreground-muted">
           Supports .cdx and .cdxml &mdash; up to 50 MB &middot; 20 files per batch
         </p>

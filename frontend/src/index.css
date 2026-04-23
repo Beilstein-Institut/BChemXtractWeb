@@ -319,6 +319,29 @@ body {
 }
 
 /* ============================================================
+   Batch progress shimmer (Phase 3 Task 22).
+   A travelling highlight on `[data-slot="progress-indicator"]::after`
+   that signals an in-flight batch even between width updates. The
+   component applies `after:animate-[batch-shimmer_...]` (see
+   components/ui/progress.tsx) and the `::after` is absolutely
+   positioned inside the indicator's clipping box so the stripe is
+   bounded by the filled portion of the bar.
+   ============================================================ */
+@keyframes batch-shimmer {
+  0%   { transform: translateX(-100%); opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateX(220%); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="progress-indicator"]::after {
+    animation: none !important;
+    display: none;
+  }
+}
+
+/* ============================================================
    Chemistry Theme Switch — claymorphism sky slider with a
    round-bottom flask as the slider puck (Phase 3 Task 21).
    Structure:

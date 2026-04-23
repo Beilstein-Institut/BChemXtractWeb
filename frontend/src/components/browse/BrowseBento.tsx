@@ -26,7 +26,6 @@
  */
 import type { MouseEventHandler } from "react";
 import {
-  ArrowRightIcon,
   CompassIcon,
   FlaskConicalIcon,
   LayoutGridIcon,
@@ -255,11 +254,10 @@ function BrowseAllTile({
           size="sm"
           onClick={onClick}
           data-slot="browse-bento-cta-button"
-          className="self-start"
+          className="self-start whitespace-nowrap"
           icon={<CompassIcon />}
         >
           Open grid
-          <ArrowRightIcon className="size-3.5" aria-hidden="true" />
         </Button>
       </CardContent>
     </Card>

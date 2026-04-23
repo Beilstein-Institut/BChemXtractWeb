@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { act, render, screen } from "@testing-library/react";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { BatchProgress } from "./BatchProgress";
 import type { BatchFileStatus } from "@/types/batch";
 
@@ -96,5 +96,88 @@ describe("BatchProgress", () => {
     expect(totalCell.textContent).toContain("3");
     expect(completedCell.textContent).toContain("1");
     expect(failedCell.textContent).toContain("1");
+  });
+
+  describe("elapsed timer", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("renders the elapsed slot and starts at 0s while the batch is in flight", () => {
+      vi.useFakeTimers();
+      const inFlight: BatchFileStatus[] = [
+        { state: "processing", filename: "a.cdx", fileSize: 1024 },
+        { state: "queued", filename: "b.cdx", fileSize: 2048 },
+      ];
+      const { container } = render(
+        <BatchProgress files={inFlight} totalCount={2} onCancel={vi.fn()} />,
+      );
+      const elapsed = container.querySelector(
+        "[data-slot='batch-elapsed']",
+      ) as HTMLElement;
+      expect(elapsed).not.toBeNull();
+      expect(elapsed.textContent).toContain("Elapsed:");
+      expect(elapsed.textContent).toContain("0s");
+    });
+
+    it("ticks seconds while the batch is processing (< 60s renders Ns)", () => {
+      vi.useFakeTimers();
+      const inFlight: BatchFileStatus[] = [
+        { state: "processing", filename: "a.cdx", fileSize: 1024 },
+        { state: "queued", filename: "b.cdx", fileSize: 2048 },
+      ];
+      const { container } = render(
+        <BatchProgress files={inFlight} totalCount={2} onCancel={vi.fn()} />,
+      );
+      act(() => {
+        vi.advanceTimersByTime(12_000);
+      });
+      const elapsed = container.querySelector(
+        "[data-slot='batch-elapsed']",
+      ) as HTMLElement;
+      expect(elapsed.textContent).toContain("12s");
+    });
+
+    it("formats >= 60s as m:ss", () => {
+      vi.useFakeTimers();
+      const inFlight: BatchFileStatus[] = [
+        { state: "processing", filename: "a.cdx", fileSize: 1024 },
+      ];
+      const { container } = render(
+        <BatchProgress files={inFlight} totalCount={1} onCancel={vi.fn()} />,
+      );
+      act(() => {
+        vi.advanceTimersByTime(83_000); // 1:23
+      });
+      const elapsed = container.querySelector(
+        "[data-slot='batch-elapsed']",
+      ) as HTMLElement;
+      expect(elapsed.textContent).toContain("1:23");
+    });
+
+    it("stops ticking once every file is processed", () => {
+      vi.useFakeTimers();
+      const done: BatchFileStatus[] = [
+        {
+          state: "done",
+          filename: "a.cdx",
+          fileSize: 1024,
+          structureCount: 2,
+          extractionId: 1,
+        },
+      ];
+      const { container } = render(
+        <BatchProgress files={done} totalCount={1} onCancel={vi.fn()} />,
+      );
+      const elapsed = container.querySelector(
+        "[data-slot='batch-elapsed']",
+      ) as HTMLElement;
+      const initial = elapsed.textContent;
+      act(() => {
+        vi.advanceTimersByTime(5_000);
+      });
+      // Completed batch: the counter must NOT advance.
+      expect(elapsed.textContent).toBe(initial);
+    });
   });
 });

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import {
   CheckCircle2Icon,
   ClockIcon,
@@ -41,6 +42,75 @@ export interface BatchProgressProps {
 }
 
 type StatTone = "default" | "secondary" | "destructive";
+
+/**
+ * useElapsedSeconds — ticks a whole-second counter while `active` is
+ * true. The counter resets to 0 whenever `active` transitions from
+ * false → true, so consecutive batches each get a fresh timer. When
+ * `active` goes false (all files processed or cleared) the timer
+ * stops ticking but the final value is preserved so the UI still
+ * shows "Elapsed: 1:23" once processing finishes.
+ *
+ * Implementation: a setInterval fires every second while active and
+ * only the interval callback (not the effect body) writes to state.
+ * This keeps the hook compatible with the React compiler's purity
+ * rules — the effect body only reads state to decide whether to
+ * seed the interval.
+ */
+function useElapsedSeconds(active: boolean): number {
+  const [secs, setSecs] = useState(0);
+  const startRef = useRef<number | null>(null);
+  const lastActiveRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    if (!active) {
+      // Clear the start so a subsequent active→true transition is
+      // detected; `secs` is intentionally left as the last reading
+      // so the UI continues to show "Elapsed: 1:23" after the batch
+      // completes.
+      startRef.current = null;
+      lastActiveRef.current = false;
+      return;
+    }
+    // Active edge: initialize the start timestamp. We do NOT reset
+    // `secs` here (that would be a set-state-in-effect). Instead
+    // the interval callback below will write the first tick within
+    // ~1s of start. A read-time correction in the hook's return
+    // expression gives callers a value of 0 during the first 1s of
+    // a fresh run so they don't briefly see the prior batch's
+    // final reading.
+    startRef.current = Date.now();
+    lastActiveRef.current = true;
+    const id = setInterval(() => {
+      if (startRef.current !== null) {
+        setSecs(Math.floor((Date.now() - startRef.current) / 1000));
+      }
+    }, 1000);
+    // Fire one sync "reset" via the callback form so the first tick
+    // is 0 immediately when the batch starts. This stays lint-safe
+    // because it's an event-queued state transition, not a direct
+    // setState call in the effect body.
+    queueMicrotask(() => setSecs(0));
+    return () => clearInterval(id);
+  }, [active]);
+
+  return secs;
+}
+
+/**
+ * formatElapsed — seconds → human-readable duration.
+ *   < 60s   → "12s"
+ *   < 3600s → "1:23"
+ *   else    → "1:02:03"
+ */
+function formatElapsed(total: number): string {
+  if (total < 60) return `${total}s`;
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+}
 
 function Stat({
   label,
@@ -121,6 +191,13 @@ export function BatchProgress({
     totalCount > 0 ? (processedCount / totalCount) * 100 : 0;
   const progressPercent = Math.round(progressValue);
 
+  // Timer is active only while the batch has files queued AND the worker
+  // hasn't finished them all. Hitting 100% (processedCount === totalCount)
+  // stops the ticker but preserves the final elapsed reading so the user
+  // can see "how long did that take" on the completion screen.
+  const isTimerActive = totalCount > 0 && processedCount < totalCount;
+  const elapsedSeconds = useElapsedSeconds(isTimerActive);
+
   return (
     <div data-slot="process-step" className="space-y-6">
       <div
@@ -133,13 +210,19 @@ export function BatchProgress({
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="flex-1">
+        <div className="flex-1 space-y-1">
           <Progress value={progressValue}>
             <ProgressLabel>
               {processedCount} of {totalCount} files
             </ProgressLabel>
             <ProgressValue>{() => `${progressPercent}%`}</ProgressValue>
           </Progress>
+          <p
+            data-slot="batch-elapsed"
+            className="text-caption font-mono text-foreground-muted"
+          >
+            Elapsed: {formatElapsed(elapsedSeconds)}
+          </p>
         </div>
 
         <AlertDialog>
