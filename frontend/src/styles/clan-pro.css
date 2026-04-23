@@ -1,0 +1,53 @@
+/*
+ * Clan Pro webfont declarations (commercial, self-hosted).
+ *
+ * This file is NOT imported by styles/fonts.css by default — the
+ * `.woff2` files are user-supplied (see public/fonts/clan-pro/README.md).
+ * Once the files land, the activation is a single-line @import in
+ * fonts.css.
+ *
+ * The `src` stack prefers locally installed fonts (zero network) then
+ * falls through to the self-hosted file. If neither resolves, the CSS
+ * cascade in styles/tokens.css (`--font-brand`) falls back to
+ * `var(--font-display)` so the wordmark degrades gracefully.
+ *
+ * `font-display: swap` ensures the wordmark renders immediately in the
+ * fallback font and swaps to Clan Pro once loaded — avoiding the FOIT
+ * that would otherwise hide the BChemXtract brand during first paint.
+ */
+
+@font-face {
+    font-family: "Clan Pro";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src:
+        local("Clan Pro"),
+        local("FF Clan Pro"),
+        local("Clan OT"),
+        url("/fonts/clan-pro/clan-pro-regular.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "Clan Pro";
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src:
+        local("Clan Pro Medium"),
+        local("FF Clan Pro Medium"),
+        local("Clan OT Medium"),
+        url("/fonts/clan-pro/clan-pro-medium.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "Clan Pro";
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src:
+        local("Clan Pro Bold"),
+        local("FF Clan Pro Bold"),
+        local("Clan OT Bold"),
+        url("/fonts/clan-pro/clan-pro-bold.woff2") format("woff2");
+}

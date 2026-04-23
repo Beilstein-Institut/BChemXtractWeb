@@ -179,3 +179,8 @@ nav-*.png
 # Local-only code-review artefacts
 REVIEW-BACKEND.md
 REVIEW-FRONTEND.md
+
+# Clan Pro webfont files (commercial, user-supplied — see
+# frontend/public/fonts/clan-pro/README.md).
+frontend/public/fonts/clan-pro/*.woff2
+frontend/public/fonts/clan-pro/*.woff
