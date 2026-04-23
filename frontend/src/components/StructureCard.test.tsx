@@ -287,6 +287,25 @@ describe("StructureCard component", () => {
     });
   });
 
+  it("shows a toast.error when the share clipboard write fails (I-3 regression)", async () => {
+    // Regression guard for Task 14 review item I-3: useShareLink used to
+    // swallow clipboard rejections, making the handler's catch branch dead
+    // code. The hook now rejects, so StructureCard must surface the error
+    // via sonner's toast.error.
+    const { toast } = await import("sonner");
+    (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error("denied")
+    );
+    render(<StructureCard substance={mockSubstance} />);
+    const shareBtn = document.querySelector(
+      "[data-slot='structure-card-share']"
+    ) as HTMLElement;
+    fireEvent.click(shareBtn);
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Could not copy share link.");
+    });
+  });
+
   it('the card div has role="button" and aria-label containing molecular_formula', () => {
     render(<StructureCard substance={mockSubstance} />);
     const cardButton = screen.getByRole("button", { name: /View details for C6H6/ });

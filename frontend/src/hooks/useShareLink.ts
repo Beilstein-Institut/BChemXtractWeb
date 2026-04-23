@@ -60,13 +60,12 @@ export function useShareLink(): UseShareLinkResult {
     async (key: string | null | undefined): Promise<void> => {
       if (!key) return;
       const url = buildShareUrl(window.location.origin, key);
-      try {
-        await navigator.clipboard.writeText(safeClipboardText(url));
-      } catch {
-        // Caller decides whether to surface a toast — the hook stays silent
-        // so it can be reused in contexts where a failure is non-fatal.
-        return;
-      }
+      // Let the promise reject naturally so callers can surface a toast /
+      // fallback UI. The hook owns the "shared" flag + its cleanup timer,
+      // but it does not own the user-facing error affordance — keeping that
+      // decision at the call site preserves reusability (some contexts may
+      // want a silent no-op, others a visible error).
+      await navigator.clipboard.writeText(safeClipboardText(url));
       if (timerRef.current !== null) {
         window.clearTimeout(timerRef.current);
       }

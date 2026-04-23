@@ -2,8 +2,9 @@
  * useShareLink — hook tests.
  *
  * Covers URL shape, clipboard write, the transient "shared" flag lifecycle,
- * no-op on empty key, graceful handling of clipboard failure, and cleanup
- * on unmount so the 2 s timer never updates unmounted state.
+ * no-op on empty key, rejection propagation on clipboard failure (so the
+ * caller can surface a toast), and cleanup on unmount so the 2 s timer
+ * never updates unmounted state.
  */
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -87,11 +88,11 @@ describe("useShareLink", () => {
     expect(result.current.shared).toBe(false);
   });
 
-  it("leaves shared=false when clipboard.writeText rejects", async () => {
+  it("rejects when clipboard.writeText rejects and leaves shared=false", async () => {
     writeText.mockRejectedValueOnce(new Error("denied"));
     const { result } = renderHook(() => useShareLink());
     await act(async () => {
-      await result.current.share("KEYXYZ");
+      await expect(result.current.share("KEYXYZ")).rejects.toThrow("denied");
     });
     expect(writeText).toHaveBeenCalledTimes(1);
     expect(result.current.shared).toBe(false);
