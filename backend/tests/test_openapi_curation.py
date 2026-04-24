@@ -29,6 +29,8 @@ APPROVED_OPERATION_IDS = {
     "healthDetail",
     # search (already curated in Plan 03)
     "searchSubstances",
+    # search (Plan 2026-04-24 — parse-only validate endpoint)
+    "validateSearchQuery",
 }
 
 

@@ -22,9 +22,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.middleware.rate_limit import limiter
-from app.models.chemistry import ErrorResponse, SearchRequest, SearchResponse
+from app.models.chemistry import (
+    ErrorResponse,
+    SearchRequest,
+    SearchResponse,
+    SearchValidateRequest,
+    SearchValidateResponse,
+)
 from app.services.db import get_db
+from app.services.jvm_bridge import run_in_jvm_thread
 from app.services.search import execute_search
+from app.services.substructure import validate_query
 
 logger = logging.getLogger(__name__)
 
@@ -109,3 +117,38 @@ async def post_search(
 ) -> SearchResponse:
     """Execute a search and return paginated results + attribution."""
     return await execute_search(payload, db)
+
+
+@router.post(
+    "/search/validate",
+    response_model=SearchValidateResponse,
+    operation_id="validateSearchQuery",
+    summary="Parse-only validate a substructure query",
+    description=(
+        "Validates a SMILES or SMARTS substructure query by running it "
+        "through the CDK parser. Returns shape + atom count when valid, "
+        "an error message when not. Intended for live-typing UX — the "
+        "frontend only fires the main search once this returns valid."
+    ),
+    responses={
+        200: {"description": "Validation result (valid=true or valid=false)"},
+        422: {
+            "model": ErrorResponse,
+            "description": "Pydantic validation failure (e.g. empty query)",
+        },
+    },
+)
+@limiter.limit(settings.rate_limit_search)
+async def post_search_validate(
+    request: Request, payload: SearchValidateRequest
+) -> SearchValidateResponse:
+    """Parse-only validation of a substructure query."""
+    result = await run_in_jvm_thread(
+        validate_query, payload.query, match_stereo=payload.stereo
+    )
+    return SearchValidateResponse(
+        valid=result.valid,
+        language=result.language,
+        atom_count=result.atom_count,
+        error=result.error,
+    )
