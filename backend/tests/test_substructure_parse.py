@@ -6,7 +6,7 @@ import pytest
 
 from app.errors import InvalidQueryError, QueryTooLargeError
 from app.services.jvm_bridge import run_in_jvm_thread
-from app.services.substructure import parse_query
+from app.services.substructure import parse_query, validate_query
 
 
 @pytest.mark.asyncio
@@ -62,3 +62,45 @@ async def test_oversized_query_raises_query_too_large(started_app):
     huge = "C" * 201
     with pytest.raises(QueryTooLargeError):
         await run_in_jvm_thread(parse_query, huge, match_stereo=False)
+
+
+@pytest.mark.asyncio
+async def test_validate_ok_smiles(started_app):
+    v = await run_in_jvm_thread(validate_query, "c1ccccc1", match_stereo=False)
+    assert v.valid is True
+    assert v.language == "smiles"
+    assert v.atom_count == 6
+    assert v.error is None
+
+
+@pytest.mark.asyncio
+async def test_validate_ok_smarts(started_app):
+    v = await run_in_jvm_thread(validate_query, "[CX3]=O", match_stereo=False)
+    assert v.valid is True
+    assert v.language == "smarts"
+    assert v.atom_count == 2
+
+
+@pytest.mark.asyncio
+async def test_validate_invalid_query_returns_invalid_not_raises(started_app):
+    v = await run_in_jvm_thread(validate_query, "c1ccc(((", match_stereo=False)
+    assert v.valid is False
+    assert v.language is None
+    assert v.atom_count == 0
+    assert v.error is not None
+
+
+@pytest.mark.asyncio
+async def test_validate_empty_query_returns_invalid(started_app):
+    v = await run_in_jvm_thread(validate_query, "", match_stereo=False)
+    assert v.valid is False
+    assert v.error is not None
+
+
+@pytest.mark.asyncio
+async def test_validate_too_large_returns_invalid(started_app):
+    huge = "C" * 201
+    v = await run_in_jvm_thread(validate_query, huge, match_stereo=False)
+    assert v.valid is False
+    assert v.error is not None
+    assert "200" in v.error or "large" in v.error.lower()

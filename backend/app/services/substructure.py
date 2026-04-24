@@ -300,3 +300,26 @@ def parse_query(raw: str, *, match_stereo: bool) -> ParsedQuery:
         atom_count=atom_count,
         stereo_enabled=match_stereo,
     )
+
+
+def validate_query(raw: str, *, match_stereo: bool) -> QueryValidation:
+    """Parse-only check — never raises. Safe to call from the /validate
+    endpoint on every keystroke.
+
+    Must be called inside run_in_jvm_thread.
+    """
+    try:
+        parsed = parse_query(raw, match_stereo=match_stereo)
+    except (InvalidQueryError, QueryTooLargeError) as exc:
+        return QueryValidation(
+            valid=False,
+            language=None,
+            atom_count=0,
+            error=str(exc)[:200],
+        )
+    return QueryValidation(
+        valid=True,
+        language=parsed.language,
+        atom_count=parsed.atom_count,
+        error=None,
+    )
