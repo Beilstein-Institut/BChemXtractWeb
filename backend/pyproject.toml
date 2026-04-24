@@ -27,6 +27,17 @@ dev = [
     "asgi-lifespan>=2.1.0",
 ]
 
+# CI runs `pip install -e ".[dev]"` from backend/. Without explicit
+# package config, setuptools' flat-layout discovery fails with
+# "Multiple top-level packages discovered: ['lib', 'app', 'jars',
+# 'alembic']" because we have several top-level directories alongside
+# the actual Python package. The installed distribution only needs
+# `app`; the others are build inputs (lib/, jars/), migrations
+# (alembic/ — invoked via `alembic` CLI, not imported), or runner
+# scripts (scripts/, tests/ — not distributed).
+[tool.setuptools]
+packages = ["app"]
+
 [tool.ruff]
 line-length = 88
 target-version = "py311"
