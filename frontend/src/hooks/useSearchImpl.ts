@@ -15,12 +15,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { postSearch, postSearchValidate } from "@/lib/apiClient";
-import type {
-  SearchLanguage,
-  SearchMatch,
-  SearchResponse,
-  SearchType,
-} from "@/types/search";
+import type { SearchLanguage, SearchMatch, SearchResponse, SearchType } from "@/types/search";
 
 export type SearchState = "idle" | "loading" | "success" | "error";
 export type SearchScope = string;

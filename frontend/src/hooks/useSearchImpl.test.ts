@@ -116,9 +116,7 @@ describe("useSearchImpl — substructure validation gate", () => {
 
     act(() => result.current.setStereo(true));
     await waitFor(() => {
-      expect(postSearch).toHaveBeenCalledWith(
-        expect.objectContaining({ stereo: true }),
-      );
+      expect(postSearch).toHaveBeenCalledWith(expect.objectContaining({ stereo: true }));
     });
   });
 });

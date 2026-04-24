@@ -307,8 +307,8 @@ export function SearchInput({ className }: { className?: string }) {
                       <span className="text-caption">Match stereochemistry</span>
                     </label>
                     <p className="text-micro text-muted-foreground">
-                      When off (default), {"@"}, {"/"}, {"\\"} in the query are
-                      ignored so both enantiomers match.
+                      When off (default), {"@"}, {"/"}, {"\\"} in the query are ignored so both
+                      enantiomers match.
                     </p>
                   </>
                 )}
