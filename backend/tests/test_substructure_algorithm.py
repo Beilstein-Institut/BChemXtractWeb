@@ -10,7 +10,6 @@ import pytest
 
 from app.services.jvm_bridge import run_in_jvm_thread
 from app.services.substructure import (
-    MAX_MAPPINGS_PER_MOL,
     enumerate_matches,
     parse_query,
 )
@@ -19,18 +18,18 @@ from app.services.substructure import (
 def _prepare_target(smiles: str):
     """Parse a SMILES into a target container with aromaticity applied."""
     import jpype
-    SilentChemObjectBuilder = jpype.JClass(
+    SilentChemObjectBuilder = jpype.JClass(  # noqa: N806
         "org.openscience.cdk.silent.SilentChemObjectBuilder"
     )
-    SmilesParser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")
-    AtomContainerManipulator = jpype.JClass(
+    SmilesParser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")  # noqa: N806
+    AtomContainerManipulator = jpype.JClass(  # noqa: N806
         "org.openscience.cdk.tools.manipulator.AtomContainerManipulator"
     )
-    Aromaticity = jpype.JClass("org.openscience.cdk.aromaticity.Aromaticity")
-    ElectronDonation = jpype.JClass(
+    Aromaticity = jpype.JClass("org.openscience.cdk.aromaticity.Aromaticity")  # noqa: N806
+    ElectronDonation = jpype.JClass(  # noqa: N806
         "org.openscience.cdk.aromaticity.ElectronDonation"
     )
-    Cycles = jpype.JClass("org.openscience.cdk.graph.Cycles")
+    Cycles = jpype.JClass("org.openscience.cdk.graph.Cycles")  # noqa: N806
 
     builder = SilentChemObjectBuilder.getInstance()
     mol = SmilesParser(builder).parseSmiles(smiles)
@@ -141,8 +140,8 @@ class TestNoMatch:
 
 class TestStereochemistry:
     @pytest.mark.asyncio
-    async def test_stereo_ignored_by_default_matches_both_enantiomers(self, started_app):
-        """(S)-lactic acid query matches (R)-lactic acid target when stereo disabled."""
+    async def test_stereo_ignored_matches_both_enantiomers(self, started_app):
+        """(S)-lactic query matches (R)-lactic target when stereo disabled."""
         result = await _run(
             "C[C@@H](O)C(=O)O",
             "C[C@H](O)C(=O)O",

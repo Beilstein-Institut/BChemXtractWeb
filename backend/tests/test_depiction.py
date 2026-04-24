@@ -178,10 +178,10 @@ async def test_bond_indices_parameter_controls_which_bonds_are_highlighted(start
     from app.services.jvm_bridge import run_in_jvm_thread
 
     def _work():
-        SilentChemObjectBuilder = jpype.JClass(
+        SilentChemObjectBuilder = jpype.JClass(  # noqa: N806
             "org.openscience.cdk.silent.SilentChemObjectBuilder"
         )
-        SmilesParser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")
+        SmilesParser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")  # noqa: N806
         builder = SilentChemObjectBuilder.getInstance()
         container = SmilesParser(builder).parseSmiles("OCCO")
         svg = render_substance_svg_with_highlight(
@@ -208,10 +208,10 @@ async def test_empty_bond_indices_still_renders_with_atom_only_highlight(started
     from app.services.jvm_bridge import run_in_jvm_thread
 
     def _work():
-        SilentChemObjectBuilder = jpype.JClass(
+        SilentChemObjectBuilder = jpype.JClass(  # noqa: N806
             "org.openscience.cdk.silent.SilentChemObjectBuilder"
         )
-        SmilesParser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")
+        SmilesParser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")  # noqa: N806
         builder = SilentChemObjectBuilder.getInstance()
         container = SmilesParser(builder).parseSmiles("OCCO")
         return render_substance_svg_with_highlight(
@@ -230,10 +230,10 @@ async def test_empty_atoms_and_bonds_falls_back_to_plain(started_app):
     from app.services.jvm_bridge import run_in_jvm_thread
 
     def _work():
-        SilentChemObjectBuilder = jpype.JClass(
+        SilentChemObjectBuilder = jpype.JClass(  # noqa: N806
             "org.openscience.cdk.silent.SilentChemObjectBuilder"
         )
-        SmilesParser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")
+        SmilesParser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")  # noqa: N806
         builder = SilentChemObjectBuilder.getInstance()
         container = SmilesParser(builder).parseSmiles("OCCO")
         return render_substance_svg_with_highlight(

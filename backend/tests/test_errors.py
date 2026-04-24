@@ -1,8 +1,8 @@
 from app.errors import (
+    _BRIDGE_ERROR_MAP,
     BridgeError,
     InvalidQueryError,
     QueryTooLargeError,
-    _BRIDGE_ERROR_MAP,
 )
 
 

@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from app.services.substructure import strip_stereo_tokens
+from app.services.substructure import (
+    MAX_MAPPINGS_PER_MOL,
+    MAX_QUERY_ATOMS,
+    MatchResult,
+    QueryValidation,
+    strip_stereo_tokens,
+)
 
 
 class TestStripStereoTokens:
@@ -28,15 +34,6 @@ class TestStripStereoTokens:
 
     def test_empty_string(self):
         assert strip_stereo_tokens("") == ""
-
-
-from app.services.substructure import (
-    MatchResult,
-    ParsedQuery,
-    QueryValidation,
-    MAX_MAPPINGS_PER_MOL,
-    MAX_QUERY_ATOMS,
-)
 
 
 class TestDataclasses:
