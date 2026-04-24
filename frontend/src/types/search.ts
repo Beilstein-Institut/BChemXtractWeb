@@ -1,33 +1,25 @@
-/**
- * TS mirrors of backend Pydantic search models (backend/app/models/chemistry.py).
- *
- * Keep these in lockstep with the backend:
- *   SearchType, SearchMatch       — Literal unions
- *   SearchRequest                 — POST /api/search body
- *   SearchExtractionRef           — one extraction where a hit was seen
- *   SearchResult                  — one hit with attribution + highlight
- *   SearchResponse                — paginated response
- *   ErrorResponse                 — unified error shape (D-17, Plan 05)
- */
 import type { SubstanceResponse } from "@/types/chemistry";
 
 export type SearchType = "auto" | "inchi_key" | "formula" | "smiles" | "substructure";
-
 export type SearchMatch = "canonical" | "literal";
+export type SearchLanguage = "smiles" | "smarts";
 
 export interface SearchRequest {
   query: string;
   type?: SearchType;
-  scope?: string; // "global" | "extraction:{id}"
+  scope?: string;
   match?: SearchMatch;
   page?: number;
   size?: number;
+  /** New in 2026-04-24 redesign — match stereochemistry strictly.
+   *  Default false (stereo ignored). */
+  stereo?: boolean;
 }
 
 export interface SearchExtractionRef {
   extraction_id: number;
   filename: string;
-  created_at: string; // ISO 8601
+  created_at: string;
 }
 
 export interface SearchResult {
@@ -36,6 +28,10 @@ export interface SearchResult {
   extractions: SearchExtractionRef[];
   match_svg: string | null;
   match_atom_indices: number[];
+  /** New in 2026-04-24. Per-mapping-reconstructed bond indices. */
+  match_bond_indices: number[];
+  /** New in 2026-04-24. True when the mapping cap was hit. */
+  partial_match: boolean;
 }
 
 export interface SearchResponse {
@@ -50,4 +46,18 @@ export interface ErrorResponse {
   detail: string;
   code: string;
   fields?: Record<string, string[]> | null;
+}
+
+/** New in 2026-04-24 — POST /api/search/validate body. */
+export interface SearchValidateRequest {
+  query: string;
+  stereo?: boolean;
+}
+
+/** New in 2026-04-24 — POST /api/search/validate response. */
+export interface SearchValidateResponse {
+  valid: boolean;
+  language: SearchLanguage | null;
+  atom_count: number;
+  error: string | null;
 }
