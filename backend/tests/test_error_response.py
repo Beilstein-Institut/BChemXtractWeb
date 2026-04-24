@@ -49,7 +49,12 @@ async def test_bad_request_shape(client_no_jvm: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_invalid_smarts_shape(client: AsyncClient) -> None:
-    """InvalidSmartsError maps to 422 + code=INVALID_SMARTS."""
+    """InvalidQueryError (dual-path parse) maps to 422 + code=INVALID_QUERY.
+
+    Plan 2026-04-24: the substructure service accepts SMILES or SMARTS —
+    malformed input that both parsers reject raises :class:`InvalidQueryError`
+    (code=INVALID_QUERY), replacing the former SMARTS-only error code.
+    """
     resp = await client.post(
         "/api/search",
         json={"query": "c1ccc(((", "type": "substructure"},
@@ -57,4 +62,4 @@ async def test_invalid_smarts_shape(client: AsyncClient) -> None:
     )
     assert resp.status_code == 422
     body = resp.json()
-    assert body.get("code") == "INVALID_SMARTS"
+    assert body.get("code") == "INVALID_QUERY"

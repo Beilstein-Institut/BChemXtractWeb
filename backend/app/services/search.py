@@ -54,7 +54,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.errors import (
     ExtractionError,
     InvalidInchiKeyError,
-    InvalidSmartsError,
     InvalidSmilesError,
 )
 from app.models.chemistry import (
@@ -276,40 +275,43 @@ async def _search_smiles(
 
 
 def _substructure_sync(
-    smarts: str,
+    raw_query: str,
+    stereo: bool,
     rows: list[tuple[int, str]],
-) -> tuple[list[tuple[int, list[int], str]], list[int]]:
-    """Blocking SMARTS iterate + per-hit highlight render. JVM-thread-bound.
+) -> tuple[list[tuple[int, list[int], list[int], bool, str]], list[int]]:
+    """Blocking query parse + per-target match + per-hit highlight render.
 
-    Uses the *new* CDK SMARTS package path
-    ``org.openscience.cdk.smarts.SmartsPattern`` (RESEARCH Pitfall 1 — the
-    legacy ``org.openscience.cdk.smiles.smarts.SmartsPattern`` is deprecated
-    and behaves differently).
+    JVM-thread-bound; call through :func:`run_in_jvm_thread`.
 
-    Plan 04 extension: for every hit, render a tinted SVG via
-    :func:`app.services.depiction.render_substance_svg_with_highlight`
-    *in the same pass*. Doing the render here (while the parsed mol is
-    still in scope on the JVM thread) avoids a second parse + second
-    thread-attach round-trip per hit.
+    Delegates matching to :mod:`app.services.substructure` (Plan
+    2026-04-24). Produces one tuple per hit carrying:
+
+      - substance_id
+      - sorted matched target-atom indices
+      - sorted matched target-bond indices (per-mapping reconstructed)
+      - partial_match flag (True if mapping cap was hit)
+      - highlight SVG (or ``""`` if render failed)
 
     Args:
-        smarts: User-supplied SMARTS pattern. Validated by
-            ``SmartsPattern.create()`` — malformed patterns raise
-            :class:`jpype.JException` which we translate to
-            :class:`InvalidSmartsError`.
-        rows: Candidate ``(substance_id, smiles)`` tuples — already
-            length-filtered by the caller to ``<= MAX_SUBSTRUCT_SMILES_LEN``
-            to avoid the polymer-SMILES deadlock.
+        raw_query: user-supplied SMILES or SMARTS.
+        stereo: if True, enforce stereo matching; if False (default),
+            query stereo features are stripped before matching.
+        rows: already length-filtered ``(substance_id, smiles)`` candidates.
 
     Returns:
-        ``(hits, skipped)`` where ``hits`` is a list of
-        ``(substance_id, sorted_matched_atom_indices, match_svg)`` triples
-        and ``skipped`` is the list of ``substance_id`` values whose stored
-        SMILES could not be parsed by CDK.
+        ``(hits, skipped)`` where ``hits`` is the list of five-tuples
+        above and ``skipped`` is the list of substance_ids whose stored
+        SMILES failed to parse.
+
+    Raises:
+        InvalidQueryError / QueryTooLargeError: query parse failed. Both
+            map to 422 via the bridge_error_handler.
     """
-    SmartsPattern = jpype.JClass(  # noqa: N806
-        "org.openscience.cdk.smarts.SmartsPattern"
+    from app.services.substructure import (
+        enumerate_matches,
+        parse_query,
     )
+
     SmilesParser = jpype.JClass(  # noqa: N806
         "org.openscience.cdk.smiles.SmilesParser"
     )
@@ -330,82 +332,103 @@ def _substructure_sync(
     )
 
     builder = SilentChemObjectBuilder.getInstance()
-    parser = SmilesParser(builder)
+    target_parser = SmilesParser(builder)
     aromaticity = Aromaticity(
         ElectronDonation.daylight(),
         Cycles.or_(Cycles.all(), Cycles.cdkAromaticSet()),
     )
 
-    try:
-        pattern = SmartsPattern.create(smarts)
-    except jpype.JException as exc:
-        # Truncate the Java message — full stack stays server-side
-        # (threat model T-09-03-07: no Java frames in response).
-        raise InvalidSmartsError(f"Invalid SMARTS pattern: {str(exc)[:200]}") from exc
+    # Parse once — query is reused across every candidate target. Errors
+    # propagate unchanged so the bridge_error_handler can map them to
+    # 422 responses.
+    parsed = parse_query(raw_query, match_stereo=stereo)
 
     # Accessibility title embedded in each highlighted SVG per UI-SPEC
     # §Accessibility. The helper HTML-escapes the title to prevent
-    # user-supplied SMARTS from breaking SVG structure (threat T-09-04-02).
-    highlight_title = f"Matches {smarts[:80]}"
+    # user-supplied queries from breaking SVG structure (threat T-09-04-02).
+    highlight_title = f"Matches {raw_query[:80]}"
 
-    hits: list[tuple[int, list[int], str]] = []
+    hits: list[tuple[int, list[int], list[int], bool, str]] = []
     skipped: list[int] = []
+
     for substance_id, smi in rows:
         if not smi:
             skipped.append(substance_id)
             continue
         try:
-            mol = parser.parseSmiles(smi)
-            # Apply aromaticity perception so aromatic SMARTS (c1ccccc1)
+            target = target_parser.parseSmiles(smi)
+            # Apply aromaticity perception so aromatic queries (c1ccccc1)
             # match stored Kekulé SMILES after CDK's default parse — same
             # recipe used in Plan 02's canonicalize service. Aromaticity
             # can raise non-JException, so guard with a broad except.
-            AtomContainerManipulator.percieveAtomTypesAndConfigureAtoms(mol)
-            aromaticity.apply(mol)
-        except Exception:  # noqa: BLE001
+            AtomContainerManipulator.percieveAtomTypesAndConfigureAtoms(target)
+            aromaticity.apply(target)
+        except Exception:  # noqa: BLE001 — CDK can throw non-JException here
             skipped.append(substance_id)
             continue
+
         try:
-            if not pattern.matches(mol):
-                continue
-            mappings = pattern.matchAll(mol).uniqueAtoms()
-            int2d = mappings.toArray()
+            result = enumerate_matches(parsed, target)
         except jpype.JException:
-            # Matching itself failed (rare; e.g. inconsistent molecule after
-            # aromaticity). Treat as skipped, not a hit.
+            # Matching itself failed (rare; e.g. inconsistent molecule
+            # after aromaticity). Treat as skipped, not a hit.
             skipped.append(substance_id)
             continue
-        target_indices: set[int] = {int(idx) for row in int2d for idx in row}
-        sorted_indices = sorted(target_indices)
-        # Plan 04: render per-hit highlight SVG in the same JVM pass.
-        # The helper has its own two-tier fallback (highlight → plain → ""),
-        # so a render failure never breaks the hit — match_svg just comes
-        # back as "" which execute_search converts to None on the wire.
+
+        if not result.matched:
+            continue
+
+        # Plan 2026-04-24: render per-hit highlight SVG in the same JVM
+        # pass. The helper has its own two-tier fallback (highlight →
+        # plain → ""), so a render failure never breaks the hit —
+        # match_svg just comes back as "" which execute_search converts
+        # to None on the wire.
         match_svg = render_substance_svg_with_highlight(
-            mol, sorted_indices, title=highlight_title
+            target,
+            atom_indices=result.atom_indices,
+            bond_indices=result.bond_indices,
+            title=highlight_title,
         )
-        hits.append((substance_id, sorted_indices, match_svg))
+        hits.append(
+            (
+                substance_id,
+                result.atom_indices,
+                result.bond_indices,
+                result.partial_match,
+                match_svg,
+            )
+        )
+
     return hits, skipped
 
 
 async def _search_substructure(
-    smarts: str, scope_eid: int | None, db: AsyncSession
-) -> tuple[list[Substance], dict[int, list[int]], dict[int, str], int]:
-    """SRCH-04: CDK SMARTS over every candidate substance + highlight SVGs.
+    raw_query: str,
+    stereo: bool,
+    scope_eid: int | None,
+    db: AsyncSession,
+) -> tuple[
+    list[Substance],
+    dict[int, list[int]],  # atom_map
+    dict[int, list[int]],  # bond_map
+    dict[int, bool],  # partial_map
+    dict[int, str],  # svg_map
+    int,  # skipped_count
+]:
+    """SRCH-04: substructure iterate + per-hit highlight render.
+
+    Plan 2026-04-24: delegates to :mod:`app.services.substructure` for
+    matching and returns per-hit bond indices + partial_match flag
+    alongside the existing atom / svg maps.
 
     Applies the ``MAX_SUBSTRUCT_SMILES_LEN`` polymer-SMILES ceiling via SQL
     prefilter so the candidate rows handed to CDK never include inputs
     that would deadlock the JVM. Over-length rows are counted as
     "skipped_oversize" so the response warnings surface the real total.
 
-    Plan 04: :func:`_substructure_sync` now also renders a tinted SVG per
-    hit (Apple Blue at 0x40 alpha per UI-SPEC §Color) in the same JVM
-    pass. The per-hit SVG is returned here as ``svg_by_substance_id`` so
-    :func:`execute_search` can set ``SearchResult.match_svg`` without a
-    second JVM-crossing round-trip.
-
     Returns:
         ``(matched_substances, atom_index_by_substance_id,
+        bond_index_by_substance_id, partial_match_by_substance_id,
         svg_by_substance_id, skipped_count)`` where ``skipped_count``
         combines oversize-prefilter skips and CDK parse skips into a
         single user-visible number.
@@ -439,15 +462,22 @@ async def _search_substructure(
 
     id_smi = [(int(s.id), s.smiles or "") for s in candidate_rows]
 
-    # :func:`_substructure_sync` now returns (id, atoms, match_svg) triples
-    # so we can thread the per-hit SVG directly into SearchResult.match_svg
-    # without a second JVM round-trip.
-    hits, skipped = await run_in_jvm_thread(_substructure_sync, smarts, id_smi)
-    hit_ids = {sid for sid, _, _ in hits}
-    atom_map: dict[int, list[int]] = {sid: atoms for sid, atoms, _ in hits}
+    hits, skipped = await run_in_jvm_thread(
+        _substructure_sync, raw_query, stereo, id_smi
+    )
+    hit_ids = {sid for sid, _, _, _, _ in hits}
+    atom_map: dict[int, list[int]] = {
+        sid: atoms for sid, atoms, _, _, _ in hits
+    }
+    bond_map: dict[int, list[int]] = {
+        sid: bonds for sid, _, bonds, _, _ in hits
+    }
+    partial_map: dict[int, bool] = {
+        sid: p for sid, _, _, p, _ in hits
+    }
     # Only keep non-empty SVGs in the map — _to_substance_response default
     # (match_svg=None) applies for hits whose render fell through to "".
-    svg_map: dict[int, str] = {sid: svg for sid, _, svg in hits if svg}
+    svg_map: dict[int, str] = {sid: svg for sid, _, _, _, svg in hits if svg}
 
     # Preserve substance row order from the initial SELECT so downstream
     # pagination is deterministic across repeated queries.
@@ -466,7 +496,7 @@ async def _search_substructure(
             oversize_count,
             MAX_SUBSTRUCT_SMILES_LEN,
         )
-    return matched, atom_map, svg_map, total_skipped
+    return matched, atom_map, bond_map, partial_map, svg_map, total_skipped
 
 
 async def _load_attribution(
@@ -561,6 +591,8 @@ async def execute_search(payload: SearchRequest, db: AsyncSession) -> SearchResp
 
     warnings: list[str] = []
     atom_map: dict[int, list[int]] = {}
+    bond_map: dict[int, list[int]] = {}
+    partial_map: dict[int, bool] = {}
     svg_map: dict[int, str] = {}
     skipped_count = 0
 
@@ -574,8 +606,15 @@ async def execute_search(payload: SearchRequest, db: AsyncSession) -> SearchResp
     elif effective_type == "smiles":
         substances = await _search_smiles(payload.query, payload.match, scope_eid, db)
     elif effective_type == "substructure":
-        substances, atom_map, svg_map, skipped_count = await _search_substructure(
-            payload.query, scope_eid, db
+        (
+            substances,
+            atom_map,
+            bond_map,
+            partial_map,
+            svg_map,
+            skipped_count,
+        ) = await _search_substructure(
+            payload.query, payload.stereo, scope_eid, db
         )
     else:  # pragma: no cover
         raise ExtractionError(f"Unknown search type {effective_type!r}")
@@ -610,6 +649,8 @@ async def execute_search(payload: SearchRequest, db: AsyncSession) -> SearchResp
                 extractions=attributions[:_MAX_ATTRIBUTION_REFS],
                 match_svg=svg_map.get(sid),
                 match_atom_indices=atom_map.get(sid, []),
+                match_bond_indices=bond_map.get(sid, []),
+                partial_match=partial_map.get(sid, False),
             )
         )
 

@@ -47,7 +47,9 @@ async def test_substructure_benzene_in_naphthalene(client: AsyncClient) -> None:
         if r["substance"]["inchi_key"] == "UFWIBTONFRDIAS-UHFFFAOYSA-N"
     ]
     assert len(hits) == 1
-    assert len(hits[0]["match_atom_indices"]) >= 6  # benzene ring is 6 atoms
+    # All 10 naphthalene atoms — both fused rings must be highlighted
+    # (Bug A fix: was previously >= 6, which masked the uniqueAtoms() bug).
+    assert sorted(hits[0]["match_atom_indices"]) == list(range(10))
     # Plan 04: match_svg is now populated for every substructure hit.
     assert hits[0]["match_svg"] is not None, (
         "Plan 04 must populate match_svg on substructure hits"
@@ -56,10 +58,12 @@ async def test_substructure_benzene_in_naphthalene(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_substructure_invalid_smarts(client: AsyncClient) -> None:
-    """Invalid SMARTS raises InvalidSmartsError → 422 + code=INVALID_SMARTS.
+    """Invalid query raises InvalidQueryError → 422 + code=INVALID_QUERY.
 
-    Plan 05 shipped the unified ErrorResponse handler — InvalidSmartsError
-    now strictly maps to 422 + code=INVALID_SMARTS. No (422, 500) tolerance.
+    Plan 2026-04-24: the substructure service now accepts SMILES or
+    SMARTS (dual-path parse). Malformed input that both paths reject
+    raises :class:`InvalidQueryError`, which the unified ErrorResponse
+    handler maps to 422 + code=INVALID_QUERY.
     """
     resp = await client.post(
         "/api/search",
@@ -67,8 +71,8 @@ async def test_substructure_invalid_smarts(client: AsyncClient) -> None:
         timeout=60.0,
     )
     assert resp.status_code == 422, f"expected 422, got {resp.status_code}: {resp.text}"
-    assert resp.json().get("code") == "INVALID_SMARTS", (
-        f"expected code=INVALID_SMARTS, got body={resp.text}"
+    assert resp.json().get("code") == "INVALID_QUERY", (
+        f"expected code=INVALID_QUERY, got body={resp.text}"
     )
 
 
