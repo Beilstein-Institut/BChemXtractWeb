@@ -5,12 +5,13 @@
  * These tests stub globalThis.fetch to verify HTTP behavior
  * without mocking the module itself.
  */
-import { vi, beforeEach } from "vitest";
+import { afterEach, vi, beforeEach } from "vitest";
 import {
   postExtract,
   postReactions,
   getExtractionReactions,
   postExport,
+  postSearchValidate,
   parseContentDispositionFilename,
 } from "./apiClient";
 import type { ExtractionResponse, ReactionExtractionResponse } from "../types/chemistry";
@@ -368,5 +369,57 @@ describe("postExport", () => {
 
     expect(clickSpy).toHaveBeenCalledOnce();
     expect(getAnchor().download).toBe("fallback.svg");
+  });
+});
+
+describe("postSearchValidate", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("POSTs to /api/search/validate with query and stereo", async () => {
+    const fetchSpy = vi.spyOn(window, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          valid: true,
+          language: "smiles",
+          atom_count: 6,
+          error: null,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    const result = await postSearchValidate({ query: "c1ccccc1", stereo: false });
+
+    expect(result.valid).toBe(true);
+    expect(result.language).toBe("smiles");
+    expect(result.atom_count).toBe(6);
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/api/search/validate",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+        }),
+      }),
+    );
+    const body = (fetchSpy.mock.calls[0][1] as RequestInit).body as string;
+    expect(JSON.parse(body)).toEqual({ query: "c1ccccc1", stereo: false });
+  });
+
+  it("throws on non-2xx response", async () => {
+    vi.spyOn(window, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ detail: "validation error", code: "VALIDATION_ERROR" }), {
+        status: 422,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    await expect(postSearchValidate({ query: "" })).rejects.toThrow();
   });
 });

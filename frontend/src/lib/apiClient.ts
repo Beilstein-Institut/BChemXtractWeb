@@ -6,7 +6,12 @@ import type {
 import type { HistoryListResponse, StatsResponse } from "@/types/history";
 import type { BatchStartResponse } from "@/types/batch";
 import type { ExportRequest } from "@/types/export";
-import type { SearchRequest, SearchResponse } from "@/types/search";
+import type {
+  SearchRequest,
+  SearchResponse,
+  SearchValidateRequest,
+  SearchValidateResponse,
+} from "@/types/search";
 
 /**
  * Wrapper around ``fetch`` that centralises the patterns every endpoint
@@ -317,6 +322,24 @@ export async function postSearch(payload: SearchRequest): Promise<SearchResponse
     errorPrefix: "Search failed",
   });
   return response.json() as Promise<SearchResponse>;
+}
+
+/**
+ * POST /api/search/validate — parse-only validation of a substructure
+ * query. Returns { valid, language, atom_count, error }. Used by the
+ * live-typing flow: while the user types, we hit this cheap endpoint
+ * and only fire the main /search once it returns valid=true.
+ */
+export async function postSearchValidate(
+  payload: SearchValidateRequest,
+): Promise<SearchValidateResponse> {
+  const response = await apiFetch("/api/search/validate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    errorPrefix: "Query validation failed",
+  });
+  return response.json() as Promise<SearchValidateResponse>;
 }
 
 /**
