@@ -203,6 +203,10 @@ class SearchRequest(BaseModel):
     match: SearchMatch = "canonical"
     page: int = Field(1, ge=1, le=1000)
     size: int = Field(24, ge=1, le=100)
+    # New in 2026-04-24 substructure redesign. Defaults to False per
+    # user-confirmed design decision ("ignore stereo by default, opt-in
+    # toggle"). Ignored for non-substructure types.
+    stereo: bool = False
 
 
 class SearchExtractionRef(BaseModel):
@@ -223,6 +227,12 @@ class SearchResult(BaseModel):
     # Plan 04 will wire match_svg (highlight depiction); Plan 03 leaves it None.
     match_svg: str | None = None
     match_atom_indices: list[int] = Field(default_factory=list)
+    # New in 2026-04-24. Per-mapping-reconstructed bond indices. Empty
+    # list for non-substructure hits (canonical/InChI/formula queries).
+    match_bond_indices: list[int] = Field(default_factory=list)
+    # New in 2026-04-24. True when the mapping cap was hit on this hit;
+    # frontend renders a "partial highlight" sub-badge.
+    partial_match: bool = False
 
 
 class SearchResponse(BaseModel):
@@ -233,6 +243,22 @@ class SearchResponse(BaseModel):
     page: int = 1
     size: int = 24
     warnings: list[str] = Field(default_factory=list)
+
+
+class SearchValidateRequest(BaseModel):
+    """POST /api/search/validate body. Cheap, parse-only — no DB."""
+
+    query: str = Field(..., min_length=1, max_length=500)
+    stereo: bool = False
+
+
+class SearchValidateResponse(BaseModel):
+    """Response for POST /api/search/validate."""
+
+    valid: bool
+    language: Literal["smiles", "smarts"] | None = None
+    atom_count: int = 0
+    error: str | None = None
 
 
 class ErrorResponse(BaseModel):
