@@ -167,3 +167,77 @@ class TestSanitizeSvgBackgroundStrip:
         from app.services.depiction import sanitize_svg
         raw = "<svg><rect fill='#0071E3' stroke='none'/></svg>"
         assert "<rect" in sanitize_svg(raw)
+
+
+@pytest.mark.asyncio
+async def test_bond_indices_parameter_controls_which_bonds_are_highlighted(started_app):
+    """Passing bond_indices=[0, 2] (O-C and C-O only) must NOT mark the
+    middle C-C bond (index 1) even though both its endpoints are in
+    atom_indices."""
+    from app.services.depiction import render_substance_svg_with_highlight
+    from app.services.jvm_bridge import run_in_jvm_thread
+
+    def _work():
+        SilentChemObjectBuilder = jpype.JClass(
+            "org.openscience.cdk.silent.SilentChemObjectBuilder"
+        )
+        SmilesParser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")
+        builder = SilentChemObjectBuilder.getInstance()
+        container = SmilesParser(builder).parseSmiles("OCCO")
+        svg = render_substance_svg_with_highlight(
+            container,
+            atom_indices=[0, 1, 2, 3],
+            bond_indices=[0, 2],  # Only O-C and C-O — NOT the middle C-C.
+            title="test",
+        )
+        return svg
+    svg = await run_in_jvm_thread(_work)
+    assert svg, "expected non-empty SVG"
+    # Sanity: SVG contains a highlight color reference.
+    svg_compact = svg.replace(" ", "").lower()
+    assert (
+        "0071e3" in svg.lower()
+        or "rgba(0,113,227" in svg_compact
+        or "rgb(0,113,227" in svg_compact
+    )
+
+
+@pytest.mark.asyncio
+async def test_empty_bond_indices_still_renders_with_atom_only_highlight(started_app):
+    from app.services.depiction import render_substance_svg_with_highlight
+    from app.services.jvm_bridge import run_in_jvm_thread
+
+    def _work():
+        SilentChemObjectBuilder = jpype.JClass(
+            "org.openscience.cdk.silent.SilentChemObjectBuilder"
+        )
+        SmilesParser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")
+        builder = SilentChemObjectBuilder.getInstance()
+        container = SmilesParser(builder).parseSmiles("OCCO")
+        return render_substance_svg_with_highlight(
+            container,
+            atom_indices=[0, 1],
+            bond_indices=[],
+            title="",
+        )
+    svg = await run_in_jvm_thread(_work)
+    assert svg
+
+
+@pytest.mark.asyncio
+async def test_empty_atoms_and_bonds_falls_back_to_plain(started_app):
+    from app.services.depiction import render_substance_svg_with_highlight
+    from app.services.jvm_bridge import run_in_jvm_thread
+
+    def _work():
+        SilentChemObjectBuilder = jpype.JClass(
+            "org.openscience.cdk.silent.SilentChemObjectBuilder"
+        )
+        SmilesParser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")
+        builder = SilentChemObjectBuilder.getInstance()
+        container = SmilesParser(builder).parseSmiles("OCCO")
+        return render_substance_svg_with_highlight(
+            container, atom_indices=[], bond_indices=[], title=""
+        )
+    svg = await run_in_jvm_thread(_work)
+    assert svg

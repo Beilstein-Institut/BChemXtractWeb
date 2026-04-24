@@ -278,42 +278,35 @@ def _inject_svg_title(svg: str, title: str) -> str:
 def render_substance_svg_with_highlight(
     mol_or_substance: Any,
     atom_indices: list[int],
+    bond_indices: list[int] | None = None,
     title: str = "",
 ) -> str:
-    """Render a substance to SVG with matched atoms tinted Apple Blue.
+    """Render a substance to SVG with matched atoms + bonds tinted Apple Blue.
 
-    Uses CDK ``DepictionGenerator.withHighlight(chemObjs, Color)`` per D-13.
-    Color is ``--primary`` (#0071e3) at 0x40 alpha (~25%) per UI-SPEC §Color
-    and RESEARCH §Pitfall 5. Bonds with both endpoints in the highlight set
-    are included so matched bond strokes also receive the accent.
+    Signature change 2026-04-24: ``bond_indices`` is now an explicit
+    parameter. The previous implementation inferred bonds from the
+    atom-union set, which was correct when uniqueAtoms() collapsed all
+    mappings to one — but wrong after the algorithm rewrite accumulates
+    ALL mappings. See spec §"Bug B".
 
-    Accepts either a ``BCXSubstance`` (``.getAtomContainer()`` is called) or
-    an ``IAtomContainer`` directly — the latter is the shape the substructure
-    iterate in :mod:`app.services.search` already holds per parsed row.
-
-    Must be called inside a JVM-attached thread (``run_in_jvm_thread``).
-
-    Failure policy (D-13, threat T-09-04-04):
-      - Empty ``atom_indices`` → plain (non-highlighted) depiction.
-      - ``None`` molecule → empty string.
-      - Any JVM-side failure while drawing the highlight → fall back to the
-        plain depiction so the search response still carries an SVG. If that
-        plain fallback also fails, an empty string is returned.
+    When ``bond_indices`` is ``None``, the function falls back to the
+    legacy atom-union inference for backward compat with any caller that
+    hasn't been updated yet. New callers (post-redesign) should always
+    pass an explicit list.
 
     Args:
-        mol_or_substance: ``BCXSubstance`` or CDK ``IAtomContainer``.
+        mol_or_substance: BCXSubstance or CDK IAtomContainer.
         atom_indices: 0-based atom positions to highlight.
-        title: Optional ``<title>`` element for screen-reader a11y
-            (UI-SPEC §Accessibility).
+        bond_indices: 0-based bond positions to highlight. None triggers
+            legacy atom-union inference.
+        title: Optional <title> for screen-reader a11y (UI-SPEC §A11y).
 
     Returns:
-        SVG markup string. Non-empty on success or fallback; empty only
-        when the molecule itself is absent.
+        SVG markup string. Non-empty on success or fallback.
     """
     if mol_or_substance is None:
         return ""
 
-    # Resolve to an IAtomContainer — accept either BCXSubstance or container.
     if hasattr(mol_or_substance, "getAtomContainer"):
         container = mol_or_substance.getAtomContainer()
     else:
@@ -322,15 +315,13 @@ def render_substance_svg_with_highlight(
         return ""
 
     def _plain() -> str:
-        """Local fallback: plain depiction with only the optional title."""
         try:
             return _inject_svg_title(_depict_container_to_svg(container), title)
-        except Exception as exc:  # noqa: BLE001 — last-resort guard
+        except Exception as exc:  # noqa: BLE001
             logger.warning("Plain-depiction fallback failed: %s", exc)
             return ""
 
-    # Fast path: no highlight requested.
-    if not atom_indices:
+    if not atom_indices and not bond_indices:
         return _plain()
 
     try:
@@ -338,36 +329,41 @@ def render_substance_svg_with_highlight(
         ArrayList = jpype.JClass("java.util.ArrayList")  # noqa: N806
 
         atom_count = int(container.getAtomCount())
-        highlight_set: set[int] = {
+        bond_count = int(container.getBondCount())
+
+        highlight_atoms: set[int] = {
             int(i) for i in atom_indices if 0 <= int(i) < atom_count
         }
+        if bond_indices is None:
+            # Legacy atom-union inference — kept for callers that still
+            # pass atom_indices only. New code always passes explicit
+            # bond_indices; this branch is preserved so in-flight
+            # non-substructure callers (none currently) don't break.
+            highlight_bonds: set[int] = set()
+            for b_idx in range(bond_count):
+                bond = container.getBond(b_idx)
+                a0 = int(container.indexOf(bond.getBegin()))
+                a1 = int(container.indexOf(bond.getEnd()))
+                if a0 in highlight_atoms and a1 in highlight_atoms:
+                    highlight_bonds.add(b_idx)
+        else:
+            highlight_bonds = {
+                int(i) for i in bond_indices if 0 <= int(i) < bond_count
+            }
 
-        # If every requested index was out of range we have nothing to
-        # highlight; fall back to the plain path so the response still
-        # carries an SVG (matches UI-SPEC graceful-degradation contract).
-        if not highlight_set:
+        if not highlight_atoms and not highlight_bonds:
             return _plain()
 
         chem_objs = ArrayList()
-        for idx in sorted(highlight_set):
+        for idx in sorted(highlight_atoms):
             chem_objs.add(container.getAtom(idx))
-        # Include bonds whose both endpoints are in the highlight set so
-        # bond strokes pick up the accent too (UI-SPEC: "1.5px stroke
-        # outline on matched bonds").
-        for b_idx in range(int(container.getBondCount())):
-            bond = container.getBond(b_idx)
-            a0 = int(container.indexOf(bond.getBegin()))
-            a1 = int(container.indexOf(bond.getEnd()))
-            if a0 in highlight_set and a1 in highlight_set:
-                chem_objs.add(bond)
+        for idx in sorted(highlight_bonds):
+            chem_objs.add(container.getBond(idx))
 
-        # 0x0071E3 = Apple Blue (UI-SPEC §Color --primary); alpha 0x40 ≈ 25%
-        # per RESEARCH §Pitfall 5. Four-arg form (r, g, b, a) — NOT the
-        # packed-int single-arg form — so the alpha channel is honored.
         highlight_color = Color(0x00, 0x71, 0xE3, 0x40)
         dg = _make_depiction_generator().withHighlight(chem_objs, highlight_color)
         return _inject_svg_title(_depict_container_to_svg(container, dg), title)
-    except Exception as exc:  # noqa: BLE001 — never raise to search caller
+    except Exception as exc:  # noqa: BLE001
         logger.warning(
             "Highlight SVG rendering failed (%s) — falling back to plain depiction",
             exc,
