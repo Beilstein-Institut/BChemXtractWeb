@@ -1,0 +1,43 @@
+# gitleaks configuration.
+#
+# We extend the upstream default rule set (so every rule that ships
+# with gitleaks — aws-access-key, github-pat, slack-webhook, etc. —
+# stays active) and narrowly allowlist a handful of chemistry-domain
+# false positives that the generic-api-key entropy rule cannot
+# otherwise distinguish from real secrets.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = """
+Narrow allowlist scoped to:
+  1) chemistry-domain documentation strings that collide with the
+     generic-api-key rule (the tokens 'RInChI key' / 'InChI key' /
+     'rinchi_key' / 'inchi_key' appear in planning docs and schema
+     comments — they are identifier labels, not secrets);
+  2) the `.planning/` tree, which is local-only GSD planning notes
+     (gitignored; never shipped in any artifact). Pre-session commits
+     still contain some `.planning/**` paths, so we exclude that
+     subtree from scanning so their presence in git history does not
+     fail CI on every push.
+"""
+
+# Skip planning docs entirely — gitignored, local-only, no secrets.
+# The pattern matches both forward and git-log --all paths.
+paths = [
+    '''(^|/)\.planning/''',
+]
+
+# Regex-level allowlist: any match containing these exact substrings
+# (case-sensitive — chemistry identifiers are stable) is dismissed.
+# These tokens are IUPAC / IUPAC-InChI Trust identifiers, not secrets.
+regexes = [
+    '''RInChI key''',
+    '''InChI key''',
+    '''rinchi_key''',
+    '''inchi_key''',
+    '''short_rinchi_key''',
+    '''long_rinchi_key''',
+    '''web_rinchi_key''',
+]

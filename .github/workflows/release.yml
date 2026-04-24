@@ -1,5 +1,23 @@
 name: Release
 
+# Requires one of the following to be able to open the release PR
+# (organization policy blocks the default GITHUB_TOKEN from doing so):
+#
+#   1. Repo admin toggles ON
+#        Settings → Actions → General → Workflow permissions →
+#        "Allow GitHub Actions to create and approve pull requests"
+#      This is the simplest path and keeps the workflow using the
+#      default GITHUB_TOKEN.
+#
+#   2. Provide a `RELEASE_PLEASE_TOKEN` repository secret holding a
+#      fine-grained personal access token (or GitHub App installation
+#      token) with `pull-requests: write` + `contents: write`. The
+#      workflow below prefers that secret when set.
+#
+# Without one of these, the job fails with
+#   "GitHub Actions is not permitted to create or approve pull requests"
+# and no release PR is opened.
+
 on:
   push:
     branches: [main]
