@@ -85,19 +85,6 @@ export function SearchResults() {
     toast.warning(msg, { duration: 5000 });
   }, [response]);
 
-  // useSearch state is per-consumer (no Context/store), so SearchInput's
-  // submit() on Enter populates its OWN `response`, not ours. For every
-  // non-substructure type the debounced useEffect inside useSearch also
-  // runs here and converges us to the same data — but for substructure
-  // the debounce bails (D-03, useSearch.ts) and we'd stay stuck at
-  // response === null. Fire our own submit() whenever the URL carries a
-  // live substructure query so the grid + warning toast render.
-  useEffect(() => {
-    if (type !== "substructure") return;
-    if (!query) return;
-    submit();
-  }, [query, type, scope, page, submit]);
-
   const total = response?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const scopeLabel = scope?.startsWith("extraction:") ? "In this extraction" : "All extractions";
