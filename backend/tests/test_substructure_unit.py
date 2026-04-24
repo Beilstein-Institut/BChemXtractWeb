@@ -28,3 +28,41 @@ class TestStripStereoTokens:
 
     def test_empty_string(self):
         assert strip_stereo_tokens("") == ""
+
+
+from app.services.substructure import (
+    MatchResult,
+    ParsedQuery,
+    QueryValidation,
+    MAX_MAPPINGS_PER_MOL,
+    MAX_QUERY_ATOMS,
+)
+
+
+class TestDataclasses:
+    def test_match_result_holds_atoms_bonds_count_partial(self):
+        r = MatchResult(
+            matched=True,
+            atom_indices=[0, 1, 2],
+            bond_indices=[0, 1],
+            mapping_count=2,
+            partial_match=False,
+        )
+        assert r.matched is True
+        assert r.atom_indices == [0, 1, 2]
+        assert r.bond_indices == [0, 1]
+        assert r.mapping_count == 2
+        assert r.partial_match is False
+
+    def test_query_validation_shape(self):
+        v = QueryValidation(
+            valid=True, language="smiles", atom_count=6, error=None
+        )
+        assert v.valid is True
+        assert v.language == "smiles"
+        assert v.atom_count == 6
+        assert v.error is None
+
+    def test_constants_defined(self):
+        assert MAX_MAPPINGS_PER_MOL == 10_000
+        assert MAX_QUERY_ATOMS == 200

@@ -14,6 +14,58 @@ bug root-causes (``uniqueAtoms()`` drop + atom-union bond inference).
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from typing import Any, Literal
+
+
+QueryLanguage = Literal["smiles", "smarts"]
+
+
+# Safety ceilings — see design spec §"Safety guard". 10k mappings per
+# molecule absorbs naphthalene-in-coronene and similar legitimate
+# high-multiplicity cases while stopping pathological `*`-only SMARTS
+# from OOMing the JVM. 200-atom query cap rejects queries far larger
+# than any real chemist pattern (benzene = 6, steroid scaffold ~ 30).
+MAX_MAPPINGS_PER_MOL = 10_000
+MAX_QUERY_ATOMS = 200
+
+
+@dataclass
+class ParsedQuery:
+    """A parsed query ready for matching.
+
+    Carries the raw CDK pattern AND the query IAtomContainer. The
+    container is needed later for per-mapping target-bond reconstruction
+    (walking the query's bond topology). Both fields are Java refs — do
+    not escape the JVM-attached thread.
+    """
+    pattern: Any                 # CDK Pattern (from findSubstructure)
+    query_container: Any         # CDK IAtomContainer or QueryAtomContainer
+    query_bond_endpoints: list[tuple[int, int]]  # (q_atom_a, q_atom_b) per bond
+    language: QueryLanguage
+    atom_count: int
+    stereo_enabled: bool
+
+
+@dataclass(frozen=True)
+class QueryValidation:
+    """Parse-only check result — safe to serialize to JSON."""
+    valid: bool
+    language: QueryLanguage | None
+    atom_count: int
+    error: str | None
+
+
+@dataclass(frozen=True)
+class MatchResult:
+    """Per-target match outcome."""
+    matched: bool
+    atom_indices: list[int]
+    bond_indices: list[int]
+    mapping_count: int
+    partial_match: bool
+
+
 # Pure-Python stereo-token stripping for the "ignore stereo" default mode.
 # Used on the raw query string BEFORE handing to CDK so the parsed query
 # carries no stereo features — which (per CDK 2.12 deprecation note on
