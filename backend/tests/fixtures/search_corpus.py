@@ -51,6 +51,38 @@ KNOWN_MOLECULES: list[dict] = [
         "molecular_formula": "C6H12O6",
         "inchi_key": "WQZGKKKJIJFFOK-GASJEMHNSA-N",
     },
+    {
+        "id": 6,
+        "name": "acetylacetone",
+        "smiles": "CC(=O)CC(=O)C",
+        "canonical_smiles": "CC(=O)CC(=O)C",
+        "molecular_formula": "C5H8O2",
+        "inchi_key": "YRKCREAYFQTBPV-UHFFFAOYSA-N",
+    },
+    {
+        "id": 7,
+        "name": "ethylene glycol",
+        "smiles": "OCCO",
+        "canonical_smiles": "OCCO",
+        "molecular_formula": "C2H6O2",
+        "inchi_key": "LYCAIKOWRPUZTN-UHFFFAOYSA-N",
+    },
+    {
+        "id": 8,
+        "name": "(S)-lactic acid",
+        "smiles": "C[C@H](O)C(=O)O",
+        "canonical_smiles": "C[C@H](O)C(=O)O",
+        "molecular_formula": "C3H6O3",
+        "inchi_key": "JVTAAEKCZFNVCJ-REOHCLBHSA-N",
+    },
+    {
+        "id": 9,
+        "name": "(R)-lactic acid",
+        "smiles": "C[C@@H](O)C(=O)O",
+        "canonical_smiles": "C[C@@H](O)C(=O)O",
+        "molecular_formula": "C3H6O3",
+        "inchi_key": "JVTAAEKCZFNVCJ-UWTATZPHSA-N",
+    },
 ]
 
 
