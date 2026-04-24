@@ -302,6 +302,88 @@ def parse_query(raw: str, *, match_stereo: bool) -> ParsedQuery:
     )
 
 
+def enumerate_matches(
+    parsed: ParsedQuery,
+    target: Any,
+    *,
+    cap: int = MAX_MAPPINGS_PER_MOL,
+) -> MatchResult:
+    """Enumerate all mappings of the parsed query onto target.
+
+    Algorithm:
+      1. Iterate ``pattern.matchAll(target).limit(cap + 1)``. The ``+ 1``
+         lets us detect cap-hits without re-running the search. We MUST
+         call ``.limit()`` before ``.toArray()`` — otherwise CDK
+         materializes every mapping and can OOM the JVM on permissive
+         queries (verified against cdk-2.12 source, Mappings.java).
+      2. For each mapping (int[] indexed by query atom position),
+         accumulate target atom indices into a set and reconstruct
+         target bonds by walking the query's bond topology:
+             for each (q_atom_a, q_atom_b) in query_bond_endpoints:
+                 t_atom_a = mapping[q_atom_a]
+                 t_atom_b = mapping[q_atom_b]
+                 target_bond = target.getBond(atom_a, atom_b)
+                 if target_bond is not None:
+                     bond_set.add(target.indexOf(target_bond))
+      3. Return MatchResult with sorted, unique atom + bond indices and
+         the partial_match flag.
+
+    Per-mapping bond reconstruction (vs atom-union inference) is the fix
+    for Bug B — it prevents stray bonds like the C-C in HO-CH2-CH2-OH
+    from being marked when the query CO has no bond between its two
+    match sites.
+
+    Must be called inside run_in_jvm_thread.
+    """
+    try:
+        mappings = parsed.pattern.matchAll(target).limit(cap + 1)
+        int2d = mappings.toArray()
+    except jpype.JException:
+        return MatchResult(
+            matched=False,
+            atom_indices=[],
+            bond_indices=[],
+            mapping_count=0,
+            partial_match=False,
+        )
+
+    raw_count = len(int2d)
+    partial = raw_count > cap
+    effective_mappings = int2d[:cap] if partial else int2d
+
+    if len(effective_mappings) == 0:
+        return MatchResult(
+            matched=False,
+            atom_indices=[],
+            bond_indices=[],
+            mapping_count=0,
+            partial_match=False,
+        )
+
+    all_atoms: set[int] = set()
+    all_bonds: set[int] = set()
+
+    for mapping in effective_mappings:
+        mapping_list = [int(x) for x in mapping]
+        all_atoms.update(mapping_list)
+        for q_atom_a, q_atom_b in parsed.query_bond_endpoints:
+            t_atom_a = mapping_list[q_atom_a]
+            t_atom_b = mapping_list[q_atom_b]
+            target_bond = target.getBond(
+                target.getAtom(t_atom_a), target.getAtom(t_atom_b)
+            )
+            if target_bond is not None:
+                all_bonds.add(int(target.indexOf(target_bond)))
+
+    return MatchResult(
+        matched=True,
+        atom_indices=sorted(all_atoms),
+        bond_indices=sorted(all_bonds),
+        mapping_count=len(effective_mappings),
+        partial_match=partial,
+    )
+
+
 def validate_query(raw: str, *, match_stereo: bool) -> QueryValidation:
     """Parse-only check — never raises. Safe to call from the /validate
     endpoint on every keystroke.
