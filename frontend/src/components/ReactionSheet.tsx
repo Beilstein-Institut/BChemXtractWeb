@@ -225,8 +225,13 @@ export function ReactionSheet({
           <SheetDescription>Full reaction metadata</SheetDescription>
         </SheetHeader>
 
-        {/* Reaction SVG with zoom controls */}
-        <div className="relative h-[50vh] bg-background rounded-xl border border-border mx-4 overflow-hidden">
+        {/* Reaction SVG with zoom controls.
+         * flex-none + explicit height prevents the flex-col parent
+         * (SheetContent) from shrinking this region — without it the
+         * depiction collapses to near-zero when the metadata below
+         * overflows. bg-surface-muted keeps the container visible
+         * against the cream bg in light mode. */}
+        <div className="relative flex-none h-[420px] md:h-[520px] bg-surface-muted dark:bg-background rounded-xl border border-border mx-4 overflow-hidden">
           {svgSrc ? (
             <div className="w-full h-full overflow-auto flex items-center justify-center">
               <img

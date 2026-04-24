@@ -54,16 +54,16 @@ export function ExperimentalBanner() {
     <div
       role="note"
       className={cn(
-        "rounded-xl border border-amber-200 border-l-4 border-l-amber-500",
-        "bg-amber-50 dark:bg-amber-950/40 dark:border-amber-700 dark:border-l-amber-500",
+        "rounded-xl border-2 border-amber-400 border-l-4 border-l-amber-600",
+        "bg-amber-100 dark:bg-amber-950/40 dark:border-amber-700 dark:border-l-amber-500",
         "py-3 px-4 flex items-start gap-3",
       )}
     >
       <AlertTriangleIcon
-        className="size-4 shrink-0 text-amber-700 dark:text-amber-500 mt-0.5"
+        className="size-4 shrink-0 text-amber-800 dark:text-amber-500 mt-0.5"
         aria-hidden="true"
       />
-      <p className="flex-1 text-caption leading-[1.29] tracking-[-0.016em] text-amber-900 dark:text-amber-200">
+      <p className="flex-1 text-caption leading-[1.29] tracking-[-0.016em] text-amber-950 dark:text-amber-200">
         <span className="font-semibold">Experimental.</span> Reaction extraction from ChemDraw files
         is a best-effort feature of <BrandName />. Results may be incomplete or inaccurate — verify
         before use.
@@ -73,9 +73,9 @@ export function ExperimentalBanner() {
         size="icon-sm"
         aria-label="Dismiss experimental disclaimer"
         onClick={handleDismiss}
-        className={cn("shrink-0 -mr-1 -mt-1", "hover:bg-amber-100 dark:hover:bg-amber-900/40")}
+        className={cn("shrink-0 -mr-1 -mt-1", "hover:bg-amber-200 dark:hover:bg-amber-900/40")}
       >
-        <XIcon className="size-3.5 text-amber-700 dark:text-amber-500" />
+        <XIcon className="size-3.5 text-amber-800 dark:text-amber-500" />
       </Button>
     </div>
   );

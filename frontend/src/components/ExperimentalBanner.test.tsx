@@ -32,8 +32,10 @@ describe("ExperimentalBanner", () => {
   it("renders container with role='note' and amber accent classes", () => {
     render(<ExperimentalBanner />);
     const note = screen.getByRole("note");
-    expect(note.className).toMatch(/border-l-amber-500/);
-    expect(note.className).toMatch(/bg-amber-50/);
+    // Light-mode accent: left border amber-600 and fill amber-100 for
+    // stronger contrast against the warm cream --color-background.
+    expect(note.className).toMatch(/border-l-amber-600/);
+    expect(note.className).toMatch(/bg-amber-100/);
   });
 
   it("renders AlertTriangleIcon and dismiss button with aria-label", () => {

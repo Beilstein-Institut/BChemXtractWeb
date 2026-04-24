@@ -197,7 +197,7 @@ export function ReactionsTab({
       {/* Success — list of reactions */}
       {branch === "successList" && (
         <>
-          <p className="text-caption text-muted-foreground">
+          <p className="text-caption text-foreground/70">
             {reactions.length} reaction{reactions.length === 1 ? "" : "s"}
             {!isCached &&
               extractionTimeMs !== undefined &&

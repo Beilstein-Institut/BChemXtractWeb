@@ -79,8 +79,12 @@ export function ReactionCard({
         }
       }}
     >
-      {/* SVG container — responsive height per UI-SPEC §4 */}
-      <div className="flex items-center justify-center bg-background rounded-t-xl p-6 h-[240px] md:h-[320px] lg:h-[400px]">
+      {/* SVG container — responsive height per UI-SPEC §4.
+       * bg-surface-muted keeps the depiction container visible against
+       * the near-white page background in light mode (bg-background
+       * blended in). In dark mode the original bg-background still
+       * reads as a carved divot against the card surface. */}
+      <div className="flex items-center justify-center bg-surface-muted dark:bg-background rounded-t-xl p-6 h-[240px] md:h-[320px] lg:h-[400px]">
         {svgSrc ? (
           <img
             src={svgSrc}
@@ -149,7 +153,7 @@ export function ReactionCard({
           <Badge variant="secondary" className="h-5 text-micro font-semibold gap-1">
             {componentSummary}
           </Badge>
-          <span className="text-caption text-muted-foreground hidden sm:inline">
+          <span className="text-caption text-foreground/75 hover:text-primary hidden sm:inline transition-colors">
             View details {"\u2192"}
           </span>
         </div>
