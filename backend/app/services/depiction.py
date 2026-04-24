@@ -347,9 +347,7 @@ def render_substance_svg_with_highlight(
                 if a0 in highlight_atoms and a1 in highlight_atoms:
                     highlight_bonds.add(b_idx)
         else:
-            highlight_bonds = {
-                int(i) for i in bond_indices if 0 <= int(i) < bond_count
-            }
+            highlight_bonds = {int(i) for i in bond_indices if 0 <= int(i) < bond_count}
 
         if not highlight_atoms and not highlight_bonds:
             return _plain()

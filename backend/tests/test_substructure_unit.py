@@ -52,9 +52,7 @@ class TestDataclasses:
         assert r.partial_match is False
 
     def test_query_validation_shape(self):
-        v = QueryValidation(
-            valid=True, language="smiles", atom_count=6, error=None
-        )
+        v = QueryValidation(valid=True, language="smiles", atom_count=6, error=None)
         assert v.valid is True
         assert v.language == "smiles"
         assert v.atom_count == 6

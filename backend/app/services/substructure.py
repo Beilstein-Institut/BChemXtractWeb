@@ -43,8 +43,9 @@ class ParsedQuery:
     (walking the query's bond topology). Both fields are Java refs — do
     not escape the JVM-attached thread.
     """
-    pattern: Any                 # CDK Pattern (from findSubstructure)
-    query_container: Any         # CDK IAtomContainer or QueryAtomContainer
+
+    pattern: Any  # CDK Pattern (from findSubstructure)
+    query_container: Any  # CDK IAtomContainer or QueryAtomContainer
     query_bond_endpoints: list[tuple[int, int]]  # (q_atom_a, q_atom_b) per bond
     language: QueryLanguage
     atom_count: int
@@ -54,6 +55,7 @@ class ParsedQuery:
 @dataclass(frozen=True)
 class QueryValidation:
     """Parse-only check result — safe to serialize to JSON."""
+
     valid: bool
     language: QueryLanguage | None
     atom_count: int
@@ -63,6 +65,7 @@ class QueryValidation:
 @dataclass(frozen=True)
 class MatchResult:
     """Per-target match outcome."""
+
     matched: bool
     atom_indices: list[int]
     bond_indices: list[int]
@@ -279,9 +282,7 @@ def parse_query(raw: str, *, match_stereo: bool) -> ParsedQuery:
             if hasattr(result, "getMessage")
             else "parse failed"
         )
-        raise InvalidQueryError(
-            f"Could not parse as SMILES or SMARTS: {msg[:200]}"
-        )
+        raise InvalidQueryError(f"Could not parse as SMILES or SMARTS: {msg[:200]}")
 
     atom_count = int(qc.getAtomCount())
     if atom_count > MAX_QUERY_ATOMS:

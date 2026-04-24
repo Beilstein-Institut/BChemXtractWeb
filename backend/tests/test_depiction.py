@@ -135,6 +135,7 @@ class TestSanitizeSvgBackgroundStrip:
 
     def test_strips_cdk_white_hex_backdrop(self) -> None:
         from app.services.depiction import sanitize_svg
+
         raw = (
             "<svg xmlns='http://www.w3.org/2000/svg'>"
             "<rect x='.0' y='.0' width='31.0' height='38.0' "
@@ -148,6 +149,7 @@ class TestSanitizeSvgBackgroundStrip:
 
     def test_strips_cdk_white_named_backdrop(self) -> None:
         from app.services.depiction import sanitize_svg
+
         raw = (
             "<svg><rect x='0' y='0' width='100' height='100' "
             "fill='white' stroke='none' /></svg>"
@@ -157,6 +159,7 @@ class TestSanitizeSvgBackgroundStrip:
     def test_preserves_rects_with_non_none_stroke(self) -> None:
         """Highlight boxes etc. use stroked rects — must not be stripped."""
         from app.services.depiction import sanitize_svg
+
         raw = (
             "<svg><rect x='0' y='0' width='10' height='10' "
             "fill='#FFFFFF' stroke='#000' stroke-width='1'/></svg>"
@@ -165,6 +168,7 @@ class TestSanitizeSvgBackgroundStrip:
 
     def test_preserves_non_white_rects(self) -> None:
         from app.services.depiction import sanitize_svg
+
         raw = "<svg><rect fill='#0071E3' stroke='none'/></svg>"
         assert "<rect" in sanitize_svg(raw)
 
@@ -191,6 +195,7 @@ async def test_bond_indices_parameter_controls_which_bonds_are_highlighted(start
             title="test",
         )
         return svg
+
     svg = await run_in_jvm_thread(_work)
     assert svg, "expected non-empty SVG"
     # Sanity: SVG contains a highlight color reference.
@@ -220,6 +225,7 @@ async def test_empty_bond_indices_still_renders_with_atom_only_highlight(started
             bond_indices=[],
             title="",
         )
+
     svg = await run_in_jvm_thread(_work)
     assert svg
 
@@ -239,5 +245,6 @@ async def test_empty_atoms_and_bonds_falls_back_to_plain(started_app):
         return render_substance_svg_with_highlight(
             container, atom_indices=[], bond_indices=[], title=""
         )
+
     svg = await run_in_jvm_thread(_work)
     assert svg

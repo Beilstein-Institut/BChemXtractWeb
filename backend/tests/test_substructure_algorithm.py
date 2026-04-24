@@ -18,6 +18,7 @@ from app.services.substructure import (
 def _prepare_target(smiles: str):
     """Parse a SMILES into a target container with aromaticity applied."""
     import jpype
+
     SilentChemObjectBuilder = jpype.JClass(  # noqa: N806
         "org.openscience.cdk.silent.SilentChemObjectBuilder"
     )
@@ -46,6 +47,7 @@ def _run(query_raw: str, target_smiles: str, *, match_stereo: bool = False):
         parsed = parse_query(query_raw, match_stereo=match_stereo)
         target = _prepare_target(target_smiles)
         return enumerate_matches(parsed, target)
+
     return run_in_jvm_thread(_work)
 
 
@@ -117,6 +119,7 @@ class TestMappingCap:
             parsed = parse_query("[#6]", match_stereo=False)
             target = _prepare_target("c1ccccc1")
             return enumerate_matches(parsed, target, cap=3)  # artificially low
+
         result = await run_in_jvm_thread(_work)
         assert result.matched is True
         assert result.partial_match is True

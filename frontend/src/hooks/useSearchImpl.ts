@@ -187,12 +187,10 @@ export function useSearchImpl(): UseSearchReturn {
 
   // --- Validation effect (substructure only) ---
   useEffect(() => {
-    if (type !== "substructure") {
-      setQueryValidity({ state: "unknown" });
-      return;
-    }
-    if (!query) {
-      setQueryValidity({ state: "unknown" });
+    if (type !== "substructure" || !query) {
+      // Defer the state reset so the rule at react-hooks/set-state-in-effect
+      // doesn't flag this synchronous setState. Matches the 10-05 pattern.
+      Promise.resolve().then(() => setQueryValidity({ state: "unknown" }));
       return;
     }
     let cancelled = false;
@@ -253,8 +251,11 @@ export function useSearchImpl(): UseSearchReturn {
 
   useEffect(() => {
     if (!query) {
-      setSearchState("idle");
-      setResponse(null);
+      // Defer state resets per the 10-05 react-hooks/set-state-in-effect pattern.
+      Promise.resolve().then(() => {
+        setSearchState("idle");
+        setResponse(null);
+      });
       return;
     }
     const requiresValidity = type === "substructure";

@@ -18,6 +18,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
 }
 
 /** Read shared search state. Must be called inside a SearchProvider. */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useSearch(): UseSearchReturn {
   const ctx = useContext(SearchContext);
   if (ctx === null) {

@@ -466,15 +466,9 @@ async def _search_substructure(
         _substructure_sync, raw_query, stereo, id_smi
     )
     hit_ids = {sid for sid, _, _, _, _ in hits}
-    atom_map: dict[int, list[int]] = {
-        sid: atoms for sid, atoms, _, _, _ in hits
-    }
-    bond_map: dict[int, list[int]] = {
-        sid: bonds for sid, _, bonds, _, _ in hits
-    }
-    partial_map: dict[int, bool] = {
-        sid: p for sid, _, _, p, _ in hits
-    }
+    atom_map: dict[int, list[int]] = {sid: atoms for sid, atoms, _, _, _ in hits}
+    bond_map: dict[int, list[int]] = {sid: bonds for sid, _, bonds, _, _ in hits}
+    partial_map: dict[int, bool] = {sid: p for sid, _, _, p, _ in hits}
     # Only keep non-empty SVGs in the map — _to_substance_response default
     # (match_svg=None) applies for hits whose render fell through to "".
     svg_map: dict[int, str] = {sid: svg for sid, _, _, _, svg in hits if svg}
@@ -613,9 +607,7 @@ async def execute_search(payload: SearchRequest, db: AsyncSession) -> SearchResp
             partial_map,
             svg_map,
             skipped_count,
-        ) = await _search_substructure(
-            payload.query, payload.stereo, scope_eid, db
-        )
+        ) = await _search_substructure(payload.query, payload.stereo, scope_eid, db)
     else:  # pragma: no cover
         raise ExtractionError(f"Unknown search type {effective_type!r}")
 
