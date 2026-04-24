@@ -87,6 +87,17 @@ class InvalidSmilesError(BridgeError):
     """User-supplied SMILES can't be parsed by CDK (422 / INVALID_SMILES)."""
 
 
+class InvalidQueryError(BridgeError):
+    """User-supplied substructure query (SMILES or SMARTS) can't be parsed
+    (422 / INVALID_QUERY)."""
+
+
+class QueryTooLargeError(BridgeError):
+    """Parsed substructure query exceeds the atom-count ceiling
+    (422 / QUERY_TOO_LARGE). Guards against pathological queries like
+    a 500-atom SMARTS pattern that would stall enumeration."""
+
+
 # ----------------------------------------------------------------------------
 # Phase 9 Plan 05: unified ErrorResponse handlers (D-17).
 # ----------------------------------------------------------------------------
@@ -121,6 +132,8 @@ _BRIDGE_ERROR_MAP: list[tuple[type[BridgeError], int, str]] = [
     (InvalidSmartsError, 422, "INVALID_SMARTS"),
     (InvalidInchiKeyError, 422, "INVALID_INCHI_KEY"),
     (InvalidSmilesError, 422, "INVALID_SMILES"),
+    (InvalidQueryError, 422, "INVALID_QUERY"),
+    (QueryTooLargeError, 422, "QUERY_TOO_LARGE"),
     (ExtractionError, 422, "EXTRACTION_FAILED"),
     (NullFieldError, 500, "NULL_FIELD"),
 ]
