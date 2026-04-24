@@ -19,18 +19,20 @@ explicitly::
 The backfill is idempotent: re-running is a no-op. Rows whose ``smiles``
 cannot be parsed by CDK remain literal SQL NULL.
 """
+
 from __future__ import annotations
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "c3d4e5f6a7b8"
-down_revision: Union[str, None] = "850c00d963f1"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "850c00d963f1"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -55,10 +57,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_substances_molecular_formula", table_name="substances"
-    )
-    op.drop_index(
-        "ix_substances_canonical_smiles", table_name="substances"
-    )
+    op.drop_index("ix_substances_molecular_formula", table_name="substances")
+    op.drop_index("ix_substances_canonical_smiles", table_name="substances")
     op.drop_column("substances", "canonical_smiles")

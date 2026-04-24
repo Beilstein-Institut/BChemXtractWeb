@@ -27,9 +27,7 @@ describe("clan-pro.css scaffold", () => {
     const matches = CSS_SOURCE.match(/@font-face\s*\{[^}]*\}/g) ?? [];
     expect(matches).toHaveLength(3);
 
-    const weights = matches
-      .map((block) => block.match(/font-weight:\s*(\d+)/)?.[1])
-      .sort();
+    const weights = matches.map((block) => block.match(/font-weight:\s*(\d+)/)?.[1]).sort();
     expect(weights).toEqual(["400", "500", "700"]);
   });
 

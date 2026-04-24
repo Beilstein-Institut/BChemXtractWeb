@@ -69,6 +69,7 @@ def main() -> int:
     engine = create_engine(db_url, isolation_level="AUTOCOMMIT")
 
     with engine.connect() as conn:
+
         def _print_progress(scanned: int, updated: int) -> None:
             print(
                 f"  scanned={scanned} updated={updated}",

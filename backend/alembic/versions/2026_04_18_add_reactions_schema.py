@@ -15,19 +15,21 @@ Adds:
 
 No backfill — existing rows get reaction_count=0 until user re-extracts.
 """
+
 from __future__ import annotations
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "e7f8a9b0c1d2"
-down_revision: Union[str, None] = "c3d4e5f6a7b8"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "c3d4e5f6a7b8"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -71,9 +73,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "long_rinchi_key", name="uq_reactions_long_rinchi_key"
-        ),
+        sa.UniqueConstraint("long_rinchi_key", name="uq_reactions_long_rinchi_key"),
     )
     op.create_index(
         "ix_reactions_long_rinchi_key",
@@ -86,15 +86,11 @@ def upgrade() -> None:
         "extraction_reactions",
         sa.Column("extraction_id", sa.BigInteger(), nullable=False),
         sa.Column("reaction_id", sa.BigInteger(), nullable=False),
-        sa.Column(
-            "position", sa.Integer(), nullable=False, server_default="0"
-        ),
+        sa.Column("position", sa.Integer(), nullable=False, server_default="0"),
         sa.ForeignKeyConstraint(
             ["extraction_id"], ["extractions.id"], ondelete="CASCADE"
         ),
-        sa.ForeignKeyConstraint(
-            ["reaction_id"], ["reactions.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["reaction_id"], ["reactions.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("extraction_id", "reaction_id"),
         sa.UniqueConstraint(
             "extraction_id", "reaction_id", name="uq_extraction_reaction"

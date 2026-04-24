@@ -18,10 +18,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // was rendered and what props it received, without loading motion/react.
 vi.mock("./CommandPalette", () => ({
   CommandPalette: ({ initiallyOpen }: { initiallyOpen?: boolean }) => (
-    <div
-      data-slot="command-palette-mock"
-      data-initially-open={initiallyOpen ? "true" : "false"}
-    >
+    <div data-slot="command-palette-mock" data-initially-open={initiallyOpen ? "true" : "false"}>
       command palette mock
     </div>
   ),

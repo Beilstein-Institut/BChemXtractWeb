@@ -21,9 +21,7 @@ import type { ExtractionResponse, ReactionExtractionResponse } from "@/types/che
 // the footer, /about from nav, SearchResults only when ?q= is in the
 // URL). BrowsePage/ExtractPage/HistoryPage are eager — users hit them
 // on the default flow and lazy-loading would introduce a skeleton flash.
-const AboutPage = lazy(() =>
-  import("@/pages/AboutPage").then((m) => ({ default: m.AboutPage })),
-);
+const AboutPage = lazy(() => import("@/pages/AboutPage").then((m) => ({ default: m.AboutPage })));
 const ImprintPage = lazy(() =>
   import("@/pages/ImprintPage").then((m) => ({ default: m.ImprintPage })),
 );

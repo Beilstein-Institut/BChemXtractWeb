@@ -17,37 +17,37 @@
  */
 
 @font-face {
-    font-family: "Clan Pro";
-    font-style: normal;
-    font-weight: 400;
-    font-display: swap;
-    src:
-        local("Clan Pro"),
-        local("FF Clan Pro"),
-        local("Clan OT"),
-        url("/fonts/clan-pro/clan-pro-regular.woff2") format("woff2");
+  font-family: "Clan Pro";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    local("Clan Pro"),
+    local("FF Clan Pro"),
+    local("Clan OT"),
+    url("/fonts/clan-pro/clan-pro-regular.woff2") format("woff2");
 }
 
 @font-face {
-    font-family: "Clan Pro";
-    font-style: normal;
-    font-weight: 500;
-    font-display: swap;
-    src:
-        local("Clan Pro Medium"),
-        local("FF Clan Pro Medium"),
-        local("Clan OT Medium"),
-        url("/fonts/clan-pro/clan-pro-medium.woff2") format("woff2");
+  font-family: "Clan Pro";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src:
+    local("Clan Pro Medium"),
+    local("FF Clan Pro Medium"),
+    local("Clan OT Medium"),
+    url("/fonts/clan-pro/clan-pro-medium.woff2") format("woff2");
 }
 
 @font-face {
-    font-family: "Clan Pro";
-    font-style: normal;
-    font-weight: 700;
-    font-display: swap;
-    src:
-        local("Clan Pro Bold"),
-        local("FF Clan Pro Bold"),
-        local("Clan OT Bold"),
-        url("/fonts/clan-pro/clan-pro-bold.woff2") format("woff2");
+  font-family: "Clan Pro";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src:
+    local("Clan Pro Bold"),
+    local("FF Clan Pro Bold"),
+    local("Clan OT Bold"),
+    url("/fonts/clan-pro/clan-pro-bold.woff2") format("woff2");
 }

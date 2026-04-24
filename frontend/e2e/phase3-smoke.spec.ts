@@ -34,10 +34,7 @@ const FIXTURE_CDX = resolve(__dirname, "..", "..", "..", "Test_files", "test_fix
  * backend-dependent scenarios cleanly rather than hanging on upload.
  */
 async function isBackendUp(): Promise<boolean> {
-  const targets = [
-    "http://localhost/api/health",
-    "http://localhost:8000/api/health",
-  ];
+  const targets = ["http://localhost/api/health", "http://localhost:8000/api/health"];
   for (const url of targets) {
     try {
       const res = await fetch(url, {
