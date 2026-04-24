@@ -87,9 +87,33 @@ StardustButton.displayName = "StardustButton";
  */
 const stardustCss = `
 .stardust-button {
-  --pearl-bg: #0a1929;
-  --pearl-text: rgba(193, 228, 255, 0.95);
-  --pearl-accent: rgba(129, 216, 255, 0.9);
+  /* Light-mode (default) — sky-600 ocean pearl.
+   * Chosen distinct from --primary Apple Blue so the CTA still reads as
+   * a specialty button, not the generic primary. White text on sky-600
+   * passes WCAG AA (~5.0:1).
+   */
+  --pearl-bg: #0284c7;
+  --pearl-text: #ffffff;
+  --pearl-accent: #e0f2fe;
+  --pearl-rest-highlight: rgba(255, 255, 255, 0.55);
+  --pearl-rest-edge: rgba(8, 47, 73, 0.45);
+  --pearl-rest-underglow: rgba(186, 230, 253, 0.55);
+  --pearl-rest-drop-far: rgba(15, 23, 42, 0.18);
+  --pearl-rest-drop-near: rgba(15, 23, 42, 0.30);
+  --pearl-hover-highlight: rgba(255, 255, 255, 0.70);
+  --pearl-hover-edge: rgba(8, 47, 73, 0.50);
+  --pearl-hover-underglow: rgba(186, 230, 253, 0.75);
+  --pearl-hover-drop-far: rgba(15, 23, 42, 0.22);
+  --pearl-hover-drop-near: rgba(15, 23, 42, 0.38);
+  --pearl-active-highlight: rgba(255, 255, 255, 0.65);
+  --pearl-active-edge: rgba(8, 47, 73, 0.60);
+  --pearl-active-underglow: rgba(186, 230, 253, 0.45);
+  --pearl-active-drop-far: rgba(15, 23, 42, 0.20);
+  --pearl-active-drop-near: rgba(15, 23, 42, 0.40);
+  --pearl-bubble-bg: rgba(255, 255, 255, 0.35);
+  --pearl-gloss-start: rgba(255, 255, 255, 0.45);
+  --pearl-gloss-sheen: rgba(255, 255, 255, 0.60);
+
   outline: none;
   cursor: pointer;
   border: 0;
@@ -104,11 +128,36 @@ const stardustCss = `
     box-shadow 0.3s ease,
     transform 0.15s ease;
   box-shadow:
-    inset 0 0.3rem 0.9rem rgba(255, 255, 255, 0.3),
-    inset 0 -0.1rem 0.3rem rgba(0, 0, 0, 0.7),
-    inset 0 -0.4rem 0.9rem rgba(129, 216, 255, 0.5),
-    0 3rem 3rem rgba(0, 0, 0, 0.25),
-    0 1rem 1rem -0.6rem rgba(0, 0, 0, 0.7);
+    inset 0 0.3rem 0.9rem var(--pearl-rest-highlight),
+    inset 0 -0.1rem 0.3rem var(--pearl-rest-edge),
+    inset 0 -0.4rem 0.9rem var(--pearl-rest-underglow),
+    0 3rem 3rem var(--pearl-rest-drop-far),
+    0 1rem 1rem -0.6rem var(--pearl-rest-drop-near);
+}
+
+/* Dark-mode — original deep-navy pearl. */
+.dark .stardust-button {
+  --pearl-bg: #0a1929;
+  --pearl-text: rgba(193, 228, 255, 0.95);
+  --pearl-accent: rgba(129, 216, 255, 0.9);
+  --pearl-rest-highlight: rgba(255, 255, 255, 0.30);
+  --pearl-rest-edge: rgba(0, 0, 0, 0.70);
+  --pearl-rest-underglow: rgba(129, 216, 255, 0.50);
+  --pearl-rest-drop-far: rgba(0, 0, 0, 0.25);
+  --pearl-rest-drop-near: rgba(0, 0, 0, 0.70);
+  --pearl-hover-highlight: rgba(129, 216, 255, 0.40);
+  --pearl-hover-edge: rgba(0, 0, 0, 0.70);
+  --pearl-hover-underglow: rgba(64, 180, 255, 0.60);
+  --pearl-hover-drop-far: rgba(0, 0, 0, 0.30);
+  --pearl-hover-drop-near: rgba(0, 0, 0, 0.80);
+  --pearl-active-highlight: rgba(129, 216, 255, 0.50);
+  --pearl-active-edge: rgba(0, 0, 0, 0.80);
+  --pearl-active-underglow: rgba(64, 180, 255, 0.40);
+  --pearl-active-drop-far: rgba(0, 0, 0, 0.30);
+  --pearl-active-drop-near: rgba(0, 0, 0, 0.80);
+  --pearl-bubble-bg: rgba(64, 180, 255, 0.15);
+  --pearl-gloss-start: rgba(64, 180, 255, 0.25);
+  --pearl-gloss-sheen: rgba(129, 216, 255, 0.60);
 }
 
 .stardust-button__wrap {
@@ -133,7 +182,7 @@ const stardustCss = `
   bottom: 25%;
   top: -100%;
   border-radius: 50%;
-  background-color: rgba(64, 180, 255, 0.15);
+  background-color: var(--pearl-bubble-bg);
 }
 
 .stardust-button__wrap::after {
@@ -142,10 +191,10 @@ const stardustCss = `
   top: 12%;
   bottom: 40%;
   border-radius: 22px 22px 0 0;
-  box-shadow: inset 0 10px 8px -10px rgba(129, 216, 255, 0.6);
+  box-shadow: inset 0 10px 8px -10px var(--pearl-gloss-sheen);
   background: linear-gradient(
     180deg,
-    rgba(64, 180, 255, 0.25) 0%,
+    var(--pearl-gloss-start) 0%,
     rgba(0, 0, 0, 0) 50%,
     rgba(0, 0, 0, 0) 100%
   );
@@ -188,11 +237,11 @@ const stardustCss = `
 
 .stardust-button:hover:not(:disabled) {
   box-shadow:
-    inset 0 0.3rem 0.5rem rgba(129, 216, 255, 0.4),
-    inset 0 -0.1rem 0.3rem rgba(0, 0, 0, 0.7),
-    inset 0 -0.4rem 0.9rem rgba(64, 180, 255, 0.6),
-    0 3rem 3rem rgba(0, 0, 0, 0.3),
-    0 1rem 1rem -0.6rem rgba(0, 0, 0, 0.8);
+    inset 0 0.3rem 0.5rem var(--pearl-hover-highlight),
+    inset 0 -0.1rem 0.3rem var(--pearl-hover-edge),
+    inset 0 -0.4rem 0.9rem var(--pearl-hover-underglow),
+    0 3rem 3rem var(--pearl-hover-drop-far),
+    0 1rem 1rem -0.6rem var(--pearl-hover-drop-near);
 }
 .stardust-button:hover:not(:disabled) .stardust-button__wrap::before {
   transform: translateY(-5%);
@@ -217,11 +266,11 @@ const stardustCss = `
 .stardust-button:active:not(:disabled) {
   transform: translateY(3px);
   box-shadow:
-    inset 0 0.3rem 0.5rem rgba(129, 216, 255, 0.5),
-    inset 0 -0.1rem 0.3rem rgba(0, 0, 0, 0.8),
-    inset 0 -0.4rem 0.9rem rgba(64, 180, 255, 0.4),
-    0 1.5rem 1.5rem rgba(0, 0, 0, 0.3),
-    0 0.5rem 0.5rem -0.3rem rgba(0, 0, 0, 0.8);
+    inset 0 0.3rem 0.5rem var(--pearl-active-highlight),
+    inset 0 -0.1rem 0.3rem var(--pearl-active-edge),
+    inset 0 -0.4rem 0.9rem var(--pearl-active-underglow),
+    0 1.5rem 1.5rem var(--pearl-active-drop-far),
+    0 0.5rem 0.5rem -0.3rem var(--pearl-active-drop-near);
 }
 
 .stardust-button:focus-visible {
