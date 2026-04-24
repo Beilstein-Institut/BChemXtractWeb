@@ -32,7 +32,7 @@ import { Separator } from "@/components/ui/separator";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DidYouMean } from "@/components/DidYouMean";
 import { SearchResultCard } from "@/components/SearchResultCard";
-import { useSearch } from "@/hooks/useSearch";
+import { useSearch } from "@/context/SearchContext";
 import type { SearchType } from "@/types/search";
 
 const PAGE_SIZE = 24;

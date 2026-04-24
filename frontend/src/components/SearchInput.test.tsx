@@ -138,8 +138,17 @@ vi.mock("@base-ui/react/merge-props", () => ({
 
 // Import AFTER the mocks so the module graph picks them up.
 import { SearchInput } from "@/components/SearchInput";
+import { SearchProvider } from "@/context/SearchContext";
 import { searchInputRef } from "@/lib/searchFocus";
 import { postSearch } from "@/lib/apiClient";
+
+/**
+ * Every render() must wrap the component in <SearchProvider> — useSearch
+ * throws if called outside the provider (Task 16).
+ */
+function renderWithProvider(ui: React.ReactElement) {
+  return render(<SearchProvider>{ui}</SearchProvider>);
+}
 
 describe("SearchInput", () => {
   beforeEach(() => {
@@ -149,20 +158,20 @@ describe("SearchInput", () => {
   });
 
   it("renders placeholder", () => {
-    render(<SearchInput />);
+    renderWithProvider(<SearchInput />);
     expect(screen.getAllByPlaceholderText("Search structures…").length).toBeGreaterThan(0);
   });
 
   it("publishes its input element to searchInputRef on mount (fix #8)", () => {
     // Drop any leftover pointer from a prior render (ref is module-scoped).
     searchInputRef.current = null;
-    render(<SearchInput />);
+    renderWithProvider(<SearchInput />);
     expect(searchInputRef.current).not.toBeNull();
     expect(searchInputRef.current?.tagName).toBe("INPUT");
   });
 
   it("focuses on `/` keydown from body", () => {
-    render(<SearchInput />);
+    renderWithProvider(<SearchInput />);
     // Desktop input is first; mobile sheet is hidden (md:hidden).
     const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
     expect(document.activeElement).not.toBe(input);
@@ -171,7 +180,7 @@ describe("SearchInput", () => {
   });
 
   it("does NOT focus on `/` when already inside an input", () => {
-    render(
+    renderWithProvider(
       <>
         <input data-testid="other" />
         <SearchInput />
@@ -184,7 +193,7 @@ describe("SearchInput", () => {
   });
 
   it("clears + blurs on Escape", () => {
-    render(<SearchInput />);
+    renderWithProvider(<SearchInput />);
     const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
     input.focus();
     fireEvent.change(input, { target: { value: "foo" } });
@@ -194,26 +203,26 @@ describe("SearchInput", () => {
   });
 
   it("shows type badge after ≥ 2 chars are typed (Formula detection)", () => {
-    render(<SearchInput />);
+    renderWithProvider(<SearchInput />);
     const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "C6H6" } });
     expect(screen.getAllByText("Formula").length).toBeGreaterThan(0);
   });
 
   it("does not render Submit search button when query is empty", () => {
-    render(<SearchInput />);
+    renderWithProvider(<SearchInput />);
     expect(screen.queryByRole("button", { name: "Submit search" })).toBeNull();
   });
 
   it("renders Submit search button once query has content", () => {
-    render(<SearchInput />);
+    renderWithProvider(<SearchInput />);
     const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "C" } });
     expect(screen.getAllByRole("button", { name: "Submit search" }).length).toBeGreaterThan(0);
   });
 
   it("detects a 14-char partial InChI key as type 'InChI key'", () => {
-    render(<SearchInput />);
+    renderWithProvider(<SearchInput />);
     const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "JVTAAEKCZFNVCJ" } });
     // The badge's trigger button exposes the detected type via aria-label.
@@ -228,7 +237,7 @@ describe("SearchInput", () => {
   });
 
   it("detects a 14-10 partial InChI key as type 'InChI key'", () => {
-    render(<SearchInput />);
+    renderWithProvider(<SearchInput />);
     const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
     fireEvent.change(input, {
       target: { value: "JVTAAEKCZFNVCJ-REOHCLBHSA" },
@@ -242,7 +251,7 @@ describe("SearchInput", () => {
 
   it("clicking Submit search fires a search request", () => {
     const mockPost = vi.mocked(postSearch);
-    render(<SearchInput />);
+    renderWithProvider(<SearchInput />);
     const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "C6H6" } });
     mockPost.mockClear();

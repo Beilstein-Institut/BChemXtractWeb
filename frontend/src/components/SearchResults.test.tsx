@@ -176,6 +176,15 @@ vi.mock("@base-ui/react/tooltip", () => {
 
 // Import AFTER mocks.
 import { SearchResults } from "@/components/SearchResults";
+import { SearchProvider } from "@/context/SearchContext";
+
+/**
+ * Every render() must wrap the component in <SearchProvider> — useSearch
+ * throws if called outside the provider (Task 16).
+ */
+function renderWithProvider(ui: React.ReactElement) {
+  return render(<SearchProvider>{ui}</SearchProvider>);
+}
 
 describe("SearchResults", () => {
   beforeEach(() => {
@@ -220,7 +229,7 @@ describe("SearchResults", () => {
       warnings: [],
     });
 
-    render(<SearchResults />);
+    renderWithProvider(<SearchResults />);
     // "results for " appears in the metadata row AND the sr-only "Search
     // results" h2 also matches /result/ — use getAllByText and assert ≥1.
     await waitFor(() => {
@@ -243,7 +252,7 @@ describe("SearchResults", () => {
       size: 24,
       warnings: [],
     });
-    render(<SearchResults />);
+    renderWithProvider(<SearchResults />);
     await waitFor(() => {
       expect(screen.getByText(/No matches for/)).toBeInTheDocument();
     });
@@ -252,7 +261,7 @@ describe("SearchResults", () => {
   it("renders retry in error branch", async () => {
     window.history.replaceState(null, "", "/?q=will-fail");
     mockPostSearch.mockRejectedValueOnce(new Error("Search failed — boom"));
-    render(<SearchResults />);
+    renderWithProvider(<SearchResults />);
     await waitFor(() => {
       expect(screen.getByText(/didn't work/)).toBeInTheDocument();
     });
@@ -269,7 +278,7 @@ describe("SearchResults", () => {
       size: 24,
       warnings: ["3 substances could not be parsed and were skipped"],
     });
-    render(<SearchResults />);
+    renderWithProvider(<SearchResults />);
     await waitFor(() => {
       expect(sonner.toast.warning as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledWith(
         expect.stringContaining("could not be parsed"),

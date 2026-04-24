@@ -23,7 +23,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
-import { useSearch } from "@/hooks/useSearch";
+import { useSearch } from "@/context/SearchContext";
 import { searchInputRef } from "@/lib/searchFocus";
 import type { SearchType } from "@/types/search";
 import { cn } from "@/lib/utils";

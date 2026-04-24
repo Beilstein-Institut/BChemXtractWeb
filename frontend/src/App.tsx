@@ -5,6 +5,7 @@ import { DeferredCommandPalette } from "@/components/DeferredCommandPalette";
 import { PageSuspenseFallback } from "@/components/PageSuspenseFallback";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ThemeProvider } from "@/components/theme-provider";
+import { SearchProvider } from "@/context/SearchContext";
 import { useBatch } from "@/hooks/useBatch";
 import { useExtract } from "@/hooks/useExtract";
 import { useHistory } from "@/hooks/useHistory";
@@ -253,19 +254,21 @@ function App() {
 
   return (
     <ThemeProvider defaultTheme="system" storageKey="bchemxtract-theme">
-      <div className="flex min-h-screen flex-col bg-background text-foreground">
-        <AppHeader />
-        <main className="mx-auto w-full max-w-7xl flex-1 px-6 pt-24 pb-12">
-          <Suspense fallback={<PageSuspenseFallback />}>{renderRoute()}</Suspense>
-        </main>
-        <SiteFooter />
-        {/* Task 14: globally mounted so ⌘K works from any route.
-         *  Lazy-loaded on first ⌘K to keep motion/react out of the
-         *  initial bundle — see DeferredCommandPalette.
-         */}
-        <DeferredCommandPalette />
-      </div>
-      <Toaster richColors />
+      <SearchProvider>
+        <div className="flex min-h-screen flex-col bg-background text-foreground">
+          <AppHeader />
+          <main className="mx-auto w-full max-w-7xl flex-1 px-6 pt-24 pb-12">
+            <Suspense fallback={<PageSuspenseFallback />}>{renderRoute()}</Suspense>
+          </main>
+          <SiteFooter />
+          {/* Task 14: globally mounted so ⌘K works from any route.
+           *  Lazy-loaded on first ⌘K to keep motion/react out of the
+           *  initial bundle — see DeferredCommandPalette.
+           */}
+          <DeferredCommandPalette />
+        </div>
+        <Toaster richColors />
+      </SearchProvider>
     </ThemeProvider>
   );
 }
