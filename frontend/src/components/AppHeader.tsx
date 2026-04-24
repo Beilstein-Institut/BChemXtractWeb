@@ -45,7 +45,7 @@ function Logo() {
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-full",
       )}
     >
-      <img src="/bchemxtract-logo.svg" alt="" aria-hidden="true" className="h-8 w-8 shrink-0" />
+      <img src="/bchemxtract-logo.png" alt="" aria-hidden="true" className="h-8 w-8 shrink-0" />
       <BrandName />
     </Link>
   );
