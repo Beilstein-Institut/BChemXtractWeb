@@ -95,7 +95,18 @@ function renderTrailingAffordance(args: {
 }
 
 export function SearchInput({ className }: { className?: string }) {
-  const { query, type, searchState, setQuery, setType, clear, submit } = useSearch();
+  const {
+    query,
+    type,
+    searchState,
+    stereo,
+    queryValidity,
+    setQuery,
+    setType,
+    setStereo,
+    clear,
+    submit,
+  } = useSearch();
 
   const headerInputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
@@ -139,6 +150,22 @@ export function SearchInput({ className }: { className?: string }) {
   const effectiveType = type === "auto" && query.length >= 2 ? detectHint(query) : type;
   const badgeLabel =
     effectiveType !== "auto" && query.length >= 2 ? TYPE_LABEL[effectiveType] : null;
+
+  // For substructure queries, surface live parse-validation state on the
+  // badge. Invalid → red destructive; valid → language (SMILES/SMARTS);
+  // anything else falls back to the existing detected-type label.
+  const validityBadge: {
+    label: string;
+    tone: "destructive" | "secondary";
+    tooltip: string | null;
+  } | null =
+    type === "substructure" && queryValidity.state === "invalid"
+      ? { label: "Invalid", tone: "destructive", tooltip: queryValidity.error }
+      : type === "substructure" && queryValidity.state === "valid"
+        ? { label: queryValidity.language.toUpperCase(), tone: "secondary", tooltip: null }
+        : badgeLabel
+          ? { label: badgeLabel, tone: "secondary", tooltip: null }
+          : null;
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Escape") {
@@ -227,19 +254,31 @@ export function SearchInput({ className }: { className?: string }) {
           Press slash to focus search from anywhere. Press Escape to clear.
         </span>
         <div className={cn("absolute flex items-center gap-1", isHeader ? "right-2" : "right-1.5")}>
-          {badgeLabel && (
+          {validityBadge && (
             <Popover>
               <PopoverTrigger
                 render={
                   <button
                     type="button"
-                    aria-label={`Detected type: ${badgeLabel}. Click to override.`}
+                    aria-label={
+                      validityBadge.tone === "destructive"
+                        ? `Invalid query${validityBadge.tooltip ? `: ${validityBadge.tooltip}` : ""}. Click to override type.`
+                        : `Detected type: ${validityBadge.label}. Click to override.`
+                    }
+                    title={validityBadge.tooltip ?? undefined}
                     className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
                   />
                 }
               >
-                <Badge variant="secondary" className="h-5 px-1.5 text-micro font-semibold">
-                  {badgeLabel}
+                <Badge
+                  variant="secondary"
+                  className={cn(
+                    "h-5 px-1.5 text-micro font-semibold",
+                    validityBadge.tone === "destructive" &&
+                      "bg-destructive text-destructive-foreground destructive",
+                  )}
+                >
+                  {validityBadge.label}
                 </Badge>
               </PopoverTrigger>
               <PopoverContent align="end" className="w-56 flex flex-col gap-2 p-3">
@@ -255,6 +294,24 @@ export function SearchInput({ className }: { className?: string }) {
                     <span className="text-caption">{TYPE_LABEL[t]}</span>
                   </label>
                 ))}
+                {type === "substructure" && (
+                  <>
+                    <div className="border-t border-border my-1" />
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={stereo}
+                        onChange={(e) => setStereo(e.target.checked)}
+                        aria-label="Match stereochemistry"
+                      />
+                      <span className="text-caption">Match stereochemistry</span>
+                    </label>
+                    <p className="text-micro text-muted-foreground">
+                      When off (default), {"@"}, {"/"}, {"\\"} in the query are
+                      ignored so both enantiomers match.
+                    </p>
+                  </>
+                )}
                 <button
                   type="button"
                   className="text-micro text-primary underline-offset-2 hover:underline mt-2 self-start"

@@ -11,9 +11,9 @@
  * complexity in jsdom (same pattern as BrowseToolbar.test.tsx).
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 
-// Stub postSearch — we're testing UI behavior, not network.
+// Stub postSearch / postSearchValidate — we're testing UI behavior, not network.
 vi.mock("@/lib/apiClient", () => ({
   postSearch: vi.fn(() =>
     Promise.resolve({
@@ -22,6 +22,14 @@ vi.mock("@/lib/apiClient", () => ({
       page: 1,
       size: 24,
       warnings: [],
+    }),
+  ),
+  postSearchValidate: vi.fn(() =>
+    Promise.resolve({
+      valid: true,
+      language: "smiles",
+      atom_count: 1,
+      error: null,
     }),
   ),
 }));
@@ -140,7 +148,7 @@ vi.mock("@base-ui/react/merge-props", () => ({
 import { SearchInput } from "@/components/SearchInput";
 import { SearchProvider } from "@/context/SearchContext";
 import { searchInputRef } from "@/lib/searchFocus";
-import { postSearch } from "@/lib/apiClient";
+import { postSearch, postSearchValidate } from "@/lib/apiClient";
 
 /**
  * Every render() must wrap the component in <SearchProvider> — useSearch
@@ -258,5 +266,78 @@ describe("SearchInput", () => {
     const btn = screen.getAllByRole("button", { name: "Submit search" })[0];
     fireEvent.click(btn);
     expect(mockPost).toHaveBeenCalled();
+  });
+});
+
+describe("SearchInput — stereo + validity", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/");
+    vi.mocked(postSearchValidate).mockReset();
+    vi.mocked(postSearchValidate).mockResolvedValue({
+      valid: true,
+      language: "smiles",
+      atom_count: 1,
+      error: null,
+    });
+  });
+
+  it("stereo toggle appears in the type popover when type is substructure", () => {
+    // Seed URL so useSearchImpl picks substructure type + a non-empty query
+    // (badge only renders once the query has ≥2 chars).
+    window.history.replaceState(null, "", "/?type=substructure&q=CCO");
+    renderWithProvider(<SearchInput />);
+    // The popover mock renders its content inline (no open gating), so the
+    // "Match stereochemistry" checkbox is reachable via its aria-label.
+    const toggles = screen.getAllByRole("checkbox", { name: /match stereochemistry/i });
+    expect(toggles.length).toBeGreaterThan(0);
+    // Default stereo is false → checkbox is unchecked.
+    expect((toggles[0] as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(toggles[0]);
+    expect((toggles[0] as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("invalid substructure query shows a destructive validity badge", async () => {
+    vi.mocked(postSearchValidate).mockResolvedValue({
+      valid: false,
+      language: null,
+      atom_count: 0,
+      error: "Unclosed ring",
+    });
+    window.history.replaceState(null, "", "/?type=substructure");
+    renderWithProvider(<SearchInput />);
+    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "c1ccc(((" } });
+    // Wait for the 150ms validate debounce + promise resolution.
+    await waitFor(
+      () => {
+        const triggers = screen.getAllByRole("button", { name: /Invalid query/i });
+        expect(triggers.length).toBeGreaterThan(0);
+      },
+      { timeout: 1500 },
+    );
+    // The badge inside the trigger carries destructive styling so users can
+    // see the parse failure at a glance.
+    const trigger = screen.getAllByRole("button", { name: /Invalid query/i })[0];
+    const badge = within(trigger).getByText("Invalid");
+    expect(badge.className).toMatch(/destructive/);
+  });
+
+  it("valid substructure query shows a SMILES/SMARTS language badge", async () => {
+    vi.mocked(postSearchValidate).mockResolvedValue({
+      valid: true,
+      language: "smarts",
+      atom_count: 3,
+      error: null,
+    });
+    window.history.replaceState(null, "", "/?type=substructure");
+    renderWithProvider(<SearchInput />);
+    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "[#6]=[#6]" } });
+    await waitFor(
+      () => {
+        expect(screen.getAllByText("SMARTS").length).toBeGreaterThan(0);
+      },
+      { timeout: 1500 },
+    );
   });
 });
