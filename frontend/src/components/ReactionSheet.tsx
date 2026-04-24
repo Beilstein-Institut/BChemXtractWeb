@@ -229,9 +229,11 @@ export function ReactionSheet({
          * flex-none + explicit height prevents the flex-col parent
          * (SheetContent) from shrinking this region — without it the
          * depiction collapses to near-zero when the metadata below
-         * overflows. bg-surface-muted keeps the container visible
-         * against the cream bg in light mode. */}
-        <div className="relative flex-none h-[420px] md:h-[520px] bg-surface-muted dark:bg-background rounded-xl border border-border mx-4 overflow-hidden">
+         * overflows. bg-white in both themes because CDK strokes are
+         * hard black and need a light canvas for legibility; in dark
+         * mode this reads as a paper tile. CDK's white backdrop rect
+         * is stripped server-side so it doesn't double-paint. */}
+        <div className="relative flex-none h-[420px] md:h-[520px] bg-white rounded-xl border border-border mx-4 overflow-hidden">
           {svgSrc ? (
             <div className="w-full h-full overflow-auto flex items-center justify-center">
               <img

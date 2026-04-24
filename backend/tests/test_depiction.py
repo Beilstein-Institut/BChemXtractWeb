@@ -127,3 +127,43 @@ async def test_highlight_bad_indices_falls_back_gracefully(started_app) -> None:
     svg = await run_in_jvm_thread(_call)
     assert svg, "out-of-range indices must not yield an empty SVG"
     assert "<svg" in svg
+
+
+class TestSanitizeSvgBackgroundStrip:
+    """sanitize_svg removes CDK's opaque white backdrop rect so the
+    parent container's theme background shows through."""
+
+    def test_strips_cdk_white_hex_backdrop(self) -> None:
+        from app.services.depiction import sanitize_svg
+        raw = (
+            "<svg xmlns='http://www.w3.org/2000/svg'>"
+            "<rect x='.0' y='.0' width='31.0' height='38.0' "
+            "fill='#FFFFFF' stroke='none'/>"
+            "<line x1='1' y1='1' x2='2' y2='2' stroke='#000'/>"
+            "</svg>"
+        )
+        cleaned = sanitize_svg(raw)
+        assert "<rect" not in cleaned
+        assert "<line" in cleaned  # chemistry content preserved
+
+    def test_strips_cdk_white_named_backdrop(self) -> None:
+        from app.services.depiction import sanitize_svg
+        raw = (
+            "<svg><rect x='0' y='0' width='100' height='100' "
+            "fill='white' stroke='none' /></svg>"
+        )
+        assert "<rect" not in sanitize_svg(raw)
+
+    def test_preserves_rects_with_non_none_stroke(self) -> None:
+        """Highlight boxes etc. use stroked rects — must not be stripped."""
+        from app.services.depiction import sanitize_svg
+        raw = (
+            "<svg><rect x='0' y='0' width='10' height='10' "
+            "fill='#FFFFFF' stroke='#000' stroke-width='1'/></svg>"
+        )
+        assert "<rect" in sanitize_svg(raw)
+
+    def test_preserves_non_white_rects(self) -> None:
+        from app.services.depiction import sanitize_svg
+        raw = "<svg><rect fill='#0071E3' stroke='none'/></svg>"
+        assert "<rect" in sanitize_svg(raw)

@@ -80,11 +80,14 @@ export function ReactionCard({
       }}
     >
       {/* SVG container — responsive height per UI-SPEC §4.
-       * bg-surface-muted keeps the depiction container visible against
-       * the near-white page background in light mode (bg-background
-       * blended in). In dark mode the original bg-background still
-       * reads as a carved divot against the card surface. */}
-      <div className="flex items-center justify-center bg-surface-muted dark:bg-background rounded-t-xl p-6 h-[240px] md:h-[320px] lg:h-[400px]">
+       * bg-white in both themes because CDK depicts chemistry with
+       * hard black strokes that are unreadable on any dark surface.
+       * The white "paper" + border creates a scientific-publication
+       * feel and, in dark mode, reads as a paper tile floating above
+       * the page. CDK's opaque white backdrop rect is stripped
+       * server-side (sanitize_svg) so it doesn't double-paint inside
+       * this container. */}
+      <div className="flex items-center justify-center bg-white rounded-t-xl p-6 h-[240px] md:h-[320px] lg:h-[400px]">
         {svgSrc ? (
           <img
             src={svgSrc}

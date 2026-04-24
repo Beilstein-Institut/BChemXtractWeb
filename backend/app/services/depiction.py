@@ -51,15 +51,40 @@ _JAVASCRIPT_URL_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Matches CDK's opaque-white background rect:
+#   <rect x='.0' y='.0' width='31.0' height='38.0' fill='#FFFFFF' stroke='none'/>
+# DepictionGenerator emits this as the first element inside the root <g>
+# group to paint a white canvas behind the chemistry. That hard white
+# rectangle clashes with themed container backgrounds (dark-mode navy,
+# light-mode cream), producing a visible "white patch" with unfilled
+# margins. Stripping it lets the parent div's background show through —
+# the black strokes stay visible on any theme.
+#
+# Strict matcher: requires BOTH a white fill AND stroke='none' on a
+# self-closing <rect/>. That combination is unique to CDK's backdrop;
+# chemistry atoms / bonds never render as self-closing rects without a
+# stroke, and highlight boxes always carry a non-none stroke or alpha
+# channel in the fill. False-positive risk is negligible.
+_CDK_WHITE_BACKGROUND_RECT_RE = re.compile(
+    rb"<\s*rect\b"
+    rb"(?=[^>]*\bfill\s*=\s*[\"'](?:#[fF]{6}|white)[\"'])"
+    rb"(?=[^>]*\bstroke\s*=\s*[\"']none[\"'])"
+    rb"[^>]*/\s*>",
+    re.IGNORECASE,
+)
+
 
 def sanitize_svg(svg: str) -> str:
-    """Strip scriptable constructs from an SVG string (SEC L-05).
+    """Strip scriptable constructs + CDK's white backdrop (SEC L-05).
 
     Removes:
       * ``<script>...</script>`` tags
       * ``<foreignObject>...</foreignObject>`` blocks (they host HTML)
       * ``on*="..."`` event-handler attributes
       * ``href``/``xlink:href``/``src`` values with a ``javascript:`` scheme
+      * CDK DepictionGenerator's opaque white background ``<rect/>`` so the
+        parent container's own background shows through (matches the theme
+        instead of clashing as a white patch on dark / tinted backgrounds).
 
     Args:
         svg: Raw SVG markup as produced by CDK.
@@ -74,6 +99,7 @@ def sanitize_svg(svg: str) -> str:
     raw = _FOREIGN_OBJECT_RE.sub(b"", raw)
     raw = _ON_EVENT_ATTR_RE.sub(b"", raw)
     raw = _JAVASCRIPT_URL_RE.sub(rb"\1=\2#\2", raw)
+    raw = _CDK_WHITE_BACKGROUND_RECT_RE.sub(b"", raw)
     return raw.decode("utf-8", errors="replace")
 
 
