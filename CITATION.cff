@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+message: "If you use BChemXtractWeb in your research, please cite it as below."
+title: "BChemXtractWeb: A web application for extracting chemical structures and reactions from ChemDraw files"
+abstract: >-
+  BChemXtractWeb is a browser-based interface and REST API for the pure-Java
+  BChemXtract library. It lets chemists upload ChemDraw CDX/CDXML files and
+  extract structures and reactions — enriched with InChI, InChIKey, SMILES,
+  RInChI, and molecular formulas — without installing Java or a command line.
+authors:
+  - family-names: Rajan
+    given-names: Kohulan
+    orcid: "https://orcid.org/0000-0003-1066-7792"
+    affiliation: "Beilstein-Institut zur Förderung der Chemischen Wissenschaften"
+    email: "krajan@beilstein-institut.de"
+  - family-names: Bänsch
+    given-names: Felix
+    affiliation: "Beilstein-Institut zur Förderung der Chemischen Wissenschaften"
+    email: "open-source@beilstein-institut.de"
+repository-code: "https://github.com/Beilstein-Institut/BChemXtractWeb"
+url: "https://github.com/Beilstein-Institut/BChemXtractWeb"
+license: MIT
+keywords:
+  - cheminformatics
+  - chemdraw
+  - cdx
+  - cdxml
+  - smiles
+  - inchi
+  - rinchi
+  - structure-extraction
+  - reaction-extraction
+  - fastapi
+  - react
+  - jpype
+  - cdk
+  - web-application
+  - open-science
+date-released: 2026-04-24
