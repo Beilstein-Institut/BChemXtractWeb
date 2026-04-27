@@ -2,9 +2,7 @@
 
 <img src="./assets/logo/bchemxtract-wordmark.png" alt="BChemXtract logo" width="560" />
 
-# BChemXtractWeb
-
-### *Extract. Browse. Search. Export.*
+## *Extract. Browse. Search. Export.*
 
 **A browser-first gateway to the [BChemXtract](https://github.com/Beilstein-Institut/BChemXtract) Java library — so any chemist can pull structures and reactions out of ChemDraw files without ever opening a terminal.**
 
