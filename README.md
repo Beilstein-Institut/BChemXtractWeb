@@ -151,7 +151,22 @@ flowchart LR
 
 ## ⚡ Quick Start
 
-The fastest path: **Docker Compose does everything.**
+**The fastest path — one script does everything:**
+
+```bash
+git clone --recurse-submodules https://github.com/Beilstein-Institut/BChemXtractWeb.git
+cd BChemXtractWeb
+./deploy.sh
+```
+
+`deploy.sh` runs preflight checks, initializes submodules, builds the BChemXtract fat JAR (one-time), generates random secrets into `.env` (skipped if `.env` already exists), and brings the stack up via `docker compose`. Re-run with `--rotate-keys` to cycle the API tokens later.
+
+Open **<http://localhost>**. The API is behind nginx at `/api`, the interactive docs at `/docs`.
+
+<details>
+<summary><b>🛠️ Manual setup (no script)</b></summary>
+
+<br>
 
 ```bash
 git clone --recurse-submodules https://github.com/Beilstein-Institut/BChemXtractWeb.git
@@ -165,7 +180,7 @@ cd backend && bash scripts/build_jar.sh && cd ..
 docker compose up -d --build
 ```
 
-Open **<http://localhost>**. The API is behind nginx at `/api`, the interactive docs at `/docs`.
+</details>
 
 <details>
 <summary><b>🔑 Generating <code>.env</code> secrets</b></summary>
@@ -194,7 +209,7 @@ Easiest path: generate one token, use it as both the sole entry of `API_KEYS` an
 Useful if you're iterating on the backend or frontend directly:
 
 ```bash
-# Backend — Python 3.11 + Java 17 JDK required
+# Backend — Python 3.11 + Java 21 JDK + Maven 3.8+ required
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
@@ -306,7 +321,7 @@ pytest · pytest-asyncio
 **[BChemXtract](https://github.com/Beilstein-Institut/BChemXtract)** (fat JAR)<br>
 **[CDK 2.12](https://cdk.github.io/)** — parsing + depiction<br>
 [JPype 1.7](https://github.com/jpype-project/jpype) bridge<br>
-Java 17 JDK
+Java 21 JDK
 
 </td>
 </tr>

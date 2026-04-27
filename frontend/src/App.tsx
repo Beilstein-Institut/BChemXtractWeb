@@ -9,7 +9,7 @@ import { SearchProvider } from "@/context/SearchContext";
 import { useBatch } from "@/hooks/useBatch";
 import { useExtract } from "@/hooks/useExtract";
 import { useHistory } from "@/hooks/useHistory";
-import { getExtractionReactions } from "@/lib/apiClient";
+import { getExtractionReactions, getHistoryDetail } from "@/lib/apiClient";
 import { navigate, useRoute } from "@/lib/router";
 import { searchInputRef } from "@/lib/searchFocus";
 import { BrowsePage } from "@/pages/BrowsePage";
@@ -175,10 +175,21 @@ function App() {
     navigate("/browse");
   }, []);
 
-  const handleViewExtraction = useCallback((extractionId: number) => {
-    setActiveExtractionId(extractionId);
-    navigate("/browse");
-  }, []);
+  // Fetches the full ExtractionResponse so the Bento (driven by `activeResult`)
+  // and the paginated grid (driven by `activeExtractionId` via useBrowse) both
+  // reflect the same extraction. Without the fetch, only the grid updates and
+  // the Bento stays stuck on whatever last set historicalResult.
+  const handleViewExtraction = useCallback(
+    async (extractionId: number) => {
+      try {
+        const response = await getHistoryDetail(extractionId);
+        handleReloadSuccess(response);
+      } catch {
+        toast.error("Failed to load extraction. Try again.");
+      }
+    },
+    [handleReloadSuccess],
+  );
 
   const handleSearchWithin = useCallback(() => {
     if (!activeExtractionId) return;

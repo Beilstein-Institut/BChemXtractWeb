@@ -165,6 +165,17 @@ services:
       API_KEYS: ${API_KEYS:?API_KEYS must be set}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
+    # Override the Dockerfile's baked-in HEALTHCHECK, which curls :8000 — that
+    # is correct for the backend service (uvicorn) but wrong for this container,
+    # which runs a Celery worker and has no HTTP server. `inspect ping`
+    # round-trips through Redis, confirming both the worker process is alive
+    # and the broker is reachable.
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.celery_app inspect ping -d celery@$$(hostname) -t 10 >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 60s
 
 volumes:
   pgdata:
