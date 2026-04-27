@@ -156,7 +156,7 @@ The fastest path: **Docker Compose does everything.**
 ```bash
 git clone --recurse-submodules https://github.com/Beilstein-Institut/BChemXtractWeb.git
 cd BChemXtractWeb
-cp .env.example .env          # set POSTGRES_PASSWORD + API_KEYS
+cp .env.example .env          # then fill in secrets — see "Generating .env secrets" below
 
 # First-time only — builds the upstream BChemXtract fat JAR
 cd backend && bash scripts/build_jar.sh && cd ..
@@ -166,6 +166,25 @@ docker compose up -d --build
 ```
 
 Open **<http://localhost>**. The API is behind nginx at `/api`, the interactive docs at `/docs`.
+
+<details>
+<summary><b>🔑 Generating <code>.env</code> secrets</b></summary>
+
+<br>
+
+`.env` needs three random values. Generate each with:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+- **`POSTGRES_PASSWORD`** — any 32+ character random string. Compose refuses to start without it.
+- **`API_KEYS`** — JSON array of bearer tokens, e.g. `["xK3...your-token..."]`. Each token must be **≥16 characters** (the Settings validator rejects shorter values). Multiple entries enable zero-downtime rotation — add the new one, switch clients over, then remove the old one.
+- **`BROWSER_API_KEY`** — must match one of the entries in `API_KEYS`. nginx injects this into `/api/*` requests from the SPA so the key never ships in the frontend bundle.
+
+Easiest path: generate one token, use it as both the sole entry of `API_KEYS` and as `BROWSER_API_KEY`.
+
+</details>
 
 <details>
 <summary><b>🧑‍💻 Running the dev stack without Docker</b></summary>
