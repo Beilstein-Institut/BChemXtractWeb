@@ -5,7 +5,7 @@
 #   bash scripts/build_jar.sh            # Build from pinned submodule tag
 #   bash scripts/build_jar.sh --update   # Fetch latest upstream tag first
 #
-# Prerequisites: Java 17+ JDK, Maven 3.8+
+# Prerequisites: Java 21+ JDK, Maven 3.8+
 
 set -euo pipefail
 
