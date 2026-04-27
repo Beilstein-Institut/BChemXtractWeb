@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./assets/logo/bchemxtract-logo.png" alt="BChemXtractWeb logo" width="220" />
+<img src="./assets/logo/bchemxtract-wordmark.png" alt="BChemXtract logo" width="560" />
 
 # BChemXtractWeb
 
@@ -363,7 +363,7 @@ Released under the **[MIT License](./LICENSE)** — © 2026 Beilstein-Institut z
 
 <div align="center">
 
-<img src="./assets/logo/bchemxtract-logo.png" alt="BChemXtractWeb" width="72" />
+<img src="./assets/logo/bchemxtract-icon.png" alt="BChemXtract" width="72" />
 
 <sub><i>Parse the drawings. Keep the chemistry.</i></sub>
 
