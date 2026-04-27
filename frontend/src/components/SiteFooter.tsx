@@ -91,7 +91,7 @@ export function SiteFooter() {
         text: (
           <span className="inline-flex items-center gap-2 whitespace-nowrap">
             <img
-              src="/bchemxtract-logo.png"
+              src="/bchemxtract-logo.svg"
               alt=""
               aria-hidden="true"
               className="h-5 w-5 shrink-0"
