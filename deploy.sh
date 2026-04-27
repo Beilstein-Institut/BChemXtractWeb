@@ -65,8 +65,22 @@ git submodule update --init --recursive
 ok 'submodules ready'
 
 if compgen -G "backend/jars/bchemxtract-*-jar-with-dependencies.jar" >/dev/null; then
-  ok 'BChemXtract JAR already built — skipping'
+  ok 'BChemXtract JAR already built — skipping (no JDK/Maven needed for this run)'
 else
+  # JDK 21+ and Maven are only required when the upstream JAR has to be built.
+  command -v mvn >/dev/null || die "$(cat <<'MSG'
+maven not found — needed to build the BChemXtract JAR. Install one of:
+    Debian/Ubuntu:  sudo apt install -y maven default-jdk
+    RHEL/Fedora:    sudo dnf install -y maven java-21-openjdk-devel
+    macOS (brew):   brew install maven openjdk@21
+MSG
+)"
+  command -v javac >/dev/null \
+    || die "javac not found — Java 21+ JDK required (a JRE is not enough)"
+  JAVA_MAJOR=$(java -version 2>&1 | awk -F'"' '/version/ {print $2}' | awk -F. '{print $1}')
+  [[ "${JAVA_MAJOR:-0}" =~ ^[0-9]+$ && "${JAVA_MAJOR:-0}" -ge 21 ]] \
+    || die "Java 21+ required (found: ${JAVA_MAJOR:-unknown}). The runtime container ships JDK 21; please match it on the host."
+  ok "java: $JAVA_MAJOR · maven: $(mvn -v 2>/dev/null | awk '/Apache Maven/ {print $3; exit}')"
   info 'Building BChemXtract fat JAR (one-time, ~1–2 min)'
   ( cd backend && bash scripts/build_jar.sh )
   ok 'JAR built'

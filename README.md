@@ -207,7 +207,7 @@ Easiest path: generate one token, use it as both the sole entry of `API_KEYS` an
 Useful if you're iterating on the backend or frontend directly:
 
 ```bash
-# Backend — Python 3.11 + Java 17 JDK required
+# Backend — Python 3.11 + Java 21 JDK + Maven 3.8+ required
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
@@ -319,7 +319,7 @@ pytest · pytest-asyncio
 **[BChemXtract](https://github.com/Beilstein-Institut/BChemXtract)** (fat JAR)<br>
 **[CDK 2.12](https://cdk.github.io/)** — parsing + depiction<br>
 [JPype 1.7](https://github.com/jpype-project/jpype) bridge<br>
-Java 17 JDK
+Java 21 JDK
 
 </td>
 </tr>
