@@ -151,7 +151,22 @@ flowchart LR
 
 ## ⚡ Quick Start
 
-The fastest path: **Docker Compose does everything.**
+**The fastest path — one script does everything:**
+
+```bash
+git clone --recurse-submodules https://github.com/Beilstein-Institut/BChemXtractWeb.git
+cd BChemXtractWeb
+./deploy.sh
+```
+
+`deploy.sh` runs preflight checks, initializes submodules, builds the BChemXtract fat JAR (one-time), generates random secrets into `.env` (skipped if `.env` already exists), and brings the stack up via `docker compose`. Re-run with `--rotate-keys` to cycle the API tokens later.
+
+Open **<http://localhost>**. The API is behind nginx at `/api`, the interactive docs at `/docs`.
+
+<details>
+<summary><b>🛠️ Manual setup (no script)</b></summary>
+
+<br>
 
 ```bash
 git clone --recurse-submodules https://github.com/Beilstein-Institut/BChemXtractWeb.git
@@ -165,7 +180,7 @@ cd backend && bash scripts/build_jar.sh && cd ..
 docker compose up -d --build
 ```
 
-Open **<http://localhost>**. The API is behind nginx at `/api`, the interactive docs at `/docs`.
+</details>
 
 <details>
 <summary><b>🔑 Generating <code>.env</code> secrets</b></summary>
