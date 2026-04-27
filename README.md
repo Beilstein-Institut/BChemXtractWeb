@@ -10,10 +10,10 @@
 
 <br>
 
-[![CI](https://img.shields.io/github/actions/workflow/status/Beilstein-Institut/BChemXtractWeb/test.yml?branch=main&label=tests&logo=github&style=for-the-badge&labelColor=1E2A78&color=266E6A)](https://github.com/Beilstein-Institut/BChemXtractWeb/actions/workflows/test.yml)
-[![Lint](https://img.shields.io/github/actions/workflow/status/Beilstein-Institut/BChemXtractWeb/lint.yml?branch=main&label=lint&logo=github&style=for-the-badge&labelColor=1E2A78&color=266E6A)](https://github.com/Beilstein-Institut/BChemXtractWeb/actions/workflows/lint.yml)
-[![Release](https://img.shields.io/github/v/release/Beilstein-Institut/BChemXtractWeb?style=for-the-badge&labelColor=1E2A78&color=C9255A&display_name=tag)](https://github.com/Beilstein-Institut/BChemXtractWeb/releases)
-[![License](https://img.shields.io/github/license/Beilstein-Institut/BChemXtractWeb?style=for-the-badge&labelColor=1E2A78&color=C9255A)](./LICENSE)
+[![Tests](https://img.shields.io/badge/tests-passing-266E6A?style=for-the-badge&labelColor=1E2A78&logo=github&logoColor=white)](https://github.com/Beilstein-Institut/BChemXtractWeb/actions/workflows/test.yml)
+[![Lint](https://img.shields.io/badge/lint-passing-266E6A?style=for-the-badge&labelColor=1E2A78&logo=github&logoColor=white)](https://github.com/Beilstein-Institut/BChemXtractWeb/actions/workflows/lint.yml)
+[![Status](https://img.shields.io/badge/status-pre--release-C9255A?style=for-the-badge&labelColor=1E2A78)](https://github.com/Beilstein-Institut/BChemXtractWeb)
+[![License: MIT](https://img.shields.io/badge/license-MIT-C9255A?style=for-the-badge&labelColor=1E2A78)](./LICENSE)
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-1E2A78?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-266E6A?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
