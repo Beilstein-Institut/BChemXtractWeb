@@ -41,7 +41,11 @@ function MetadataRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function StructureDetail({ substance, attribution, onViewExtraction }: StructureDetailProps) {
+export function StructureDetail({
+  substance,
+  attribution,
+  onViewExtraction,
+}: StructureDetailProps) {
   const svgSrc = useSvgObjectUrl(substance.svg);
 
   return (
