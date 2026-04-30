@@ -59,7 +59,16 @@ function buildPageNumbers(current: number, total: number): number[] {
   return Array.from(pages).sort((a, b) => a - b);
 }
 
-export function SearchResults() {
+export interface SearchResultsProps {
+  /**
+   * Callback when a user picks an extraction from a result's AttributionPill.
+   * Wired in App.tsx to `handleViewExtraction`, which fetches the extraction
+   * detail, primes the active extraction state, and routes to /browse.
+   */
+  onViewExtraction?: (extractionId: number) => void;
+}
+
+export function SearchResults({ onViewExtraction }: SearchResultsProps = {}) {
   const {
     searchState,
     response,
@@ -162,7 +171,12 @@ export function SearchResults() {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-6">
             {response.results.map((r) => (
-              <SearchResultCard key={r.substance.id} result={r} searchType={type} />
+              <SearchResultCard
+                key={r.substance.id}
+                result={r}
+                searchType={type}
+                onViewExtraction={onViewExtraction}
+              />
             ))}
           </div>
 
