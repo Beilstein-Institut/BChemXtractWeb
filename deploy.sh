@@ -133,8 +133,14 @@ else
 fi
 
 # --- compose up -------------------------------------------------------------
-info 'Building images and starting containers'
-docker compose up -d --build
+# `build --pull` forces docker to refresh base images (python, maven, nginx,
+# postgres, redis) from the registry on every deploy so we don't keep using a
+# stale local layer. The BChemXtract JAR step inside backend/Dockerfile is
+# also network-bound and will resolve upstream's latest release tag.
+info 'Refreshing base images and rebuilding'
+docker compose build --pull
+info 'Starting containers'
+docker compose up -d
 
 echo
 ok 'Stack is up'

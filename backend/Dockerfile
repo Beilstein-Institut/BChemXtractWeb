@@ -1,10 +1,27 @@
 # Stage 1: Build BChemXtract JAR
 FROM maven:3.9-eclipse-temurin-21 AS jar-builder
 WORKDIR /build
-# Clone directly from GitHub to avoid git submodule issues in Docker context
-# Pinned to v1.0 tag for reproducible builds (T-01-02 mitigation)
-RUN git clone --branch v1.0 --depth 1 https://github.com/Beilstein-Institut/BChemXtract.git bchemxtract
-RUN cd bchemxtract && mvn clean package -DskipTests -q
+# Resolve the latest BChemXtract release tag at build time, then shallow-clone
+# only that tag.
+#
+# Trade-off vs the prior `--branch v1.0` hard-pin (T-01-02): builds now follow
+# upstream releases automatically — the same Dockerfile may produce a newer
+# JAR tomorrow than today. Operators who need a frozen artifact override the
+# resolution explicitly with `--build-arg BCHEMXTRACT_REF=vX.Y`.
+ARG BCHEMXTRACT_REF=
+RUN set -eu; \
+    REF="${BCHEMXTRACT_REF:-$(git ls-remote --tags --refs --sort='-v:refname' \
+        https://github.com/Beilstein-Institut/BChemXtract.git 'refs/tags/v*' \
+      | head -n1 \
+      | sed 's|.*refs/tags/||')}"; \
+    [ -n "$REF" ] || { echo "Could not resolve a BChemXtract release tag" >&2; exit 1; }; \
+    echo "Building BChemXtract from $REF"; \
+    git clone --branch "$REF" --depth 1 https://github.com/Beilstein-Institut/BChemXtract.git bchemxtract
+# `-Dmaven.javadoc.skip=true` matters from v1.1 onwards: upstream attaches
+# Javadoc by default and the bundled javadoc plugin treats missing-comment
+# warnings as fatal under JDK 21. The runtime image only needs the fat JAR,
+# so we bypass Javadoc generation entirely.
+RUN cd bchemxtract && mvn clean package -DskipTests -Dmaven.javadoc.skip=true -q
 
 # Stage 2: Install Python dependencies with uv
 FROM python:3.12-slim AS python-builder
