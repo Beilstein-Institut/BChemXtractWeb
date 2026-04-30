@@ -46,10 +46,13 @@ if [ "$UPDATE" = true ]; then
     git checkout "$LATEST_TAG"
 fi
 
-# Build the fat JAR with Maven
+# Build the fat JAR with Maven.
+# `-Dmaven.javadoc.skip=true` matters from v1.1 onwards — upstream attaches
+# Javadoc by default and the bundled plugin treats missing-comment warnings
+# as fatal under JDK 21. We only need the fat JAR, so skip Javadoc entirely.
 echo "Building BChemXtract fat JAR..."
 cd "$SUBMODULE_DIR"
-mvn clean package -DskipTests -q
+mvn clean package -DskipTests -Dmaven.javadoc.skip=true -q
 
 # Create jars directory if it doesn't exist
 mkdir -p "$JARS_DIR"

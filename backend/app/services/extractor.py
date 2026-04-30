@@ -153,6 +153,9 @@ def _coerce_reaction(java_rxn) -> dict:
     Returns:
         Dict ready for ReactionResponse(**d) construction.
     """
+    # The Java lists themselves may be null (handled by `or []`) AND may
+    # contain null entries (handled by `if c is not None`) — v1.1 inserts
+    # nulls into the agents list for certain reaction shapes.
     return {
         "rinchi": str(java_rxn.getRinchi() or ""),
         "rinchi_key": str(java_rxn.getRinchiKey() or ""),
@@ -162,12 +165,20 @@ def _coerce_reaction(java_rxn) -> dict:
         "reaction_smiles": str(java_rxn.getReactionSmiles() or ""),
         "aux_info": str(java_rxn.getAuxInfo() or ""),
         "reactants": [
-            _coerce_reaction_component(c) for c in (java_rxn.getReactants() or [])
+            _coerce_reaction_component(c)
+            for c in (java_rxn.getReactants() or [])
+            if c is not None
         ],
         "products": [
-            _coerce_reaction_component(c) for c in (java_rxn.getProducts() or [])
+            _coerce_reaction_component(c)
+            for c in (java_rxn.getProducts() or [])
+            if c is not None
         ],
-        "agents": [_coerce_reaction_component(c) for c in (java_rxn.getAgents() or [])],
+        "agents": [
+            _coerce_reaction_component(c)
+            for c in (java_rxn.getAgents() or [])
+            if c is not None
+        ],
     }
 
 
@@ -278,12 +289,16 @@ def _extract_reactions_sync(file_bytes: bytes, format_type: str) -> list[dict]:
     try:
         document = _read_document(file_bytes, format_type)
 
+        BCXReactionInfo = jpype.JClass(  # noqa: N806
+            "org.beilstein.chemxtract.model.BCXReactionInfo"
+        )
         ReactionXtractor = jpype.JClass(  # noqa: N806
             "org.beilstein.chemxtract.xtractor.ReactionXtractor"
         )
 
+        info = BCXReactionInfo()
         xtractor = ReactionXtractor()
-        reactions = xtractor.xtract(document)
+        reactions = xtractor.xtract(document, info)
 
         return [_coerce_reaction(r) for r in reactions]
     except jpype.JException as exc:
@@ -309,11 +324,15 @@ def _extract_reactions_with_svg_sync(
     try:
         document = _read_document(file_bytes, format_type)
 
+        BCXReactionInfo = jpype.JClass(  # noqa: N806
+            "org.beilstein.chemxtract.model.BCXReactionInfo"
+        )
         ReactionXtractor = jpype.JClass(  # noqa: N806
             "org.beilstein.chemxtract.xtractor.ReactionXtractor"
         )
+        info = BCXReactionInfo()
         xtractor = ReactionXtractor()
-        reactions = xtractor.xtract(document)
+        reactions = xtractor.xtract(document, info)
 
         coerced: list[dict] = []
         warnings: list[str] = []
