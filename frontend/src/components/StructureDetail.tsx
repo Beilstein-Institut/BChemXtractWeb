@@ -2,9 +2,9 @@
  * StructureDetail — Dialog content displaying full SVG and all metadata fields
  * for an extracted chemical substance.
  *
- * Rendered inside a Dialog controlled by StructureCard. SVG is rendered via
- * a Blob URL in an <img> src (T-04-04 threat mitigation — never as raw
- * innerHTML).
+ * SVG is rendered via a Blob URL in an <img> src (T-04-04 — never as raw
+ * innerHTML). The dialog closes itself before any AttributionPill navigation
+ * (handled by StructureCard's wrapper callback).
  */
 import { FlaskConicalIcon } from "lucide-react";
 import {
@@ -15,15 +15,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CopyButton } from "@/components/internal/CopyButton";
+import { AttributionPill } from "@/components/AttributionPill";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import type { SubstanceResponse } from "@/types/chemistry";
+import type { StructureCardAttribution } from "@/components/StructureCard";
 
 export interface StructureDetailProps {
   /** The substance whose full metadata to display */
   substance: SubstanceResponse;
+  /** Optional attribution data — when provided, renders the chip in the header. */
+  attribution?: StructureCardAttribution;
+  /** Fired when the user clicks the chip / picks an extraction in the popover. */
+  onViewExtraction?: (extractionId: number) => void;
 }
 
-/** Labeled metadata field + CopyButton for the detail dialog. */
 function MetadataRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-2">
@@ -36,14 +41,11 @@ function MetadataRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-/**
- * StructureDetail — full metadata view for a substance, designed to be placed
- * inside a Dialog (DialogContent) opened by StructureCard.
- *
- * SVG is rendered via a Blob URL in an <img> src attribute — never as raw
- * innerHTML — to prevent XSS (T-04-04).
- */
-export function StructureDetail({ substance }: StructureDetailProps) {
+export function StructureDetail({
+  substance,
+  attribution,
+  onViewExtraction,
+}: StructureDetailProps) {
   const svgSrc = useSvgObjectUrl(substance.svg);
 
   return (
@@ -52,6 +54,16 @@ export function StructureDetail({ substance }: StructureDetailProps) {
         <DialogTitle>{substance.molecular_formula}</DialogTitle>
         <DialogDescription>Detailed structure metadata</DialogDescription>
       </DialogHeader>
+
+      {attribution && attribution.count > 0 && (
+        <div className="-mt-1">
+          <AttributionPill
+            count={attribution.count}
+            extractions={attribution.extractions}
+            onView={onViewExtraction}
+          />
+        </div>
+      )}
 
       {/* SVG container: 400px fixed height */}
       <div className="h-[400px] bg-background rounded-lg p-6 flex items-center justify-center">

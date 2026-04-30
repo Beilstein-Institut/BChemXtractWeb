@@ -229,7 +229,7 @@ export function SearchInput({ className }: { className?: string }) {
             className={cn(
               "min-w-0 flex-1 bg-transparent text-body text-foreground outline-none",
               "placeholder:text-foreground-muted",
-              hasContent ? "pr-[6.75rem]" : "pr-10",
+              hasContent ? "pr-20" : "pr-10",
             )}
           />
         ) : (
@@ -246,7 +246,7 @@ export function SearchInput({ className }: { className?: string }) {
             onBlur={() => setFocused(false)}
             className={cn(
               "h-9 pl-8 text-body transition-[padding]",
-              hasContent ? "pr-[7.5rem]" : "pr-16",
+              hasContent ? "pr-20" : "pr-16",
             )}
           />
         )}
@@ -321,23 +321,6 @@ export function SearchInput({ className }: { className?: string }) {
                 </button>
               </PopoverContent>
             </Popover>
-          )}
-          {hasContent && (
-            <Button
-              type="button"
-              size="xs"
-              onClick={() => submit()}
-              aria-label="Submit search"
-              className={cn(
-                "h-6 gap-1 px-2 rounded-full text-micro font-semibold",
-                "bg-[#0071e3] text-white hover:bg-[#0077ed]",
-                "dark:bg-[#0a84ff] dark:hover:bg-[#409cff]",
-                "shadow-[0_1px_2px_rgba(0,113,227,0.25)]",
-              )}
-            >
-              <SearchIcon className="size-3" />
-              Search
-            </Button>
           )}
           {renderTrailingAffordance({ isPending, hasContent, isHeader, showKbdHint, clear })}
         </div>

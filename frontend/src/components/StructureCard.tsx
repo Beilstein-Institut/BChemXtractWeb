@@ -50,7 +50,13 @@ import { safeDownloadSlug } from "@/lib/safeStrings";
 import { cn } from "@/lib/utils";
 import type { SubstanceResponse } from "@/types/chemistry";
 import type { ExportFormat } from "@/types/export";
+import type { SearchResult } from "@/types/search";
 import { FORMAT_EXT } from "@/types/export";
+
+export interface StructureCardAttribution {
+  count: number;
+  extractions: SearchResult["extractions"];
+}
 
 export interface StructureCardProps {
   /** Extracted substance data to display */
@@ -69,6 +75,14 @@ export interface StructureCardProps {
   itemIndex?: number;
   /** Extra classes merged into the root tile. */
   className?: string;
+  /**
+   * Optional attribution metadata threaded through to StructureDetail when the
+   * card opens its internal dialog. Only meaningful in search-results context;
+   * other call sites (StructureBrowser, BrowsePage) leave this undefined.
+   */
+  attribution?: StructureCardAttribution;
+  /** Fired when the user picks an extraction from the in-dialog AttributionPill. */
+  onViewExtraction?: (extractionId: number) => void;
 }
 
 /**
@@ -106,6 +120,8 @@ export function StructureCard({
   onSelect,
   itemIndex,
   className,
+  attribution,
+  onViewExtraction,
 }: StructureCardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { shared, share } = useShareLink();
@@ -317,7 +333,14 @@ export function StructureCard({
       </DialogTrigger>
 
       {/* StructureDetail renders as DialogContent inside the Dialog */}
-      <StructureDetail substance={substance} />
+      <StructureDetail
+        substance={substance}
+        attribution={attribution}
+        onViewExtraction={(id) => {
+          setIsDialogOpen(false);
+          onViewExtraction?.(id);
+        }}
+      />
     </Dialog>
   );
 }

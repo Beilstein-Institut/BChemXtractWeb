@@ -217,16 +217,12 @@ describe("SearchInput", () => {
     expect(screen.getAllByText("Formula").length).toBeGreaterThan(0);
   });
 
-  it("does not render Submit search button when query is empty", () => {
+  it("does not render an inline Submit button — search fires automatically as the user types", () => {
     renderWithProvider(<SearchInput />);
     expect(screen.queryByRole("button", { name: "Submit search" })).toBeNull();
-  });
-
-  it("renders Submit search button once query has content", () => {
-    renderWithProvider(<SearchInput />);
     const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "C" } });
-    expect(screen.getAllByRole("button", { name: "Submit search" }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Submit search" })).toBeNull();
   });
 
   it("detects a 14-char partial InChI key as type 'InChI key'", () => {
@@ -257,14 +253,13 @@ describe("SearchInput", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("clicking Submit search fires a search request", () => {
+  it("pressing Enter inside the input fires a search request", () => {
     const mockPost = vi.mocked(postSearch);
     renderWithProvider(<SearchInput />);
     const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "C6H6" } });
     mockPost.mockClear();
-    const btn = screen.getAllByRole("button", { name: "Submit search" })[0];
-    fireEvent.click(btn);
+    fireEvent.keyDown(input, { key: "Enter" });
     expect(mockPost).toHaveBeenCalled();
   });
 });
