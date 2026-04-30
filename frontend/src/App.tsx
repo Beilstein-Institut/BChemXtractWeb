@@ -202,7 +202,7 @@ function App() {
   }, [activeExtractionId]);
 
   function renderRoute() {
-    if (searchActive) return <SearchResults />;
+    if (searchActive) return <SearchResults onViewExtraction={handleViewExtraction} />;
     switch (route) {
       case "/about":
         return <AboutPage />;
