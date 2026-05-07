@@ -53,6 +53,8 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        BCHEMXTRACT_REF: ${BCHEMXTRACT_VERSION:-}
     command: alembic upgrade head
     depends_on:
       db:
@@ -69,6 +71,12 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        # Pin the JAR-builder stage to the same release the frontend footer
+        # advertises. deploy.sh resolves this once via `git ls-remote --sort`
+        # and writes BCHEMXTRACT_VERSION to .env. Empty value (no .env) lets
+        # the Dockerfile fall back to its own auto-resolve.
+        BCHEMXTRACT_REF: ${BCHEMXTRACT_VERSION:-}
     restart: unless-stopped
     depends_on:
       db:
@@ -105,6 +113,11 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+      args:
+        # Baked into the SPA bundle as VITE_BCHEMXTRACT_VERSION at build time
+        # so the footer can render the running version without a live API call.
+        # deploy.sh writes BCHEMXTRACT_VERSION to .env before `compose build`.
+        BCHEMXTRACT_VERSION: ${BCHEMXTRACT_VERSION:-}
     restart: unless-stopped
     depends_on:
       backend:
@@ -159,6 +172,8 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        BCHEMXTRACT_REF: ${BCHEMXTRACT_VERSION:-}
     restart: unless-stopped
     # SEC H-03: --pool=solo is mandatory — extraction tasks use
     # asyncio.run() internally and will error on prefork/thread pools.

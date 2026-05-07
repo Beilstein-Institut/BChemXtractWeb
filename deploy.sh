@@ -134,8 +134,9 @@ select_http_port() {
   done
 }
 
-update_env_port() {
+update_env_var() {
   # Idempotently set $1=$2 in .env. Adds the line if absent, replaces if present.
+  # Generic .env upserter — used for HTTP_PORT, BACKEND_PORT, BCHEMXTRACT_VERSION.
   KEY="$1" VAL="$2" "$PY" - <<'PYEOF'
 import os, re, pathlib
 p = pathlib.Path('.env')
@@ -153,7 +154,7 @@ p.write_text(text)
 PYEOF
 }
 
-read_env_port() {
+read_env_var() {
   # Output the value of $1 from .env, or empty string if absent / .env missing.
   KEY="$1" "$PY" - <<'PYEOF'
 import os, re, pathlib
@@ -165,6 +166,28 @@ key = os.environ['KEY']
 m = re.search(rf'^{re.escape(key)}=(.*)$', p.read_text(), flags=re.M)
 print(m.group(1) if m else '')
 PYEOF
+}
+
+# --- BChemXtract version resolution ----------------------------------------
+# Mirrors backend/Dockerfile's auto-resolve so what the footer shows matches
+# what the backend image actually builds with. Priority:
+#   1. BCHEMXTRACT_REF env var          (operator override, same name as Dockerfile ARG)
+#   2. `git ls-remote` highest semver   (same query the Dockerfile uses)
+#   3. submodule's tag                  (offline / network-blocked fallback)
+resolve_bchemxtract_version() {
+  local resolved=""
+  if [[ -n "${BCHEMXTRACT_REF:-}" ]]; then
+    resolved="$BCHEMXTRACT_REF"
+  else
+    resolved="$(git ls-remote --tags --refs --sort='-v:refname' \
+        https://github.com/Beilstein-Institut/BChemXtract.git 'refs/tags/v*' 2>/dev/null \
+      | head -n1 | sed 's|.*refs/tags/||')"
+    if [[ -z "$resolved" && ( -d backend/lib/bchemxtract/.git || -f backend/lib/bchemxtract/.git ) ]]; then
+      resolved="$(git -C backend/lib/bchemxtract describe --tags 2>/dev/null || true)"
+    fi
+  fi
+  [[ -n "$resolved" ]] || die "could not resolve BChemXtract version (network unreachable and submodule has no tag)"
+  printf '%s' "$resolved"
 }
 
 # --- submodule + JAR --------------------------------------------------------
@@ -264,7 +287,7 @@ elif [[ -n "${HTTP_PORT:-}" ]]; then
   HTTP_PORT_VALUE="$HTTP_PORT"
   PORT_SOURCE="HTTP_PORT env var"
 elif [[ "$CHANGE_PORT" == true ]]; then
-  current="$(read_env_port HTTP_PORT)"
+  current="$(read_env_var HTTP_PORT)"
   [[ -n "$current" ]] || current="$DEFAULT_HTTP_PORT"
   HTTP_PORT_VALUE="$(select_http_port "$current")"
   PORT_SOURCE="prompt (--change-port)"
@@ -274,7 +297,7 @@ elif [[ "$BOOTSTRAPPED_ENV" == true ]]; then
   HTTP_PORT_VALUE="$(select_http_port "$DEFAULT_HTTP_PORT")"
   PORT_SOURCE="prompt (first-run)"
 else
-  existing="$(read_env_port HTTP_PORT)"
+  existing="$(read_env_var HTTP_PORT)"
   if [[ -n "$existing" ]]; then
     validate_port_range "$existing" || die "invalid HTTP_PORT in .env: $existing (must be 1-65535)"
     HTTP_PORT_VALUE="$existing"
@@ -290,11 +313,21 @@ else
   fi
 fi
 
-update_env_port HTTP_PORT "$HTTP_PORT_VALUE"
-if [[ -z "$(read_env_port BACKEND_PORT)" ]]; then
-  update_env_port BACKEND_PORT "$DEFAULT_BACKEND_PORT"
+update_env_var HTTP_PORT "$HTTP_PORT_VALUE"
+if [[ -z "$(read_env_var BACKEND_PORT)" ]]; then
+  update_env_var BACKEND_PORT "$DEFAULT_BACKEND_PORT"
 fi
-ok "HTTP_PORT=$HTTP_PORT_VALUE ($PORT_SOURCE), BACKEND_PORT=$(read_env_port BACKEND_PORT)"
+ok "HTTP_PORT=$HTTP_PORT_VALUE ($PORT_SOURCE), BACKEND_PORT=$(read_env_var BACKEND_PORT)"
+
+# --- BChemXtract version --------------------------------------------------
+# Always re-resolved on each deploy (unlike HTTP_PORT, which is a user
+# preference). Both the backend Dockerfile and the frontend Vite build
+# read this via build-args from docker-compose.yml so the footer shows
+# the same version the backend image was actually built with.
+info 'Resolving BChemXtract version'
+BCHEMXTRACT_VERSION="$(resolve_bchemxtract_version)"
+update_env_var BCHEMXTRACT_VERSION "$BCHEMXTRACT_VERSION"
+ok "BChemXtract version: $BCHEMXTRACT_VERSION"
 
 # --- compose up -------------------------------------------------------------
 # `build --pull` forces docker to refresh base images (python, maven, nginx,
@@ -310,14 +343,15 @@ echo
 ok 'Stack is up'
 cat <<EOF
 
-  Frontend:  http://localhost:$HTTP_PORT_VALUE
-  API:       http://localhost:$HTTP_PORT_VALUE/api
-  Docs:      http://localhost:$HTTP_PORT_VALUE/docs
+  BChemXtract: $BCHEMXTRACT_VERSION
+  Frontend:    http://localhost:$HTTP_PORT_VALUE
+  API:         http://localhost:$HTTP_PORT_VALUE/api
+  Docs:        http://localhost:$HTTP_PORT_VALUE/docs
 
   Tail logs:   docker compose logs -f
   Stop stack:  docker compose down
 
   Direct API access (loopback only — bypasses nginx):
-    http://127.0.0.1:$(read_env_port BACKEND_PORT)
+    http://127.0.0.1:$(read_env_var BACKEND_PORT)
     needs the bearer token from .env: grep '^API_KEYS=' .env
 EOF

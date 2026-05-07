@@ -30,6 +30,33 @@ function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
  *   - Centered band: "Built with [animated ☕] at the Beilstein-Institut"
  */
 
+/**
+ * Renders "Open source" with the resolved BChemXtract version appended when
+ * VITE_BCHEMXTRACT_VERSION is baked into the bundle. The version links to the
+ * matching GitHub release page. When the env var is empty (e.g. local
+ * `npm run dev` outside docker), only "Open source" is shown — no broken link.
+ */
+function LicenseLine() {
+  const version = import.meta.env.VITE_BCHEMXTRACT_VERSION?.trim();
+  if (!version) {
+    return <>Open source</>;
+  }
+  const releaseUrl = `https://github.com/Beilstein-Institut/BChemXtract/releases/tag/${encodeURIComponent(version)}`;
+  return (
+    <span>
+      Open source · running{" "}
+      <a
+        href={releaseUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-foreground underline-offset-4 hover:text-primary hover:underline"
+      >
+        BChemXtract {version}
+      </a>
+    </span>
+  );
+}
+
 function SteamingCoffee() {
   return (
     <span className="coffee-steam relative inline-flex items-center" aria-hidden="true">
@@ -101,7 +128,7 @@ export function SiteFooter() {
             </span>
           </span>
         ),
-        license: "Open source",
+        license: <LicenseLine />,
       }}
       middleSlot={
         <span className="inline-flex items-center gap-2">

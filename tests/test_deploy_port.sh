@@ -50,6 +50,11 @@ STUB
   chmod +x "$TMPDIR/bin/git"
 
   export PATH="$TMPDIR/bin:$PATH"
+
+  # Short-circuit BChemXtract version resolution so tests don't depend on
+  # network access to github.com. resolve_bchemxtract_version honors this
+  # env var with highest priority and skips the git ls-remote query.
+  export BCHEMXTRACT_REF="v0.0.0-test"
 }
 
 teardown_tmpdir() {
@@ -143,6 +148,23 @@ test_mutually_exclusive_flags_rejected() {
   fi
 }
 
+test_bchemxtract_version_written_to_env() {
+  # resolve_bchemxtract_version honors BCHEMXTRACT_REF (set in setup_tmpdir).
+  # The resolved value must land in .env so docker compose can pass it as a
+  # build-arg to both backend and frontend Dockerfiles.
+  ./deploy.sh </dev/null >/dev/null 2>&1
+  assert_env_has BCHEMXTRACT_VERSION "v0.0.0-test"
+}
+
+test_bchemxtract_version_re_resolved_on_rerun() {
+  # Unlike HTTP_PORT (a user preference, preserved across runs),
+  # BCHEMXTRACT_VERSION is a build artifact — every run re-resolves it so
+  # the footer always matches what the backend image was built from.
+  ./deploy.sh </dev/null >/dev/null 2>&1
+  BCHEMXTRACT_REF="v9.9.9-second" ./deploy.sh </dev/null >/dev/null 2>&1
+  assert_env_has BCHEMXTRACT_VERSION "v9.9.9-second"
+}
+
 # --- runner ------------------------------------------------------------------
 
 main() {
@@ -156,6 +178,8 @@ main() {
   run_test "migration adds HTTP_PORT to old .env"    test_migration_appends_http_port
   run_test "non-tty stdin uses default 3000"         test_non_tty_uses_default
   run_test "--port + --change-port rejected"         test_mutually_exclusive_flags_rejected
+  run_test "BChemXtract version written to .env"     test_bchemxtract_version_written_to_env
+  run_test "BChemXtract version re-resolved on rerun" test_bchemxtract_version_re_resolved_on_rerun
   echo
   printf '%d passed, %d failed\n' "$PASS" "$FAIL"
   [[ "$FAIL" -eq 0 ]]
