@@ -161,7 +161,7 @@ cd BChemXtractWeb
 
 `deploy.sh` runs preflight checks, initializes submodules, builds the BChemXtract fat JAR (one-time), generates random secrets into `.env` (skipped if `.env` already exists), and brings the stack up via `docker compose`. Re-run with `--rotate-keys` to cycle the API tokens later.
 
-#### Choosing a different host port
+### Choosing a different host port
 
 `deploy.sh` writes the chosen port to `.env` as `HTTP_PORT` and `docker-compose.yml` interpolates it into the nginx `ports:` mapping. Three ways to set it:
 
@@ -185,9 +185,9 @@ Validation:
 - `1`–`65535` accepted
 - `<1024` (privileged) → warning, accepted (Docker may need root or `CAP_NET_BIND_SERVICE`)
 - `5432`, `6379`, `8000`, `5173` → warning (collide with stack internals), accepted
-- Anything else → re-prompt (interactive) or hard-fail (flag / env var)
+- Anything else → re-prompt (interactive) or exit with an error (flag / env var)
 
-The backend FastAPI is **bound to `127.0.0.1:8000` only** — direct API consumers (CLI scripts, curl on the deploy host) reach it on `http://127.0.0.1:8000`, but the port is not reachable from other machines. Set `BACKEND_PORT=N` in `.env` to change the host port; replace the `127.0.0.1` in `docker-compose.yml` with `0.0.0.0` if you really do want to expose the raw API on the network.
+The backend FastAPI is **bound to `127.0.0.1:8000` only** — direct API consumers (CLI scripts, curl on the deploy host) reach it on `http://127.0.0.1:8000`, but the port is not reachable from other machines. This matches the existing `db` and `redis` services, which are already internal-only, and gives the stack a defense-in-depth posture: the only public surface is nginx on `HTTP_PORT`. Set `BACKEND_PORT=N` in `.env` to change the host port; replace the `127.0.0.1` in `docker-compose.yml` with `0.0.0.0` if you really do want to expose the raw API on the network.
 
 Open **<http://localhost:3000>**. The API is behind nginx at `/api`, the interactive docs at `/docs`.
 
