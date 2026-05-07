@@ -12,6 +12,11 @@
 #   API_KEYS=["<secret-1>", "<secret-2>"]
 #
 # Or export them in the shell before ``docker compose up``.
+#
+# Optional non-secret tunables (all have :- defaults so an absent .env still
+# produces a working stack):
+#   HTTP_PORT=3000        # public-facing nginx port (host)
+#   BACKEND_PORT=8000     # backend FastAPI port (host, loopback-bound only)
 services:
   db:
     image: postgres:16-alpine
@@ -48,6 +53,8 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        BCHEMXTRACT_REF: ${BCHEMXTRACT_VERSION:-}
     command: alembic upgrade head
     depends_on:
       db:
@@ -64,6 +71,12 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        # Pin the JAR-builder stage to the same release the frontend footer
+        # advertises. deploy.sh resolves this once via `git ls-remote --sort`
+        # and writes BCHEMXTRACT_VERSION to .env. Empty value (no .env) lets
+        # the Dockerfile fall back to its own auto-resolve.
+        BCHEMXTRACT_REF: ${BCHEMXTRACT_VERSION:-}
     restart: unless-stopped
     depends_on:
       db:
@@ -76,7 +89,7 @@ services:
     environment:
       DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-bchemxtract}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-bchemxtract}"
       JAR_PATH: /app/jars
-      CORS_ORIGINS: '["http://localhost", "http://localhost:5173"]'
+      CORS_ORIGINS: '["http://localhost:${HTTP_PORT:-3000}", "http://localhost:5173"]'
       DEBUG: "false"
       # SEC C-02: API_KEYS must be set — Settings validator refuses to
       # start without at least one key when DEBUG=false.
@@ -84,7 +97,11 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
     ports:
-      - "8000:8000"
+      # Loopback bind: the backend FastAPI is reachable only from the deploy
+      # host (CLI scripts, curl on the same box). Browser traffic goes through
+      # nginx on HTTP_PORT. Override BACKEND_PORT in .env to change the host
+      # port; replace 127.0.0.1 with 0.0.0.0 to expose on the network (rare).
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://127.0.0.1:8000/api/health || exit 1"]
       interval: 30s
@@ -96,6 +113,11 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+      args:
+        # Baked into the SPA bundle as VITE_BCHEMXTRACT_VERSION at build time
+        # so the footer can render the running version without a live API call.
+        # deploy.sh writes BCHEMXTRACT_VERSION to .env before `compose build`.
+        BCHEMXTRACT_VERSION: ${BCHEMXTRACT_VERSION:-}
     restart: unless-stopped
     depends_on:
       backend:
@@ -116,7 +138,9 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "80:80"
+      # Host:container. HTTP_PORT comes from .env (written by deploy.sh).
+      # The :-3000 default keeps the stack runnable even on a hand-rolled .env.
+      - "${HTTP_PORT:-3000}:80"
     volumes:
       # Mounted as a template so the nginx image's envsubst step
       # (/docker-entrypoint.d/20-envsubst-on-templates.sh) substitutes
@@ -148,6 +172,8 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        BCHEMXTRACT_REF: ${BCHEMXTRACT_VERSION:-}
     restart: unless-stopped
     # SEC H-03: --pool=solo is mandatory — extraction tasks use
     # asyncio.run() internally and will error on prefork/thread pools.

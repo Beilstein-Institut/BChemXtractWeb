@@ -3,6 +3,8 @@
 #
 # Usage:
 #   ./deploy.sh                  # full deploy: secrets + JAR + docker compose up
+#   ./deploy.sh --port N         # set public HTTP port (host) — default 3000
+#   ./deploy.sh --change-port    # re-prompt for the public HTTP port
 #   ./deploy.sh --rotate-keys    # regenerate API_KEYS/BROWSER_API_KEY in existing .env
 #   ./deploy.sh -h | --help
 
@@ -24,19 +26,31 @@ warn() { printf '%s ! %s %s\n' "$C_YELLOW" "$C_RESET" "$*"; }
 die()  { printf '%s ✗ %s %s\n' "$C_RED"    "$C_RESET" "$*" >&2; exit 1; }
 
 usage() {
-  sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 }
 
 # --- args -------------------------------------------------------------------
 ROTATE_KEYS=false
-for arg in "$@"; do
-  case "$arg" in
-    --rotate-keys) ROTATE_KEYS=true ;;
+CHANGE_PORT=false
+PORT_FLAG=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --rotate-keys) ROTATE_KEYS=true; shift ;;
+    --change-port) CHANGE_PORT=true; shift ;;
+    --port)        [[ $# -ge 2 ]] || die "--port requires a value"; PORT_FLAG="$2"; shift 2 ;;
+    --port=*)      PORT_FLAG="${1#*=}"; shift ;;
     -h|--help)     usage ;;
-    *)             die "unknown flag: $arg (try --help)" ;;
+    *)             die "unknown flag: $1 (try --help)" ;;
   esac
 done
+
+if [[ "$ROTATE_KEYS" == true && "$CHANGE_PORT" == true ]]; then
+  die "--rotate-keys and --change-port are mutually exclusive"
+fi
+if [[ -n "$PORT_FLAG" && "$CHANGE_PORT" == true ]]; then
+  die "--port and --change-port are mutually exclusive"
+fi
 
 # --- preflight --------------------------------------------------------------
 info 'Preflight checks'
@@ -59,11 +73,125 @@ ok "docker: $(docker --version | awk '{print $3}' | tr -d ',')"
 # --- secret generator -------------------------------------------------------
 gen_secret() { "$PY" -c 'import secrets; print(secrets.token_urlsafe(32))'; }
 
-# --- submodule + JAR --------------------------------------------------------
-info 'Initializing git submodules'
-git submodule update --init --recursive
-ok 'submodules ready'
+# --- port handling ----------------------------------------------------------
+DEFAULT_HTTP_PORT=3000
+DEFAULT_BACKEND_PORT=8000
 
+validate_port_range() {
+  # Returns 0 if $1 is an integer in [1, 65535], else 1. No output.
+  local port="$1"
+  [[ "$port" =~ ^[0-9]+$ ]] && (( port >= 1 && port <= 65535 ))
+}
+
+warn_port_quirks() {
+  # Prints warnings for privileged ports and stack-internal collisions.
+  # Always succeeds — these are advisories, not gates.
+  local port="$1"
+  if (( port < 1024 )); then
+    warn "port $port is privileged; Docker may need root or CAP_NET_BIND_SERVICE"
+  fi
+  case "$port" in
+    5432|6379|8000|5173)
+      warn "port $port is used internally by another service in this stack"
+      ;;
+  esac
+}
+
+select_http_port() {
+  # Outputs chosen port on stdout; prompt + warnings go to stderr.
+  # Args: $1 = default port to suggest.
+  local default="$1"
+  local port
+
+  # Non-TTY (CI, piped input) → silent default.
+  if ! [[ -t 0 ]]; then
+    printf '%s' "$default"
+    return 0
+  fi
+
+  {
+    printf '\n%s==>%s Selecting public HTTP port\n\n' "$C_BLUE" "$C_RESET"
+    printf '  The container will publish nginx on the host. Default is %s.\n' "$default"
+    printf '  Avoid 80 (Apache/nginx host conflict) and 443 (HTTPS, requires TLS).\n'
+    printf '  Stack ports used internally:\n'
+    printf '    5432 postgres, 6379 redis, 8000 backend, 5173 vite dev\n\n'
+  } >&2
+
+  while true; do
+    printf '  Port [%s]: ' "$default" >&2
+    if ! read -r port; then
+      # EOF on stdin → use default.
+      printf '%s' "$default"
+      return 0
+    fi
+    [[ -z "$port" ]] && port="$default"
+    if validate_port_range "$port"; then
+      warn_port_quirks "$port" >&2
+      printf '%s' "$port"
+      return 0
+    fi
+    warn "invalid port: $port (must be 1-65535)"
+  done
+}
+
+update_env_var() {
+  # Idempotently set $1=$2 in .env. Adds the line if absent, replaces if present.
+  # Generic .env upserter — used for HTTP_PORT, BACKEND_PORT, BCHEMXTRACT_VERSION.
+  KEY="$1" VAL="$2" "$PY" - <<'PYEOF'
+import os, re, pathlib
+p = pathlib.Path('.env')
+text = p.read_text()
+key = os.environ['KEY']
+val = os.environ['VAL']
+pattern = rf'^{re.escape(key)}=.*$'
+if re.search(pattern, text, flags=re.M):
+    text = re.sub(pattern, f'{key}={val}', text, flags=re.M)
+else:
+    if not text.endswith('\n'):
+        text += '\n'
+    text += f'{key}={val}\n'
+p.write_text(text)
+PYEOF
+}
+
+read_env_var() {
+  # Output the value of $1 from .env, or empty string if absent / .env missing.
+  KEY="$1" "$PY" - <<'PYEOF'
+import os, re, pathlib
+p = pathlib.Path('.env')
+if not p.exists():
+    print('')
+    raise SystemExit
+key = os.environ['KEY']
+m = re.search(rf'^{re.escape(key)}=(.*)$', p.read_text(), flags=re.M)
+print(m.group(1) if m else '')
+PYEOF
+}
+
+# --- BChemXtract version resolution ----------------------------------------
+# Mirrors backend/Dockerfile and backend/scripts/build_jar.sh exactly so the
+# footer always shows what the backend image is actually built from.
+# Priority:
+#   1. BCHEMXTRACT_REF env var          (operator override, same name as Dockerfile ARG)
+#   2. `git ls-remote` highest semver   (same query the Dockerfile uses)
+resolve_bchemxtract_version() {
+  local resolved=""
+  if [[ -n "${BCHEMXTRACT_REF:-}" ]]; then
+    resolved="$BCHEMXTRACT_REF"
+  else
+    resolved="$(git ls-remote --tags --refs --sort='-v:refname' \
+        https://github.com/Beilstein-Institut/BChemXtract.git 'refs/tags/v*' 2>/dev/null \
+      | head -n1 | sed 's|.*refs/tags/||')"
+  fi
+  [[ -n "$resolved" ]] || die "could not resolve BChemXtract version — network unreachable and BCHEMXTRACT_REF not set"
+  printf '%s' "$resolved"
+}
+
+# --- BChemXtract JAR (host-side, optional) ---------------------------------
+# The backend Docker image clones BChemXtract directly from GitHub at build
+# time, so a host-side JAR is only needed for non-docker dev workflows
+# (e.g. running uvicorn against a local Postgres). build_jar.sh clones the
+# same upstream tag the Dockerfile would and produces the fat JAR locally.
 if compgen -G "backend/jars/bchemxtract-*-jar-with-dependencies.jar" >/dev/null; then
   ok 'BChemXtract JAR already built — skipping (no JDK/Maven needed for this run)'
 else
@@ -117,6 +245,7 @@ p.write_text(text)
 PYEOF
 }
 
+BOOTSTRAPPED_ENV=false
 if [[ "$ROTATE_KEYS" == true ]]; then
   [[ -f .env ]] || die ".env does not exist — run without --rotate-keys first"
   info 'Rotating API_KEYS and BROWSER_API_KEY (POSTGRES_PASSWORD unchanged)'
@@ -130,7 +259,72 @@ else
   write_env "$(gen_secret)" "$(gen_secret)"
   chmod 600 .env
   ok '.env created (chmod 600)'
+  BOOTSTRAPPED_ENV=true
 fi
+
+# --- HTTP port selection -----------------------------------------------------
+# Priority (highest wins):
+#   1. --port flag             (CLI override, hard validation)
+#   2. HTTP_PORT env var       (env override, hard validation)
+#   3. --change-port           (re-prompt, defaulting to current .env value)
+#   4. BOOTSTRAPPED_ENV=true   (first run → prompt; non-TTY → default)
+#   5. existing HTTP_PORT in .env  (preserve)
+#   6. legacy .env (no HTTP_PORT)  (silent migration to default + notice)
+HTTP_PORT_VALUE=""
+PORT_SOURCE=""
+
+if [[ -n "$PORT_FLAG" ]]; then
+  validate_port_range "$PORT_FLAG" || die "invalid --port value: $PORT_FLAG (must be 1-65535)"
+  warn_port_quirks "$PORT_FLAG"
+  HTTP_PORT_VALUE="$PORT_FLAG"
+  PORT_SOURCE="--port flag"
+elif [[ -n "${HTTP_PORT:-}" ]]; then
+  validate_port_range "$HTTP_PORT" || die "invalid HTTP_PORT env value: $HTTP_PORT (must be 1-65535)"
+  warn_port_quirks "$HTTP_PORT"
+  HTTP_PORT_VALUE="$HTTP_PORT"
+  PORT_SOURCE="HTTP_PORT env var"
+elif [[ "$CHANGE_PORT" == true ]]; then
+  current="$(read_env_var HTTP_PORT)"
+  [[ -n "$current" ]] || current="$DEFAULT_HTTP_PORT"
+  HTTP_PORT_VALUE="$(select_http_port "$current")"
+  PORT_SOURCE="prompt (--change-port)"
+elif [[ "$BOOTSTRAPPED_ENV" == true ]]; then
+  # First-time deploy: .env was just created. Prompt for the public port.
+  # select_http_port falls back to DEFAULT_HTTP_PORT silently when stdin is not a TTY.
+  HTTP_PORT_VALUE="$(select_http_port "$DEFAULT_HTTP_PORT")"
+  PORT_SOURCE="prompt (first-run)"
+else
+  existing="$(read_env_var HTTP_PORT)"
+  if [[ -n "$existing" ]]; then
+    validate_port_range "$existing" || die "invalid HTTP_PORT in .env: $existing (must be 1-65535)"
+    HTTP_PORT_VALUE="$existing"
+    PORT_SOURCE="existing .env"
+  else
+    # Legacy .env predating this feature → silent migration to default + notice.
+    HTTP_PORT_VALUE="$DEFAULT_HTTP_PORT"
+    PORT_SOURCE="migrated default"
+    warn "Migrating .env to add HTTP_PORT ($HTTP_PORT_VALUE) and BACKEND_PORT ($DEFAULT_BACKEND_PORT)."
+    warn "The stack will now serve at http://localhost:$HTTP_PORT_VALUE (was :80) and the"
+    warn "backend will only be reachable at 127.0.0.1:$DEFAULT_BACKEND_PORT (was 0.0.0.0:8000)."
+    warn "Use --change-port to pick a different public port, or set HTTP_PORT=N."
+  fi
+fi
+
+update_env_var HTTP_PORT "$HTTP_PORT_VALUE"
+if [[ -z "$(read_env_var BACKEND_PORT)" ]]; then
+  update_env_var BACKEND_PORT "$DEFAULT_BACKEND_PORT"
+fi
+ok "HTTP_PORT=$HTTP_PORT_VALUE ($PORT_SOURCE), BACKEND_PORT=$(read_env_var BACKEND_PORT)"
+
+# --- BChemXtract version --------------------------------------------------
+# Always re-resolved on each deploy (unlike HTTP_PORT, which is a user
+# preference). Both the backend Dockerfile and the frontend Vite build
+# read this via build-args from docker-compose.yml so the footer shows
+# the same version the backend image was actually built with.
+info 'Resolving BChemXtract version'
+BCHEMXTRACT_VERSION="$(resolve_bchemxtract_version)"
+update_env_var BCHEMXTRACT_VERSION "$BCHEMXTRACT_VERSION"
+ok "BChemXtract version: $BCHEMXTRACT_VERSION"
 
 # --- compose up -------------------------------------------------------------
 # `build --pull` forces docker to refresh base images (python, maven, nginx,
@@ -146,13 +340,15 @@ echo
 ok 'Stack is up'
 cat <<EOF
 
-  Frontend:  http://localhost
-  API:       http://localhost/api
-  Docs:      http://localhost/docs
+  BChemXtract: $BCHEMXTRACT_VERSION
+  Frontend:    http://localhost:$HTTP_PORT_VALUE
+  API:         http://localhost:$HTTP_PORT_VALUE/api
+  Docs:        http://localhost:$HTTP_PORT_VALUE/docs
 
   Tail logs:   docker compose logs -f
   Stop stack:  docker compose down
 
-  Direct API access (bypassing the SPA) needs the bearer token from .env:
-    grep '^BROWSER_API_KEY=' .env
+  Direct API access (loopback only — bypasses nginx):
+    http://127.0.0.1:$(read_env_var BACKEND_PORT)
+    needs the bearer token from .env: grep '^API_KEYS=' .env
 EOF

@@ -49,10 +49,11 @@ server {
         # built-ins like $host pass through untouched — see the nginx
         # service's NGINX_ENVSUBST_FILTER in docker-compose.yml).
         #
-        # Security trade-off: anyone who can reach this nginx on port 80
-        # effectively has API access. Deployments that expose port 80
-        # publicly must add a further auth layer in front (VPN, oauth2
-        # proxy, or basic auth). For self-hosted LAN / firewalled use,
+        # Security trade-off: anyone who can reach this nginx on the
+        # published HTTP_PORT effectively has API access. Deployments that
+        # expose HTTP_PORT publicly must add a further auth layer in front
+        # (VPN, oauth2 proxy, or basic auth). For self-hosted LAN / firewalled
+        # use,
         # this is equivalent to the original posture.
         proxy_set_header Authorization "Bearer ${BROWSER_API_KEY}";
 

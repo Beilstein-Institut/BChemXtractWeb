@@ -152,14 +152,44 @@ flowchart LR
 **The fastest path — one script does everything:**
 
 ```bash
-git clone --recurse-submodules https://github.com/Beilstein-Institut/BChemXtractWeb.git
+git clone https://github.com/Beilstein-Institut/BChemXtractWeb.git
 cd BChemXtractWeb
 ./deploy.sh
 ```
 
-`deploy.sh` runs preflight checks, initializes submodules, builds the BChemXtract fat JAR (one-time), generates random secrets into `.env` (skipped if `.env` already exists), and brings the stack up via `docker compose`. Re-run with `--rotate-keys` to cycle the API tokens later.
+`deploy.sh` runs preflight checks, resolves the latest BChemXtract release tag from upstream (override with `BCHEMXTRACT_REF=vX.Y.Z` to pin), generates random secrets into `.env` (skipped if `.env` already exists), and brings the stack up via `docker compose`. The backend Docker image clones BChemXtract directly from upstream at image build time — no submodule, no host-side JAR build needed. Re-run with `--rotate-keys` to cycle the API tokens later.
 
-Open **<http://localhost>**. The API is behind nginx at `/api`, the interactive docs at `/docs`.
+### Choosing a different host port
+
+`deploy.sh` writes the chosen port to `.env` as `HTTP_PORT` and `docker-compose.yml` interpolates it into the nginx `ports:` mapping. Three ways to set it:
+
+```bash
+# 1. Interactive prompt — fires only on first run (no .env yet) or with --change-port.
+./deploy.sh
+#   ==> Selecting public HTTP port
+#   Port [3000]:
+
+# 2. CLI flag — skips the prompt; works on a fresh checkout or to update an existing .env.
+./deploy.sh --port 9000
+
+# 3. Environment variable — equivalent to --port; --port wins if both are set.
+HTTP_PORT=9000 ./deploy.sh
+
+# 4. Re-prompt on an existing deploy (defaults to the current value).
+./deploy.sh --change-port
+```
+
+Validation:
+- `1`–`65535` accepted
+- `<1024` (privileged) → warning, accepted (Docker may need root or `CAP_NET_BIND_SERVICE`)
+- `5432`, `6379`, `8000`, `5173` → warning (collide with stack internals), accepted
+- Anything else → re-prompt (interactive) or exit with an error (flag / env var)
+
+The backend FastAPI is **bound to `127.0.0.1:8000` only** — direct API consumers (CLI scripts, curl on the deploy host) reach it on `http://127.0.0.1:8000`, but the port is not reachable from other machines. This matches the existing `db` and `redis` services, which are already internal-only, and gives the stack a defense-in-depth posture: the only public surface is nginx on `HTTP_PORT`. Set `BACKEND_PORT=N` in `.env` to change the host port; replace the `127.0.0.1` in `docker-compose.yml` with `0.0.0.0` if you really do want to expose the raw API on the network.
+
+Open **<http://localhost:3000>**. The API is behind nginx at `/api`, the interactive docs at `/docs`.
+
+> The default public port is **3000** (avoids the Apache/system-nginx collision on Ubuntu/Debian hosts). On first run, `deploy.sh` prompts for the port; press Enter to accept 3000 or type a different one. See [Choosing a different host port](#choosing-a-different-host-port) below.
 
 <details>
 <summary><b>🛠️ Manual setup (no script)</b></summary>
@@ -167,15 +197,18 @@ Open **<http://localhost>**. The API is behind nginx at `/api`, the interactive 
 <br>
 
 ```bash
-git clone --recurse-submodules https://github.com/Beilstein-Institut/BChemXtractWeb.git
+git clone https://github.com/Beilstein-Institut/BChemXtractWeb.git
 cd BChemXtractWeb
 cp .env.example .env          # then fill in secrets — see "Generating .env secrets" below
 
-# First-time only — builds the upstream BChemXtract fat JAR
-cd backend && bash scripts/build_jar.sh && cd ..
-
-# Fire it up
+# Fire it up — backend/Dockerfile clones BChemXtract from upstream at build time.
+# To pin a specific upstream tag, export BCHEMXTRACT_VERSION=vX.Y.Z first.
 docker compose up -d --build
+
+# Optional: only needed for non-docker dev (running uvicorn against a local DB).
+# Clones the resolved tag into backend/.bchemxtract-build/, runs Maven, drops the
+# fat JAR into backend/jars/.
+#   bash backend/scripts/build_jar.sh
 ```
 
 </details>
@@ -270,18 +303,18 @@ Every endpoint is documented at `/docs` (Swagger) and `/redoc` once the stack is
 
 ```bash
 # Extract a CDX file
-curl -X POST http://localhost/api/extract \
+curl -X POST http://localhost:3000/api/extract \
   -H "X-API-Key: $MY_KEY" \
   -F "file=@paper-figure-7.cdx"
 
 # Substructure search — all overlapping benzene rings in naphthalene, all highlighted
-curl -X POST http://localhost/api/search \
+curl -X POST http://localhost:3000/api/search \
   -H "X-API-Key: $MY_KEY" \
   -H "Content-Type: application/json" \
   -d '{"query":"c1ccccc1","type":"substructure","page":1,"size":24}'
 
 # Live parse-validate (powers the client-side debounce gate)
-curl -X POST http://localhost/api/search/validate \
+curl -X POST http://localhost:3000/api/search/validate \
   -H "Content-Type: application/json" \
   -d '{"query":"[CX3]=O","stereo":false}'
 # → {"valid":true,"language":"smarts","atom_count":2,"error":null}
