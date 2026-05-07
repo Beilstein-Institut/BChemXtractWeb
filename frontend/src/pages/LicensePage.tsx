@@ -5,7 +5,7 @@
  *
  * Sourced from:
  *   - /LICENSE at the repo root (BChemXtractWeb MIT)
- *   - backend/lib/bchemxtract/LICENSE (upstream BChemXtract MIT)
+ *   - https://github.com/Beilstein-Institut/BChemXtract/blob/main/LICENSE (upstream BChemXtract MIT)
  *   - https://github.com/cdk/cdk/blob/main/LICENSE.txt (CDK 2.12 LGPL-2.1-or-later)
  *
  * The complete dependency list lives in frontend/package.json and

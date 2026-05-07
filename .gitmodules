@@ -1,3 +1,0 @@
-[submodule "backend/lib/bchemxtract"]
-	path = backend/lib/bchemxtract
-	url = https://github.com/Beilstein-Institut/BChemXtract.git

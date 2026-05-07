@@ -4,6 +4,11 @@ WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
+# Bake the resolved BChemXtract version into the SPA bundle so the footer
+# can render it without a runtime API call. Vite only forwards env vars
+# prefixed with VITE_ to client code (envPrefix default).
+ARG BCHEMXTRACT_VERSION=
+ENV VITE_BCHEMXTRACT_VERSION=$BCHEMXTRACT_VERSION
 RUN npm run build
 
 # Stage 2: Serve with Nginx
