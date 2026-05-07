@@ -50,15 +50,12 @@ from app.models.orm import Base  # noqa: E402
 TEST_API_KEY = settings.api_keys[0]
 TEST_AUTH_HEADERS = {"Authorization": f"Bearer {TEST_API_KEY}"}
 
-FIXTURES_DIR = (
-    Path(__file__).parent.parent / "lib" / "bchemxtract" / "src" / "test" / "resources"
-)
-
-# --- Phase 10: local reaction fixtures dir ---
-# Phase 10 reaction fixtures are COPIED into backend/tests/fixtures/reactions/
-# rather than read from FIXTURES_DIR (the submodule). This insulates reaction
-# tests from submodule bumps that may add/remove/rename upstream fixture
-# files. Substance fixtures above continue to read from FIXTURES_DIR.
+# Substance + reaction fixtures both live under backend/tests/fixtures/.
+# Substance fixtures (under substances/) were copied verbatim from upstream
+# BChemXtract's src/test/resources/ when the submodule was retired — see the
+# tree at https://github.com/Beilstein-Institut/BChemXtract/tree/v1.1.1/src/test/resources.
+# Re-copy from a newer upstream tag if/when those tests need to track changes.
+FIXTURES_DIR = Path(__file__).parent / "fixtures" / "substances"
 REACTION_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "reactions"
 
 # --- Phase 5: test database URL ---
@@ -153,7 +150,7 @@ async def unauth_client() -> AsyncClient:
 def cdx_file_bytes() -> bytes:
     """L-lactic-acid.cdx -- small single-substance CDX file for fast tests.
 
-    Source: BChemXtract submodule test resources (D-12).
+    Source: BChemXtract upstream test resources (vendored locally) (D-12).
     """
     path = FIXTURES_DIR / "integrationTests" / "L-lactic-acid.cdx"
     return path.read_bytes()
@@ -185,7 +182,7 @@ def simple_v3000_block() -> str:
 def cdxml_file_bytes() -> bytes:
     """test_fixture.cdxml -- multi-substance CDXML file.
 
-    Source: BChemXtract submodule test resources (D-12).
+    Source: BChemXtract upstream test resources (vendored locally) (D-12).
     """
     path = FIXTURES_DIR / "cdx" / "reader" / "test_fixture.cdxml"
     return path.read_bytes()
@@ -195,7 +192,7 @@ def cdxml_file_bytes() -> bytes:
 def cdx_multi_file_bytes() -> bytes:
     """test_fixture.cdx -- multi-substance CDX file.
 
-    Source: BChemXtract submodule test resources (D-12).
+    Source: BChemXtract upstream test resources (vendored locally) (D-12).
     """
     path = FIXTURES_DIR / "cdx" / "reader" / "test_fixture.cdx"
     return path.read_bytes()
@@ -208,7 +205,7 @@ def cdx_multi_file_bytes() -> bytes:
 def cdx_reaction_file_bytes() -> bytes:
     """Simple single-reaction CDX fixture.
 
-    Source: copied from BChemXtract submodule integrationTests/reactions/
+    Source: copied from BChemXtract upstream integrationTests/reactions/
     into backend/tests/fixtures/reactions/ (Phase 10 D-03).
     """
     path = REACTION_FIXTURES_DIR / "simple_reaction.cdx"

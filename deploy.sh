@@ -169,11 +169,11 @@ PYEOF
 }
 
 # --- BChemXtract version resolution ----------------------------------------
-# Mirrors backend/Dockerfile's auto-resolve so what the footer shows matches
-# what the backend image actually builds with. Priority:
+# Mirrors backend/Dockerfile and backend/scripts/build_jar.sh exactly so the
+# footer always shows what the backend image is actually built from.
+# Priority:
 #   1. BCHEMXTRACT_REF env var          (operator override, same name as Dockerfile ARG)
 #   2. `git ls-remote` highest semver   (same query the Dockerfile uses)
-#   3. submodule's tag                  (offline / network-blocked fallback)
 resolve_bchemxtract_version() {
   local resolved=""
   if [[ -n "${BCHEMXTRACT_REF:-}" ]]; then
@@ -182,19 +182,16 @@ resolve_bchemxtract_version() {
     resolved="$(git ls-remote --tags --refs --sort='-v:refname' \
         https://github.com/Beilstein-Institut/BChemXtract.git 'refs/tags/v*' 2>/dev/null \
       | head -n1 | sed 's|.*refs/tags/||')"
-    if [[ -z "$resolved" && ( -d backend/lib/bchemxtract/.git || -f backend/lib/bchemxtract/.git ) ]]; then
-      resolved="$(git -C backend/lib/bchemxtract describe --tags 2>/dev/null || true)"
-    fi
   fi
-  [[ -n "$resolved" ]] || die "could not resolve BChemXtract version (network unreachable and submodule has no tag)"
+  [[ -n "$resolved" ]] || die "could not resolve BChemXtract version — network unreachable and BCHEMXTRACT_REF not set"
   printf '%s' "$resolved"
 }
 
-# --- submodule + JAR --------------------------------------------------------
-info 'Initializing git submodules'
-git submodule update --init --recursive
-ok 'submodules ready'
-
+# --- BChemXtract JAR (host-side, optional) ---------------------------------
+# The backend Docker image clones BChemXtract directly from GitHub at build
+# time, so a host-side JAR is only needed for non-docker dev workflows
+# (e.g. running uvicorn against a local Postgres). build_jar.sh clones the
+# same upstream tag the Dockerfile would and produces the fat JAR locally.
 if compgen -G "backend/jars/bchemxtract-*-jar-with-dependencies.jar" >/dev/null; then
   ok 'BChemXtract JAR already built — skipping (no JDK/Maven needed for this run)'
 else

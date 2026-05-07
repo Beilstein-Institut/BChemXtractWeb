@@ -2,8 +2,9 @@
 
 The upstream Java CDXMLReader hands bytes to a JAXP SAX parser with
 ``FEATURE_SECURE_PROCESSING`` NOT applied (``XMLUtils.parse(..., validate=false)``
-in the read-only BChemXtract submodule). The bundled ``XMLEntityCatalog``
-only knows about the local ``cdxml.dtd`` systemId and returns ``null`` for
+in the upstream BChemXtract source we treat as read-only). The bundled
+``XMLEntityCatalog`` only knows about the local ``cdxml.dtd`` systemId
+and returns ``null`` for
 everything else, which the SAX contract interprets as *"resolve externally
 using default behaviour"* — giving any caller with a CDXML payload:
 
@@ -11,8 +12,8 @@ using default behaviour"* — giving any caller with a CDXML payload:
 2. SSRF to internal services (``<!ENTITY x SYSTEM "http://169.254.169.254/...">``)
 3. Billion-laughs / quadratic-blowup denial of service
 
-Because the Java layer is read-only (upstream submodule, pinned), we harden
-at the Python boundary. The guard:
+Because we treat the upstream Java layer as read-only, we harden at the
+Python boundary. The guard:
 
   * rejects any ``<!ENTITY>`` declaration,
   * parses the DOCTYPE declaration structurally (respecting quoted
@@ -60,7 +61,7 @@ _EXTERNAL_ID_RE = re.compile(
 )
 
 # Exact SYSTEM identifiers accepted by the upstream ``XMLEntityCatalog``
-# (see ``backend/lib/bchemxtract/.../CDXMLConstants.java``). Either of
+# (see ``CDXMLConstants.java`` in upstream BChemXtract). Either of
 # these is resolved to a bundled local DTD; every other id causes the
 # catalog to return ``null`` which tells the SAX parser to fetch
 # externally — the XXE primitive. The guard therefore permits only these

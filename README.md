@@ -154,12 +154,12 @@ flowchart LR
 **The fastest path — one script does everything:**
 
 ```bash
-git clone --recurse-submodules https://github.com/Beilstein-Institut/BChemXtractWeb.git
+git clone https://github.com/Beilstein-Institut/BChemXtractWeb.git
 cd BChemXtractWeb
 ./deploy.sh
 ```
 
-`deploy.sh` runs preflight checks, initializes submodules, builds the BChemXtract fat JAR (one-time), generates random secrets into `.env` (skipped if `.env` already exists), and brings the stack up via `docker compose`. Re-run with `--rotate-keys` to cycle the API tokens later.
+`deploy.sh` runs preflight checks, resolves the latest BChemXtract release tag from upstream (override with `BCHEMXTRACT_REF=vX.Y.Z` to pin), generates random secrets into `.env` (skipped if `.env` already exists), and brings the stack up via `docker compose`. The backend Docker image clones BChemXtract directly from upstream at image build time — no submodule, no host-side JAR build needed. Re-run with `--rotate-keys` to cycle the API tokens later.
 
 ### Choosing a different host port
 
@@ -199,15 +199,18 @@ Open **<http://localhost:3000>**. The API is behind nginx at `/api`, the interac
 <br>
 
 ```bash
-git clone --recurse-submodules https://github.com/Beilstein-Institut/BChemXtractWeb.git
+git clone https://github.com/Beilstein-Institut/BChemXtractWeb.git
 cd BChemXtractWeb
 cp .env.example .env          # then fill in secrets — see "Generating .env secrets" below
 
-# First-time only — builds the upstream BChemXtract fat JAR
-cd backend && bash scripts/build_jar.sh && cd ..
-
-# Fire it up
+# Fire it up — backend/Dockerfile clones BChemXtract from upstream at build time.
+# To pin a specific upstream tag, export BCHEMXTRACT_VERSION=vX.Y.Z first.
 docker compose up -d --build
+
+# Optional: only needed for non-docker dev (running uvicorn against a local DB).
+# Clones the resolved tag into backend/.bchemxtract-build/, runs Maven, drops the
+# fat JAR into backend/jars/.
+#   bash backend/scripts/build_jar.sh
 ```
 
 </details>

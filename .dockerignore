@@ -48,7 +48,8 @@ backend/coverage.xml
 
 # Built JAR (docker builds its own from the upstream repo)
 backend/jars/*.jar
-backend/lib/bchemxtract
+# Local clone staged by build_jar.sh for host-side dev — never goes into images
+backend/.bchemxtract-build
 
 # -----------------------------------------------------------------------------
 # Env / secrets

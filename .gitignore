@@ -94,8 +94,10 @@ target/
 *.class
 *.jar
 
-# Backend-specific: BChemXtract fat JAR (built from submodule)
+# Backend-specific: BChemXtract fat JAR (built from a fresh clone of upstream;
+# build_jar.sh stages the clone in backend/.bchemxtract-build/ between runs)
 backend/jars/*.jar
+backend/.bchemxtract-build/
 
 # -----------------------------------------------------------------------------
 # Docker
