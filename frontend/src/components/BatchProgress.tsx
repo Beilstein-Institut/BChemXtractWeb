@@ -46,51 +46,32 @@ const STAT_TONE_CLASS: Record<StatTone, string> = {
 
 /**
  * useElapsedSeconds — ticks a whole-second counter while `active` is
- * true. The counter resets to 0 whenever `active` transitions from
- * false → true, so consecutive batches each get a fresh timer. When
- * `active` goes false (all files processed or cleared) the timer
- * stops ticking but the final value is preserved so the UI still
- * shows "Elapsed: 1:23" once processing finishes.
+ * true. Resets to 0 on every false→true transition (consecutive batches
+ * each get a fresh timer). When `active` goes false the timer stops but
+ * the final value is preserved so the UI keeps showing "Elapsed: 1:23"
+ * after processing finishes.
  *
- * Implementation: a setInterval fires every second while active and
- * only the interval callback (not the effect body) writes to state.
- * This keeps the hook compatible with the React compiler's purity
- * rules — the effect body only reads state to decide whether to
- * seed the interval.
+ * Only the interval callback writes to state; the reset is queued via
+ * `queueMicrotask` rather than a direct setState in the effect body, so
+ * the hook stays compatible with the React compiler's purity rules.
  */
 function useElapsedSeconds(active: boolean): number {
   const [secs, setSecs] = useState(0);
   const startRef = useRef<number | null>(null);
-  const lastActiveRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!active) {
-      // Clear the start so a subsequent active→true transition is
-      // detected; `secs` is intentionally left as the last reading
-      // so the UI continues to show "Elapsed: 1:23" after the batch
-      // completes.
       startRef.current = null;
-      lastActiveRef.current = false;
       return;
     }
-    // Active edge: initialize the start timestamp. We do NOT reset
-    // `secs` here (that would be a set-state-in-effect). Instead
-    // the interval callback below will write the first tick within
-    // ~1s of start. A read-time correction in the hook's return
-    // expression gives callers a value of 0 during the first 1s of
-    // a fresh run so they don't briefly see the prior batch's
-    // final reading.
     startRef.current = Date.now();
-    lastActiveRef.current = true;
     const id = setInterval(() => {
       if (startRef.current !== null) {
         setSecs(Math.floor((Date.now() - startRef.current) / 1000));
       }
     }, 1000);
-    // Fire one sync "reset" via the callback form so the first tick
-    // is 0 immediately when the batch starts. This stays lint-safe
-    // because it's an event-queued state transition, not a direct
-    // setState call in the effect body.
+    // Queued reset (not a direct setState in the effect body) so a fresh
+    // batch shows 0s immediately rather than the prior run's final value.
     queueMicrotask(() => setSecs(0));
     return () => clearInterval(id);
   }, [active]);
@@ -113,16 +94,13 @@ function formatElapsed(total: number): string {
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 }
 
-function Stat({
-  label,
-  value,
-  tone = "default",
-}: {
+interface StatProps {
   label: string;
   value: number;
   tone?: StatTone;
-}) {
-  const toneClass = STAT_TONE_CLASS[tone];
+}
+
+function Stat({ label, value, tone = "default" }: StatProps) {
   return (
     <div
       data-slot="batch-stat"
@@ -131,11 +109,43 @@ function Stat({
       <span className="text-xs font-medium uppercase tracking-wide text-foreground-muted">
         {label}
       </span>
-      <span className={cn("font-display text-2xl font-semibold tabular-nums", toneClass)}>
+      <span
+        className={cn("font-display text-2xl font-semibold tabular-nums", STAT_TONE_CLASS[tone])}
+      >
         {value}
       </span>
     </div>
   );
+}
+
+/**
+ * Chemistry-honest pipeline phases. Cycled while a single-file extraction is
+ * mid-flight so the user sees what BChemXtract is actually doing instead of a
+ * static "Elapsed: 3s". Phases are factual, not speculative — they reflect the
+ * real CDX → CDK pipeline order. We don't gate on the backend's actual phase
+ * because that would need an SSE channel; this is presented as informational
+ * context, not live progress.
+ */
+const PIPELINE_PHASES = [
+  "Reading the CDX/CDXML file",
+  "Walking the CDX object model",
+  "Extracting unique substances",
+  "Computing InChI for each structure",
+  "Generating SMILES and molecular formulas",
+] as const;
+
+const PIPELINE_PHASE_INTERVAL_MS = 1500;
+
+function usePipelinePhase(active: boolean): string | null {
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => {
+      setIndex((i) => (i + 1) % PIPELINE_PHASES.length);
+    }, PIPELINE_PHASE_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [active]);
+  return active ? PIPELINE_PHASES[index] : null;
 }
 
 function FileStatusIcon({ state }: { state: BatchFileStatus["state"] }) {
@@ -171,6 +181,11 @@ export function BatchProgress({ files, totalCount, onCancel }: BatchProgressProp
   const isTimerActive = totalCount > 0 && processedCount < totalCount;
   const elapsedSeconds = useElapsedSeconds(isTimerActive);
 
+  // The rotating phase line only fires for single-file extractions. Real
+  // batches already give the user something to watch (per-file rows lighting
+  // up); adding a rotating tagline there competes for attention.
+  const pipelinePhase = usePipelinePhase(totalCount === 1 && isTimerActive);
+
   return (
     <div data-slot="process-step" className="space-y-6">
       <div data-slot="batch-stats" className="grid grid-cols-3 gap-3">
@@ -190,6 +205,15 @@ export function BatchProgress({ files, totalCount, onCancel }: BatchProgressProp
           <p data-slot="batch-elapsed" className="text-caption font-mono text-foreground-muted">
             Elapsed: {formatElapsed(elapsedSeconds)}
           </p>
+          {pipelinePhase && (
+            <p
+              aria-hidden="true"
+              data-slot="batch-pipeline-phase"
+              className="text-caption font-mono text-foreground-muted/70"
+            >
+              {pipelinePhase}
+            </p>
+          )}
         </div>
 
         <AlertDialog>
