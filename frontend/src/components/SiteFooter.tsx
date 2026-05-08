@@ -35,6 +35,10 @@ function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
  * VITE_BCHEMXTRACT_VERSION is baked into the bundle. The version links to the
  * matching GitHub release page. When the env var is empty (e.g. local
  * `npm run dev` outside docker), only "Open source" is shown — no broken link.
+ *
+ * Hovering the version reveals the rest of the chemistry stack (CDK 2.12,
+ * Java 21) on desktop. Quiet, engineer-to-engineer easter egg; mobile users
+ * get the bare version since hover doesn't exist there.
  */
 function LicenseLine() {
   const version = import.meta.env.VITE_BCHEMXTRACT_VERSION?.trim();
@@ -43,16 +47,22 @@ function LicenseLine() {
   }
   const releaseUrl = `https://github.com/Beilstein-Institut/BChemXtract/releases/tag/${encodeURIComponent(version)}`;
   return (
-    <span>
+    <span className="group/version inline-flex items-baseline">
       Open source · running{" "}
       <a
         href={releaseUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-foreground underline-offset-4 hover:text-primary hover:underline"
+        className="ml-1 text-foreground underline-offset-4 hover:text-primary hover:underline"
       >
         BChemXtract {version}
       </a>
+      <span
+        aria-hidden="true"
+        className="ml-1 hidden text-foreground-muted opacity-0 transition-opacity duration-200 group-hover/version:opacity-100 sm:inline"
+      >
+        · CDK 2.12 · Java 21
+      </span>
     </span>
   );
 }

@@ -201,7 +201,7 @@ describe("ReactionsTab", () => {
       }),
     );
     render(<ReactionsTab file={mkFile()} />);
-    expect(screen.getByText(/Reaction extraction didn't work/i)).toBeInTheDocument();
+    expect(screen.getByText(/Reaction extraction failed/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Try again/i }));
     expect(extract).toHaveBeenCalled();
   });

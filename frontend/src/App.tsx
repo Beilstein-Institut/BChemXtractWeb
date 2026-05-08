@@ -185,7 +185,7 @@ function App() {
         const response = await getHistoryDetail(extractionId);
         handleReloadSuccess(response);
       } catch {
-        toast.error("Failed to load extraction. Try again.");
+        toast.error("Couldn't load that extraction. Refresh and retry.");
       }
     },
     [handleReloadSuccess],

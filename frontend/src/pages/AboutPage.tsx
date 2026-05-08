@@ -32,10 +32,15 @@ import { BackgroundPaths } from "@/components/ui/background-paths";
 import { buttonVariants } from "@/components/ui/button";
 import { Link } from "@/lib/Link";
 
-// TODO: replace with a build-time define from vite.config / package.json
+// TODO: replace VERSION with a build-time define from vite.config / package.json
 // so releases stamp the correct version automatically.
 const VERSION = "1.0";
-const BUILD_LABEL = "April 2026";
+// Current month / year, computed once per module load. Avoids stale labels
+// like "April 2026" lingering past the month they were shipped in.
+const BUILD_LABEL = new Intl.DateTimeFormat("en-US", {
+  month: "long",
+  year: "numeric",
+}).format(new Date());
 
 interface TechEntry {
   label: string;

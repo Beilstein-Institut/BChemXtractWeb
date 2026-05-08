@@ -154,4 +154,43 @@ describe("BatchProgress", () => {
       expect(elapsed.textContent).toBe(initial);
     });
   });
+
+  describe("pipeline phase line", () => {
+    it("renders for single-file extractions while the timer is active", () => {
+      const processing: BatchFileStatus[] = [
+        { state: "processing", filename: "drug.cdx", fileSize: 1024 },
+      ];
+      const { container } = render(
+        <BatchProgress files={processing} totalCount={1} onCancel={vi.fn()} />,
+      );
+      const phase = container.querySelector("[data-slot='batch-pipeline-phase']");
+      expect(phase).not.toBeNull();
+      expect(phase?.textContent).toBe("Reading the CDX/CDXML file");
+    });
+
+    it("does not render for real batches (totalCount > 1)", () => {
+      // Per-file rows already give the user something to track during real
+      // batches; a rotating tagline competes for attention.
+      const { container } = render(
+        <BatchProgress files={files} totalCount={3} onCancel={vi.fn()} />,
+      );
+      expect(container.querySelector("[data-slot='batch-pipeline-phase']")).toBeNull();
+    });
+
+    it("does not render once the single-file extraction completes", () => {
+      const done: BatchFileStatus[] = [
+        {
+          state: "done",
+          filename: "drug.cdx",
+          fileSize: 1024,
+          structureCount: 2,
+          extractionId: 1,
+        },
+      ];
+      const { container } = render(
+        <BatchProgress files={done} totalCount={1} onCancel={vi.fn()} />,
+      );
+      expect(container.querySelector("[data-slot='batch-pipeline-phase']")).toBeNull();
+    });
+  });
 });
