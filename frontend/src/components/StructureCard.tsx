@@ -141,7 +141,9 @@ export function StructureCard({
     // default of 0 on SubstanceResponse.id). Backend returns 404 for id=0 which
     // shows a confusing "No substances found" error to the user.
     if (!substance.id) {
-      toast.error("Export needs a saved structure. Open the extraction first, then export from there.");
+      toast.error(
+        "Export needs a saved structure. Open the extraction first, then export from there.",
+      );
       return;
     }
     const toastId = `export-card-${Date.now()}`;

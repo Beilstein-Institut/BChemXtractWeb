@@ -134,7 +134,9 @@ export function useBatch(): UseBatchReturn {
       try {
         startResponse = await postBatchStart(inputFiles);
       } catch (err) {
-        setErrorMessage(err instanceof Error ? err.message : "Batch start failed for an unknown reason.");
+        setErrorMessage(
+          err instanceof Error ? err.message : "Batch start failed for an unknown reason.",
+        );
         setState("error");
         return;
       }

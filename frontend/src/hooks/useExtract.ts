@@ -35,7 +35,9 @@ export function useExtract(): UseExtractReturn {
       setResult(data);
       setState("success");
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Extraction failed for an unknown reason.");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Extraction failed for an unknown reason.",
+      );
       setState("error");
     }
   }, []);

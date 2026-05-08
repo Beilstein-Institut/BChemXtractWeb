@@ -257,7 +257,8 @@ export function ReactionsTab({
             </EmptyMedia>
             <EmptyTitle>Reaction extraction failed</EmptyTitle>
             <EmptyDescription>
-              {errorMessage ?? "No detail returned. Retry, or open the file in ChemDraw to verify the reactions render."}
+              {errorMessage ??
+                "No detail returned. Retry, or open the file in ChemDraw to verify the reactions render."}
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
