@@ -233,7 +233,7 @@ export function HistoryList({
 
   const handleExportCsv = useCallback(() => {
     if (filteredEntries.length === 0) {
-      toast.info("Nothing to export — adjust your search first.");
+      toast.info("Nothing to export. Adjust your search first.");
       return;
     }
     const stamp = new Date().toISOString().slice(0, 10);
@@ -249,7 +249,7 @@ export function HistoryList({
         const response = await onReload(id);
         onReloadSuccess(response);
       } catch {
-        toast.error("Failed to load extraction. Try again.");
+        toast.error("Couldn't load that extraction. Refresh and retry.");
       }
     },
     [onReload, onReloadSuccess],

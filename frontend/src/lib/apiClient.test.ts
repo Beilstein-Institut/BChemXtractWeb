@@ -82,7 +82,7 @@ describe("postExtract", () => {
     const file = new File(["data"], "test.cdx");
 
     await expect(postExtract(file)).rejects.toThrow(
-      "Could not reach the extraction server — check your connection.",
+      "Extraction server unreachable. Check your network and retry.",
     );
   });
 });
@@ -139,7 +139,7 @@ describe("postReactions", () => {
     expect(result.format).toBe("cdx");
   });
 
-  it("throws 'Reaction extraction failed — <detail>' on HTTP 4xx with ErrorResponse.detail", async () => {
+  it("throws 'Reaction extraction failed: <detail>' on HTTP 4xx with ErrorResponse.detail", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: false,
       status: 415,
@@ -148,7 +148,7 @@ describe("postReactions", () => {
 
     await expect(
       postReactions(new File(["data"], "test.txt", { type: "text/plain" })),
-    ).rejects.toThrow(/Reaction extraction failed — Unsupported format/);
+    ).rejects.toThrow(/Reaction extraction failed: Unsupported format/);
   });
 
   it("throws connection error on fetch network failure", async () => {
@@ -156,7 +156,7 @@ describe("postReactions", () => {
 
     await expect(
       postReactions(new File(["data"], "test.cdx", { type: "chemical/x-cdx" })),
-    ).rejects.toThrow(/Could not reach the reaction server/);
+    ).rejects.toThrow(/Reaction server unreachable/);
   });
 
   it("throws unexpected-format error when 200 body has no reactions array", async () => {
@@ -168,7 +168,7 @@ describe("postReactions", () => {
 
     await expect(
       postReactions(new File(["data"], "test.cdx", { type: "chemical/x-cdx" })),
-    ).rejects.toThrow(/unexpected response format/);
+    ).rejects.toThrow(/server returned an unexpected response/);
   });
 
   it("propagates AbortError from the provided signal without wrapping", async () => {
@@ -226,7 +226,7 @@ describe("getExtractionReactions", () => {
     expect(result.reaction_count).toBe(3);
   });
 
-  it("throws 'Loading cached reactions failed — <detail>' on HTTP 404 for unknown extraction", async () => {
+  it("throws 'Loading cached reactions failed: <detail>' on HTTP 404 for unknown extraction", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: false,
       status: 404,
@@ -234,7 +234,7 @@ describe("getExtractionReactions", () => {
     } as Response);
 
     await expect(getExtractionReactions(999)).rejects.toThrow(
-      /Loading cached reactions failed — Extraction not found/,
+      /Loading cached reactions failed: Extraction not found/,
     );
   });
 

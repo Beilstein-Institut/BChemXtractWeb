@@ -94,8 +94,8 @@ export function BrowseToolbar({
         duration: 3000,
       });
     } catch (err) {
-      const reason = err instanceof Error ? err.message : "Unknown error";
-      toast.error(`Export failed \u2014 ${reason}. Try again.`, { id: toastId });
+      const reason = err instanceof Error ? err.message : "no reason returned";
+      toast.error(`Export failed: ${reason}. Retry, or narrow the selection.`, { id: toastId });
     } finally {
       setIsExporting(false);
     }

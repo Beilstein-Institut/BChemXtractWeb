@@ -114,8 +114,8 @@ export function StructureSheet({
       );
       toast.success("Export ready \u2014 downloading", { id: toastId, duration: 3000 });
     } catch (err) {
-      const reason = err instanceof Error ? err.message : "Unknown error";
-      toast.error(`Export failed \u2014 ${reason}. Try again.`, { id: toastId });
+      const reason = err instanceof Error ? err.message : "no reason returned";
+      toast.error(`Export failed: ${reason}. Retry from the structure panel.`, { id: toastId });
     }
   }
 

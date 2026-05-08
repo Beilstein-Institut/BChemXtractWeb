@@ -90,7 +90,7 @@ export function BatchSummary({
       await downloadBatchZip(batchId);
       toast.success("ZIP ready. Download started.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "ZIP download failed.");
+      toast.error(err instanceof Error ? err.message : "ZIP download failed. Retry from the same panel.");
     }
   }
 
