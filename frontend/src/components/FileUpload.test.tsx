@@ -56,7 +56,9 @@ describe("FileUpload component", () => {
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = makeFile("document.pdf");
     fireEvent.change(input, { target: { files: [file] } });
-    expect(mockToastError).toHaveBeenCalledWith("File type not supported. Drop a .cdx or .cdxml file.");
+    expect(mockToastError).toHaveBeenCalledWith(
+      "File type not supported. Drop a .cdx or .cdxml file.",
+    );
   });
 
   it("rejects files >50 MB via toast.error when dropped as a single file", () => {
@@ -64,7 +66,9 @@ describe("FileUpload component", () => {
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = makeFile("large.cdx", 52_428_801);
     fireEvent.change(input, { target: { files: [file] } });
-    expect(mockToastError).toHaveBeenCalledWith("File exceeds 50 MB. Split or compress before uploading.");
+    expect(mockToastError).toHaveBeenCalledWith(
+      "File exceeds 50 MB. Split or compress before uploading.",
+    );
   });
 
   it("calls onExtract fast-path when a single valid .cdx file is selected with empty queue", () => {

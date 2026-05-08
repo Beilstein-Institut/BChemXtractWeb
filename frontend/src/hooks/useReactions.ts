@@ -58,7 +58,9 @@ export function useReactions(): UseReactionsReturn {
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       if (abortRef.current !== controller) return;
-      setErrorMessage(err instanceof Error ? err.message : "Reaction extraction failed for an unknown reason.");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Reaction extraction failed for an unknown reason.",
+      );
       setState("error");
     }
   }, []);

@@ -309,9 +309,7 @@ export function FileUpload({
                 <span className="hidden sm:inline">Drop CDX or CDXML files</span>
                 <span className="inline sm:hidden">Choose CDX or CDXML files</span>
               </p>
-              <p className="hidden text-sm text-foreground-muted sm:block">
-                or click to browse
-              </p>
+              <p className="hidden text-sm text-foreground-muted sm:block">or click to browse</p>
             </div>
             <StardustButton
               aria-label="Upload CDX or CDXML file"
@@ -347,10 +345,7 @@ export function FileUpload({
 
         {queueState === "full" && (
           <>
-            <UploadCloudIcon
-              aria-hidden="true"
-              className="size-10 text-foreground-muted/60"
-            />
+            <UploadCloudIcon aria-hidden="true" className="size-10 text-foreground-muted/60" />
             <div className="space-y-1 text-center">
               <p className="text-sm font-medium text-foreground">Batch is full (20 files)</p>
               <p className="text-xs text-foreground-muted">Remove some to add more.</p>

@@ -301,7 +301,9 @@ describe("StructureCard component", () => {
     const shareBtn = document.querySelector("[data-slot='structure-card-share']") as HTMLElement;
     fireEvent.click(shareBtn);
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith("Couldn't copy the share link. Copy the page URL from the address bar.");
+      expect(toast.error).toHaveBeenCalledWith(
+        "Couldn't copy the share link. Copy the page URL from the address bar.",
+      );
     });
   });
 
