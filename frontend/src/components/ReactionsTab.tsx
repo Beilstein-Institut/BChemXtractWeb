@@ -255,9 +255,10 @@ export function ReactionsTab({
             <EmptyMedia variant="icon">
               <AlertCircleIcon aria-hidden="true" />
             </EmptyMedia>
-            <EmptyTitle>Reaction extraction didn't work</EmptyTitle>
+            <EmptyTitle>Reaction extraction failed</EmptyTitle>
             <EmptyDescription>
-              Something went wrong. {errorMessage ?? "Please try again."}
+              {errorMessage ??
+                "No detail returned. Retry, or open the file in ChemDraw to verify the reactions render."}
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>

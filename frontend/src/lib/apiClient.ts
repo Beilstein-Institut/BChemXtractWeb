@@ -37,7 +37,7 @@ interface ApiFetchOptions extends Omit<RequestInit, "body"> {
   errorPrefix: string;
 }
 
-const DEFAULT_CONNECTION_ERROR = "Could not reach the server — check your connection.";
+const DEFAULT_CONNECTION_ERROR = "Server unreachable. Check your network and retry.";
 
 function isAbortError(err: unknown): err is DOMException {
   return err instanceof DOMException && err.name === "AbortError";
@@ -48,9 +48,9 @@ async function extractErrorDetail(response: Response): Promise<string> {
     const body = await response.json();
     if (typeof body?.detail === "string") return body.detail;
   } catch {
-    // Fall through — response wasn't JSON.
+    // Response wasn't JSON.
   }
-  return "please try again";
+  return "no detail returned";
 }
 
 async function apiFetch(
@@ -66,7 +66,7 @@ async function apiFetch(
   }
   if (!response.ok) {
     const detail = await extractErrorDetail(response);
-    throw new Error(`${errorPrefix} — ${detail}`);
+    throw new Error(`${errorPrefix}: ${detail}`);
   }
   return response;
 }
@@ -84,7 +84,7 @@ async function parseJsonEnvelope<T>(
 ): Promise<T> {
   const body = await response.json();
   if (!body || !validate(body)) {
-    throw new Error(`${errorPrefix} — unexpected response format from server.`);
+    throw new Error(`${errorPrefix}: server returned an unexpected response.`);
   }
   return body as T;
 }
@@ -154,7 +154,7 @@ export async function postExtract(file: File): Promise<ExtractionResponse> {
   const response = await apiFetch("/api/extract", {
     method: "POST",
     body: formData,
-    connectionError: "Could not reach the extraction server — check your connection.",
+    connectionError: "Extraction server unreachable. Check your network and retry.",
     errorPrefix: "Extraction failed",
   });
   return parseJsonEnvelope<ExtractionResponse>(response, "Extraction failed", (b) =>
@@ -196,7 +196,7 @@ export async function deleteHistoryEntry(id: number): Promise<void> {
     throw new Error(DEFAULT_CONNECTION_ERROR);
   }
   if (!response.ok && response.status !== 204) {
-    throw new Error("Could not delete extraction. Try again.");
+    throw new Error("Delete failed. The extraction may already be gone; refresh and retry.");
   }
 }
 
@@ -363,7 +363,7 @@ export async function postReactions(
     method: "POST",
     body: formData,
     signal,
-    connectionError: "Could not reach the reaction server — check your connection.",
+    connectionError: "Reaction server unreachable. Check your network and retry.",
     errorPrefix: "Reaction extraction failed",
   });
   return parseJsonEnvelope<ReactionExtractionResponse>(
@@ -392,7 +392,7 @@ export async function getExtractionReactions(
   const response = await apiFetch(`/api/extractions/${extractionId}/reactions`, {
     method: "GET",
     signal,
-    connectionError: "Could not reach the reaction server — check your connection.",
+    connectionError: "Reaction server unreachable. Check your network and retry.",
     errorPrefix: "Loading cached reactions failed",
   });
   return parseJsonEnvelope<ReactionExtractionResponse>(

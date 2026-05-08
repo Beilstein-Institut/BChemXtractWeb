@@ -134,7 +134,9 @@ export function useBatch(): UseBatchReturn {
       try {
         startResponse = await postBatchStart(inputFiles);
       } catch (err) {
-        setErrorMessage(err instanceof Error ? err.message : "Batch start failed.");
+        setErrorMessage(
+          err instanceof Error ? err.message : "Batch start failed for an unknown reason.",
+        );
         setState("error");
         return;
       }
@@ -153,9 +155,9 @@ export function useBatch(): UseBatchReturn {
       });
       es.addEventListener("error", () => {
         closeSSE();
-        setErrorMessage("Connection lost.");
+        setErrorMessage("Live progress dropped. Reload the page to recover.");
         setState("error");
-        toast.error("Connection lost. Reconnecting…");
+        toast.error("Live progress dropped. Reload to retry.");
       });
     },
     [closeSSE, handleFileComplete],

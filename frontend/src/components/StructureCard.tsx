@@ -141,7 +141,9 @@ export function StructureCard({
     // default of 0 on SubstanceResponse.id). Backend returns 404 for id=0 which
     // shows a confusing "No substances found" error to the user.
     if (!substance.id) {
-      toast.error("Cannot export \u2014 structure has no database ID.");
+      toast.error(
+        "Export needs a saved structure. Open the extraction first, then export from there.",
+      );
       return;
     }
     const toastId = `export-card-${Date.now()}`;
@@ -153,8 +155,8 @@ export function StructureCard({
       );
       toast.success("Export ready \u2014 downloading", { id: toastId, duration: 3000 });
     } catch (err) {
-      const reason = err instanceof Error ? err.message : "Unknown error";
-      toast.error(`Export failed \u2014 ${reason}. Try again.`, { id: toastId });
+      const reason = err instanceof Error ? err.message : "no reason returned";
+      toast.error(`Export failed: ${reason}. Retry from the structure panel.`, { id: toastId });
     }
   }
 
@@ -169,7 +171,7 @@ export function StructureCard({
       try {
         await share(substance.inchi_key);
       } catch {
-        toast.error("Could not copy share link.");
+        toast.error("Couldn't copy the share link. Copy the page URL from the address bar.");
       }
     },
     [share, substance.inchi_key],

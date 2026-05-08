@@ -2,7 +2,7 @@
  * Tests for the FileUpload component (Phase 3 wizard Step 1).
  * Vitest globals: true — no need to import describe/it/expect.
  */
-import { render, screen, fireEvent } from "@testing-library/react";
+import { act, render, screen, fireEvent } from "@testing-library/react";
 import { vi, beforeEach } from "vitest";
 import { FileUpload } from "./FileUpload";
 
@@ -38,14 +38,17 @@ describe("FileUpload component", () => {
     expect(screen.getByRole("button", { name: "Upload CDX or CDXML file" })).toBeInTheDocument();
   });
 
-  it("renders helper text 'Drag & drop your CDX or CDXML file'", () => {
+  it("renders both pointer-variant headlines (desktop + mobile copy in the DOM)", () => {
     render(<FileUpload onExtract={vi.fn()} isLoading={false} />);
-    expect(screen.getByText("Drag & drop your CDX or CDXML file")).toBeInTheDocument();
+    // Both copy variants live in the DOM; CSS @media(pointer:fine) toggles
+    // which one is visible at runtime. `hidden: true` finds either.
+    expect(screen.getByText("Drop CDX or CDXML files", { hidden: true })).toBeInTheDocument();
+    expect(screen.getByText("Choose CDX or CDXML files", { hidden: true })).toBeInTheDocument();
   });
 
-  it("renders 'or click to browse' helper copy", () => {
+  it("renders 'or click to browse' helper copy (desktop variant)", () => {
     render(<FileUpload onExtract={vi.fn()} isLoading={false} />);
-    expect(screen.getByText("or click to browse")).toBeInTheDocument();
+    expect(screen.getByText("or click to browse", { hidden: true })).toBeInTheDocument();
   });
 
   it("rejects .pdf files via toast.error", () => {
@@ -53,7 +56,9 @@ describe("FileUpload component", () => {
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = makeFile("document.pdf");
     fireEvent.change(input, { target: { files: [file] } });
-    expect(mockToastError).toHaveBeenCalledWith("Only .cdx and .cdxml files are supported.");
+    expect(mockToastError).toHaveBeenCalledWith(
+      "File type not supported. Drop a .cdx or .cdxml file.",
+    );
   });
 
   it("rejects files >50 MB via toast.error when dropped as a single file", () => {
@@ -61,7 +66,9 @@ describe("FileUpload component", () => {
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = makeFile("large.cdx", 52_428_801);
     fireEvent.change(input, { target: { files: [file] } });
-    expect(mockToastError).toHaveBeenCalledWith("File exceeds the 50 MB limit.");
+    expect(mockToastError).toHaveBeenCalledWith(
+      "File exceeds 50 MB. Split or compress before uploading.",
+    );
   });
 
   it("calls onExtract fast-path when a single valid .cdx file is selected with empty queue", () => {
@@ -123,5 +130,84 @@ describe("FileUpload component", () => {
     const liveRegion = document.querySelector('[aria-live="polite"]');
     expect(liveRegion).toBeInTheDocument();
     expect(liveRegion?.textContent).toContain("Extracting structures");
+  });
+
+  describe("drop-zone state machine", () => {
+    it("starts in data-state='idle' data-queue='empty'", () => {
+      render(<FileUpload onExtract={vi.fn()} isLoading={false} />);
+      const zone = document.querySelector("[data-slot='drop-zone']") as HTMLElement;
+      expect(zone.dataset.state).toBe("idle");
+      expect(zone.dataset.queue).toBe("empty");
+    });
+
+    it("flips data-state='drag-over' on dragover and back to idle on dragleave", () => {
+      render(<FileUpload onExtract={vi.fn()} isLoading={false} />);
+      const zone = document.querySelector("[data-slot='drop-zone']") as HTMLElement;
+      fireEvent.dragOver(zone);
+      expect(zone.dataset.state).toBe("drag-over");
+      fireEvent.dragLeave(zone);
+      expect(zone.dataset.state).toBe("idle");
+    });
+
+    it("flips data-queue='building' once files are queued", () => {
+      render(<FileUpload onExtract={vi.fn()} isLoading={false} />);
+      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+      fireEvent.change(input, {
+        target: { files: [makeFile("a.cdx"), makeFile("b.cdx")] },
+      });
+      const zone = document.querySelector("[data-slot='drop-zone']") as HTMLElement;
+      expect(zone.dataset.queue).toBe("building");
+      // Compressed copy is rendered.
+      expect(screen.getByText("Drop more, or click to add")).toBeInTheDocument();
+    });
+
+    it("flips data-queue='full' at exactly 20 queued files", () => {
+      render(<FileUpload onExtract={vi.fn()} isLoading={false} />);
+      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+      const files = Array.from({ length: 20 }, (_, i) => makeFile(`f${i}.cdx`));
+      fireEvent.change(input, { target: { files } });
+      const zone = document.querySelector("[data-slot='drop-zone']") as HTMLElement;
+      expect(zone.dataset.queue).toBe("full");
+      expect(screen.getByText("Batch is full (20 files)")).toBeInTheDocument();
+    });
+
+    it("at queue=full, an additional drop triggers reject flash and one toast", () => {
+      vi.useFakeTimers();
+      render(<FileUpload onExtract={vi.fn()} isLoading={false} />);
+      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+      // Fill the queue.
+      const initial = Array.from({ length: 20 }, (_, i) => makeFile(`f${i}.cdx`));
+      fireEvent.change(input, { target: { files: initial } });
+      mockToastError.mockClear();
+
+      // One more file: rejected.
+      fireEvent.change(input, { target: { files: [makeFile("f21.cdx")] } });
+      const zone = document.querySelector("[data-slot='drop-zone']") as HTMLElement;
+      expect(zone.dataset.state).toBe("reject");
+      expect(mockToastError).toHaveBeenCalledTimes(1);
+      expect(mockToastError).toHaveBeenCalledWith(
+        "Batch limit hit (20 files). Remove some, or run them as separate batches.",
+      );
+      // Reject flash clears after the timeout window.
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(zone.dataset.state).toBe("idle");
+      vi.useRealTimers();
+    });
+
+    it("dropping multiple invalid files surfaces exactly one toast", () => {
+      render(<FileUpload onExtract={vi.fn()} isLoading={false} />);
+      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+      fireEvent.change(input, {
+        target: { files: [makeFile("a.pdf"), makeFile("b.docx"), makeFile("c.png")] },
+      });
+      // Was 3 toasts in the prior implementation; the craft pass consolidates
+      // to one toast per drop event so the user gets a single clear signal.
+      expect(mockToastError).toHaveBeenCalledTimes(1);
+      expect(mockToastError).toHaveBeenCalledWith(
+        "File type not supported. Drop a .cdx or .cdxml file.",
+      );
+    });
   });
 });

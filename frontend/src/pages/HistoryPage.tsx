@@ -87,7 +87,7 @@ export function HistoryPage({
     try {
       await onDelete(id);
     } catch {
-      toast.error("Could not delete extraction. Try again.");
+      toast.error("Delete failed. The extraction may already be gone; refresh and retry.");
     }
   }
 

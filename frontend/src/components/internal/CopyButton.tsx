@@ -53,7 +53,7 @@ export function CopyButton({
       setCopied(true);
       timerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("Failed to copy \u2014 try selecting the text manually.");
+      toast.error("Couldn't copy. Select the text and copy manually.");
     }
   }
 
