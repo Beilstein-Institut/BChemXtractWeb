@@ -15,17 +15,77 @@ without a FastAPI request context — keep their un-scoped session source.
 JVM note: DB layer is pure asyncio — no JPype interaction, no thread pool.
 """
 
+import logging
 from collections.abc import AsyncGenerator
 
 from fastapi import BackgroundTasks, HTTPException, Request, Response, status
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Module-level engine — created once at import time.
 # expire_on_commit=False: prevents lazy-load failures in async context.
 engine = create_async_engine(settings.database_url, echo=settings.debug)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+
+
+async def assert_rls_enforceable() -> None:
+    """Refuse to start if the runtime DB role bypasses RLS.
+
+    Phase 11 follow-up. The RLS policies created by the 2026_05_15
+    migration enforce session isolation via ``current_setting('app.session_id')``
+    matching the ``session_id`` column. Postgres skips RLS for any role
+    with ``rolsuper=true`` (SUPERUSER) or ``rolbypassrls=true`` (BYPASSRLS),
+    even with ``FORCE ROW LEVEL SECURITY`` enabled. The runtime DB role
+    must have BOTH attributes off, or every cookie session can read every
+    other session's data.
+
+    The 2026_05_16 migration creates ``bchemxtract_app`` with
+    NOSUPERUSER NOBYPASSRLS; docker-compose connects the backend, celery
+    worker, and celery beat as that role.
+
+    Raises:
+        RuntimeError: If ``current_user`` has SUPERUSER or BYPASSRLS.
+            Fatal: the lifespan startup re-raises and Docker logs the
+            message — operators must reconfigure DATABASE_URL to point
+            at a NOBYPASSRLS role before the container can come up.
+    """
+    async with engine.connect() as conn:
+        result = await conn.execute(
+            text(
+                "SELECT rolname, rolsuper, rolbypassrls FROM pg_roles "
+                "WHERE rolname = current_user"
+            )
+        )
+        row = result.first()
+    if row is None:
+        # current_user is somehow not in pg_roles — refuse to guess.
+        raise RuntimeError(
+            "DB startup probe failed: SELECT FROM pg_roles WHERE rolname = "
+            "current_user returned no row. Connection role is unknown; "
+            "refusing to start because RLS enforceability cannot be verified."
+        )
+    rolname, rolsuper, rolbypassrls = row.rolname, row.rolsuper, row.rolbypassrls
+    if rolsuper or rolbypassrls:
+        raise RuntimeError(
+            f"Refusing to start: DB role '{rolname}' has rolsuper={rolsuper} "
+            f"rolbypassrls={rolbypassrls}. Postgres bypasses RLS policies for "
+            "this role regardless of FORCE ROW LEVEL SECURITY, which would "
+            "let every cookie session read every other session's data. "
+            "Connect as the bchemxtract_app role (created by the "
+            "2026_05_16_create_app_role alembic migration) — update "
+            "DATABASE_URL in docker-compose / .env to "
+            "'postgresql+psycopg://bchemxtract_app:<APP_DB_PASSWORD>@...'."
+        )
+    logger.info(
+        "RLS startup probe passed: DB role '%s' has rolsuper=%s rolbypassrls=%s",
+        rolname,
+        rolsuper,
+        rolbypassrls,
+    )
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

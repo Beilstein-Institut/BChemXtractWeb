@@ -15,6 +15,25 @@ os.environ.setdefault(
     "ADMIN_SECRET",
     "test-admin-secret-32-characters-min-0123456789",
 )
+# APP_DB_PASSWORD is consumed by the 2026_05_16_create_app_role alembic
+# migration. The test suite does NOT exercise that migration (the autouse
+# `_ensure_test_schema` fixture uses Base.metadata.create_all instead),
+# but the seed keeps `alembic upgrade head` runnable against the test DB
+# in CI scripts that want to validate the migration chain end-to-end.
+#
+# RLS-enforcement caveat: the test DATABASE_URL below connects as a
+# superuser role (the default postgres user in the test DB), which
+# bypasses RLS even with FORCE ROW LEVEL SECURITY. RLS enforcement is
+# verified end-to-end via Playwright against the production-shape
+# docker-compose stack (backend connects as bchemxtract_app, the
+# 2026_05_16 migration's NOSUPERUSER NOBYPASSRLS role). The unit tests
+# under tests/test_session_isolation.py verify the WIRING (set_rls_context
+# is called, scope is propagated to ORM writes) — not the policy
+# enforcement itself.
+os.environ.setdefault(
+    "APP_DB_PASSWORD",
+    "test-app-db-password-32-characters-min-0123456789",
+)
 os.environ.setdefault("DEBUG", "false")
 os.environ.setdefault("EXPOSE_OPENAPI_DOCS", "true")
 # CORS_ORIGINS in the test suite must NOT contain localhost/127.0.0.1

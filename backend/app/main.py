@@ -38,6 +38,7 @@ from app.routers import (
     reactions,
     search,
 )
+from app.services.db import assert_rls_enforceable
 from app.services.jvm_bridge import initialize_jvm, shutdown_pool
 
 logger = logging.getLogger(__name__)
@@ -47,8 +48,15 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler.
 
-    Startup: initialise the JVM with the BChemXtract JAR and create the
-             thread pool.
+    Startup:
+        1. Probe the DB connection role: refuse to start if the runtime
+           user has SUPERUSER or BYPASSRLS (Phase 11 follow-up — those
+           attributes bypass RLS policies even with FORCE ROW LEVEL
+           SECURITY, defeating session isolation). The 2026_05_16 alembic
+           migration creates a ``bchemxtract_app`` role with both
+           attributes off; backend services connect as it.
+        2. Initialise the JVM with the BChemXtract JAR and create the
+           thread pool.
     Shutdown: shut down the thread pool (JVM shutdown is skipped — it is
               irreversible per JPype).
 
@@ -66,9 +74,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         until Docker gives up.
 
     Raises:
+        RuntimeError: If the runtime DB role has SUPERUSER or BYPASSRLS
+            (RLS would be bypassed for every query — refuse to start).
         JVMStartupError: If JVM fails to start (fatal — app exits,
             Docker restarts).
     """
+    await assert_rls_enforceable()
     initialize_jvm(settings)
     yield
     shutdown_pool()
