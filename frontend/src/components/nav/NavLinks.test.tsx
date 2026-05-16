@@ -1,9 +1,12 @@
 /**
  * NavLinks — tests for the Phase 3 Liquid Glass primary nav (Task 7).
  *
- * Covers: 4-link render, `data-slot` contract, active-route styling
+ * Covers: 5-link render, `data-slot` contract, active-route styling
  * + aria-current, path-prefix detection (`/browse/123` → Browse active),
  * and root-only match for Extract (`/` must not match `/browse`).
+ *
+ * The Settings link was added in Phase 11 (D-07) for the recovery code +
+ * restore + delete-my-data surface.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -18,11 +21,12 @@ beforeEach(() => {
 });
 
 describe("NavLinks", () => {
-  it("renders all four routes", () => {
+  it("renders all five routes", () => {
     render(<NavLinks />);
     expect(screen.getByText("Extract")).toBeInTheDocument();
     expect(screen.getByText("Browse")).toBeInTheDocument();
     expect(screen.getByText("History")).toBeInTheDocument();
+    expect(screen.getByText("Settings")).toBeInTheDocument();
     expect(screen.getByText("About")).toBeInTheDocument();
   });
 
@@ -34,7 +38,7 @@ describe("NavLinks", () => {
   it('stamps data-slot="nav-link" on each link', () => {
     render(<NavLinks />);
     const links = document.querySelectorAll('[data-slot="nav-link"]');
-    expect(links.length).toBe(4);
+    expect(links.length).toBe(5);
   });
 
   it("marks Extract active on /", () => {

@@ -22,6 +22,7 @@ const MOBILE_LINKS = [
   { label: "Extract", to: "/" },
   { label: "Browse", to: "/browse" },
   { label: "History", to: "/history" },
+  { label: "Settings", to: "/settings" },
   { label: "About", to: "/about" },
 ] as const;
 
