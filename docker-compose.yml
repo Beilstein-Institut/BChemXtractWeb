@@ -2,16 +2,18 @@
 # explicitly sourced from the shell environment with a mandatory-marker
 # (``${VAR:?message}``) so ``docker compose up`` will FAIL FAST with a
 # clear message if the operator hasn't provisioned the value. No
-# credential, API key, or JWT secret has a default — running with the
+# credential, secret key, or admin token has a default — running with the
 # dev defaults is physically impossible.
 #
 # Provision the required environment in a local ``.env`` file (gitignored)
 # alongside this compose file:
 #
 #   POSTGRES_PASSWORD=<32+ random chars>
-#   API_KEYS=["<secret-1>", "<secret-2>"]
+#   SECRET_KEY=<32+ random chars>      # PBKDF2 salt + CSRF HMAC (D-10/D-19)
+#   ADMIN_SECRET=<32+ random chars>    # X-Admin-Secret gate (D-11)
 #
-# Or export them in the shell before ``docker compose up``.
+# Or export them in the shell before ``docker compose up``. ``deploy.sh``
+# mints all three on first run via ``secrets.token_urlsafe(32)``.
 #
 # Optional non-secret tunables (all have :- defaults so an absent .env still
 # produces a working stack):
@@ -62,9 +64,11 @@ services:
     environment:
       DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-bchemxtract}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-bchemxtract}"
       JAR_PATH: /app/jars
-      # API_KEYS is still required because app.config.Settings is imported
-      # during alembic env.py bootstrap; a missing value would error out.
-      API_KEYS: ${API_KEYS:?API_KEYS must be set}
+      # Phase 11: app.config.Settings is imported during alembic env.py
+      # bootstrap; the `_validate_phase11_secrets` validator refuses to load
+      # without these in DEBUG=false (prod).
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set (32+ chars)}
+      ADMIN_SECRET: ${ADMIN_SECRET:?ADMIN_SECRET must be set (32+ chars)}
     restart: "no"
 
   backend:
@@ -91,9 +95,11 @@ services:
       JAR_PATH: /app/jars
       CORS_ORIGINS: '["http://localhost:${HTTP_PORT:-3000}", "http://localhost:5173"]'
       DEBUG: "false"
-      # SEC C-02: API_KEYS must be set — Settings validator refuses to
-      # start without at least one key when DEBUG=false.
-      API_KEYS: ${API_KEYS:?API_KEYS must be set (JSON array of >=16-char secrets)}
+      # Phase 11: SECRET_KEY (PBKDF2 salt for API-key hashes + CSRF HMAC) and
+      # ADMIN_SECRET (X-Admin-Secret gate) are required. Settings validator
+      # refuses to start with values shorter than 32 chars when DEBUG=false.
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set (32+ chars)}
+      ADMIN_SECRET: ${ADMIN_SECRET:?ADMIN_SECRET must be set (32+ chars)}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
     ports:
@@ -142,16 +148,11 @@ services:
       # The :-3000 default keeps the stack runnable even on a hand-rolled .env.
       - "${HTTP_PORT:-3000}:80"
     volumes:
-      # Mounted as a template so the nginx image's envsubst step
-      # (/docker-entrypoint.d/20-envsubst-on-templates.sh) substitutes
-      # ${BROWSER_API_KEY} before writing /etc/nginx/conf.d/default.conf.
-      - ./nginx/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
-    environment:
-      # SEC C-02 browser-facing API key injection. Restrict envsubst to
-      # only this variable so nginx built-ins ($host, $remote_addr, etc.)
-      # pass through to the generated config untouched.
-      BROWSER_API_KEY: ${BROWSER_API_KEY:?BROWSER_API_KEY must be set (must match one of API_KEYS)}
-      NGINX_ENVSUBST_FILTER: "^BROWSER_API_KEY$$"
+      # Phase 11 (Plan 11-05) removed the last envsubst variable from
+      # nginx.conf.template, so no substitution step is needed. Mount the
+      # template file directly as the final config: nginx loads everything in
+      # /etc/nginx/conf.d/*.conf at startup.
+      - ./nginx/nginx.conf.template:/etc/nginx/conf.d/default.conf:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/ || exit 1"]
       interval: 10s
@@ -188,7 +189,10 @@ services:
       DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-bchemxtract}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-bchemxtract}"
       JAR_PATH: /app/jars
       JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
-      API_KEYS: ${API_KEYS:?API_KEYS must be set}
+      # Phase 11: required by app.config.Settings on import (same constraint
+      # as the backend service).
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set (32+ chars)}
+      ADMIN_SECRET: ${ADMIN_SECRET:?ADMIN_SECRET must be set (32+ chars)}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
     # Override the Dockerfile's baked-in HEALTHCHECK, which curls :8000 — that
@@ -202,6 +206,39 @@ services:
       timeout: 15s
       retries: 3
       start_period: 60s
+
+  # Phase 11 D-17 (Plan 11-08): single-replica Celery beat scheduler. Fires
+  # the daily `audit_log.prune_old_entries` task at 03:00 UTC to enforce the
+  # 12-month audit-log retention window. The task is idempotent (a re-run
+  # with no stale rows removes zero), so an accidental double-beat would
+  # still produce the right outcome — just extra log noise. Beat has no
+  # HTTP server and no Redis ping handle, so no healthcheck — the
+  # `restart: unless-stopped` policy is the only liveness mechanism.
+  # No --pool=solo flag: beat doesn't run JVM extraction tasks (the prune
+  # is pure SQL inside asyncio.run, see app/tasks/audit_log.py).
+  celery-beat:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        BCHEMXTRACT_REF: ${BCHEMXTRACT_VERSION:-}
+    restart: unless-stopped
+    command: celery -A app.celery_app beat --loglevel=info
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-bchemxtract}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-bchemxtract}"
+      JAR_PATH: /app/jars
+      JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set (32+ chars)}
+      ADMIN_SECRET: ${ADMIN_SECRET:?ADMIN_SECRET must be set (32+ chars)}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
 
 volumes:
   pgdata:
