@@ -6,7 +6,9 @@ import { PageSuspenseFallback } from "@/components/PageSuspenseFallback";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SearchProvider } from "@/context/SearchContext";
+import { useAuth } from "@/hooks/useAuth";
 import { useBatch } from "@/hooks/useBatch";
+import { useCsrfToken } from "@/hooks/useCsrfToken";
 import { useExtract } from "@/hooks/useExtract";
 import { useHistory } from "@/hooks/useHistory";
 import { getExtractionReactions, getHistoryDetail } from "@/lib/apiClient";
@@ -44,6 +46,17 @@ function hasSearchQuery(): boolean {
 }
 
 function App() {
+  // Phase 11 D-19 / D-23: bootstrap session + CSRF token BEFORE any other
+  // API call. Both hooks fire-and-forget at the root — their return values
+  // are intentionally unused here. Components that need session_id
+  // (e.g. SettingsPage) call useAuth() again at their own level. Order
+  // matters: useAuth() issues PUT /api/auth/me which mints the cookie,
+  // useCsrfToken() then GETs the session-bound token. If the PUT happens
+  // to race ahead of the token fetch, apiClient's 403/CSRF_INVALID retry
+  // path recovers.
+  void useAuth();
+  void useCsrfToken();
+
   const route = useRoute();
   const { state, result, errorMessage, extract, reset } = useExtract();
   const {
