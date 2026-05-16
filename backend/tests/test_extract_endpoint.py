@@ -112,6 +112,12 @@ class TestUploadCDX:
             assert substance["inchi"] != ""
             assert substance["inchi_key"] != ""
             assert substance["molecular_formula"] != ""
+            # PRIV-13 / D-22: first_seen_at must not leak into the response
+            # — the column stays in the DB but the API hides it to avoid
+            # leaking cross-session dedup-presence information.
+            assert "first_seen_at" not in substance, (
+                f"first_seen_at leaked into API response: {substance}"
+            )
 
     async def test_substances_have_svg(
         self, client: AsyncClient, cdx_file_bytes: bytes
