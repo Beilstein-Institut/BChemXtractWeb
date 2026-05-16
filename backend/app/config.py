@@ -19,9 +19,6 @@ class Settings(BaseSettings):
         jar_path: Directory containing the BChemXtract fat JAR.
         cors_origins: Allowed CORS origins for frontend access.
         debug: Enable debug mode (verbose logging, etc.).
-        api_keys: Valid API keys accepted via ``Authorization: Bearer <key>``.
-            Empty allowed only when ``debug=True``. In non-debug mode the
-            startup validator refuses to initialise without at least one key.
         rate_limit_default: Default per-IP rate limit applied to every route
             via ``SlowAPIMiddleware``. Format: ``"<count>/<period>"`` (slowapi
             syntax, e.g. ``"60/minute"``).
@@ -58,15 +55,6 @@ class Settings(BaseSettings):
     jar_path: str = "jars"
     cors_origins: list[str] = ["http://localhost:5173"]
     debug: bool = False
-
-    # --- Authentication & authorisation (Phase SEC-1) ---
-    api_keys: list[str] = Field(
-        default_factory=list,
-        description=(
-            "Accepted bearer keys. Empty is only valid in debug mode; "
-            "non-debug startup fails without at least one non-empty key."
-        ),
-    )
 
     # --- Phase 11: cookie + API key + admin auth secrets ---
     secret_key: str = Field(
@@ -150,39 +138,15 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
-    def _validate_api_keys(self) -> "Settings":
-        """Reject empty API keys, de-duplicate, and refuse empty list in prod.
-
-        In non-debug mode, refusing to start without keys prevents a silent
-        "no auth" deployment — the single most common way security middleware
-        gets accidentally disabled.
-        """
-        cleaned = (k.strip() for k in self.api_keys if k and k.strip())
-        # dict.fromkeys preserves first-seen order while de-duplicating.
-        unique = list(dict.fromkeys(cleaned))
-        if any(len(k) < 16 for k in unique):
-            raise ValueError(
-                "API_KEYS entries must be at least 16 characters "
-                '(use `python -c "import secrets; print(secrets.token_urlsafe(32))"` '
-                "to generate one)."
-            )
-        if not unique and not self.debug:
-            raise ValueError(
-                "API_KEYS must be set when DEBUG=false. Configure at least "
-                "one key of length >= 16 (e.g. via .env: "
-                "API_KEYS='[\"<secret>\"]'). Refusing to start without "
-                "authentication."
-            )
-        self.api_keys = unique
-        return self
-
-    @model_validator(mode="after")
     def _validate_phase11_secrets(self) -> "Settings":
         """Refuse to start in production without Phase 11 secrets.
 
-        Mirrors the discipline of _validate_api_keys but for the new
-        SECRET_KEY + ADMIN_SECRET pair. In DEBUG=true (dev/test), short
-        or empty values are allowed.
+        The Phase 11 cutover (Plan 11-05) replaced the legacy Bearer
+        ``API_KEYS`` env-list with two server-side secrets:
+        ``SECRET_KEY`` (PBKDF2 salt for API-key lookup hashes + CSRF
+        HMAC; Open Q #3 RESOLVED — single key) and ``ADMIN_SECRET``
+        (admin-endpoint gate). In DEBUG=true (dev/test) short or empty
+        values are allowed.
         """
         if not self.debug:
             if len(self.secret_key) < 32:
@@ -196,6 +160,28 @@ class Settings(BaseSettings):
                     "ADMIN_SECRET must be at least 32 characters when "
                     "DEBUG=false. (see SECRET_KEY for generation command)"
                 )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_prod_cors(self) -> "Settings":
+        """Refuse to start in production with a dev origin in CORS_ORIGINS.
+
+        Phase 11 RESEARCH Pitfall #4: the bcx_sid cookie sets Secure
+        based on whether localhost / 127.0.0.1 appears in
+        ``cors_origins`` (see ``app.core.session._is_dev_origin_set``).
+        A production deploy that forgets to swap localhost out drops
+        Secure silently and the cookie travels over plain HTTP. Reject
+        at startup so the operator notices before users do.
+        """
+        if not self.debug and any(
+            "localhost" in origin or "127.0.0.1" in origin
+            for origin in self.cors_origins
+        ):
+            raise ValueError(
+                "CORS_ORIGINS contains a localhost / 127.0.0.1 origin "
+                "while DEBUG=false. This would disable the Secure flag "
+                "on bcx_sid. Remove dev origins before starting in prod."
+            )
         return self
 
     @model_validator(mode="after")
