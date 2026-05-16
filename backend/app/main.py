@@ -27,7 +27,7 @@ from app.errors import (
 )
 from app.middleware.auth import require_api_key
 from app.middleware.rate_limit import limiter
-from app.routers import batch, export, extract, health, history, reactions, search
+from app.routers import auth, batch, export, extract, health, history, reactions, search
 from app.services.jvm_bridge import initialize_jvm, shutdown_pool
 
 logger = logging.getLogger(__name__)
@@ -111,6 +111,14 @@ _TAGS_METADATA = [
         "name": "health",
         "description": "Liveness and detailed JVM diagnostics.",
     },
+    {
+        "name": "auth",
+        "description": (
+            "Cookie/recovery-code/CSRF-token endpoints (Phase 11). "
+            "Unauthenticated entry points used by browsers before any "
+            "extraction request."
+        ),
+    },
 ]
 
 
@@ -186,9 +194,29 @@ def create_app() -> FastAPI:
     # `/api/health/detail` is protected at the route level inside
     # routers/health.py.
     #
-    # Every other router requires a valid bearer API key.
+    # `auth.router` (Phase 11) hosts the cookie / recovery-code /
+    # CSRF-token endpoints. It is mounted WITHOUT the scoped dependency
+    # because PUT /api/auth/me is the entry point that ISSUES the cookie
+    # — running set_rls_context before the cookie exists would race the
+    # bootstrap. The legacy Bearer dependency is intentionally NOT
+    # applied either: a fresh browser holds no API key.
+    application.include_router(auth.router, prefix="/api")
+    # SEC: every /api/* router except /api/health + /api/auth + /api/csrf-token
+    # is protected by BOTH:
+    #   - require_api_key (legacy Bearer; removed in Plan 11-05)
+    #   - get_scoped_db (Phase 11: sets app.session_id / app.api_key_hash
+    #     for RLS and stashes the scope on request.state.scope)
+    # During the Phase 11 cutover both run together. Plan 11-05 deletes
+    # require_api_key in the same diff that wipes Bearer surface elsewhere.
     application.include_router(health.router, prefix="/api")
-    protected = [Depends(require_api_key)]
+
+    # Local import to avoid the import-time cycle between app.services.db
+    # and app.config that triggers when main.py is imported by app.config
+    # transitively (settings → cors_origins parsing pulls in middleware
+    # that pulls in main); routers/auth.py uses the same pattern.
+    from app.services.db import get_scoped_db
+
+    protected = [Depends(require_api_key), Depends(get_scoped_db)]
     for router in (extract, history, batch, export, reactions, search):
         application.include_router(router.router, prefix="/api", dependencies=protected)
 
