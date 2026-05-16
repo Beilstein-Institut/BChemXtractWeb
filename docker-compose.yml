@@ -19,6 +19,36 @@
 # produces a working stack):
 #   HTTP_PORT=3000        # public-facing nginx port (host)
 #   BACKEND_PORT=8000     # backend FastAPI port (host, loopback-bound only)
+
+# YAML anchors for env blocks shared across backend / celery-worker /
+# celery-beat / migrate. Docker Compose treats top-level keys with the
+# ``x-`` prefix as extension fields that the schema ignores, but YAML
+# merge (``<<:``) still works. Edit a value here and every service that
+# merges the anchor picks it up — no risk of one service drifting from
+# the others. Service-level entries below the merge override the anchor.
+
+# Phase 11 secrets + posture (CORS / DEBUG) required by app.config.Settings
+# on import. Identical in every Python service (backend, celery-worker,
+# celery-beat, migrate).
+x-phase11-env: &phase11_env
+  SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set (32+ chars)}
+  ADMIN_SECRET: ${ADMIN_SECRET:?ADMIN_SECRET must be set (32+ chars)}
+  CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:${HTTP_PORT:-3000}"]'}
+  DEBUG: ${DEBUG:-false}
+
+# Celery broker + result backend (Redis). Used by backend (publisher) and
+# both Celery containers (worker, beat).
+x-celery-env: &celery_env
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/1
+
+# Runtime DATABASE_URL: backend / celery-worker / celery-beat connect as
+# bchemxtract_app (NOSUPERUSER NOBYPASSRLS) so RLS policies enforce
+# session isolation. The migrate service is the only one that connects
+# as the bootstrap superuser — it needs DDL + CREATE ROLE privileges.
+x-runtime-db-url: &runtime_db_url
+  DATABASE_URL: "postgresql+psycopg://bchemxtract_app:${APP_DB_PASSWORD:?APP_DB_PASSWORD must be set (32+ chars)}@db:5432/${POSTGRES_DB:-bchemxtract}"
+
 services:
   db:
     image: postgres:16-alpine
@@ -64,22 +94,17 @@ services:
     environment:
       # migrate runs as the bootstrap superuser — DDL (RLS policies,
       # CREATE ROLE for bchemxtract_app) requires superuser privileges.
+      # NOTE: this is the ONLY service whose DATABASE_URL is NOT the
+      # runtime-app anchor — every other Python container uses
+      # ``*runtime_db_url`` to connect as bchemxtract_app.
       DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-bchemxtract}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-bchemxtract}"
       JAR_PATH: /app/jars
-      # Phase 11: app.config.Settings is imported during alembic env.py
-      # bootstrap; the `_validate_phase11_secrets` + `_validate_prod_cors`
-      # validators refuse to load with mismatched DEBUG/CORS_ORIGINS values.
-      # Propagate the same posture the backend uses so Settings instantiates
-      # identically in both containers.
-      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set (32+ chars)}
-      ADMIN_SECRET: ${ADMIN_SECRET:?ADMIN_SECRET must be set (32+ chars)}
-      CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:${HTTP_PORT:-3000}"]'}
-      DEBUG: ${DEBUG:-false}
-      # The 2026_05_16_create_app_role migration reads APP_DB_PASSWORD from
-      # the environment and CREATE / ALTER ROLEs bchemxtract_app with it.
-      # Runtime services (backend, celery-worker, celery-beat) then connect
-      # as bchemxtract_app — a NOSUPERUSER NOBYPASSRLS role — so RLS
-      # policies actually enforce on every query.
+      # app.config.Settings is imported during alembic env.py bootstrap;
+      # mirror the backend posture so Settings instantiates identically.
+      <<: *phase11_env
+      # The 2026_05_16_create_app_role migration reads APP_DB_PASSWORD
+      # from the environment and CREATE / ALTER ROLEs bchemxtract_app
+      # with it. Runtime services connect as that role afterwards.
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD must be set (32+ chars)}
     restart: "no"
 
@@ -103,26 +128,13 @@ services:
       migrate:
         condition: service_completed_successfully
     environment:
-      # Runtime backend connects as bchemxtract_app — NOSUPERUSER NOBYPASSRLS
-      # so RLS policies enforce on every query. The role is created by the
-      # 2026_05_16_create_app_role migration (running as the bootstrap
-      # superuser in the migrate service).
-      DATABASE_URL: "postgresql+psycopg://bchemxtract_app:${APP_DB_PASSWORD:?APP_DB_PASSWORD must be set (32+ chars)}@db:5432/${POSTGRES_DB:-bchemxtract}"
+      # Backend connects as bchemxtract_app (NOSUPERUSER NOBYPASSRLS) so
+      # RLS policies enforce on every query. Phase 11 cookie posture
+      # (DEBUG=false → Secure flag + _validate_prod_cors guard rejecting
+      # localhost CORS) comes from the *phase11_env anchor; flip DEBUG=true
+      # in .env for local plain-HTTP testing.
+      <<: [*runtime_db_url, *phase11_env, *celery_env]
       JAR_PATH: /app/jars
-      # Phase 11 cookie posture: DEBUG=false enforces Secure flag on bcx_sid
-      # cookie (HTTPS-only) AND refuses CORS_ORIGINS that contain
-      # localhost/127.0.0.1 (the _validate_prod_cors guard). For local
-      # plain-HTTP testing on http://localhost:${HTTP_PORT}, set DEBUG=true
-      # in .env. Real deployments behind HTTPS keep DEBUG=false.
-      CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:${HTTP_PORT:-3000}"]'}
-      DEBUG: ${DEBUG:-false}
-      # Phase 11: SECRET_KEY (PBKDF2 salt for API-key hashes + CSRF HMAC) and
-      # ADMIN_SECRET (X-Admin-Secret gate) are required. Settings validator
-      # refuses to start with values shorter than 32 chars when DEBUG=false.
-      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set (32+ chars)}
-      ADMIN_SECRET: ${ADMIN_SECRET:?ADMIN_SECRET must be set (32+ chars)}
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/1
     ports:
       # Loopback bind: the backend FastAPI is reachable only from the deploy
       # host (CLI scripts, curl on the same box). Browser traffic goes through
@@ -209,17 +221,9 @@ services:
     environment:
       # celery-worker runs extraction tasks that read/write user data —
       # connect as bchemxtract_app so RLS policies enforce ownership.
-      DATABASE_URL: "postgresql+psycopg://bchemxtract_app:${APP_DB_PASSWORD:?APP_DB_PASSWORD must be set (32+ chars)}@db:5432/${POSTGRES_DB:-bchemxtract}"
+      <<: [*runtime_db_url, *phase11_env, *celery_env]
       JAR_PATH: /app/jars
       JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
-      # Phase 11: required by app.config.Settings on import (same constraint
-      # as the backend service — including _validate_prod_cors).
-      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set (32+ chars)}
-      ADMIN_SECRET: ${ADMIN_SECRET:?ADMIN_SECRET must be set (32+ chars)}
-      CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:${HTTP_PORT:-3000}"]'}
-      DEBUG: ${DEBUG:-false}
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/1
     # Override the Dockerfile's baked-in HEALTHCHECK, which curls :8000 — that
     # is correct for the backend service (uvicorn) but wrong for this container,
     # which runs a Celery worker and has no HTTP server. `inspect ping`
@@ -261,15 +265,9 @@ services:
       # NOBYPASSRLS app role — the prune target is the global audit_log
       # table which has no per-row RLS policy, so the app role's CRUD
       # grant from the 2026_05_16_create_app_role migration is sufficient.
-      DATABASE_URL: "postgresql+psycopg://bchemxtract_app:${APP_DB_PASSWORD:?APP_DB_PASSWORD must be set (32+ chars)}@db:5432/${POSTGRES_DB:-bchemxtract}"
+      <<: [*runtime_db_url, *phase11_env, *celery_env]
       JAR_PATH: /app/jars
       JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
-      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set (32+ chars)}
-      ADMIN_SECRET: ${ADMIN_SECRET:?ADMIN_SECRET must be set (32+ chars)}
-      CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:${HTTP_PORT:-3000}"]'}
-      DEBUG: ${DEBUG:-false}
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/1
 
 volumes:
   pgdata:
