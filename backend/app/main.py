@@ -27,7 +27,18 @@ from app.errors import (
 )
 from app.middleware.auth import require_api_key
 from app.middleware.rate_limit import limiter
-from app.routers import auth, batch, export, extract, health, history, reactions, search
+from app.routers import (
+    admin_api_keys,
+    auth,
+    batch,
+    export,
+    extract,
+    health,
+    history,
+    me,
+    reactions,
+    search,
+)
 from app.services.jvm_bridge import initialize_jvm, shutdown_pool
 
 logger = logging.getLogger(__name__)
@@ -119,6 +130,20 @@ _TAGS_METADATA = [
             "extraction request."
         ),
     },
+    {
+        "name": "admin",
+        "description": (
+            "Admin-only API key management (Phase 11). Gated by "
+            "`X-Admin-Secret`; excluded from CSRF."
+        ),
+    },
+    {
+        "name": "me",
+        "description": (
+            "Authenticated-session-bound endpoints (Phase 11). "
+            "Currently only the GDPR `DELETE /me/data` erase route."
+        ),
+    },
 ]
 
 
@@ -187,6 +212,50 @@ def create_app() -> FastAPI:
     # overrides use @limiter.limit() in the router modules.
     application.add_middleware(SlowAPIMiddleware)
 
+    # Phase 11 D-19: CSRF synchronizer-token verification for cookie-auth
+    # state-changing requests. Skipped for:
+    #   - safe methods (GET/HEAD/OPTIONS)
+    #   - X-API-Key / X-Admin-Secret authenticated requests (CLI + admins)
+    #   - /api/csrf-token (the token-issuing endpoint itself)
+    #   - /api/health and /api/health/detail (Docker HEALTHCHECK)
+    #
+    # When the caller carries a valid bcx_sid cookie, an HMAC-bound
+    # `X-CSRF-Token` is required; rejected requests return 403 with the
+    # unified ErrorResponse code `CSRF_INVALID` (T-11-06 / T-11-09).
+    @application.middleware("http")
+    async def csrf_middleware(request, call_next):
+        from fastapi.responses import JSONResponse
+
+        from app.core.security import verify_csrf_token
+        from app.core.session import _UUID_RE, SESSION_COOKIE
+        from app.models.chemistry import ErrorResponse
+
+        path = request.url.path
+        method = request.method
+
+        skip = (
+            method in ("GET", "HEAD", "OPTIONS")
+            or request.headers.get("X-API-Key") is not None
+            or request.headers.get("X-Admin-Secret") is not None
+            or path == "/api/csrf-token"
+            or path.endswith("/health")
+            or path.endswith("/health/detail")
+        )
+        if not skip:
+            sid = request.cookies.get(SESSION_COOKIE)
+            if sid and _UUID_RE.match(sid):
+                # Browser cookie auth → CSRF token required.
+                csrf_token = request.headers.get("X-CSRF-Token", "")
+                if not verify_csrf_token(csrf_token, sid):
+                    return JSONResponse(
+                        status_code=403,
+                        content=ErrorResponse(
+                            detail="Invalid or missing CSRF token",
+                            code="CSRF_INVALID",
+                        ).model_dump(),
+                    )
+        return await call_next(request)
+
     # Register routers.
     #
     # `health.router` stays unauthenticated at the router level because
@@ -202,13 +271,23 @@ def create_app() -> FastAPI:
     # applied either: a fresh browser holds no API key.
     application.include_router(auth.router, prefix="/api")
     # SEC: every /api/* router except /api/health + /api/auth + /api/csrf-token
-    # is protected by BOTH:
+    # + /api/admin is protected by BOTH:
     #   - require_api_key (legacy Bearer; removed in Plan 11-05)
     #   - get_scoped_db (Phase 11: sets app.session_id / app.api_key_hash
     #     for RLS and stashes the scope on request.state.scope)
     # During the Phase 11 cutover both run together. Plan 11-05 deletes
     # require_api_key in the same diff that wipes Bearer surface elsewhere.
     application.include_router(health.router, prefix="/api")
+
+    # Admin uses X-Admin-Secret (not cookie/key) — separate from the
+    # protected list. CSRF middleware already skips admin via the
+    # X-API-Key / X-Admin-Secret header skip; admin endpoints rely on
+    # require_admin_auth (router-level), not require_api_key.
+    application.include_router(
+        admin_api_keys.router,
+        prefix="/api/admin",
+        tags=["admin"],
+    )
 
     # Local import to avoid the import-time cycle between app.services.db
     # and app.config that triggers when main.py is imported by app.config
@@ -219,6 +298,20 @@ def create_app() -> FastAPI:
     protected = [Depends(require_api_key), Depends(get_scoped_db)]
     for router in (extract, history, batch, export, reactions, search):
         application.include_router(router.router, prefix="/api", dependencies=protected)
+
+    # The me.router (GDPR delete) intentionally bypasses the legacy Bearer
+    # dependency. Plan 11-04 Deviation [Rule 1]: the plan's literal text
+    # placed `me` in the Bearer-protected list, but DELETE /api/me/data is
+    # a cookie-auth-only browser surface — CSRF middleware (already
+    # registered above) is the access control, not the Bearer middleware.
+    # Coupling `me.router` to require_api_key would force callers to
+    # present an API key just to erase their cookie-bound data, which
+    # contradicts D-14 ("DELETE /api/me/data" is part of the cookie
+    # identity model). Bearer cutover lands in Plan 11-05.
+    cookie_only_protected = [Depends(get_scoped_db)]
+    application.include_router(
+        me.router, prefix="/api", dependencies=cookie_only_protected
+    )
 
     # Redoc is served only when OpenAPI docs are exposed. It requires
     # openapi_url to be non-None, so we gate both behind the same flag.
