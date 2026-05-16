@@ -3,14 +3,10 @@
 # Configure security-related environment BEFORE importing the app so the
 # Settings validator sees a valid configuration. The default test suite
 # runs with permissive rate limits (effectively disabled) and a fixed
-# API key; focused security tests override these via monkeypatch +
+# session cookie; focused security tests override these via monkeypatch +
 # limiter resets.
 import os
 
-os.environ.setdefault(
-    "API_KEYS",
-    '["test-api-key-for-test-suite-with-sufficient-length-0123456789"]',
-)
 os.environ.setdefault(
     "SECRET_KEY",
     "test-secret-key-for-test-suite-32-characters-min-0123",
@@ -21,6 +17,11 @@ os.environ.setdefault(
 )
 os.environ.setdefault("DEBUG", "false")
 os.environ.setdefault("EXPOSE_OPENAPI_DOCS", "true")
+# CORS_ORIGINS in the test suite must NOT contain localhost/127.0.0.1
+# because the Plan 11-05 _validate_prod_cors guard rejects that
+# combination under DEBUG=false. Tests run in prod-mode posture
+# (DEBUG=false) to exercise the full security validator chain.
+os.environ.setdefault("CORS_ORIGINS", '["http://test"]')
 # SEC H-04: DATABASE_URL has no default in Settings; tests always target
 # the dedicated bchemxtract_test DB.
 os.environ.setdefault(
@@ -52,11 +53,13 @@ from app.config import settings  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.orm import Base  # noqa: E402
 
-# Single canonical test API key — exposed to tests that need to construct
-# ad-hoc clients (e.g. unauth_client -> 401 assertion, then adds header
-# and re-asserts 200).
-TEST_API_KEY = settings.api_keys[0]
-TEST_AUTH_HEADERS = {"Authorization": f"Bearer {TEST_API_KEY}"}
+# Canonical session-cookie value for the default test client (Phase 11
+# Plan 11-05). Tests that need to probe the un-cookied surface use
+# ``unauth_client``. Tests that need to assert admin behaviour use
+# ``admin_client`` (TEST_ADMIN_HEADERS). A valid UUID4 satisfies the
+# strict ``_UUID_RE`` in ``app.core.session``.
+TEST_SESSION_COOKIE = "11111111-1111-4111-8111-111111111111"
+TEST_ADMIN_HEADERS = {"X-Admin-Secret": os.environ["ADMIN_SECRET"]}
 
 # Substance + reaction fixtures both live under backend/tests/fixtures/.
 # Substance fixtures (under substances/) were copied verbatim from upstream
@@ -108,26 +111,59 @@ async def started_app():
 
 @pytest.fixture
 async def client(started_app) -> AsyncClient:
-    """Authenticated async HTTP client connected to the lifespan-started app.
+    """Cookie-authenticated async HTTP client connected to the lifespan-started app.
 
     Use for integration tests that need JVM (health detail, extraction, etc.).
-    The ``Authorization: Bearer <test-key>`` header is set on the underlying
-    AsyncClient so every request in the suite authenticates transparently.
-    Tests that need to probe the unauthenticated surface use
-    ``unauth_client`` instead.
+    The ``bcx_sid`` cookie is set on the underlying AsyncClient so every
+    request in the suite authenticates as the same session transparently.
+    Tests that need to probe the un-cookied surface use ``unauth_client``
+    instead; tests against admin endpoints use ``admin_client``.
     """
     transport = ASGITransport(app=started_app)
     async with AsyncClient(
         transport=transport,
         base_url="http://test",
-        headers=TEST_AUTH_HEADERS,
+        cookies={"bcx_sid": TEST_SESSION_COOKIE},
+    ) as ac:
+        yield ac
+
+
+@pytest_asyncio.fixture
+async def client_csrf(client: AsyncClient) -> AsyncClient:
+    """Same as ``client`` but pre-bootstraps a CSRF token and auto-injects
+    ``X-CSRF-Token`` on every subsequent request.
+
+    Used by integration tests that issue POST / PUT / PATCH / DELETE under
+    cookie auth — without ``X-CSRF-Token`` the CSRF middleware returns
+    403 ``CSRF_INVALID`` (Plan 11-04 D-19).
+    """
+    resp = await client.get("/api/csrf-token")
+    assert resp.status_code == 200, resp.text
+    token = resp.json()["csrf_token"]
+    client.headers.update({"X-CSRF-Token": token})
+    return client
+
+
+@pytest.fixture
+async def admin_client(started_app) -> AsyncClient:
+    """Admin-authenticated async HTTP client (X-Admin-Secret header set).
+
+    Use for tests against ``/api/admin/*`` endpoints. The CSRF middleware
+    skips X-Admin-Secret requests, so this client can issue POST / DELETE
+    without a CSRF token.
+    """
+    transport = ASGITransport(app=started_app)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers=TEST_ADMIN_HEADERS,
     ) as ac:
         yield ac
 
 
 @pytest.fixture
 async def client_no_jvm() -> AsyncClient:
-    """Authenticated async HTTP client WITHOUT lifespan (no JVM).
+    """Cookie-authenticated async HTTP client WITHOUT lifespan (no JVM).
 
     Use for pure-Python unit tests (format detection, config validation, etc.).
     """
@@ -135,19 +171,19 @@ async def client_no_jvm() -> AsyncClient:
     async with AsyncClient(
         transport=transport,
         base_url="http://test",
-        headers=TEST_AUTH_HEADERS,
+        cookies={"bcx_sid": TEST_SESSION_COOKIE},
     ) as ac:
         yield ac
 
 
 @pytest.fixture
 async def unauth_client() -> AsyncClient:
-    """Un-authenticated async HTTP client for auth-failure tests only.
+    """Un-cookied async HTTP client for auth / session-isolation tests.
 
-    No ``Authorization`` header set. Used by ``test_auth.py`` to assert
-    that protected endpoints return 401 when called without a bearer
-    token. Do NOT use for general integration tests — every route except
-    ``/api/health`` requires an API key.
+    No ``bcx_sid`` cookie and no headers set. Used to assert the
+    un-cookied request flow — e.g. that a fresh browser request gets
+    a Set-Cookie back from get_scoped_db, or that the cross-session
+    isolation tests can mint two distinct sessions.
     """
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:

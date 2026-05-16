@@ -75,11 +75,11 @@ async def test_generate_reactions_export_multi_filename(started_app):
 
 
 async def test_export_endpoint_rxn_dispatch(
-    client: AsyncClient, cdx_reaction_file_bytes: bytes
+    client_csrf: AsyncClient, cdx_reaction_file_bytes: bytes
 ) -> None:
     """POST /api/export format=rxn routes via _fetch_reactions + export."""
     # First, run /api/reactions so reactions exist in DB
-    ext_resp = await client.post(
+    ext_resp = await client_csrf.post(
         "/api/reactions",
         files={
             "file": ("simple_reaction.cdx", cdx_reaction_file_bytes, "chemical/x-cdx"),
@@ -90,7 +90,7 @@ async def test_export_endpoint_rxn_dispatch(
     assert extraction_id is not None
 
     # Now export
-    export_resp = await client.post(
+    export_resp = await client_csrf.post(
         "/api/export",
         json={
             "format": "rxn",
@@ -106,10 +106,10 @@ async def test_export_endpoint_rxn_dispatch(
 
 
 async def test_export_endpoint_rxn_idor_protection(
-    client: AsyncClient, cdx_reaction_file_bytes: bytes
+    client_csrf: AsyncClient, cdx_reaction_file_bytes: bytes
 ) -> None:
     """T-10-04: reaction_ids scoped to extraction_id -- stranger IDs -> 404."""
-    ext_resp = await client.post(
+    ext_resp = await client_csrf.post(
         "/api/reactions",
         files={
             "file": ("simple_reaction.cdx", cdx_reaction_file_bytes, "chemical/x-cdx"),
@@ -118,7 +118,7 @@ async def test_export_endpoint_rxn_idor_protection(
     extraction_id = ext_resp.json()["extraction_id"]
 
     # Try to export with a made-up reaction_id 99999 + legitimate extraction_id
-    export_resp = await client.post(
+    export_resp = await client_csrf.post(
         "/api/export",
         json={
             "format": "rxn",

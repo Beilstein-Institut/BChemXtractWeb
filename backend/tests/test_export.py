@@ -22,7 +22,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from app.main import create_app
-from tests.conftest import TEST_AUTH_HEADERS
+from tests.conftest import TEST_SESSION_COOKIE
 
 # ---------------------------------------------------------------------------
 # Test fixture data
@@ -84,19 +84,19 @@ _MOCK_V3000_BYTES = (
 
 @pytest_asyncio.fixture
 async def client() -> AsyncClient:
-    """Authenticated HTTP client connected to the app without lifespan.
+    """Cookie-authenticated HTTP client connected to the app without lifespan.
 
     The export router is registered and the DB dependency is overridden so
-    _fetch_substances() never actually hits the database. The
-    ``Authorization: Bearer <test-key>`` header is attached so the
-    API-key middleware (C-02) does not short-circuit requests.
+    _fetch_substances() never actually hits the database. The ``bcx_sid``
+    cookie is attached so ``get_scoped_db`` finds a valid session before
+    yielding the DB to the route handler.
     """
     app = create_app()
     transport = ASGITransport(app=app)
     async with AsyncClient(
         transport=transport,
         base_url="http://test",
-        headers=TEST_AUTH_HEADERS,
+        cookies={"bcx_sid": TEST_SESSION_COOKIE},
     ) as ac:
         yield ac
 

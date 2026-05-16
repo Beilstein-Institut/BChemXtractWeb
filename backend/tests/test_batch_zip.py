@@ -2,7 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from tests.conftest import TEST_AUTH_HEADERS
+from tests.conftest import TEST_SESSION_COOKIE
 
 
 def test_batch_zip_returns_404_for_unknown_batch():
@@ -16,6 +16,7 @@ def test_batch_zip_returns_404_for_unknown_batch():
     mock_result.scalars.return_value.all.return_value = []
 
     client = TestClient(app, raise_server_exceptions=False)
+    client.cookies.set("bcx_sid", TEST_SESSION_COOKIE)
     with (
         patch("app.routers.batch.select"),
         patch(
@@ -24,9 +25,7 @@ def test_batch_zip_returns_404_for_unknown_batch():
             return_value=mock_result,
         ),
     ):
-        response = client.get(
-            "/api/batch/nonexistent-id/zip", headers=TEST_AUTH_HEADERS
-        )
+        response = client.get("/api/batch/nonexistent-id/zip")
 
     # 404 when no extractions match, 422 if path param validation fails
     assert response.status_code in (404, 422)
