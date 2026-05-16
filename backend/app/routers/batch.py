@@ -27,7 +27,7 @@ from app.config import settings
 from app.middleware.rate_limit import limiter
 from app.models.chemistry import BatchStartResponse, ErrorResponse
 from app.models.orm import Extraction, ExtractionSubstance, Substance
-from app.services.db import get_db
+from app.services.db import get_scoped_db
 from app.services.filenames import build_content_disposition, safe_filename
 from app.services.upload_guard import read_upload_bounded
 from app.tasks.extraction import extract_file_task
@@ -42,7 +42,7 @@ _ERROR_DETAIL_MAX_CHARS = 200
 
 router = APIRouter()
 
-DbDep = Annotated[AsyncSession, Depends(get_db)]
+DbDep = Annotated[AsyncSession, Depends(get_scoped_db)]
 UploadFiles = Annotated[list[UploadFile], File(...)]
 
 

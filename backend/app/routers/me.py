@@ -30,13 +30,13 @@ from app.models.orm import (
     Substance,
 )
 from app.services.audit import audit_log_insert_in_session
-from app.services.db import get_db
+from app.services.db import get_scoped_db
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-DbDep = Annotated[AsyncSession, Depends(get_db)]
+DbDep = Annotated[AsyncSession, Depends(get_scoped_db)]
 
 
 @router.delete(

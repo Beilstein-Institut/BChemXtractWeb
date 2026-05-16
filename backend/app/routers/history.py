@@ -32,7 +32,7 @@ from app.models.orm import (
     Substance,
 )
 from app.services.audit import audit_log_insert_in_session
-from app.services.db import get_db
+from app.services.db import get_scoped_db
 from app.services.persistence import update_substance_svgs
 from app.services.svg_backfill import render_svgs_from_mdlv3000
 
@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-DbDep = Annotated[AsyncSession, Depends(get_db)]
+DbDep = Annotated[AsyncSession, Depends(get_scoped_db)]
 
 DEFAULT_HISTORY_LIMIT = 10
 

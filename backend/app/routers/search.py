@@ -29,7 +29,7 @@ from app.models.chemistry import (
     SearchValidateRequest,
     SearchValidateResponse,
 )
-from app.services.db import get_db
+from app.services.db import get_scoped_db
 from app.services.jvm_bridge import run_in_jvm_thread
 from app.services.search import execute_search
 from app.services.substructure import validate_query
@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["search"])
 
-DbDep = Annotated[AsyncSession, Depends(get_db)]
+DbDep = Annotated[AsyncSession, Depends(get_scoped_db)]
 
 
 @router.post(

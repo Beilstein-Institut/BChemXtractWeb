@@ -25,7 +25,7 @@ from app.models.chemistry import (
 )
 from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.routers._shared import check_extension_mismatch
-from app.services.db import get_db
+from app.services.db import get_scoped_db
 from app.services.extractor import extract_substances_with_svg
 from app.services.format_detector import detect_format
 from app.services.persistence import save_extraction
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-DbDep = Annotated[AsyncSession, Depends(get_db)]
+DbDep = Annotated[AsyncSession, Depends(get_scoped_db)]
 
 
 @router.post(
