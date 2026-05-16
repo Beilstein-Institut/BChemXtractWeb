@@ -62,6 +62,8 @@ services:
       db:
         condition: service_healthy
     environment:
+      # migrate runs as the bootstrap superuser — DDL (RLS policies,
+      # CREATE ROLE for bchemxtract_app) requires superuser privileges.
       DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-bchemxtract}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-bchemxtract}"
       JAR_PATH: /app/jars
       # Phase 11: app.config.Settings is imported during alembic env.py
@@ -73,6 +75,12 @@ services:
       ADMIN_SECRET: ${ADMIN_SECRET:?ADMIN_SECRET must be set (32+ chars)}
       CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:${HTTP_PORT:-3000}"]'}
       DEBUG: ${DEBUG:-false}
+      # The 2026_05_16_create_app_role migration reads APP_DB_PASSWORD from
+      # the environment and CREATE / ALTER ROLEs bchemxtract_app with it.
+      # Runtime services (backend, celery-worker, celery-beat) then connect
+      # as bchemxtract_app — a NOSUPERUSER NOBYPASSRLS role — so RLS
+      # policies actually enforce on every query.
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD must be set (32+ chars)}
     restart: "no"
 
   backend:
@@ -95,7 +103,11 @@ services:
       migrate:
         condition: service_completed_successfully
     environment:
-      DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-bchemxtract}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-bchemxtract}"
+      # Runtime backend connects as bchemxtract_app — NOSUPERUSER NOBYPASSRLS
+      # so RLS policies enforce on every query. The role is created by the
+      # 2026_05_16_create_app_role migration (running as the bootstrap
+      # superuser in the migrate service).
+      DATABASE_URL: "postgresql+psycopg://bchemxtract_app:${APP_DB_PASSWORD:?APP_DB_PASSWORD must be set (32+ chars)}@db:5432/${POSTGRES_DB:-bchemxtract}"
       JAR_PATH: /app/jars
       # Phase 11 cookie posture: DEBUG=false enforces Secure flag on bcx_sid
       # cookie (HTTPS-only) AND refuses CORS_ORIGINS that contain
@@ -195,7 +207,9 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-bchemxtract}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-bchemxtract}"
+      # celery-worker runs extraction tasks that read/write user data —
+      # connect as bchemxtract_app so RLS policies enforce ownership.
+      DATABASE_URL: "postgresql+psycopg://bchemxtract_app:${APP_DB_PASSWORD:?APP_DB_PASSWORD must be set (32+ chars)}@db:5432/${POSTGRES_DB:-bchemxtract}"
       JAR_PATH: /app/jars
       JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
       # Phase 11: required by app.config.Settings on import (same constraint
@@ -243,7 +257,11 @@ services:
       migrate:
         condition: service_completed_successfully
     environment:
-      DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-bchemxtract}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-bchemxtract}"
+      # celery-beat reads/writes audit_log rows (prune task). Connect as the
+      # NOBYPASSRLS app role — the prune target is the global audit_log
+      # table which has no per-row RLS policy, so the app role's CRUD
+      # grant from the 2026_05_16_create_app_role migration is sufficient.
+      DATABASE_URL: "postgresql+psycopg://bchemxtract_app:${APP_DB_PASSWORD:?APP_DB_PASSWORD must be set (32+ chars)}@db:5432/${POSTGRES_DB:-bchemxtract}"
       JAR_PATH: /app/jars
       JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set (32+ chars)}
