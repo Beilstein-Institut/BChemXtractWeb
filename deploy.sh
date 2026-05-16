@@ -5,7 +5,8 @@
 #   ./deploy.sh                  # full deploy: secrets + JAR + docker compose up
 #   ./deploy.sh --port N         # set public HTTP port (host) — default 3000
 #   ./deploy.sh --change-port    # re-prompt for the public HTTP port
-#   ./deploy.sh --rotate-keys    # regenerate API_KEYS/BROWSER_API_KEY in existing .env
+#   ./deploy.sh --rotate-keys    # regenerate ADMIN_SECRET in existing .env
+#                                # (POSTGRES_PASSWORD + SECRET_KEY untouched)
 #   ./deploy.sh -h | --help
 
 set -euo pipefail
@@ -26,7 +27,7 @@ warn() { printf '%s ! %s %s\n' "$C_YELLOW" "$C_RESET" "$*"; }
 die()  { printf '%s ✗ %s %s\n' "$C_RED"    "$C_RESET" "$*" >&2; exit 1; }
 
 usage() {
-  sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 }
 
@@ -216,31 +217,36 @@ fi
 
 # --- .env handling ----------------------------------------------------------
 write_env() {
-  # args: $1 = postgres password, $2 = api token (used for both API_KEYS[0] and BROWSER_API_KEY)
-  POSTGRES_PASS="$1" API_KEY="$2" "$PY" - <<'PYEOF'
+  # args: $1 = postgres password
+  #       $2 = secret_key      (PBKDF2 salt for API-key hashes + CSRF HMAC; D-10/D-19)
+  #       $3 = admin_secret    (gate for /api/admin/api-keys; D-11)
+  POSTGRES_PASS="$1" SECRET_KEY_VAL="$2" ADMIN_SECRET_VAL="$3" "$PY" - <<'PYEOF'
 import os, re, pathlib
 p = pathlib.Path('.env')
 text = p.read_text()
 text = re.sub(r'^POSTGRES_PASSWORD=.*$',
               f'POSTGRES_PASSWORD={os.environ["POSTGRES_PASS"]}', text, flags=re.M)
-text = re.sub(r'^API_KEYS=.*$',
-              f'API_KEYS=["{os.environ["API_KEY"]}"]',           text, flags=re.M)
-text = re.sub(r'^BROWSER_API_KEY=.*$',
-              f'BROWSER_API_KEY={os.environ["API_KEY"]}',        text, flags=re.M)
+text = re.sub(r'^SECRET_KEY=.*$',
+              f'SECRET_KEY={os.environ["SECRET_KEY_VAL"]}',       text, flags=re.M)
+text = re.sub(r'^ADMIN_SECRET=.*$',
+              f'ADMIN_SECRET={os.environ["ADMIN_SECRET_VAL"]}',   text, flags=re.M)
 p.write_text(text)
 PYEOF
 }
 
 rotate_env_keys() {
-  # args: $1 = new api token. Leaves POSTGRES_PASSWORD untouched.
-  API_KEY="$1" "$PY" - <<'PYEOF'
+  # args: $1 = new admin secret.
+  # Leaves POSTGRES_PASSWORD AND SECRET_KEY untouched — rotating SECRET_KEY
+  # would invalidate every API key's stored lookup hash AND every outstanding
+  # CSRF token, which requires a coordinated re-issue flow that is out of
+  # scope for `deploy.sh`. To rotate SECRET_KEY: edit .env manually, then
+  # mint new API keys via POST /api/admin/api-keys and restart the stack.
+  ADMIN_SECRET_VAL="$1" "$PY" - <<'PYEOF'
 import os, re, pathlib
 p = pathlib.Path('.env')
 text = p.read_text()
-text = re.sub(r'^API_KEYS=.*$',
-              f'API_KEYS=["{os.environ["API_KEY"]}"]',     text, flags=re.M)
-text = re.sub(r'^BROWSER_API_KEY=.*$',
-              f'BROWSER_API_KEY={os.environ["API_KEY"]}',  text, flags=re.M)
+text = re.sub(r'^ADMIN_SECRET=.*$',
+              f'ADMIN_SECRET={os.environ["ADMIN_SECRET_VAL"]}', text, flags=re.M)
 p.write_text(text)
 PYEOF
 }
@@ -248,15 +254,16 @@ PYEOF
 BOOTSTRAPPED_ENV=false
 if [[ "$ROTATE_KEYS" == true ]]; then
   [[ -f .env ]] || die ".env does not exist — run without --rotate-keys first"
-  info 'Rotating API_KEYS and BROWSER_API_KEY (POSTGRES_PASSWORD unchanged)'
+  info 'Rotating ADMIN_SECRET (POSTGRES_PASSWORD + SECRET_KEY unchanged)'
   rotate_env_keys "$(gen_secret)"
-  ok 'keys rotated — restart proxy + backend to apply: docker compose restart nginx backend'
+  ok 'admin secret rotated — restart backend to apply: docker compose restart backend'
 elif [[ -f .env ]]; then
-  warn '.env already exists — leaving it unchanged (use --rotate-keys to regenerate API keys)'
+  warn '.env already exists — leaving it unchanged (use --rotate-keys to regenerate ADMIN_SECRET)'
 else
   info 'Generating .env with random secrets'
   cp .env.example .env
-  write_env "$(gen_secret)" "$(gen_secret)"
+  # Three independent secrets — POSTGRES_PASSWORD, SECRET_KEY, ADMIN_SECRET.
+  write_env "$(gen_secret)" "$(gen_secret)" "$(gen_secret)"
   chmod 600 .env
   ok '.env created (chmod 600)'
   BOOTSTRAPPED_ENV=true
@@ -350,5 +357,6 @@ cat <<EOF
 
   Direct API access (loopback only — bypasses nginx):
     http://127.0.0.1:$(read_env_var BACKEND_PORT)
-    needs the bearer token from .env: grep '^API_KEYS=' .env
+    Browser SPA flows use the bcx_sid cookie; programmatic callers
+    use an admin-minted X-API-Key (see POST /api/admin/api-keys).
 EOF
