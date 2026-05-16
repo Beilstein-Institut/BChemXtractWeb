@@ -34,6 +34,9 @@ const LicensePage = lazy(() =>
 const PrivacyPage = lazy(() =>
   import("@/pages/PrivacyPage").then((m) => ({ default: m.PrivacyPage })),
 );
+const SettingsPage = lazy(() =>
+  import("@/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
+);
 const SearchResults = lazy(() =>
   import("@/components/SearchResults").then((m) => ({ default: m.SearchResults })),
 );
@@ -225,6 +228,8 @@ function App() {
         return <ImprintPage />;
       case "/privacy":
         return <PrivacyPage />;
+      case "/settings":
+        return <SettingsPage />;
       case "/browse":
         return (
           <BrowsePage
