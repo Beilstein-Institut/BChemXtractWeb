@@ -14,7 +14,7 @@ import time
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 
-from fastapi import HTTPException, Security, status
+from fastapi import BackgroundTasks, HTTPException, Request, Security, status
 from fastapi.security import APIKeyHeader
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -126,12 +126,22 @@ def verify_csrf_token(
         return False
 
 
-async def validate_api_key(db: AsyncSession, api_key: str):
-    """Look up an API key by its PBKDF2 hash. None if missing/revoked/expired.
+async def validate_api_key(
+    api_key: str,
+    db: AsyncSession,
+    background_tasks: BackgroundTasks | None = None,
+    request: Request | None = None,
+):
+    """Validate an X-API-Key plaintext against the api_keys table.
 
-    Returns the ORM row on success so the caller can update last_used_at /
-    request_count in a background task AND emit auth.api_key.used.first if
-    row.last_used_at is None (Plan 11-04 wires the first-use audit emit).
+    Returns the row on success, None on failure (unknown, revoked,
+    expired). Updates ``last_used_at`` + ``request_count`` on success.
+    Emits ``auth.api_key.used.first`` EXACTLY once per key — the call
+    where ``last_used_at`` transitions from NULL → now() (D-16).
+
+    The audit emit is gated on ``background_tasks is not None`` so
+    direct-call unit tests (which bypass FastAPI's request lifecycle)
+    can validate keys without an audit hook.
     """
     from app.models.orm import ApiKey  # local import — circular dep
 
@@ -145,4 +155,26 @@ async def validate_api_key(db: AsyncSession, api_key: str):
         return None
     if row.expires_at is not None and datetime.now(UTC) > row.expires_at:
         return None
+
+    is_first_use = row.last_used_at is None
+    row.last_used_at = datetime.now(UTC)
+    row.request_count = (row.request_count or 0) + 1
+    await db.commit()
+
+    if is_first_use and background_tasks is not None:
+        # Local import — app.services.audit imports app.models.orm which
+        # transitively imports app.core.security, so the top-level import
+        # would cycle.
+        from app.services.audit import audit_log_insert
+
+        background_tasks.add_task(
+            audit_log_insert,
+            event="auth.api_key.used.first",
+            session_id=None,
+            api_key_hash=row.key_hash,
+            target_id=str(row.id),
+            request=request,
+            meta={"name": row.name},
+        )
+
     return row
