@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.security import generate_csrf_token
 from app.core.session import (
+    _UUID_RE,
     SESSION_COOKIE,
     SESSION_MAX_AGE,
     ensure_session_cookie,
@@ -34,6 +35,7 @@ from app.models.auth import (
 )
 from app.models.chemistry import ErrorResponse
 from app.models.orm import Extraction
+from app.services.audit import audit_log_insert
 from app.services.db import get_db
 
 logger = logging.getLogger(__name__)
@@ -77,6 +79,7 @@ def _is_dev_origin_set() -> bool:
 async def put_auth_me(
     request: Request,
     response: Response,
+    background: BackgroundTasks,
     db: DbDep,
 ) -> SessionInfoResponse:
     """Bootstrap or refresh the caller's session (D-23).
@@ -86,8 +89,27 @@ async def put_auth_me(
     sets ``Set-Cookie``. The has_history EXISTS query runs under the
     RLS context for ``session_id`` so it cannot leak counts across
     scopes.
+
+    Phase 11 D-16: when the cookie was freshly minted (no valid cookie
+    presented), schedule a background ``auth.session.created`` audit
+    insert. Routine audit events use ``BackgroundTasks`` so they never
+    block the user response (Pitfall #6).
     """
+    raw_cookie = request.cookies.get(SESSION_COOKIE)
+    minted_new_cookie = not (raw_cookie and _UUID_RE.match(raw_cookie))
     session_id = ensure_session_cookie(response, request)
+
+    if minted_new_cookie:
+        background.add_task(
+            audit_log_insert,
+            event="auth.session.created",
+            session_id=session_id,
+            api_key_hash=None,
+            target_id=None,
+            request=request,
+            meta={},
+        )
+
     # set_rls_context locally so the EXISTS query honours RLS — this
     # endpoint is mounted outside the global scoped dependency.
     await set_rls_context(db, session_id, None)
@@ -132,20 +154,46 @@ async def post_auth_restore(
     drop when a route returns ``None`` with a 204.
     """
     is_dev = _is_dev_origin_set()
-    response.set_cookie(
-        key=SESSION_COOKIE,
-        value=body.code,
-        max_age=SESSION_MAX_AGE,
-        httponly=True,
-        secure=not is_dev,
-        samesite="lax",
-        path="/",
-    )
-    # Plan 11-04: background.add_task(_audit_log_insert,
-    #     event="auth.session.restored", target_id=body.code, request=request)
-    # Reference the BackgroundTasks param so static analysis sees it as
-    # the intentional Plan 11-04 hook rather than dead code.
-    _ = background
+    try:
+        response.set_cookie(
+            key=SESSION_COOKIE,
+            value=body.code,
+            max_age=SESSION_MAX_AGE,
+            httponly=True,
+            secure=not is_dev,
+            samesite="lax",
+            path="/",
+        )
+        # D-16: emit auth.session.restored on the SUCCESS path. The
+        # session_id we audit is the RESTORED one (body.code) per
+        # RESEARCH Open Q #8 — that's the session the caller is now
+        # bound to.
+        background.add_task(
+            audit_log_insert,
+            event="auth.session.restored",
+            session_id=body.code,
+            api_key_hash=None,
+            target_id=None,
+            request=request,
+            meta={},
+        )
+    except Exception:
+        # Defensive: any unexpected failure on the cookie/audit-schedule
+        # path emits auth.session.restore.failed (D-16) for the operator
+        # audit trail, then re-raises so FastAPI's default handler
+        # surfaces 500. The Pydantic validator already rejected malformed
+        # UUIDs at the boundary, so this catches runtime issues only.
+        background.add_task(
+            audit_log_insert,
+            event="auth.session.restore.failed",
+            session_id=None,
+            api_key_hash=None,
+            target_id=body.code,
+            request=request,
+            meta={},
+        )
+        raise
+
     # Surface the Set-Cookie header on a 204 by hand-building the
     # Response. Starlette strips it if we return None with status=204.
     out = Response(status_code=204)
