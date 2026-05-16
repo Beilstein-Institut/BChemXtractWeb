@@ -68,6 +68,39 @@ class Settings(BaseSettings):
         ),
     )
 
+    # --- Phase 11: cookie + API key + admin auth secrets ---
+    secret_key: str = Field(
+        default="",
+        description=(
+            "Server-side secret used as the PBKDF2 salt for API-key lookup "
+            "hashes (Phase 11 D-10) AND as the HMAC key for CSRF tokens "
+            "(D-19). >= 32 chars required in production (DEBUG=false). "
+            "Single key (RESEARCH Open Q #3 RESOLVED) — rotating invalidates "
+            "every stored API-key hash AND every outstanding CSRF token. "
+            "Generate via: python -c "
+            "'import secrets; print(secrets.token_urlsafe(32))'"
+        ),
+    )
+    admin_secret: str = Field(
+        default="",
+        description=(
+            "Admin-endpoint gate (Phase 11 D-11). Compared constant-time "
+            "against the inbound X-Admin-Secret header. >= 32 chars "
+            "required in production. Safe to rotate via "
+            "`./deploy.sh --rotate-keys` (Plan 11-08)."
+        ),
+    )
+    api_key_default_expiry_days: int = 90
+    """Default expiry for new API keys (Phase 11 D-13). Override per-key
+    via the POST /api/admin/api-keys body."""
+
+    api_key_max_expiry_days: int = 365
+    """Hard cap on per-key expiry (Phase 11 D-13). Values above are clamped."""
+
+    audit_log_retention_days: int = 365
+    """Audit log retention (Phase 11 D-17 — ~12 months). The Celery beat
+    task deletes rows older than this daily at 03:00 UTC."""
+
     # --- Rate limiting (Phase SEC-1, slowapi-backed) ---
     rate_limit_default: str = "120/minute"
     rate_limit_upload: str = "10/minute"
@@ -141,6 +174,28 @@ class Settings(BaseSettings):
                 "authentication."
             )
         self.api_keys = unique
+        return self
+
+    @model_validator(mode="after")
+    def _validate_phase11_secrets(self) -> "Settings":
+        """Refuse to start in production without Phase 11 secrets.
+
+        Mirrors the discipline of _validate_api_keys but for the new
+        SECRET_KEY + ADMIN_SECRET pair. In DEBUG=true (dev/test), short
+        or empty values are allowed.
+        """
+        if not self.debug:
+            if len(self.secret_key) < 32:
+                raise ValueError(
+                    "SECRET_KEY must be at least 32 characters when "
+                    "DEBUG=false. Generate via: python -c "
+                    "'import secrets; print(secrets.token_urlsafe(32))'"
+                )
+            if len(self.admin_secret) < 32:
+                raise ValueError(
+                    "ADMIN_SECRET must be at least 32 characters when "
+                    "DEBUG=false. (see SECRET_KEY for generation command)"
+                )
         return self
 
     @model_validator(mode="after")

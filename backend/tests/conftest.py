@@ -11,6 +11,14 @@ os.environ.setdefault(
     "API_KEYS",
     '["test-api-key-for-test-suite-with-sufficient-length-0123456789"]',
 )
+os.environ.setdefault(
+    "SECRET_KEY",
+    "test-secret-key-for-test-suite-32-characters-min-0123",
+)
+os.environ.setdefault(
+    "ADMIN_SECRET",
+    "test-admin-secret-32-characters-min-0123456789",
+)
 os.environ.setdefault("DEBUG", "false")
 os.environ.setdefault("EXPOSE_OPENAPI_DOCS", "true")
 # SEC H-04: DATABASE_URL has no default in Settings; tests always target
