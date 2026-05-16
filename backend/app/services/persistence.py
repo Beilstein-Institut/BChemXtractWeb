@@ -43,6 +43,7 @@ Tune if the JVM pool size changes in jvm_bridge.py.
 async def save_extraction(
     db: AsyncSession,
     response: ExtractionResponse,
+    scope: tuple[str | None, bytes | None] = (None, None),
 ) -> Extraction:
     """Persist one extraction result and deduplicate its substances.
 
@@ -57,10 +58,22 @@ async def save_extraction(
     Args:
         db: AsyncSession from get_db() dependency.
         response: ExtractionResponse from the extraction pipeline.
+        scope: ``(session_id, api_key_hash)`` ownership pair (Phase 11 D-01).
+            The router-side ``get_scoped_db`` dependency populates this via
+            ``request.state.scope``; the Celery batch worker passes it
+            explicitly through task kwargs. Default ``(None, None)`` is for
+            internal/non-runtime callers (migration helpers, ad-hoc tests).
+            FORCE RLS is in effect after Phase 11 — rows inserted with
+            ``(None, None)`` are unreachable by any user request.
 
     Returns:
         The newly created Extraction ORM instance with id populated.
     """
+    # Phase 11 D-01: unpack owner columns for explicit write-through.
+    # Defence-in-depth — the join-row inserts below set the same columns
+    # rather than relying on RLS to filter join-row reads via the JOIN.
+    session_id, api_key_hash = scope
+
     # Step 1: Insert Extraction row
     extraction = Extraction(
         filename=response.filename,
@@ -69,6 +82,8 @@ async def save_extraction(
         structure_count=response.structure_count,
         extraction_time_ms=response.extraction_time_ms,
         warnings=response.warnings,
+        session_id=session_id,
+        api_key_hash=api_key_hash,
     )
     db.add(extraction)
     await db.flush()  # get extraction.id without committing
@@ -150,9 +165,17 @@ async def save_extraction(
         substance_ids = result.scalars().all()
 
         # Step 4: Insert join rows (ignore duplicates — re-extracting same file)
+        # Phase 11 D-01: owner columns mirror the parent Extraction so RLS
+        # filtering on the join table works even without JOIN propagation.
         if substance_ids:
             join_data = [
-                {"extraction_id": extraction.id, "substance_id": sid, "position": index}
+                {
+                    "extraction_id": extraction.id,
+                    "substance_id": sid,
+                    "position": index,
+                    "session_id": session_id,
+                    "api_key_hash": api_key_hash,
+                }
                 for index, sid in enumerate(substance_ids)
             ]
             await db.execute(
@@ -307,6 +330,7 @@ async def get_or_create_extraction_row(
     file_size: int,
     format: str,
     file_hash: str,
+    scope: tuple[str | None, bytes | None] = (None, None),
 ) -> int:
     """Find or create the Extraction row a reactions call should attach to.
 
@@ -323,16 +347,26 @@ async def get_or_create_extraction_row(
     is accepted but unused in v1; it's retained in the signature so callers
     compute it once and the upgrade path is drop-in.
 
+    Phase 11 D-01: when a new row is created here it lands with the
+    caller's (session_id, api_key_hash) scope so RLS reads via the matching
+    cookie/key return it. The lookup query runs under the RLS context set
+    by ``get_scoped_db`` so cross-session collisions are structurally
+    impossible (a different scope's row with the same fingerprint is
+    invisible and a fresh row is minted instead).
+
     Args:
         db: async session.
         filename: original upload filename.
         file_size: raw bytes length.
         format: "cdx" or "cdxml".
         file_hash: SHA-256 of file_bytes (reserved for v2 upgrade path).
+        scope: ``(session_id, api_key_hash)`` ownership pair (Phase 11 D-01).
 
     Returns:
         extraction_id of the matched-or-created row.
     """
+    session_id, api_key_hash = scope
+
     # Look up by filename + file_size + format as a fingerprint approximation.
     result = await db.execute(
         select(Extraction)
@@ -356,6 +390,8 @@ async def get_or_create_extraction_row(
         structure_count=0,
         extraction_time_ms=0.0,
         warnings=[],
+        session_id=session_id,
+        api_key_hash=api_key_hash,
     )
     db.add(extraction)
     await db.commit()
@@ -367,6 +403,7 @@ async def save_reactions(
     db: AsyncSession,
     extraction_id: int,
     reactions: list[ReactionResponse],
+    scope: tuple[str | None, bytes | None] = (None, None),
 ) -> int:
     """Persist reactions for an extraction (Plan 10 D-18 amended, D-19).
 
@@ -385,10 +422,14 @@ async def save_reactions(
         extraction_id: parent Extraction row id (must exist).
         reactions: list of ReactionResponse; may be empty (still updates
             reaction_count to 0).
+        scope: ``(session_id, api_key_hash)`` ownership pair (Phase 11 D-01).
+            Written onto the ExtractionReaction join rows so RLS filtering
+            applies to direct queries against the join table.
 
     Returns:
         extraction_id unchanged on success.
     """
+    session_id, api_key_hash = scope
     if not reactions:
         await db.execute(
             update(Extraction)
@@ -438,6 +479,8 @@ async def save_reactions(
             "extraction_id": extraction_id,
             "reaction_id": id_by_key[row["long_rinchi_key"]],
             "position": idx,
+            "session_id": session_id,
+            "api_key_hash": api_key_hash,
         }
         for idx, row in enumerate(reaction_rows)
         if row["long_rinchi_key"] in id_by_key

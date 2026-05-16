@@ -155,6 +155,11 @@ async def extract_reactions_endpoint(
     # Filename truncated + repr-quoted in the log message to prevent
     # log-injection via crafted filenames.
     try:
+        # Phase 11 D-01: same scope-threading discipline as
+        # routers/extract.py — both the get-or-create and save-reactions
+        # calls receive the request's (session_id, api_key_hash) tuple so
+        # parent + join rows carry matching owner columns for RLS.
+        scope = request.state.scope if hasattr(request.state, "scope") else (None, None)
         file_hash = hashlib.sha256(file_bytes).hexdigest()
         extraction_id = await get_or_create_extraction_row(
             db,
@@ -162,8 +167,9 @@ async def extract_reactions_endpoint(
             file_size=response.file_size,
             format=response.format,
             file_hash=file_hash,
+            scope=scope,
         )
-        await save_reactions(db, extraction_id, reactions)
+        await save_reactions(db, extraction_id, reactions, scope=scope)
         response = response.model_copy(update={"extraction_id": extraction_id})
     except asyncio.CancelledError:
         raise
