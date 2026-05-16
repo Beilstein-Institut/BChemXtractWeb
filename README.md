@@ -159,7 +159,13 @@ cd BChemXtractWeb
 ./deploy.sh
 ```
 
-`deploy.sh` runs preflight checks, resolves the latest BChemXtract release tag from upstream (override with `BCHEMXTRACT_REF=vX.Y.Z` to pin), generates random secrets into `.env` (skipped if `.env` already exists), and brings the stack up via `docker compose`. The backend Docker image clones BChemXtract directly from upstream at image build time — no submodule, no host-side JAR build needed. Re-run with `--rotate-keys` to cycle the API tokens later.
+`deploy.sh` runs preflight checks, resolves the latest BChemXtract release tag from upstream (override with `BCHEMXTRACT_REF=vX.Y.Z` to pin), generates random secrets into `.env` (skipped if `.env` already exists), and brings the stack up via `docker compose`. The backend Docker image clones BChemXtract directly from upstream at image build time — no submodule, no host-side JAR build needed.
+
+Secret rotation:
+- `./deploy.sh --rotate-keys` — regenerate `ADMIN_SECRET` (the `X-Admin-Secret` gate for `/api/admin/api-keys`). `POSTGRES_PASSWORD` and `SECRET_KEY` are left alone; rotating `SECRET_KEY` would invalidate every stored API-key hash and every outstanding CSRF token.
+- `./deploy.sh --rotate-app-db` — regenerate `APP_DB_PASSWORD` and `ALTER ROLE bchemxtract_app` in the running database. Requires a restart of `backend` / `celery-worker` / `celery-beat` so they pick up the new `DATABASE_URL`.
+
+Upgrading from a pre–Phase-11 deployment: re-run `./deploy.sh` against your existing `.env`. The script auto-mints `APP_DB_PASSWORD` if it is missing and strips the legacy `API_KEYS` / `BROWSER_API_KEY` entries that Phase 11 retired.
 
 ### Choosing a different host port
 
@@ -220,17 +226,18 @@ docker compose up -d --build
 
 <br>
 
-`.env` needs three random values. Generate each with:
+`.env` needs four random secrets (all 32+ characters). `deploy.sh` mints them on first run; the values below are the ones it generates. Generate manually with:
 
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-- **`POSTGRES_PASSWORD`** — any 32+ character random string. Compose refuses to start without it.
-- **`API_KEYS`** — JSON array of bearer tokens, e.g. `["xK3...your-token..."]`. Each token must be **≥16 characters** (the Settings validator rejects shorter values). Multiple entries enable zero-downtime rotation — add the new one, switch clients over, then remove the old one.
-- **`BROWSER_API_KEY`** — must match one of the entries in `API_KEYS`. nginx injects this into `/api/*` requests from the SPA so the key never ships in the frontend bundle.
+- **`POSTGRES_PASSWORD`** — bootstrap Postgres superuser password. The `migrate` service connects as this user to run DDL (alembic upgrades, RLS policies, `CREATE ROLE`).
+- **`APP_DB_PASSWORD`** — password for the runtime `bchemxtract_app` Postgres role (`NOSUPERUSER NOBYPASSRLS`). Backend, celery-worker, and celery-beat all connect as this role so Postgres RLS policies actually enforce session ownership on every query. Without this, the backend silently bypasses RLS via the superuser path and every cookie session can read every other session.
+- **`SECRET_KEY`** — PBKDF2 salt for API-key lookup hashes (D-10) AND HMAC key for CSRF tokens (D-19). **Do not** rotate without coordinating a full API-key re-issue — rotating `SECRET_KEY` invalidates every stored `key_hash`. `deploy.sh --rotate-keys` deliberately leaves it alone.
+- **`ADMIN_SECRET`** — gate for `POST/GET/DELETE /api/admin/api-keys`. Constant-time compared against the `X-Admin-Secret` request header. Safe to rotate via `./deploy.sh --rotate-keys`.
 
-Easiest path: generate one token, use it as both the sole entry of `API_KEYS` and as `BROWSER_API_KEY`.
+Phase 11 auth model in two sentences: the browser SPA is authenticated by a `bcx_sid` UUID4 cookie (HttpOnly, SameSite=Lax, Secure when DEBUG=false) plus a session-bound CSRF token on every mutating request. Programmatic / admin callers mint an `X-API-Key` via `POST /api/admin/api-keys` (X-Admin-Secret gated) and pass it as `X-API-Key: bcx_...` on every request — no `Authorization: Bearer` header is read or accepted any more.
 
 </details>
 
@@ -297,6 +304,31 @@ Every endpoint is documented at `/docs` (Swagger) and `/redoc` once the stack is
 | `POST` | `/api/export` *(fmt=rxn)* | Reactions in RXN / RDfile |
 | `GET` | `/api/history` | Your upload timeline |
 | `GET` | `/api/extractions/{id}` | Full detail for one extraction |
+| `POST` | `/api/admin/api-keys` | Mint a new `bcx_...` key (X-Admin-Secret gated) |
+
+<details>
+<summary><b>🔑 Minting a programmatic API key</b></summary>
+
+<br>
+
+The browser SPA authenticates automatically via the `bcx_sid` cookie. CLI / programmatic callers mint their own `X-API-Key` once, then reuse it on every request:
+
+```bash
+# Issue an admin-minted API key (requires the ADMIN_SECRET from .env)
+curl -X POST http://localhost:3000/api/admin/api-keys \
+  -H "X-Admin-Secret: $ADMIN_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"cli-scripting","expiry_days":90}'
+# → {"id": 1, "key": "bcx_<48-chars>", "expires_at": "2026-08-..."}
+#
+# Save the `key` field — it is shown exactly once. Subsequent GETs return
+# only the lookup hash, never the plaintext.
+export MY_KEY="bcx_<48-chars-from-the-response>"
+```
+
+Keys can be listed (`GET /api/admin/api-keys`) and revoked (`DELETE /api/admin/api-keys/{id}`); both require the same `X-Admin-Secret`. Admin endpoints are rate-limited to 5/minute per IP.
+
+</details>
 
 <details>
 <summary><b>📬 Show me a real request</b></summary>
@@ -304,7 +336,7 @@ Every endpoint is documented at `/docs` (Swagger) and `/redoc` once the stack is
 <br>
 
 ```bash
-# Extract a CDX file
+# Extract a CDX file (programmatic — using the X-API-Key minted above)
 curl -X POST http://localhost:3000/api/extract \
   -H "X-API-Key: $MY_KEY" \
   -F "file=@paper-figure-7.cdx"
