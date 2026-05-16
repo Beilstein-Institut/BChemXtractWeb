@@ -10,8 +10,8 @@ Endpoints:
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -24,12 +24,16 @@ from app.models.chemistry import (
     SubstanceInfoResponse,
     SubstanceResponse,
 )
-from app.models.orm import Extraction, Substance
-from app.services.db import get_db
-from app.services.persistence import (
-    delete_extraction_by_id,
-    update_substance_svgs,
+from app.models.orm import (
+    Extraction,
+    ExtractionReaction,
+    ExtractionSubstance,
+    Reaction,
+    Substance,
 )
+from app.services.audit import audit_log_insert_in_session
+from app.services.db import get_db
+from app.services.persistence import update_substance_svgs
 from app.services.svg_backfill import render_svgs_from_mdlv3000
 
 logger = logging.getLogger(__name__)
@@ -272,19 +276,63 @@ async def get_history_detail(extraction_id: int, db: DbDep) -> ExtractionRespons
     },
     tags=["history"],
 )
-async def delete_history_entry(extraction_id: int, db: DbDep) -> None:
+async def delete_history_entry(extraction_id: int, request: Request, db: DbDep) -> None:
     """Delete one extraction record and clean up orphaned substances (D-07).
+
+    Phase 11 D-16: emits ``extraction.deleted`` via
+    ``audit_log_insert_in_session`` BEFORE the commit so the audit row
+    and the deletion are atomic — same Pitfall #6 contract as
+    ``DELETE /api/me/data``.
 
     Args:
         extraction_id: Primary key of the Extraction record.
+        request: FastAPI Request — used to read ``request.state.scope``
+            and to populate the audit row's IP/user-agent.
         db: AsyncSession from get_db() dependency.
 
     Raises:
         HTTPException 404: If the extraction_id does not exist.
     """
-    deleted = await delete_extraction_by_id(db, extraction_id)
-    if not deleted:
+    # Read the scope set by get_scoped_db (Phase 11 Wave 2). Fallback to
+    # (None, None) for the legacy code path / direct-call unit tests.
+    session_id, api_key_hash = (
+        request.state.scope if hasattr(request.state, "scope") else (None, None)
+    )
+
+    extraction = await db.get(Extraction, extraction_id)
+    if extraction is None:
         raise HTTPException(status_code=404, detail="Extraction not found")
+
+    await db.delete(extraction)
+    await db.flush()
+
+    # Orphan sweep (D-07 / Plan 10 D-21) — same pattern as
+    # services.persistence.delete_extraction_by_id, inlined here so the
+    # audit row lands in the same transaction.
+    await db.execute(
+        delete(Substance).where(
+            Substance.id.not_in(select(ExtractionSubstance.substance_id))
+        )
+    )
+    await db.execute(
+        delete(Reaction).where(
+            Reaction.id.not_in(select(ExtractionReaction.reaction_id))
+        )
+    )
+
+    # Phase 11 D-16: in-transaction audit emit. If the audit insert
+    # fails, the entire DELETE rolls back atomically (Pitfall #6).
+    await audit_log_insert_in_session(
+        db,
+        event="extraction.deleted",
+        session_id=session_id,
+        api_key_hash=api_key_hash,
+        target_id=str(extraction_id),
+        request=request,
+        meta={},
+    )
+
+    await db.commit()
 
 
 @router.get(
