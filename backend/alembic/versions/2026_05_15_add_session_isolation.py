@@ -49,12 +49,8 @@ def upgrade() -> None:
             table,
             sa.Column("api_key_hash", postgresql.BYTEA(), nullable=True),
         )
-        op.create_index(
-            f"ix_{table}_session_id", table, ["session_id"]
-        )
-        op.create_index(
-            f"ix_{table}_api_key_hash", table, ["api_key_hash"]
-        )
+        op.create_index(f"ix_{table}_session_id", table, ["session_id"])
+        op.create_index(f"ix_{table}_api_key_hash", table, ["api_key_hash"])
 
     # 2. New table: api_keys (D-10).
     op.create_table(
@@ -106,9 +102,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "ix_audit_log_event_at", "audit_log", ["event", sa.text("at DESC")]
-    )
+    op.create_index("ix_audit_log_event_at", "audit_log", ["event", sa.text("at DESC")])
     op.create_index("ix_audit_log_at", "audit_log", ["at"])
 
     # 4. D-04 — wipe legacy unscoped rows BEFORE enabling RLS.
@@ -125,10 +119,12 @@ def upgrade() -> None:
         "DELETE FROM extractions WHERE session_id IS NULL AND api_key_hash IS NULL"
     )
     op.execute(
-        "DELETE FROM extraction_substances WHERE session_id IS NULL AND api_key_hash IS NULL"
+        "DELETE FROM extraction_substances "
+        "WHERE session_id IS NULL AND api_key_hash IS NULL"
     )
     op.execute(
-        "DELETE FROM extraction_reactions WHERE session_id IS NULL AND api_key_hash IS NULL"
+        "DELETE FROM extraction_reactions "
+        "WHERE session_id IS NULL AND api_key_hash IS NULL"
     )
 
     # 5. Enable + FORCE RLS + policy per target table (D-01, D-02).
@@ -140,7 +136,8 @@ def upgrade() -> None:
             CREATE POLICY {table}_isolation ON {table}
             USING (
                 session_id = NULLIF(current_setting('app.session_id', true), '')
-                OR api_key_hash = NULLIF(current_setting('app.api_key_hash', true), '')::bytea
+                OR api_key_hash =
+                    NULLIF(current_setting('app.api_key_hash', true), '')::bytea
             )
             """
         )

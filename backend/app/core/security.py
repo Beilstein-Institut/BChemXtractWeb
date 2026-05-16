@@ -11,9 +11,8 @@ import hmac
 import logging
 import secrets
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
-from typing import Optional
 
 from fastapi import HTTPException, Security, status
 from fastapi.security import APIKeyHeader
@@ -45,7 +44,7 @@ def hash_api_key_for_lookup(api_key_plain: str) -> str:
     return dk.hex()
 
 
-def calculate_expiry_date(expiry_days: Optional[int] = None) -> Optional[datetime]:
+def calculate_expiry_date(expiry_days: int | None = None) -> datetime | None:
     """Compute expires_at for a new API key. None/0 means no expiry (D-13).
 
     Values above Settings.api_key_max_expiry_days (365) are clamped.
@@ -56,11 +55,11 @@ def calculate_expiry_date(expiry_days: Optional[int] = None) -> Optional[datetim
     if expiry_days <= 0:
         return None
     expiry_days = min(expiry_days, settings.api_key_max_expiry_days)
-    return datetime.now(timezone.utc) + timedelta(days=expiry_days)
+    return datetime.now(UTC) + timedelta(days=expiry_days)
 
 
 async def require_admin_auth(
-    admin_secret: Optional[str] = Security(admin_secret_header),
+    admin_secret: str | None = Security(admin_secret_header),
 ) -> bool:
     """FastAPI dependency: enforce X-Admin-Secret header.
     Constant-time compare via secrets.compare_digest (T-11-05).
@@ -138,14 +137,12 @@ async def validate_api_key(db: AsyncSession, api_key: str):
 
     key_hash_hex = hash_api_key_for_lookup(api_key)
     key_hash_bytes = bytes.fromhex(key_hash_hex)
-    result = await db.execute(
-        select(ApiKey).where(ApiKey.key_hash == key_hash_bytes)
-    )
+    result = await db.execute(select(ApiKey).where(ApiKey.key_hash == key_hash_bytes))
     row = result.scalar_one_or_none()
     if row is None:
         return None
     if row.revoked_at is not None:
         return None
-    if row.expires_at is not None and datetime.now(timezone.utc) > row.expires_at:
+    if row.expires_at is not None and datetime.now(UTC) > row.expires_at:
         return None
     return row

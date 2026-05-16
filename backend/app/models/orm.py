@@ -62,8 +62,12 @@ class Extraction(Base):
     # Phase 11 D-01: per-row ownership for Postgres RLS. Nullable for
     # legacy rows (wiped by the Phase 11 migration before RLS is forced).
     # session_id: 36-char UUID string. api_key_hash: 32-byte PBKDF2 digest.
-    session_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
-    api_key_hash: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True, index=True)
+    session_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, index=True
+    )
+    api_key_hash: Mapped[bytes | None] = mapped_column(
+        LargeBinary, nullable=True, index=True
+    )
 
     substances: Mapped[list["Substance"]] = relationship(
         secondary="extraction_substances",
@@ -143,8 +147,12 @@ class ExtractionSubstance(Base):
     # Phase 11 D-01: per-row ownership for Postgres RLS. Nullable for
     # legacy rows (wiped by the Phase 11 migration before RLS is forced).
     # session_id: 36-char UUID string. api_key_hash: 32-byte PBKDF2 digest.
-    session_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
-    api_key_hash: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True, index=True)
+    session_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, index=True
+    )
+    api_key_hash: Mapped[bytes | None] = mapped_column(
+        LargeBinary, nullable=True, index=True
+    )
 
 
 class Reaction(Base):
@@ -219,8 +227,12 @@ class ExtractionReaction(Base):
     # Phase 11 D-01: per-row ownership for Postgres RLS. Nullable for
     # legacy rows (wiped by the Phase 11 migration before RLS is forced).
     # session_id: 36-char UUID string. api_key_hash: 32-byte PBKDF2 digest.
-    session_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
-    api_key_hash: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True, index=True)
+    session_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, index=True
+    )
+    api_key_hash: Mapped[bytes | None] = mapped_column(
+        LargeBinary, nullable=True, index=True
+    )
 
 
 class ApiKey(Base):
@@ -241,7 +253,9 @@ class ApiKey(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     key_hash: Mapped[bytes] = mapped_column(LargeBinary, unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    description: Mapped[str] = mapped_column(
+        Text, nullable=False, default="", server_default=""
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -277,12 +291,8 @@ class AuditLog(Base):
     __tablename__ = "audit_log"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    session_id_hash: Mapped[bytes | None] = mapped_column(
-        LargeBinary, nullable=True
-    )
-    api_key_hash: Mapped[bytes | None] = mapped_column(
-        LargeBinary, nullable=True
-    )
+    session_id_hash: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    api_key_hash: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     ip_inet: Mapped[str | None] = mapped_column(INET, nullable=True)
     user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
     event: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -292,4 +302,6 @@ class AuditLog(Base):
         server_default=func.now(),
         nullable=False,
     )
-    meta: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
+    meta: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )

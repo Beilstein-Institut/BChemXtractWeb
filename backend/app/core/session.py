@@ -15,7 +15,6 @@ from __future__ import annotations
 import logging
 import re
 import uuid
-from typing import Optional
 
 from fastapi import Request, Response
 from sqlalchemy import text
@@ -40,7 +39,7 @@ def _is_dev_origin_set() -> bool:
     )
 
 
-def get_session_id(request: Request) -> Optional[str]:
+def get_session_id(request: Request) -> str | None:
     return request.cookies.get(SESSION_COOKIE)
 
 
@@ -72,7 +71,7 @@ def ensure_session_cookie(response: Response, request: Request) -> str:
 
 async def get_data_scope(
     request: Request,
-) -> tuple[Optional[str], Optional[bytes]]:
+) -> tuple[str | None, bytes | None]:
     """Resolve (session_id, api_key_hash_bytes). API key wins over cookie."""
     from app.core.security import hash_api_key_for_lookup  # avoid circular
 
@@ -89,8 +88,8 @@ async def get_data_scope(
 
 async def set_rls_context(
     db: AsyncSession,
-    session_id: Optional[str],
-    api_key_hash: Optional[bytes],
+    session_id: str | None,
+    api_key_hash: bytes | None,
 ) -> None:
     """Set Postgres session vars for RLS policy evaluation (D-03).
 

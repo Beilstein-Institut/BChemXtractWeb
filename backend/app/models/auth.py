@@ -7,10 +7,8 @@ discipline as backend/app/models/chemistry.py.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
-
 
 # --- Session / recovery code ------------------------------------------------
 
@@ -35,6 +33,7 @@ class RestoreRequest(BaseModel):
     @classmethod
     def _validate_uuid4(cls, v: str) -> str:
         import re
+
         pat = re.compile(
             r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
         )
@@ -57,12 +56,12 @@ class ApiKeyCreate(BaseModel):
 class ApiKeyCreatedResponse(BaseModel):
     """Returned ONCE on key creation; full plaintext only here (D-11)."""
 
-    key: str = ""               # bcx_<base64url(32)>
+    key: str = ""  # bcx_<base64url(32)>
     key_id: int = 0
     name: str = ""
     description: str = ""
     created_at: datetime
-    expires_at: Optional[datetime] = None
+    expires_at: datetime | None = None
 
 
 class ApiKeyInfo(BaseModel):
@@ -72,10 +71,10 @@ class ApiKeyInfo(BaseModel):
     name: str = ""
     description: str = ""
     created_at: datetime
-    last_used_at: Optional[datetime] = None
+    last_used_at: datetime | None = None
     request_count: int = 0
-    expires_at: Optional[datetime] = None
-    revoked_at: Optional[datetime] = None
+    expires_at: datetime | None = None
+    revoked_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
