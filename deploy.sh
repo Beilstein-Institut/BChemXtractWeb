@@ -223,26 +223,21 @@ MSG
 fi
 
 # --- .env handling ----------------------------------------------------------
+# All single-key writes route through update_env_var (defined above). It is
+# upsert-style: replaces the line if the key exists, appends it otherwise.
+# Both call sites here (write_env on a fresh `cp .env.example .env`, and the
+# rotate_* paths against an existing .env) already have the keys present,
+# so the upsert is effectively a replace.
+
 write_env() {
   # args: $1 = postgres password    (bootstrap superuser; DDL + role mgmt)
   #       $2 = secret_key           (PBKDF2 salt + CSRF HMAC; D-10/D-19)
   #       $3 = admin_secret         (gate for /api/admin/api-keys; D-11)
   #       $4 = app_db_password      (runtime bchemxtract_app role; RLS-enforcing)
-  POSTGRES_PASS="$1" SECRET_KEY_VAL="$2" ADMIN_SECRET_VAL="$3" APP_DB_PASS="$4" \
-    "$PY" - <<'PYEOF'
-import os, re, pathlib
-p = pathlib.Path('.env')
-text = p.read_text()
-text = re.sub(r'^POSTGRES_PASSWORD=.*$',
-              f'POSTGRES_PASSWORD={os.environ["POSTGRES_PASS"]}', text, flags=re.M)
-text = re.sub(r'^SECRET_KEY=.*$',
-              f'SECRET_KEY={os.environ["SECRET_KEY_VAL"]}',       text, flags=re.M)
-text = re.sub(r'^ADMIN_SECRET=.*$',
-              f'ADMIN_SECRET={os.environ["ADMIN_SECRET_VAL"]}',   text, flags=re.M)
-text = re.sub(r'^APP_DB_PASSWORD=.*$',
-              f'APP_DB_PASSWORD={os.environ["APP_DB_PASS"]}',     text, flags=re.M)
-p.write_text(text)
-PYEOF
+  update_env_var POSTGRES_PASSWORD "$1"
+  update_env_var SECRET_KEY         "$2"
+  update_env_var ADMIN_SECRET       "$3"
+  update_env_var APP_DB_PASSWORD    "$4"
 }
 
 rotate_env_keys() {
@@ -252,14 +247,7 @@ rotate_env_keys() {
   # CSRF token, which requires a coordinated re-issue flow that is out of
   # scope for `deploy.sh`. To rotate SECRET_KEY: edit .env manually, then
   # mint new API keys via POST /api/admin/api-keys and restart the stack.
-  ADMIN_SECRET_VAL="$1" "$PY" - <<'PYEOF'
-import os, re, pathlib
-p = pathlib.Path('.env')
-text = p.read_text()
-text = re.sub(r'^ADMIN_SECRET=.*$',
-              f'ADMIN_SECRET={os.environ["ADMIN_SECRET_VAL"]}', text, flags=re.M)
-p.write_text(text)
-PYEOF
+  update_env_var ADMIN_SECRET "$1"
 }
 
 rotate_app_db_password() {
@@ -280,14 +268,7 @@ rotate_app_db_password() {
   docker compose exec -T db psql -U "$pg_user" -d "$pg_db" \
     -c "ALTER ROLE bchemxtract_app WITH PASSWORD '${pg_pwd_escaped}';" >/dev/null \
     || die 'ALTER ROLE failed — is the db container running? (docker compose up -d db)'
-  APP_DB_PASS="$new_password" "$PY" - <<'PYEOF'
-import os, re, pathlib
-p = pathlib.Path('.env')
-text = p.read_text()
-text = re.sub(r'^APP_DB_PASSWORD=.*$',
-              f'APP_DB_PASSWORD={os.environ["APP_DB_PASS"]}', text, flags=re.M)
-p.write_text(text)
-PYEOF
+  update_env_var APP_DB_PASSWORD "$new_password"
 }
 
 migrate_legacy_env() {
