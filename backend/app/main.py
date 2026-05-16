@@ -25,7 +25,6 @@ from app.errors import (
     unhandled_exception_handler,
     validation_exception_handler,
 )
-from app.middleware.auth import require_api_key
 from app.middleware.rate_limit import limiter
 from app.routers import (
     admin_api_keys,
@@ -155,9 +154,13 @@ def create_app() -> FastAPI:
     - ``/docs``, ``/redoc``, ``/openapi.json`` are suppressed when
       :attr:`Settings.expose_openapi_docs` is false (defaults to
       ``settings.debug``). Prevents API-surface disclosure in production.
-    - Every ``/api/*`` router except :mod:`health` requires a valid bearer
-      API key via :func:`require_api_key` (C-02). ``/health/detail`` is
-      additionally protected at the route level because the minimal
+    - Every ``/api/*`` router except :mod:`health`, :mod:`auth`, and
+      :mod:`admin_api_keys` runs ``get_scoped_db`` which validates
+      X-API-Key against the api_keys table (Phase 11 D-10), auto-issues
+      a ``bcx_sid`` cookie on first browser visit, and sets the
+      Postgres RLS context (D-01 / D-03). ``/health/detail`` is
+      additionally gated by ``require_admin_auth`` because it discloses
+      JVM diagnostics that scrapers should not see; the minimal
       ``/health`` endpoint stays open for Docker HEALTHCHECK probes.
     - Per-IP rate limits are enforced by ``slowapi`` with configurable
       thresholds per resource class (H-05 / DoS hardening). Exceeding a
@@ -267,22 +270,14 @@ def create_app() -> FastAPI:
     # CSRF-token endpoints. It is mounted WITHOUT the scoped dependency
     # because PUT /api/auth/me is the entry point that ISSUES the cookie
     # — running set_rls_context before the cookie exists would race the
-    # bootstrap. The legacy Bearer dependency is intentionally NOT
-    # applied either: a fresh browser holds no API key.
+    # bootstrap. No API key is required either: a fresh browser holds none.
     application.include_router(auth.router, prefix="/api")
-    # SEC: every /api/* router except /api/health + /api/auth + /api/csrf-token
-    # + /api/admin is protected by BOTH:
-    #   - require_api_key (legacy Bearer; removed in Plan 11-05)
-    #   - get_scoped_db (Phase 11: sets app.session_id / app.api_key_hash
-    #     for RLS and stashes the scope on request.state.scope)
-    # During the Phase 11 cutover both run together. Plan 11-05 deletes
-    # require_api_key in the same diff that wipes Bearer surface elsewhere.
     application.include_router(health.router, prefix="/api")
 
     # Admin uses X-Admin-Secret (not cookie/key) — separate from the
     # protected list. CSRF middleware already skips admin via the
     # X-API-Key / X-Admin-Secret header skip; admin endpoints rely on
-    # require_admin_auth (router-level), not require_api_key.
+    # require_admin_auth (router-level).
     application.include_router(
         admin_api_keys.router,
         prefix="/api/admin",
@@ -295,23 +290,18 @@ def create_app() -> FastAPI:
     # that pulls in main); routers/auth.py uses the same pattern.
     from app.services.db import get_scoped_db
 
-    protected = [Depends(require_api_key), Depends(get_scoped_db)]
-    for router in (extract, history, batch, export, reactions, search):
+    # SEC (Phase 11 D-18): every /api/* router except /api/health and
+    # /api/auth/* runs get_scoped_db which:
+    #   - resolves (session_id, api_key_hash) from the cookie/header
+    #   - validates X-API-Key against the api_keys table (post-Plan-11-05;
+    #     unknown / revoked / expired → 401)
+    #   - auto-issues bcx_sid on first browser visit
+    #   - sets the Postgres RLS context (set_config) so user queries are
+    #     filtered structurally even if a router forgets the WHERE clause
+    # CSRF protection runs in the middleware ahead of these dependencies.
+    protected = [Depends(get_scoped_db)]
+    for router in (extract, history, batch, export, reactions, search, me):
         application.include_router(router.router, prefix="/api", dependencies=protected)
-
-    # The me.router (GDPR delete) intentionally bypasses the legacy Bearer
-    # dependency. Plan 11-04 Deviation [Rule 1]: the plan's literal text
-    # placed `me` in the Bearer-protected list, but DELETE /api/me/data is
-    # a cookie-auth-only browser surface — CSRF middleware (already
-    # registered above) is the access control, not the Bearer middleware.
-    # Coupling `me.router` to require_api_key would force callers to
-    # present an API key just to erase their cookie-bound data, which
-    # contradicts D-14 ("DELETE /api/me/data" is part of the cookie
-    # identity model). Bearer cutover lands in Plan 11-05.
-    cookie_only_protected = [Depends(get_scoped_db)]
-    application.include_router(
-        me.router, prefix="/api", dependencies=cookie_only_protected
-    )
 
     # Redoc is served only when OpenAPI docs are exposed. It requires
     # openapi_url to be non-None, so we gate both behind the same flag.

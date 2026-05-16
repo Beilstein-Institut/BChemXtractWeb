@@ -17,7 +17,7 @@ JVM note: DB layer is pure asyncio — no JPype interaction, no thread pool.
 
 from collections.abc import AsyncGenerator
 
-from fastapi import Request, Response
+from fastapi import BackgroundTasks, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import settings
@@ -45,39 +45,73 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def get_scoped_db(
     request: Request,
     response: Response,
+    background_tasks: BackgroundTasks,
 ) -> AsyncGenerator[AsyncSession, None]:
-    """FastAPI dependency: get_db + RLS context-setting + cookie issuance.
+    """FastAPI dependency: get_db + X-API-Key validation + RLS context + cookie.
 
-    Order of operations (Phase 11 D-03):
+    Order of operations (Phase 11 D-03 + Plan 11-05 cutover):
       1. Open AsyncSession.
-      2. Resolve (session_id, api_key_hash) via get_data_scope.
-      3. If neither — browser first visit — mint a fresh bcx_sid cookie
-         AND set session_id to the new UUID.
-      4. Issue set_config('app.session_id', ...) and
-         set_config('app.api_key_hash', ...) on the session — these are
-         the first execute() calls so the transaction starts here and the
-         settings are transaction-local.
-      5. Stash the resolved scope on request.state.scope so persistence
-         writes can thread the owner columns through to ``save_extraction``
-         / ``save_reactions`` / ``get_or_create_extraction_row``.
-      6. Yield the session for the route handler.
+      2. If ``X-API-Key`` header is present: validate against the
+         ``api_keys`` table via ``validate_api_key``. Unknown / revoked
+         / expired key → raise 401 (post-Plan-11-05 the cookie middleware
+         is the only validator left for X-API-Key; an unvalidated path
+         would let callers tag writes with a hash that has no api_keys
+         row, breaking auditability + revocation). On match, emit
+         ``auth.api_key.used.first`` once per key (D-16). Use the
+         validated key's hash for RLS scope.
+      3. Else if a valid ``bcx_sid`` cookie is present: scope by it.
+      4. Else (anonymous): mint a fresh cookie AND scope to it.
+      5. Issue ``set_config('app.session_id', ...)`` and
+         ``set_config('app.api_key_hash', ...)`` on the session — these
+         are the first execute() calls so the transaction starts here
+         and the settings are transaction-local.
+      6. Stash the resolved scope on ``request.state.scope`` so
+         persistence writes can thread the owner columns through to
+         ``save_extraction`` / ``save_reactions`` /
+         ``get_or_create_extraction_row``.
+      7. Yield the session for the route handler.
 
-    Plan 11-04 adds CSRF verification ahead of this dependency (separate
-    middleware). Plan 11-05 removes the legacy require_api_key.
+    Plan 11-04 added CSRF verification ahead of this dependency (separate
+    middleware). Plan 11-05 deleted the legacy Bearer-token surface and
+    folded X-API-Key validation in here.
     """
     # Local import to avoid the import-time circular dep with app.core.session
     # which imports app.core.security which imports app.models.orm.ApiKey
     # which imports app.models.orm.Base which we already own here.
+    from app.core.security import validate_api_key
     from app.core.session import (
+        _UUID_RE,
+        SESSION_COOKIE,
         ensure_session_cookie,
-        get_data_scope,
         set_rls_context,
     )
 
     async with AsyncSessionLocal() as session:
-        session_id, api_key_hash = await get_data_scope(request)
-        if session_id is None and api_key_hash is None:
-            session_id = ensure_session_cookie(response, request)
+        session_id: str | None = None
+        api_key_hash: bytes | None = None
+
+        api_key = request.headers.get("X-API-Key")
+        if api_key:
+            row = await validate_api_key(
+                api_key,
+                session,
+                background_tasks=background_tasks,
+                request=request,
+            )
+            if row is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid API key.",
+                    headers={"WWW-Authenticate": 'ApiKey realm="bchemxtract"'},
+                )
+            api_key_hash = row.key_hash
+        else:
+            sid = request.cookies.get(SESSION_COOKIE)
+            if sid and _UUID_RE.match(sid):
+                session_id = sid
+            else:
+                session_id = ensure_session_cookie(response, request)
+
         await set_rls_context(session, session_id, api_key_hash)
         request.state.scope = (session_id, api_key_hash)
         yield session

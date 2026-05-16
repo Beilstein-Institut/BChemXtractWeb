@@ -12,7 +12,7 @@ import jpype
 from fastapi import APIRouter, Depends
 
 from app.config import settings
-from app.middleware.auth import require_api_key
+from app.core.security import require_admin_auth
 from app.models.chemistry import ErrorResponse
 from app.models.health import HealthDetailResponse, HealthResponse
 from app.services.jvm_bridge import get_pool_stats, run_in_jvm_thread
@@ -112,15 +112,16 @@ def _collect_jvm_diagnostics() -> dict:
         "diagnostic calls run in the thread pool to avoid blocking the "
         'event loop. When the JVM is not running, returns `status="degraded"` '
         "with `jvm_running=false` and the remaining fields defaulted.\n\n"
-        "Requires an API key — unlike `/health`, this endpoint discloses "
-        "internal JVM/CDK/BChemXtract versions useful for targeted CVE "
-        "lookup and is therefore protected (H-05)."
+        "Requires the admin secret (`X-Admin-Secret` header) — unlike "
+        "`/health`, this endpoint discloses internal JVM/CDK/BChemXtract "
+        "versions useful for targeted CVE lookup and is therefore "
+        "protected (Phase 11 D-18 / Open Q #4)."
     ),
     responses={
         200: {"description": "Diagnostics collected successfully."},
         401: {
             "model": ErrorResponse,
-            "description": "Missing or invalid API key.",
+            "description": "Missing or invalid admin secret.",
         },
         503: {
             "model": ErrorResponse,
@@ -129,7 +130,7 @@ def _collect_jvm_diagnostics() -> dict:
         500: {"model": ErrorResponse, "description": "Internal server error."},
     },
     tags=["health"],
-    dependencies=[Depends(require_api_key)],
+    dependencies=[Depends(require_admin_auth)],
 )
 async def health_detail() -> HealthDetailResponse:
     """Detailed health diagnostics.
