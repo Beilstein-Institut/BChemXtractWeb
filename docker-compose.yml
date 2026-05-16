@@ -65,10 +65,14 @@ services:
       DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-bchemxtract}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-bchemxtract}"
       JAR_PATH: /app/jars
       # Phase 11: app.config.Settings is imported during alembic env.py
-      # bootstrap; the `_validate_phase11_secrets` validator refuses to load
-      # without these in DEBUG=false (prod).
+      # bootstrap; the `_validate_phase11_secrets` + `_validate_prod_cors`
+      # validators refuse to load with mismatched DEBUG/CORS_ORIGINS values.
+      # Propagate the same posture the backend uses so Settings instantiates
+      # identically in both containers.
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set (32+ chars)}
       ADMIN_SECRET: ${ADMIN_SECRET:?ADMIN_SECRET must be set (32+ chars)}
+      CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:${HTTP_PORT:-3000}"]'}
+      DEBUG: ${DEBUG:-false}
     restart: "no"
 
   backend:
@@ -93,8 +97,13 @@ services:
     environment:
       DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-bchemxtract}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/${POSTGRES_DB:-bchemxtract}"
       JAR_PATH: /app/jars
-      CORS_ORIGINS: '["http://localhost:${HTTP_PORT:-3000}", "http://localhost:5173"]'
-      DEBUG: "false"
+      # Phase 11 cookie posture: DEBUG=false enforces Secure flag on bcx_sid
+      # cookie (HTTPS-only) AND refuses CORS_ORIGINS that contain
+      # localhost/127.0.0.1 (the _validate_prod_cors guard). For local
+      # plain-HTTP testing on http://localhost:${HTTP_PORT}, set DEBUG=true
+      # in .env. Real deployments behind HTTPS keep DEBUG=false.
+      CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:${HTTP_PORT:-3000}"]'}
+      DEBUG: ${DEBUG:-false}
       # Phase 11: SECRET_KEY (PBKDF2 salt for API-key hashes + CSRF HMAC) and
       # ADMIN_SECRET (X-Admin-Secret gate) are required. Settings validator
       # refuses to start with values shorter than 32 chars when DEBUG=false.
@@ -190,9 +199,11 @@ services:
       JAR_PATH: /app/jars
       JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
       # Phase 11: required by app.config.Settings on import (same constraint
-      # as the backend service).
+      # as the backend service — including _validate_prod_cors).
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set (32+ chars)}
       ADMIN_SECRET: ${ADMIN_SECRET:?ADMIN_SECRET must be set (32+ chars)}
+      CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:${HTTP_PORT:-3000}"]'}
+      DEBUG: ${DEBUG:-false}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
     # Override the Dockerfile's baked-in HEALTHCHECK, which curls :8000 — that
@@ -237,6 +248,8 @@ services:
       JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set (32+ chars)}
       ADMIN_SECRET: ${ADMIN_SECRET:?ADMIN_SECRET must be set (32+ chars)}
+      CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:${HTTP_PORT:-3000}"]'}
+      DEBUG: ${DEBUG:-false}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
 
