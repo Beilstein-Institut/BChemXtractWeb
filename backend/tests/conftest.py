@@ -15,21 +15,17 @@ os.environ.setdefault(
     "ADMIN_SECRET",
     "test-admin-secret-32-characters-min-0123456789",
 )
-# APP_DB_PASSWORD is consumed by the 2026_05_16_create_app_role alembic
-# migration. The test suite does NOT exercise that migration (the autouse
-# `_ensure_test_schema` fixture uses Base.metadata.create_all instead),
-# but the seed keeps `alembic upgrade head` runnable against the test DB
-# in CI scripts that want to validate the migration chain end-to-end.
+# APP_DB_PASSWORD is read by the 2026_05_16_create_app_role migration. The
+# unit suite uses Base.metadata.create_all (see `_ensure_test_schema`) and
+# does NOT exercise that migration, but the seed keeps `alembic upgrade head`
+# runnable in CI for migration-chain validation.
 #
-# RLS-enforcement caveat: the test DATABASE_URL below connects as a
-# superuser role (the default postgres user in the test DB), which
-# bypasses RLS even with FORCE ROW LEVEL SECURITY. RLS enforcement is
-# verified end-to-end via Playwright against the production-shape
-# docker-compose stack (backend connects as bchemxtract_app, the
-# 2026_05_16 migration's NOSUPERUSER NOBYPASSRLS role). The unit tests
-# under tests/test_session_isolation.py verify the WIRING (set_rls_context
-# is called, scope is propagated to ORM writes) — not the policy
-# enforcement itself.
+# RLS caveat: the test DATABASE_URL below connects as a superuser, which
+# bypasses RLS even with FORCE ROW LEVEL SECURITY. Unit tests therefore
+# verify the *wiring* (set_rls_context called, scope threaded through writes
+# — tests/test_session_isolation.py); policy enforcement is validated
+# end-to-end via Playwright against the docker-compose stack (where the
+# backend connects as the NOSUPERUSER NOBYPASSRLS bchemxtract_app role).
 os.environ.setdefault(
     "APP_DB_PASSWORD",
     "test-app-db-password-32-characters-min-0123456789",

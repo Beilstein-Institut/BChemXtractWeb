@@ -50,11 +50,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     Startup:
         1. Probe the DB connection role: refuse to start if the runtime
-           user has SUPERUSER or BYPASSRLS (Phase 11 follow-up — those
-           attributes bypass RLS policies even with FORCE ROW LEVEL
-           SECURITY, defeating session isolation). The 2026_05_16 alembic
-           migration creates a ``bchemxtract_app`` role with both
-           attributes off; backend services connect as it.
+           user has SUPERUSER or BYPASSRLS (those attributes silently
+           bypass RLS even with FORCE ROW LEVEL SECURITY). The
+           ``bchemxtract_app`` role created by the 2026_05_16 migration
+           satisfies this; backend services connect as it.
         2. Initialise the JVM with the BChemXtract JAR and create the
            thread pool.
     Shutdown: shut down the thread pool (JVM shutdown is skipped — it is
