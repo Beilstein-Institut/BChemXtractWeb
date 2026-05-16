@@ -17,6 +17,7 @@ import os
 import sys
 
 from celery import Celery
+from celery.schedules import crontab
 from celery.signals import worker_process_init
 
 from app.config import settings
@@ -39,10 +40,20 @@ celery_app.conf.update(
     result_expires=3600,
     task_soft_time_limit=120,  # SoftTimeLimitExceeded after 120s — task can clean up
     task_time_limit=150,  # hard kill after 150s — prevents indefinite hang
-    include=["app.tasks.extraction"],
+    include=["app.tasks.extraction", "app.tasks.audit_log"],
     # SEC H-03: mandatory solo pool. worker_pool honoured unless the CLI
     # overrides it; the assertion below catches the CLI case.
     worker_pool="solo",
+    # Phase 11 D-17: daily audit_log retention prune at 03:00 UTC.
+    # The celery-beat scheduler (Plan 11-08) is the sole emitter of this
+    # schedule entry, so double-firing is not possible in the deployed
+    # topology. The task itself is idempotent regardless.
+    beat_schedule={
+        "prune-audit-log": {
+            "task": "audit_log.prune_old_entries",
+            "schedule": crontab(minute=0, hour=3),
+        },
+    },
 )
 
 
