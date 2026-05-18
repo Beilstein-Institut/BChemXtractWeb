@@ -31,10 +31,10 @@ async def _seed_benzene() -> None:
 
 
 @pytest.mark.asyncio
-async def test_inchi_key_exact_match(client: AsyncClient) -> None:
+async def test_inchi_key_exact_match(client_csrf: AsyncClient) -> None:
     """Exact InChI key returns the matching substance (SRCH-01)."""
     await _seed_benzene()
-    resp = await client.post(
+    resp = await client_csrf.post(
         "/api/search",
         json={
             "query": "UHOVQNZJYSORNB-UHFFFAOYSA-N",
@@ -51,10 +51,10 @@ async def test_inchi_key_exact_match(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_inchi_key_normalization(client: AsyncClient) -> None:
+async def test_inchi_key_normalization(client_csrf: AsyncClient) -> None:
     """Lowercase + whitespace input is normalized to upper-trimmed form."""
     await _seed_benzene()
-    resp = await client.post(
+    resp = await client_csrf.post(
         "/api/search",
         json={
             "query": "  uhovqnzjysornb-uhfffaoysa-n  ",

@@ -7,10 +7,10 @@ from httpx import AsyncClient
 
 
 async def test_upload_cdx_returns_reactions(
-    client: AsyncClient, cdx_reaction_file_bytes: bytes
+    client_csrf: AsyncClient, cdx_reaction_file_bytes: bytes
 ) -> None:
     """RXTN-01: POST /api/reactions returns reactions from a real CDX file."""
-    response = await client.post(
+    response = await client_csrf.post(
         "/api/reactions",
         files={
             "file": ("simple_reaction.cdx", cdx_reaction_file_bytes, "chemical/x-cdx"),
@@ -28,7 +28,7 @@ async def test_upload_cdx_returns_reactions(
 
 
 async def test_response_has_svg(
-    client: AsyncClient, cdx_reaction_file_bytes: bytes
+    client_csrf: AsyncClient, cdx_reaction_file_bytes: bytes
 ) -> None:
     """RXTN-02: At least one reaction has a rendered svg (matches plan-01 pattern).
 
@@ -36,7 +36,7 @@ async def test_response_has_svg(
     so we accept "<svg" at the start or anywhere in the string
     (mirrors test_reactions.py::test_extract_reactions_with_svg_renders_depiction).
     """
-    response = await client.post(
+    response = await client_csrf.post(
         "/api/reactions",
         files={
             "file": ("simple_reaction.cdx", cdx_reaction_file_bytes, "chemical/x-cdx")
@@ -50,10 +50,10 @@ async def test_response_has_svg(
 
 
 async def test_response_has_rinchi_fields(
-    client: AsyncClient, cdx_reaction_file_bytes: bytes
+    client_csrf: AsyncClient, cdx_reaction_file_bytes: bytes
 ) -> None:
     """RXTN-03: reaction has rinchi, short/long/web_rinchi_key, reaction_smiles."""
-    response = await client.post(
+    response = await client_csrf.post(
         "/api/reactions",
         files={
             "file": ("simple_reaction.cdx", cdx_reaction_file_bytes, "chemical/x-cdx")
@@ -72,7 +72,7 @@ async def test_response_has_rinchi_fields(
 
 
 async def test_timeout_returns_200_with_warning(
-    client: AsyncClient,
+    client_csrf: AsyncClient,
     cdx_reaction_file_bytes: bytes,
     monkeypatch,
 ) -> None:
@@ -80,7 +80,7 @@ async def test_timeout_returns_200_with_warning(
     from app.config import settings as app_settings
 
     monkeypatch.setattr(app_settings, "reaction_timeout_secs", 0.001)
-    response = await client.post(
+    response = await client_csrf.post(
         "/api/reactions",
         files={
             "file": ("simple_reaction.cdx", cdx_reaction_file_bytes, "chemical/x-cdx")
@@ -94,10 +94,10 @@ async def test_timeout_returns_200_with_warning(
     )
 
 
-async def test_error_response_shapes(client: AsyncClient) -> None:
+async def test_error_response_shapes(client_csrf: AsyncClient) -> None:
     """D-25: 415 errors return unified ErrorResponse shape."""
     # 415 -- not CDX/CDXML (send plain text)
-    resp_415 = await client.post(
+    resp_415 = await client_csrf.post(
         "/api/reactions",
         files={"file": ("notachemfile.txt", b"hello world", "text/plain")},
     )
@@ -108,10 +108,10 @@ async def test_error_response_shapes(client: AsyncClient) -> None:
 
 
 async def test_substance_extraction_unaffected(
-    client: AsyncClient, cdx_file_bytes: bytes
+    client_csrf: AsyncClient, cdx_file_bytes: bytes
 ) -> None:
     """RXTN-04: /api/extract still returns substances after reactions router loads."""
-    response = await client.post(
+    response = await client_csrf.post(
         "/api/extract",
         files={"file": ("L-lactic-acid.cdx", cdx_file_bytes, "chemical/x-cdx")},
     )
@@ -122,11 +122,11 @@ async def test_substance_extraction_unaffected(
 
 
 async def test_get_extraction_reactions_returns_cached(
-    client: AsyncClient, cdx_reaction_file_bytes: bytes
+    client_csrf: AsyncClient, cdx_reaction_file_bytes: bytes
 ) -> None:
     """D-23: /api/extractions/{id}/reactions returns cached reactions for hydration."""
     # First extract to populate the DB
-    post_resp = await client.post(
+    post_resp = await client_csrf.post(
         "/api/reactions",
         files={
             "file": ("simple_reaction.cdx", cdx_reaction_file_bytes, "chemical/x-cdx")
@@ -140,7 +140,7 @@ async def test_get_extraction_reactions_returns_cached(
     assert expected_count >= 1
 
     # Now hydrate via GET
-    get_resp = await client.get(f"/api/extractions/{extraction_id}/reactions")
+    get_resp = await client_csrf.get(f"/api/extractions/{extraction_id}/reactions")
     assert get_resp.status_code == 200
     get_data = get_resp.json()
     assert get_data["extraction_id"] == extraction_id
@@ -158,21 +158,21 @@ async def test_get_extraction_reactions_returns_cached(
 
 
 async def test_get_extraction_reactions_404_unknown_extraction(
-    client: AsyncClient,
+    client_csrf: AsyncClient,
 ) -> None:
     """GET /api/extractions/{id}/reactions returns 404 when extraction doesn't exist."""
-    resp = await client.get("/api/extractions/999999999/reactions")
+    resp = await client_csrf.get("/api/extractions/999999999/reactions")
     assert resp.status_code == 404
     body = resp.json()
     assert "detail" in body
 
 
 async def test_get_extraction_reactions_empty_when_no_reactions_saved(
-    client: AsyncClient, cdx_file_bytes: bytes
+    client_csrf: AsyncClient, cdx_file_bytes: bytes
 ) -> None:
     """D-23: extraction exists with reaction_count=0 -> 200 + reactions=[] (NOT 404)."""
     # Create a substance-only extraction (no reactions extracted for it)
-    post_resp = await client.post(
+    post_resp = await client_csrf.post(
         "/api/extract",
         files={"file": ("L-lactic-acid.cdx", cdx_file_bytes, "chemical/x-cdx")},
     )
@@ -180,7 +180,7 @@ async def test_get_extraction_reactions_empty_when_no_reactions_saved(
     extraction_id = post_resp.json()["extraction_id"]
 
     # GET should return 200 with empty reactions
-    get_resp = await client.get(f"/api/extractions/{extraction_id}/reactions")
+    get_resp = await client_csrf.get(f"/api/extractions/{extraction_id}/reactions")
     assert get_resp.status_code == 200
     get_data = get_resp.json()
     assert get_data["reactions"] == []

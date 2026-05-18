@@ -27,7 +27,7 @@ from app.config import settings
 from app.middleware.rate_limit import limiter
 from app.models.chemistry import BatchStartResponse, ErrorResponse
 from app.models.orm import Extraction, ExtractionSubstance, Substance
-from app.services.db import get_db
+from app.services.db import get_scoped_db
 from app.services.filenames import build_content_disposition, safe_filename
 from app.services.upload_guard import read_upload_bounded
 from app.tasks.extraction import extract_file_task
@@ -42,7 +42,7 @@ _ERROR_DETAIL_MAX_CHARS = 200
 
 router = APIRouter()
 
-DbDep = Annotated[AsyncSession, Depends(get_db)]
+DbDep = Annotated[AsyncSession, Depends(get_scoped_db)]
 UploadFiles = Annotated[list[UploadFile], File(...)]
 
 
@@ -153,6 +153,17 @@ async def start_batch(request: Request, files: UploadFiles) -> BatchStartRespons
                 detail=f"{f.filename or 'unnamed'} exceeds the {max_mb} MB limit",
             )
 
+    # Phase 11 D-01: forward the request's resolved scope to the Celery
+    # worker through task kwargs. session_id is the UUID4 string;
+    # api_key_hash is serialised as hex so it round-trips through Redis
+    # JSON. The worker re-decodes to bytes before persistence. The
+    # hasattr guard preserves direct unit-test callers that bypass the
+    # scoped dependency.
+    if not hasattr(request.state, "scope"):
+        request.state.scope = (None, None)
+    session_id, api_key_hash = request.state.scope
+    api_key_hash_hex = api_key_hash.hex() if api_key_hash else None
+
     batch_id = str(uuid.uuid4())
     task_signatures = []
     for f in files:
@@ -165,6 +176,8 @@ async def start_batch(request: Request, files: UploadFiles) -> BatchStartRespons
                 base64.b64encode(file_bytes).decode("ascii"),
                 f.filename or "unknown",
                 batch_id,
+                session_id=session_id,
+                api_key_hash_hex=api_key_hash_hex,
             )
         )
 

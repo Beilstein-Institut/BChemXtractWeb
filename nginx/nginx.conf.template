@@ -40,22 +40,14 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # SEC C-02: the backend enforces bearer-token auth on every
-        # /api/* route except /api/health. For the browser SPA we cannot
-        # ship the key to the client (bundle inspection would leak it),
-        # so we inject the key here at the reverse proxy. The variable is
-        # substituted at container start by the nginx image's envsubst
-        # step (only ${BROWSER_API_KEY} is substituted; all nginx
-        # built-ins like $host pass through untouched — see the nginx
-        # service's NGINX_ENVSUBST_FILTER in docker-compose.yml).
-        #
-        # Security trade-off: anyone who can reach this nginx on the
-        # published HTTP_PORT effectively has API access. Deployments that
-        # expose HTTP_PORT publicly must add a further auth layer in front
-        # (VPN, oauth2 proxy, or basic auth). For self-hosted LAN / firewalled
-        # use,
-        # this is equivalent to the original posture.
-        proxy_set_header Authorization "Bearer ${BROWSER_API_KEY}";
+        # Phase 11 cutover: the backend now scopes every /api/* request
+        # by the ``bcx_sid`` cookie (browser SPA path) or ``X-API-Key``
+        # header (programmatic / admin path). Nginx no longer injects
+        # credentials — the request reaches the backend with whatever
+        # headers and cookies the client sent. The backend's
+        # get_scoped_db dependency issues a Set-Cookie on the first
+        # response if no ``bcx_sid`` is present, so first-time visitors
+        # get a session transparently.
 
         # SEC H-01: lift the default 1 MB request-body cap to slightly
         # above the backend's ``max_upload_size`` (50 MB) so the backend

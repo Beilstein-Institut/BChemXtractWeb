@@ -14,12 +14,13 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -56,6 +57,16 @@ class Extraction(Base):
     # re-extracts reactions for this file.
     reaction_count: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
+    )
+
+    # Phase 11 D-01: per-row ownership for Postgres RLS. Nullable for
+    # legacy rows (wiped by the Phase 11 migration before RLS is forced).
+    # session_id: 36-char UUID string. api_key_hash: 32-byte PBKDF2 digest.
+    session_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, index=True
+    )
+    api_key_hash: Mapped[bytes | None] = mapped_column(
+        LargeBinary, nullable=True, index=True
     )
 
     substances: Mapped[list["Substance"]] = relationship(
@@ -133,6 +144,16 @@ class ExtractionSubstance(Base):
     )
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
+    # Phase 11 D-01: per-row ownership for Postgres RLS. Nullable for
+    # legacy rows (wiped by the Phase 11 migration before RLS is forced).
+    # session_id: 36-char UUID string. api_key_hash: 32-byte PBKDF2 digest.
+    session_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, index=True
+    )
+    api_key_hash: Mapped[bytes | None] = mapped_column(
+        LargeBinary, nullable=True, index=True
+    )
+
 
 class Reaction(Base):
     """A unique chemical reaction, deduplicated by long_rinchi_key.
@@ -202,3 +223,85 @@ class ExtractionReaction(Base):
         primary_key=True,
     )
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # Phase 11 D-01: per-row ownership for Postgres RLS. Nullable for
+    # legacy rows (wiped by the Phase 11 migration before RLS is forced).
+    # session_id: 36-char UUID string. api_key_hash: 32-byte PBKDF2 digest.
+    session_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, index=True
+    )
+    api_key_hash: Mapped[bytes | None] = mapped_column(
+        LargeBinary, nullable=True, index=True
+    )
+
+
+class ApiKey(Base):
+    """Admin-issued API key (Phase 11 D-10).
+
+    `key_hash` is the deterministic PBKDF2-HMAC-SHA256 (600k iter, 32-byte)
+    digest of the plaintext key — the plaintext itself is shown to the
+    admin ONCE on creation and never persisted. UNIQUE index on key_hash
+    enforces O(log n) lookup at request time.
+
+    Expiry semantics (D-13): `expires_at IS NULL` means no expiry
+    (admin-explicit only). `revoked_at IS NOT NULL` short-circuits the
+    validity check regardless of expiry.
+    """
+
+    __tablename__ = "api_keys"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    key_hash: Mapped[bytes] = mapped_column(LargeBinary, unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(
+        Text, nullable=False, default="", server_default=""
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    request_count: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, server_default="0"
+    )
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class AuditLog(Base):
+    """Append-only auth/data-lifecycle audit trail (Phase 11 D-16).
+
+    `session_id_hash` stores sha256(session_id) — never raw UUID — so the
+    audit log itself is not a credential leak. `api_key_hash` is the
+    request's lookup hash (same byte shape as ApiKey.key_hash) when the
+    caller authenticated with X-API-Key; null otherwise.
+
+    12-month retention enforced by a Celery beat task (D-17). Indexed on
+    `(event, at DESC)` for routine queries and `(at)` for the prune
+    sweep.
+    """
+
+    __tablename__ = "audit_log"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    session_id_hash: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    api_key_hash: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    ip_inet: Mapped[str | None] = mapped_column(INET, nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
+    event: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    meta: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )

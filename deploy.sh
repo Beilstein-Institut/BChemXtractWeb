@@ -5,7 +5,10 @@
 #   ./deploy.sh                  # full deploy: secrets + JAR + docker compose up
 #   ./deploy.sh --port N         # set public HTTP port (host) — default 3000
 #   ./deploy.sh --change-port    # re-prompt for the public HTTP port
-#   ./deploy.sh --rotate-keys    # regenerate API_KEYS/BROWSER_API_KEY in existing .env
+#   ./deploy.sh --rotate-keys    # regenerate ADMIN_SECRET in existing .env
+#                                # (POSTGRES_PASSWORD + SECRET_KEY untouched)
+#   ./deploy.sh --rotate-app-db  # regenerate APP_DB_PASSWORD + ALTER ROLE
+#                                # bchemxtract_app in the running DB
 #   ./deploy.sh -h | --help
 
 set -euo pipefail
@@ -26,27 +29,32 @@ warn() { printf '%s ! %s %s\n' "$C_YELLOW" "$C_RESET" "$*"; }
 die()  { printf '%s ✗ %s %s\n' "$C_RED"    "$C_RESET" "$*" >&2; exit 1; }
 
 usage() {
-  sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 }
 
 # --- args -------------------------------------------------------------------
 ROTATE_KEYS=false
+ROTATE_APP_DB=false
 CHANGE_PORT=false
 PORT_FLAG=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --rotate-keys) ROTATE_KEYS=true; shift ;;
-    --change-port) CHANGE_PORT=true; shift ;;
-    --port)        [[ $# -ge 2 ]] || die "--port requires a value"; PORT_FLAG="$2"; shift 2 ;;
-    --port=*)      PORT_FLAG="${1#*=}"; shift ;;
-    -h|--help)     usage ;;
-    *)             die "unknown flag: $1 (try --help)" ;;
+    --rotate-keys)   ROTATE_KEYS=true; shift ;;
+    --rotate-app-db) ROTATE_APP_DB=true; shift ;;
+    --change-port)   CHANGE_PORT=true; shift ;;
+    --port)          [[ $# -ge 2 ]] || die "--port requires a value"; PORT_FLAG="$2"; shift 2 ;;
+    --port=*)        PORT_FLAG="${1#*=}"; shift ;;
+    -h|--help)       usage ;;
+    *)               die "unknown flag: $1 (try --help)" ;;
   esac
 done
 
 if [[ "$ROTATE_KEYS" == true && "$CHANGE_PORT" == true ]]; then
   die "--rotate-keys and --change-port are mutually exclusive"
+fi
+if [[ "$ROTATE_APP_DB" == true && "$CHANGE_PORT" == true ]]; then
+  die "--rotate-app-db and --change-port are mutually exclusive"
 fi
 if [[ -n "$PORT_FLAG" && "$CHANGE_PORT" == true ]]; then
   die "--port and --change-port are mutually exclusive"
@@ -215,48 +223,125 @@ MSG
 fi
 
 # --- .env handling ----------------------------------------------------------
+# All single-key writes route through update_env_var (defined above). It is
+# upsert-style: replaces the line if the key exists, appends it otherwise.
+# Both call sites here (write_env on a fresh `cp .env.example .env`, and the
+# rotate_* paths against an existing .env) already have the keys present,
+# so the upsert is effectively a replace.
+
 write_env() {
-  # args: $1 = postgres password, $2 = api token (used for both API_KEYS[0] and BROWSER_API_KEY)
-  POSTGRES_PASS="$1" API_KEY="$2" "$PY" - <<'PYEOF'
-import os, re, pathlib
-p = pathlib.Path('.env')
-text = p.read_text()
-text = re.sub(r'^POSTGRES_PASSWORD=.*$',
-              f'POSTGRES_PASSWORD={os.environ["POSTGRES_PASS"]}', text, flags=re.M)
-text = re.sub(r'^API_KEYS=.*$',
-              f'API_KEYS=["{os.environ["API_KEY"]}"]',           text, flags=re.M)
-text = re.sub(r'^BROWSER_API_KEY=.*$',
-              f'BROWSER_API_KEY={os.environ["API_KEY"]}',        text, flags=re.M)
-p.write_text(text)
-PYEOF
+  # args: $1 = postgres password    (bootstrap superuser; DDL + role mgmt)
+  #       $2 = secret_key           (PBKDF2 salt + CSRF HMAC; D-10/D-19)
+  #       $3 = admin_secret         (gate for /api/admin/api-keys; D-11)
+  #       $4 = app_db_password      (runtime bchemxtract_app role; RLS-enforcing)
+  update_env_var POSTGRES_PASSWORD "$1"
+  update_env_var SECRET_KEY         "$2"
+  update_env_var ADMIN_SECRET       "$3"
+  update_env_var APP_DB_PASSWORD    "$4"
 }
 
 rotate_env_keys() {
-  # args: $1 = new api token. Leaves POSTGRES_PASSWORD untouched.
-  API_KEY="$1" "$PY" - <<'PYEOF'
-import os, re, pathlib
+  # args: $1 = new admin secret.
+  # Leaves POSTGRES_PASSWORD AND SECRET_KEY untouched — rotating SECRET_KEY
+  # would invalidate every API key's stored lookup hash AND every outstanding
+  # CSRF token, which requires a coordinated re-issue flow that is out of
+  # scope for `deploy.sh`. To rotate SECRET_KEY: edit .env manually, then
+  # mint new API keys via POST /api/admin/api-keys and restart the stack.
+  update_env_var ADMIN_SECRET "$1"
+}
+
+rotate_app_db_password() {
+  # args: $1 = new app db password.
+  # Issues ALTER ROLE against the running db container (superuser-authed),
+  # then updates .env. Operator must restart backend / celery services to
+  # pick up the new DATABASE_URL — message is printed by the caller.
+  local new_password="$1"
+  local pg_user pg_db
+  pg_user="$(read_env_var POSTGRES_USER)"
+  pg_db="$(read_env_var POSTGRES_DB)"
+  pg_user="${pg_user:-bchemxtract}"
+  pg_db="${pg_db:-bchemxtract}"
+  # Escape single quotes for the SQL literal (defensive — gen_secret never
+  # produces them, but a hand-edited value could).
+  local pg_pwd_escaped
+  pg_pwd_escaped="${new_password//\'/\'\'}"
+  docker compose exec -T db psql -U "$pg_user" -d "$pg_db" \
+    -c "ALTER ROLE bchemxtract_app WITH PASSWORD '${pg_pwd_escaped}';" >/dev/null \
+    || die 'ALTER ROLE failed — is the db container running? (docker compose up -d db)'
+  update_env_var APP_DB_PASSWORD "$new_password"
+}
+
+migrate_legacy_env() {
+  # Pre-Phase-11 .env files carry API_KEYS + BROWSER_API_KEY (gone after
+  # 11-05 cutover). Strip those lines on upgrade so docker-compose doesn't
+  # surface them as "extra inputs" warnings (Settings rejects them since
+  # Plan 11-05). Idempotent: no-op if the lines are already gone.
+  "$PY" - <<'PYEOF'
+import re, pathlib
 p = pathlib.Path('.env')
+if not p.exists():
+    raise SystemExit(0)
 text = p.read_text()
-text = re.sub(r'^API_KEYS=.*$',
-              f'API_KEYS=["{os.environ["API_KEY"]}"]',     text, flags=re.M)
-text = re.sub(r'^BROWSER_API_KEY=.*$',
-              f'BROWSER_API_KEY={os.environ["API_KEY"]}',  text, flags=re.M)
-p.write_text(text)
+orig = text
+# Strip the env-var lines themselves AND the surrounding comment paragraphs
+# that documented them. Match (and remove) any comment block immediately
+# preceding the removed assignment.
+text = re.sub(
+    r'(?m)^# +-+ API_KEYS [^\n]*\n(?:#[^\n]*\n)*API_KEYS=[^\n]*\n',
+    '', text,
+)
+text = re.sub(
+    r'(?m)^# +-+ BROWSER_API_KEY [^\n]*\n(?:#[^\n]*\n)*BROWSER_API_KEY=[^\n]*\n',
+    '', text,
+)
+# Fallback: strip bare lines if the comment headers weren't matched.
+text = re.sub(r'(?m)^API_KEYS=.*$\n?',        '', text)
+text = re.sub(r'(?m)^BROWSER_API_KEY=.*$\n?', '', text)
+# Collapse runs of >=3 blank lines down to 2 for tidiness.
+text = re.sub(r'\n{3,}', '\n\n', text)
+if text != orig:
+    p.write_text(text)
+    print('migrated')
 PYEOF
 }
 
 BOOTSTRAPPED_ENV=false
 if [[ "$ROTATE_KEYS" == true ]]; then
   [[ -f .env ]] || die ".env does not exist — run without --rotate-keys first"
-  info 'Rotating API_KEYS and BROWSER_API_KEY (POSTGRES_PASSWORD unchanged)'
+  info 'Rotating ADMIN_SECRET (POSTGRES_PASSWORD + SECRET_KEY + APP_DB_PASSWORD unchanged)'
   rotate_env_keys "$(gen_secret)"
-  ok 'keys rotated — restart proxy + backend to apply: docker compose restart nginx backend'
+  ok 'admin secret rotated — restart backend to apply: docker compose restart backend'
+elif [[ "$ROTATE_APP_DB" == true ]]; then
+  [[ -f .env ]] || die ".env does not exist — run without --rotate-app-db first"
+  info 'Rotating APP_DB_PASSWORD + ALTER ROLE bchemxtract_app'
+  rotate_app_db_password "$(gen_secret)"
+  ok 'app db password rotated — restart runtime services to apply new DATABASE_URL:'
+  ok '    docker compose restart backend celery-worker celery-beat'
 elif [[ -f .env ]]; then
-  warn '.env already exists — leaving it unchanged (use --rotate-keys to regenerate API keys)'
+  # Existing-.env path. Migrate the file in place: strip pre-Phase-11
+  # API_KEYS / BROWSER_API_KEY lines if present, and append APP_DB_PASSWORD
+  # if it is missing (operators who deploy across the Phase 11 cutover hit
+  # this path; without the auto-mint they would get a docker-compose
+  # interpolation error).
+  migrated="$(migrate_legacy_env || true)"
+  [[ -n "$migrated" ]] && warn 'Stripped legacy API_KEYS / BROWSER_API_KEY entries from .env'
+  if [[ -z "$(read_env_var APP_DB_PASSWORD)" ]]; then
+    warn 'APP_DB_PASSWORD missing from .env — minting one for the bchemxtract_app role'
+    update_env_var APP_DB_PASSWORD "$(gen_secret)"
+    warn 'If the db container is already running with the OLD bootstrap user,'
+    warn 'the next compose up will run the migration which CREATE / ALTER ROLEs'
+    warn 'bchemxtract_app with this new password — and the runtime services will'
+    warn 'connect with it. Existing migrate / compose state is unaffected.'
+  else
+    warn '.env already exists — leaving it unchanged (use --rotate-keys / --rotate-app-db to regenerate secrets)'
+  fi
 else
   info 'Generating .env with random secrets'
   cp .env.example .env
-  write_env "$(gen_secret)" "$(gen_secret)"
+  # Four independent secrets — POSTGRES_PASSWORD (bootstrap super; migrations),
+  # SECRET_KEY (PBKDF2/CSRF), ADMIN_SECRET (X-Admin-Secret), APP_DB_PASSWORD
+  # (runtime bchemxtract_app role; RLS-enforcing).
+  write_env "$(gen_secret)" "$(gen_secret)" "$(gen_secret)" "$(gen_secret)"
   chmod 600 .env
   ok '.env created (chmod 600)'
   BOOTSTRAPPED_ENV=true
@@ -350,5 +435,6 @@ cat <<EOF
 
   Direct API access (loopback only — bypasses nginx):
     http://127.0.0.1:$(read_env_var BACKEND_PORT)
-    needs the bearer token from .env: grep '^API_KEYS=' .env
+    Browser SPA flows use the bcx_sid cookie; programmatic callers
+    use an admin-minted X-API-Key (see POST /api/admin/api-keys).
 EOF

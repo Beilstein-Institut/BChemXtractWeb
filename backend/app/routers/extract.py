@@ -25,7 +25,7 @@ from app.models.chemistry import (
 )
 from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.routers._shared import check_extension_mismatch
-from app.services.db import get_db
+from app.services.db import get_scoped_db
 from app.services.extractor import extract_substances_with_svg
 from app.services.format_detector import detect_format
 from app.services.persistence import save_extraction
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-DbDep = Annotated[AsyncSession, Depends(get_db)]
+DbDep = Annotated[AsyncSession, Depends(get_scoped_db)]
 
 
 @router.post(
@@ -122,7 +122,15 @@ async def extract_file(
     # (SEC M-05). Filename is repr-wrapped + truncated to prevent
     # log-injection via crafted names (e.g. ``"x\n[CRITICAL] fake"``).
     try:
-        saved = await save_extraction(db, response)
+        # Phase 11 D-01: thread the scoped dependency's resolved
+        # (session_id, api_key_hash) tuple through to save_extraction so
+        # the inserted rows carry the owner columns RLS reads from.
+        # get_scoped_db (added to the global dep stack in main.py for every
+        # protected router) populates request.state.scope before the
+        # handler runs; the fallback default is the un-scoped tuple so
+        # routes still work in unit-test contexts that bypass the dep.
+        scope = request.state.scope if hasattr(request.state, "scope") else (None, None)
+        saved = await save_extraction(db, response, scope=scope)
         response = response.model_copy(update={"extraction_id": saved.id})
     except asyncio.CancelledError:
         raise

@@ -16,7 +16,7 @@ from app.services.db import AsyncSessionLocal
 
 
 @pytest.mark.asyncio
-async def test_substructure_benzene_in_naphthalene(client: AsyncClient) -> None:
+async def test_substructure_benzene_in_naphthalene(client_csrf: AsyncClient) -> None:
     """SMARTS `c1ccccc1` matches naphthalene (fused aromatic ring)."""
     # Naphthalene SMILES `c1ccc2ccccc2c1` contains the benzene ring pattern.
     async with AsyncSessionLocal() as session:
@@ -33,7 +33,7 @@ async def test_substructure_benzene_in_naphthalene(client: AsyncClient) -> None:
         )
         await session.commit()
 
-    resp = await client.post(
+    resp = await client_csrf.post(
         "/api/search",
         json={"query": "c1ccccc1", "type": "substructure"},
         timeout=60.0,
@@ -57,7 +57,7 @@ async def test_substructure_benzene_in_naphthalene(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_substructure_invalid_smarts(client: AsyncClient) -> None:
+async def test_substructure_invalid_smarts(client_csrf: AsyncClient) -> None:
     """Invalid query raises InvalidQueryError → 422 + code=INVALID_QUERY.
 
     Plan 2026-04-24: the substructure service now accepts SMILES or
@@ -65,7 +65,7 @@ async def test_substructure_invalid_smarts(client: AsyncClient) -> None:
     raises :class:`InvalidQueryError`, which the unified ErrorResponse
     handler maps to 422 + code=INVALID_QUERY.
     """
-    resp = await client.post(
+    resp = await client_csrf.post(
         "/api/search",
         json={"query": "c1ccc(((", "type": "substructure"},
         timeout=60.0,
@@ -77,7 +77,7 @@ async def test_substructure_invalid_smarts(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_substructure_match_svg_highlight(client: AsyncClient) -> None:
+async def test_substructure_match_svg_highlight(client_csrf: AsyncClient) -> None:
     """Substructure hit response includes match_svg with Apple Blue highlight.
 
     Plan 04: D-13 + UI-SPEC §Color. Every substructure hit carries a
@@ -100,7 +100,7 @@ async def test_substructure_match_svg_highlight(client: AsyncClient) -> None:
         )
         await session.commit()
 
-    resp = await client.post(
+    resp = await client_csrf.post(
         "/api/search",
         json={"query": "c1ccccc1", "type": "substructure"},
         timeout=60.0,
@@ -135,7 +135,7 @@ async def test_substructure_match_svg_highlight(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_substructure_unparsable_skipped_with_warning(
-    client: AsyncClient,
+    client_csrf: AsyncClient,
 ) -> None:
     """Unparsable stored SMILES is skipped and counted in warnings (D-09)."""
     async with AsyncSessionLocal() as session:
@@ -151,7 +151,7 @@ async def test_substructure_unparsable_skipped_with_warning(
         )
         await session.commit()
 
-    resp = await client.post(
+    resp = await client_csrf.post(
         "/api/search",
         json={"query": "c1ccccc1", "type": "substructure"},
         timeout=60.0,
@@ -163,7 +163,7 @@ async def test_substructure_unparsable_skipped_with_warning(
 
 
 @pytest.mark.asyncio
-async def test_attribution_aggregation(client: AsyncClient) -> None:
+async def test_attribution_aggregation(client_csrf: AsyncClient) -> None:
     """Hit response carries extraction_count + populated extractions list (D-10)."""
     async with AsyncSessionLocal() as session:
         await session.execute(
@@ -211,7 +211,7 @@ async def test_attribution_aggregation(client: AsyncClient) -> None:
         )
         await session.commit()
 
-    resp = await client.post(
+    resp = await client_csrf.post(
         "/api/search",
         json={"query": "C999", "type": "formula"},
     )
