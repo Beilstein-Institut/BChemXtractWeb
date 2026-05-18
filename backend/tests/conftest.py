@@ -159,20 +159,27 @@ async def client(started_app) -> AsyncClient:
         yield ac
 
 
+async def _bootstrap_csrf(ac: AsyncClient) -> AsyncClient:
+    """Fetch a CSRF token from ``/api/csrf-token`` and inject it as a default
+    ``X-CSRF-Token`` header on the given client. Returns the same client.
+
+    Without this header the Plan 11-04 D-19 CSRF middleware returns 403
+    ``CSRF_INVALID`` on any state-changing cookie-auth request.
+    """
+    resp = await ac.get("/api/csrf-token")
+    assert resp.status_code == 200, resp.text
+    ac.headers.update({"X-CSRF-Token": resp.json()["csrf_token"]})
+    return ac
+
+
 @pytest_asyncio.fixture
 async def client_csrf(client: AsyncClient) -> AsyncClient:
-    """Same as ``client`` but pre-bootstraps a CSRF token and auto-injects
-    ``X-CSRF-Token`` on every subsequent request.
+    """``client`` + pre-bootstrapped CSRF token (auto-injected per request).
 
     Used by integration tests that issue POST / PUT / PATCH / DELETE under
-    cookie auth — without ``X-CSRF-Token`` the CSRF middleware returns
-    403 ``CSRF_INVALID`` (Plan 11-04 D-19).
+    cookie auth.
     """
-    resp = await client.get("/api/csrf-token")
-    assert resp.status_code == 200, resp.text
-    token = resp.json()["csrf_token"]
-    client.headers.update({"X-CSRF-Token": token})
-    return client
+    return await _bootstrap_csrf(client)
 
 
 @pytest.fixture
@@ -209,16 +216,12 @@ async def client_no_jvm() -> AsyncClient:
 
 @pytest_asyncio.fixture
 async def client_no_jvm_csrf(client_no_jvm: AsyncClient) -> AsyncClient:
-    """Same as ``client_no_jvm`` but with a CSRF token pre-injected.
+    """``client_no_jvm`` + pre-bootstrapped CSRF token.
 
-    Mirrors ``client_csrf`` for tests that need to POST / PUT / PATCH / DELETE
-    against the cookie-auth surface without booting the JVM lifespan.
+    Mirrors ``client_csrf`` for tests that hit the cookie-auth surface
+    without booting the JVM lifespan.
     """
-    resp = await client_no_jvm.get("/api/csrf-token")
-    assert resp.status_code == 200, resp.text
-    token = resp.json()["csrf_token"]
-    client_no_jvm.headers.update({"X-CSRF-Token": token})
-    return client_no_jvm
+    return await _bootstrap_csrf(client_no_jvm)
 
 
 @pytest.fixture
