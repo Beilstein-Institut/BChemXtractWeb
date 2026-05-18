@@ -10,8 +10,6 @@ Covers D-14/D-15:
 
 from __future__ import annotations
 
-import os
-
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select, text
@@ -23,18 +21,9 @@ from app.models.orm import (
     Substance,
 )
 from app.services.db import AsyncSessionLocal
+from tests.conftest import skip_under_superuser_db
 
 pytestmark = pytest.mark.asyncio
-
-# Cascade + orphan-sweep tests assert that the OTHER session's data
-# survives — which only holds under a NOSUPERUSER NOBYPASSRLS role.
-# Under the test DB's postgres superuser RLS is bypassed and the
-# orphan sweep cleans the other session's rows too. RLS enforcement
-# is verified end-to-end via Playwright.
-_RLS_SKIPIF = pytest.mark.skipif(
-    os.environ.get("ALLOW_SUPERUSER_DB", "").lower() == "true",
-    reason="cascade + orphan-sweep depends on RLS-enforced ownership",
-)
 
 
 SID_DELETE = "77777777-7777-4777-8777-777777777777"
@@ -88,7 +77,7 @@ async def _get_csrf_token(ac: AsyncClient) -> str:
     return resp.json()["csrf_token"]
 
 
-@_RLS_SKIPIF
+@skip_under_superuser_db
 async def test_gdpr_delete_cascades_orphan_sweep(started_app):
     """DELETE /api/me/data removes caller's extractions + sweeps orphan
     substances. Substances referenced by OTHER sessions' extractions are

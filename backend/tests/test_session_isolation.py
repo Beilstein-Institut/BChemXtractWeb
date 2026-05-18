@@ -16,7 +16,6 @@ NOSUPERUSER NOBYPASSRLS bchemxtract_app role.
 
 from __future__ import annotations
 
-import os
 import uuid
 
 import pytest
@@ -25,17 +24,9 @@ from sqlalchemy import text
 
 from app.models.orm import Extraction
 from app.services.db import AsyncSessionLocal
+from tests.conftest import skip_under_superuser_db
 
-pytestmark = [
-    pytest.mark.asyncio,
-    pytest.mark.skipif(
-        os.environ.get("ALLOW_SUPERUSER_DB", "").lower() == "true",
-        reason=(
-            "RLS isolation cannot be exercised under a SUPERUSER / BYPASSRLS "
-            "DB role. Verified end-to-end via Playwright instead."
-        ),
-    ),
-]
+pytestmark = [pytest.mark.asyncio, skip_under_superuser_db]
 
 
 SID_A = "11111111-1111-4111-8111-111111111111"

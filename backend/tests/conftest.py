@@ -81,6 +81,17 @@ from app.models.orm import Base  # noqa: E402
 TEST_SESSION_COOKIE = "11111111-1111-4111-8111-111111111111"
 TEST_ADMIN_HEADERS = {"X-Admin-Secret": os.environ["ADMIN_SECRET"]}
 
+# Shared marker for tests that depend on RLS *enforcement* (cross-session
+# isolation, no-merge restore semantics, GDPR orphan-sweep boundaries).
+# Skips when the test DB connects as a SUPERUSER / BYPASSRLS role and the
+# ``ALLOW_SUPERUSER_DB`` escape hatch is active — Postgres bypasses RLS for
+# such roles regardless of FORCE ROW LEVEL SECURITY. End-to-end RLS is
+# verified via Playwright against the production-shape docker-compose stack.
+skip_under_superuser_db = pytest.mark.skipif(
+    os.environ.get("ALLOW_SUPERUSER_DB", "").lower() == "true",
+    reason="RLS enforcement requires a NOSUPERUSER NOBYPASSRLS DB role",
+)
+
 # Substance + reaction fixtures both live under backend/tests/fixtures/.
 # Substance fixtures (under substances/) were copied verbatim from upstream
 # BChemXtract's src/test/resources/ when the submodule was retired — see the
