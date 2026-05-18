@@ -9,29 +9,15 @@ Covers D-09 semantics:
 
 from __future__ import annotations
 
-import os
-
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
 from app.models.orm import Extraction
 from app.services.db import AsyncSessionLocal
+from tests.conftest import skip_under_superuser_db
 
 pytestmark = pytest.mark.asyncio
-
-
-# test_restore_no_merge_semantics asserts that after a cookie swap the
-# previous owner's row is unreachable — which requires RLS to enforce.
-# Postgres bypasses RLS for SUPERUSER / BYPASSRLS roles, so this fails
-# under the bootstrap postgres role the test DB uses. End-to-end RLS is
-# verified via Playwright against the production-shape docker-compose
-# stack (bchemxtract_app role). The two other tests in this file don't
-# depend on RLS — they verify cookie-swap mechanics + UUID validation.
-_RLS_SKIPIF = pytest.mark.skipif(
-    os.environ.get("ALLOW_SUPERUSER_DB", "").lower() == "true",
-    reason="RLS isolation requires a NOSUPERUSER NOBYPASSRLS DB role",
-)
 
 
 VALID_UUID4 = "33333333-3333-4333-8333-333333333333"
@@ -86,7 +72,7 @@ async def test_restore_invalid_uuid_returns_422(started_app):
             )
 
 
-@_RLS_SKIPIF
+@skip_under_superuser_db
 async def test_restore_no_merge_semantics(started_app):
     """Restoring to UUID-A from a session that owned data under UUID-B does
     NOT merge UUID-B's rows into UUID-A's scope. UUID-B's data is still in

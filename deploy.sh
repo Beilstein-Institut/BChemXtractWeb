@@ -407,22 +407,14 @@ ok "HTTP_PORT=$HTTP_PORT_VALUE ($PORT_SOURCE), BACKEND_PORT=$(read_env_var BACKE
 # over plain HTTP cannot carry the Secure flag, so a prod-mode deploy with
 # localhost CORS would silently leak the session cookie).
 #
-# `deploy.sh` always brings the stack up on http://localhost:${HTTP_PORT}, so
-# on first run we align CORS_ORIGINS to the chosen port and keep DEBUG=true
-# (the .env.example default). Real HTTPS production: operator flips DEBUG to
-# false and replaces CORS_ORIGINS with the real public origin, then restarts.
-DEBUG_VAL="$(read_env_var DEBUG)"
-CORS_VAL="$(read_env_var CORS_ORIGINS)"
-
+# Two distinct paths: bootstrap aligns CORS_ORIGINS to the chosen port and
+# keeps DEBUG=true (.env.example default); existing .env aborts on mismatch
+# rather than rewriting the operator's value.
 if [[ "$BOOTSTRAPPED_ENV" == true ]]; then
-  # Fresh .env from .env.example. Replace the dev-default 5173 origin with
-  # one that matches the chosen public port so the SPA can speak to the API.
   update_env_var CORS_ORIGINS "[\"http://localhost:${HTTP_PORT_VALUE}\"]"
 else
-  # Existing .env path: catch the trap where DEBUG=false meets a localhost
-  # CORS_ORIGINS. Don't auto-rewrite the operator's value; explain the
-  # conflict and let them choose.
-  if [[ "$DEBUG_VAL" == "false" && "$CORS_VAL" == *localhost* ]]; then
+  CORS_VAL="$(read_env_var CORS_ORIGINS)"
+  if [[ "$(read_env_var DEBUG)" == "false" && "$CORS_VAL" == *localhost* ]]; then
     warn 'CORS / DEBUG mismatch detected in .env:'
     warn "  DEBUG=false  + CORS_ORIGINS=$CORS_VAL"
     warn 'The backend _validate_prod_cors guard will refuse to start.'
