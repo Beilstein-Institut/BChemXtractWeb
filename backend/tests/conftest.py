@@ -196,6 +196,20 @@ async def client_no_jvm() -> AsyncClient:
         yield ac
 
 
+@pytest_asyncio.fixture
+async def client_no_jvm_csrf(client_no_jvm: AsyncClient) -> AsyncClient:
+    """Same as ``client_no_jvm`` but with a CSRF token pre-injected.
+
+    Mirrors ``client_csrf`` for tests that need to POST / PUT / PATCH / DELETE
+    against the cookie-auth surface without booting the JVM lifespan.
+    """
+    resp = await client_no_jvm.get("/api/csrf-token")
+    assert resp.status_code == 200, resp.text
+    token = resp.json()["csrf_token"]
+    client_no_jvm.headers.update({"X-CSRF-Token": token})
+    return client_no_jvm
+
+
 @pytest.fixture
 async def unauth_client() -> AsyncClient:
     """Un-cookied async HTTP client for auth / session-isolation tests.

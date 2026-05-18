@@ -84,12 +84,13 @@ _MOCK_V3000_BYTES = (
 
 @pytest_asyncio.fixture
 async def client() -> AsyncClient:
-    """Cookie-authenticated HTTP client connected to the app without lifespan.
+    """Cookie-authenticated + CSRF-bootstrapped HTTP client (no lifespan).
 
     The export router is registered and the DB dependency is overridden so
     _fetch_substances() never actually hits the database. The ``bcx_sid``
-    cookie is attached so ``get_scoped_db`` finds a valid session before
-    yielding the DB to the route handler.
+    cookie is attached so ``get_scoped_db`` finds a valid session, and a
+    fresh CSRF token is pulled before yielding so POSTs survive the
+    CSRF middleware (Phase 11 D-19).
     """
     app = create_app()
     transport = ASGITransport(app=app)
@@ -98,6 +99,8 @@ async def client() -> AsyncClient:
         base_url="http://test",
         cookies={"bcx_sid": TEST_SESSION_COOKIE},
     ) as ac:
+        token = (await ac.get("/api/csrf-token")).json()["csrf_token"]
+        ac.headers.update({"X-CSRF-Token": token})
         yield ac
 
 

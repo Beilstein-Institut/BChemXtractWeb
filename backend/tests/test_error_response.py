@@ -21,10 +21,10 @@ async def test_http_exception_emits_detail_and_code(
 
 @pytest.mark.asyncio
 async def test_validation_error_shape(
-    client_no_jvm: AsyncClient,
+    client_no_jvm_csrf: AsyncClient,
 ) -> None:
     """Pydantic validation failure emits code=VALIDATION_ERROR + fields."""
-    resp = await client_no_jvm.post(
+    resp = await client_no_jvm_csrf.post(
         "/api/search",
         json={"query": ""},  # min_length=1 violated
     )
@@ -36,9 +36,9 @@ async def test_validation_error_shape(
 
 
 @pytest.mark.asyncio
-async def test_bad_request_shape(client_no_jvm: AsyncClient) -> None:
+async def test_bad_request_shape(client_no_jvm_csrf: AsyncClient) -> None:
     """Export endpoint 400 path emits code=BAD_REQUEST."""
-    resp = await client_no_jvm.post(
+    resp = await client_no_jvm_csrf.post(
         "/api/export",
         json={"format": "sdf"},  # no substance_ids or extraction_id
     )

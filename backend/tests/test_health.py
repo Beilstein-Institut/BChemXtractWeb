@@ -11,9 +11,9 @@ async def test_health_returns_ok(client: AsyncClient) -> None:
     assert data["status"] == "ok"
 
 
-async def test_health_detail_returns_jvm_info(client: AsyncClient) -> None:
+async def test_health_detail_returns_jvm_info(admin_client: AsyncClient) -> None:
     """GET /api/health/detail returns full JVM diagnostics."""
-    response = await client.get("/api/health/detail")
+    response = await admin_client.get("/api/health/detail")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
@@ -28,10 +28,10 @@ async def test_health_detail_returns_jvm_info(client: AsyncClient) -> None:
 
 
 async def test_health_detail_contains_all_fields(
-    client: AsyncClient,
+    admin_client: AsyncClient,
 ) -> None:
     """GET /api/health/detail response includes every expected field."""
-    response = await client.get("/api/health/detail")
+    response = await admin_client.get("/api/health/detail")
     data = response.json()
     expected_fields = {
         "status",
@@ -49,10 +49,10 @@ async def test_health_detail_contains_all_fields(
 
 
 async def test_health_detail_includes_jar_version(
-    client: AsyncClient,
+    admin_client: AsyncClient,
 ) -> None:
     """GET /api/health/detail includes jar_version field per D-08."""
-    response = await client.get("/api/health/detail")
+    response = await admin_client.get("/api/health/detail")
     data = response.json()
     assert "jar_version" in data
     # jar_version is a string (may be empty if JAR not yet built)
