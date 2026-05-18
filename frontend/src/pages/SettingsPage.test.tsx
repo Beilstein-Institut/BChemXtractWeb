@@ -56,19 +56,11 @@ describe("SettingsPage (Phase 11 D-07)", () => {
     // CardTitle elements aren't heading semantics — they're <div> with
     // data-slot="card-title". Match the unique slotted titles via slot
     // selectors which are stable across the bento layout.
-    expect(
-      document.querySelector('[data-slot="recovery-code-card"]'),
-    ).toBeInTheDocument();
-    expect(
-      document.querySelector('[data-slot="restore-session-form"]'),
-    ).toBeInTheDocument();
-    expect(
-      document.querySelector('[data-slot="delete-my-data-card"]'),
-    ).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="recovery-code-card"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="restore-session-form"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="delete-my-data-card"]')).toBeInTheDocument();
     // The destructive trigger button is independently present.
-    expect(
-      screen.getByRole("button", { name: /delete all my data/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /delete all my data/i })).toBeInTheDocument();
   });
 
   it("rejects malformed UUID4 codes on submit without firing a network call", async () => {

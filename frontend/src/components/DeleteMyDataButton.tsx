@@ -59,12 +59,7 @@ export function DeleteMyDataButton() {
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogTrigger
-        render={
-          <Button
-            variant="destructive"
-            data-slot="delete-my-data-trigger"
-          />
-        }
+        render={<Button variant="destructive" data-slot="delete-my-data-trigger" />}
       >
         Delete all my data
       </AlertDialogTrigger>
@@ -72,18 +67,13 @@ export function DeleteMyDataButton() {
         <AlertDialogHeader>
           <AlertDialogTitle>Delete all your data?</AlertDialogTitle>
           <AlertDialogDescription>
-            This permanently erases every extraction tied to your session,
-            including any substances or reactions only your uploads created.
-            This cannot be undone. Saved recovery codes for this session will
-            no longer work.
+            This permanently erases every extraction tied to your session, including any substances
+            or reactions only your uploads created. This cannot be undone. Saved recovery codes for
+            this session will no longer work.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error !== null && (
-          <p
-            role="alert"
-            data-slot="delete-my-data-error"
-            className="text-sm text-destructive"
-          >
+          <p role="alert" data-slot="delete-my-data-error" className="text-sm text-destructive">
             {error}
           </p>
         )}

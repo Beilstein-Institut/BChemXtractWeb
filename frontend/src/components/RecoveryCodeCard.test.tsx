@@ -70,9 +70,7 @@ describe("RecoveryCodeCard", () => {
     await waitFor(() => {
       // aria-label flips from "Copy recovery code" → "Recovery code copied"
       // and visible text flips from "Copy" → "Copied".
-      expect(
-        screen.getByRole("button", { name: /recovery code copied/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /recovery code copied/i })).toBeInTheDocument();
     });
   });
 });
