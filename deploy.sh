@@ -401,6 +401,39 @@ if [[ -z "$(read_env_var BACKEND_PORT)" ]]; then
 fi
 ok "HTTP_PORT=$HTTP_PORT_VALUE ($PORT_SOURCE), BACKEND_PORT=$(read_env_var BACKEND_PORT)"
 
+# --- CORS / DEBUG coherence (Phase 11) --------------------------------------
+# The backend's `_validate_prod_cors` guard refuses to start when DEBUG=false
+# AND CORS_ORIGINS contains a localhost / 127.0.0.1 origin (cookies served
+# over plain HTTP cannot carry the Secure flag, so a prod-mode deploy with
+# localhost CORS would silently leak the session cookie).
+#
+# `deploy.sh` always brings the stack up on http://localhost:${HTTP_PORT}, so
+# on first run we align CORS_ORIGINS to the chosen port and keep DEBUG=true
+# (the .env.example default). Real HTTPS production: operator flips DEBUG to
+# false and replaces CORS_ORIGINS with the real public origin, then restarts.
+DEBUG_VAL="$(read_env_var DEBUG)"
+CORS_VAL="$(read_env_var CORS_ORIGINS)"
+
+if [[ "$BOOTSTRAPPED_ENV" == true ]]; then
+  # Fresh .env from .env.example. Replace the dev-default 5173 origin with
+  # one that matches the chosen public port so the SPA can speak to the API.
+  update_env_var CORS_ORIGINS "[\"http://localhost:${HTTP_PORT_VALUE}\"]"
+else
+  # Existing .env path: catch the trap where DEBUG=false meets a localhost
+  # CORS_ORIGINS. Don't auto-rewrite the operator's value; explain the
+  # conflict and let them choose.
+  if [[ "$DEBUG_VAL" == "false" && "$CORS_VAL" == *localhost* ]]; then
+    warn 'CORS / DEBUG mismatch detected in .env:'
+    warn "  DEBUG=false  + CORS_ORIGINS=$CORS_VAL"
+    warn 'The backend _validate_prod_cors guard will refuse to start.'
+    warn 'Pick one:'
+    warn '  - Local plain-HTTP dev:  set DEBUG=true in .env'
+    warn '  - Real HTTPS production: set CORS_ORIGINS=["https://your.real.origin"]'
+    warn 'Then re-run deploy.sh.'
+    die 'aborting before compose up — fix .env first'
+  fi
+fi
+
 # --- BChemXtract version --------------------------------------------------
 # Always re-resolved on each deploy (unlike HTTP_PORT, which is a user
 # preference). Both the backend Dockerfile and the frontend Vite build

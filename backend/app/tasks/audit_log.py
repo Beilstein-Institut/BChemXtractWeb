@@ -11,8 +11,11 @@ double-fired (Docker Compose `celery-beat` service, Plan 11-08).
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import logging
+from collections.abc import Coroutine
 from datetime import UTC, datetime, timedelta
+from typing import TypeVar
 
 from sqlalchemy import delete
 
@@ -22,6 +25,25 @@ from app.models.orm import AuditLog
 from app.services.db import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
+
+_T = TypeVar("_T")
+
+
+def _run_async(coro: Coroutine[None, None, _T]) -> _T:
+    """Run an async coroutine to completion from sync code.
+
+    Celery worker processes have no event loop → ``asyncio.run`` works.
+    pytest-asyncio harness DOES have a running loop → ``asyncio.run``
+    raises ``RuntimeError: cannot be called from a running event loop``.
+    Fall back to a one-shot thread so the test path works without
+    changing the production path.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(asyncio.run, coro).result()
 
 
 @celery_app.task(bind=True, name="audit_log.prune_old_entries")
@@ -35,6 +57,6 @@ def prune_old_entries(self) -> dict:
             await db.commit()
             return result.rowcount or 0
 
-    deleted = asyncio.run(_prune())
+    deleted = _run_async(_prune())
     logger.info("audit_log prune: removed %d rows older than retention", deleted)
     return {"deleted_count": deleted}

@@ -30,6 +30,11 @@ os.environ.setdefault(
     "APP_DB_PASSWORD",
     "test-app-db-password-32-characters-min-0123456789",
 )
+# Tests connect to bchemxtract_test as the bootstrap postgres superuser
+# (rolsuper=true, rolbypassrls=true). assert_rls_enforceable() in the
+# backend lifespan would otherwise refuse to start. RLS *enforcement* is
+# verified end-to-end via Playwright; tests verify the wiring.
+os.environ.setdefault("ALLOW_SUPERUSER_DB", "true")
 os.environ.setdefault("DEBUG", "false")
 os.environ.setdefault("EXPOSE_OPENAPI_DOCS", "true")
 # CORS_ORIGINS in the test suite must NOT contain localhost/127.0.0.1
@@ -189,6 +194,20 @@ async def client_no_jvm() -> AsyncClient:
         cookies={"bcx_sid": TEST_SESSION_COOKIE},
     ) as ac:
         yield ac
+
+
+@pytest_asyncio.fixture
+async def client_no_jvm_csrf(client_no_jvm: AsyncClient) -> AsyncClient:
+    """Same as ``client_no_jvm`` but with a CSRF token pre-injected.
+
+    Mirrors ``client_csrf`` for tests that need to POST / PUT / PATCH / DELETE
+    against the cookie-auth surface without booting the JVM lifespan.
+    """
+    resp = await client_no_jvm.get("/api/csrf-token")
+    assert resp.status_code == 200, resp.text
+    token = resp.json()["csrf_token"]
+    client_no_jvm.headers.update({"X-CSRF-Token": token})
+    return client_no_jvm
 
 
 @pytest.fixture

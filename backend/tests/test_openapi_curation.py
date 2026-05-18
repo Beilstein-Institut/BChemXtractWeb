@@ -31,6 +31,14 @@ APPROVED_OPERATION_IDS = {
     "searchSubstances",
     # search (Plan 2026-04-24 — parse-only validate endpoint)
     "validateSearchQuery",
+    # Phase 11 — auth / CSRF / GDPR / admin api keys
+    "putAuthMe",
+    "postAuthRestore",
+    "getCsrfToken",
+    "deleteMyData",
+    "adminCreateApiKey",
+    "adminListApiKeys",
+    "adminRevokeApiKey",
 }
 
 

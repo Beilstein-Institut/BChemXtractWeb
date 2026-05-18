@@ -16,6 +16,7 @@ JVM note: DB layer is pure asyncio — no JPype interaction, no thread pool.
 """
 
 import logging
+import os
 from collections.abc import AsyncGenerator
 
 from fastapi import BackgroundTasks, HTTPException, Request, Response, status
@@ -42,10 +43,23 @@ async def assert_rls_enforceable() -> None:
     migration creates ``bchemxtract_app`` (NOSUPERUSER NOBYPASSRLS) for
     exactly this; docker-compose connects backend / celery as that role.
 
+    Escape hatch: ``ALLOW_SUPERUSER_DB=true`` downgrades a failed probe
+    to a logged warning. This exists for two narrow paths:
+      * pytest against a single shared test DB where role separation
+        would multiply container churn for no security gain (the test
+        suite verifies RLS *wiring* — set_rls_context calls, scope
+        threading — not policy enforcement; that is covered end-to-end
+        by Playwright against the production-shape docker-compose stack).
+      * One-shot admin / migration scripts run by hand against the real
+        DB as the bootstrap superuser.
+    Production deployments NEVER set this var.
+
     Raises:
         RuntimeError: ``current_user`` has SUPERUSER or BYPASSRLS, or
             is not in ``pg_roles`` (RLS enforceability unverifiable).
+            Suppressed (logged as warning) when ALLOW_SUPERUSER_DB=true.
     """
+    allow_superuser = os.environ.get("ALLOW_SUPERUSER_DB", "").lower() == "true"
     async with engine.connect() as conn:
         result = await conn.execute(
             text(
@@ -55,17 +69,28 @@ async def assert_rls_enforceable() -> None:
         )
         row = result.first()
     if row is None:
-        raise RuntimeError(
-            "DB startup probe failed: current_user not in pg_roles. "
-            "RLS enforceability cannot be verified — refusing to start."
+        msg = (
+            "DB startup probe: current_user not in pg_roles. "
+            "RLS enforceability cannot be verified."
         )
+        if allow_superuser:
+            logger.warning("%s ALLOW_SUPERUSER_DB=true — continuing.", msg)
+            return
+        raise RuntimeError(msg + " Refusing to start.")
     if row.rolsuper or row.rolbypassrls:
+        msg = (
+            f"DB role '{row.rolname}' has rolsuper={row.rolsuper} "
+            f"rolbypassrls={row.rolbypassrls}. Postgres bypasses RLS for "
+            "this role regardless of FORCE ROW LEVEL SECURITY."
+        )
+        if allow_superuser:
+            logger.warning("%s ALLOW_SUPERUSER_DB=true — continuing.", msg)
+            return
         raise RuntimeError(
-            f"Refusing to start: DB role '{row.rolname}' has "
-            f"rolsuper={row.rolsuper} rolbypassrls={row.rolbypassrls}. "
-            "Postgres bypasses RLS for this role regardless of FORCE ROW "
-            "LEVEL SECURITY. Update DATABASE_URL to connect as the "
-            "bchemxtract_app role (2026_05_16_create_app_role migration)."
+            "Refusing to start: "
+            + msg
+            + " Update DATABASE_URL to connect as the bchemxtract_app role "
+            "(2026_05_16_create_app_role migration)."
         )
     logger.info(
         "RLS startup probe passed: DB role '%s' has rolsuper=%s rolbypassrls=%s",

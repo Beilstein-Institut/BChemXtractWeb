@@ -22,13 +22,7 @@
 import { useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { postAuthRestore } from "@/lib/apiClient";
@@ -40,8 +34,7 @@ import { postAuthRestore } from "@/lib/apiClient";
  * input is trimmed + lowercased before this match runs so visually-valid
  * codes the user pasted in mixed case still pass.
  */
-const UUID4_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const UUID4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 export function RestoreSessionForm() {
   const [code, setCode] = useState("");
@@ -54,9 +47,7 @@ export function RestoreSessionForm() {
 
     const trimmed = code.trim().toLowerCase();
     if (!UUID4_RE.test(trimmed)) {
-      setError(
-        "Recovery code must be a valid UUID4 (e.g. 11111111-1111-4111-8111-111111111111).",
-      );
+      setError("Recovery code must be a valid UUID4 (e.g. 11111111-1111-4111-8111-111111111111).");
       return;
     }
 
@@ -79,10 +70,9 @@ export function RestoreSessionForm() {
       <CardHeader>
         <CardTitle>Restore from another browser</CardTitle>
         <CardDescription>
-          Paste the recovery code from another browser to load that
-          session&rsquo;s extraction history here. This REPLACES your current
-          session &mdash; any data uploaded from this browser without
-          restoring this code back will become unreachable until you do.
+          Paste the recovery code from another browser to load that session&rsquo;s extraction
+          history here. This REPLACES your current session &mdash; any data uploaded from this
+          browser without restoring this code back will become unreachable until you do.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -103,11 +93,7 @@ export function RestoreSessionForm() {
             />
           </div>
           {error !== null && (
-            <p
-              role="alert"
-              data-slot="restore-session-error"
-              className="text-sm text-destructive"
-            >
+            <p role="alert" data-slot="restore-session-error" className="text-sm text-destructive">
               {error}
             </p>
           )}

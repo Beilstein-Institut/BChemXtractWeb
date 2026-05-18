@@ -14,13 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { safeClipboardText } from "@/lib/safeStrings";
 
 export interface RecoveryCodeCardProps {
@@ -59,10 +53,9 @@ export function RecoveryCodeCard({ sessionId, isLoading }: RecoveryCodeCardProps
       <CardHeader>
         <CardTitle>Your recovery code</CardTitle>
         <CardDescription>
-          Save this code. Pasting it into another browser&rsquo;s &ldquo;Restore
-          from another browser&rdquo; form will give that browser access to this
-          session&rsquo;s extraction history. Anyone who has this code can read
-          your history &mdash; treat it like a password.
+          Save this code. Pasting it into another browser&rsquo;s &ldquo;Restore from another
+          browser&rdquo; form will give that browser access to this session&rsquo;s extraction
+          history. Anyone who has this code can read your history &mdash; treat it like a password.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">

@@ -17,13 +17,7 @@ import { DeleteMyDataButton } from "@/components/DeleteMyDataButton";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { RecoveryCodeCard } from "@/components/RecoveryCodeCard";
 import { RestoreSessionForm } from "@/components/RestoreSessionForm";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 
 export function SettingsPage() {
@@ -41,11 +35,7 @@ export function SettingsPage() {
       </header>
 
       {error !== null && (
-        <p
-          role="alert"
-          data-slot="settings-error"
-          className="mt-4 text-sm text-destructive"
-        >
+        <p role="alert" data-slot="settings-error" className="mt-4 text-sm text-destructive">
           {error}
         </p>
       )}
@@ -57,9 +47,8 @@ export function SettingsPage() {
           <CardHeader>
             <CardTitle>Delete all my data</CardTitle>
             <CardDescription>
-              GDPR Article 17 &mdash; permanently erase every extraction,
-              substance, and reaction created from this session. Cannot be
-              undone.
+              GDPR Article 17 &mdash; permanently erase every extraction, substance, and reaction
+              created from this session. Cannot be undone.
             </CardDescription>
           </CardHeader>
           <CardContent>

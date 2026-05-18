@@ -237,6 +237,12 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 Phase 11 auth model in two sentences: the browser SPA is authenticated by a `bcx_sid` UUID4 cookie (HttpOnly, SameSite=Lax, Secure when DEBUG=false) plus a session-bound CSRF token on every mutating request. Programmatic / admin callers mint an `X-API-Key` via `POST /api/admin/api-keys` (X-Admin-Secret gated) and pass it as `X-API-Key: bcx_...` on every request — no `Authorization: Bearer` header is read or accepted any more.
 
+**Production posture switch.** `deploy.sh` brings the stack up on plain-HTTP `http://localhost:${HTTP_PORT}`, so the default `.env` ships with `DEBUG=true` and `CORS_ORIGINS=["http://localhost:${HTTP_PORT}"]`. To run a real HTTPS deployment:
+
+1. Put HTTPS termination in front of the stack (cloudflared, an external reverse proxy, or a TLS-terminating nginx replacing the one in `docker-compose.yml`).
+2. Edit `.env`: `DEBUG=false` and `CORS_ORIGINS=["https://your.public.origin"]` (no `localhost` entries — the `_validate_prod_cors` backend guard refuses to start otherwise).
+3. `docker compose restart backend celery-worker celery-beat`. The `bcx_sid` cookie then carries the `Secure` flag and the secret-length validators enforce ≥32 chars on `SECRET_KEY` / `ADMIN_SECRET` / `APP_DB_PASSWORD`.
+
 </details>
 
 <details>
