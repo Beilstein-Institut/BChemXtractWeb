@@ -60,6 +60,14 @@ async def assert_rls_enforceable() -> None:
             Suppressed (logged as warning) when ALLOW_SUPERUSER_DB=true.
     """
     allow_superuser = os.environ.get("ALLOW_SUPERUSER_DB", "").lower() == "true"
+
+    def _fail(reason: str, remediation: str) -> None:
+        """Either warn-and-return (escape hatch) or raise RuntimeError."""
+        if allow_superuser:
+            logger.warning("%s ALLOW_SUPERUSER_DB=true — continuing.", reason)
+            return
+        raise RuntimeError(f"Refusing to start: {reason} {remediation}")
+
     async with engine.connect() as conn:
         result = await conn.execute(
             text(
@@ -68,30 +76,29 @@ async def assert_rls_enforceable() -> None:
             )
         )
         row = result.first()
+
     if row is None:
-        msg = (
-            "DB startup probe: current_user not in pg_roles. "
-            "RLS enforceability cannot be verified."
+        _fail(
+            reason=(
+                "DB startup probe: current_user not in pg_roles. "
+                "RLS enforceability cannot be verified."
+            ),
+            remediation="Check DATABASE_URL credentials.",
         )
-        if allow_superuser:
-            logger.warning("%s ALLOW_SUPERUSER_DB=true — continuing.", msg)
-            return
-        raise RuntimeError(msg + " Refusing to start.")
+        return
     if row.rolsuper or row.rolbypassrls:
-        msg = (
-            f"DB role '{row.rolname}' has rolsuper={row.rolsuper} "
-            f"rolbypassrls={row.rolbypassrls}. Postgres bypasses RLS for "
-            "this role regardless of FORCE ROW LEVEL SECURITY."
+        _fail(
+            reason=(
+                f"DB role '{row.rolname}' has rolsuper={row.rolsuper} "
+                f"rolbypassrls={row.rolbypassrls}. Postgres bypasses RLS for "
+                "this role regardless of FORCE ROW LEVEL SECURITY."
+            ),
+            remediation=(
+                "Update DATABASE_URL to connect as the bchemxtract_app role "
+                "(2026_05_16_create_app_role migration)."
+            ),
         )
-        if allow_superuser:
-            logger.warning("%s ALLOW_SUPERUSER_DB=true — continuing.", msg)
-            return
-        raise RuntimeError(
-            "Refusing to start: "
-            + msg
-            + " Update DATABASE_URL to connect as the bchemxtract_app role "
-            "(2026_05_16_create_app_role migration)."
-        )
+        return
     logger.info(
         "RLS startup probe passed: DB role '%s' has rolsuper=%s rolbypassrls=%s",
         row.rolname,
