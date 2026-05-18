@@ -30,6 +30,11 @@ os.environ.setdefault(
     "APP_DB_PASSWORD",
     "test-app-db-password-32-characters-min-0123456789",
 )
+# Tests connect to bchemxtract_test as the bootstrap postgres superuser
+# (rolsuper=true, rolbypassrls=true). assert_rls_enforceable() in the
+# backend lifespan would otherwise refuse to start. RLS *enforcement* is
+# verified end-to-end via Playwright; tests verify the wiring.
+os.environ.setdefault("ALLOW_SUPERUSER_DB", "true")
 os.environ.setdefault("DEBUG", "false")
 os.environ.setdefault("EXPOSE_OPENAPI_DOCS", "true")
 # CORS_ORIGINS in the test suite must NOT contain localhost/127.0.0.1
