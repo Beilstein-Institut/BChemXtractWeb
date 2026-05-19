@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 320" role="img" aria-label="Three value propositions: Any chemist, Any integration, Any search.">
+  <title>Any chemist · Any integration · Any search</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eef1fb"/>
+      <stop offset="100%" stop-color="#fbeef2"/>
+    </linearGradient>
+    <radialGradient id="o1" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1E2A78" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#1E2A78" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="o2" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#096779" stop-opacity="0.26"/>
+      <stop offset="100%" stop-color="#096779" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="o3" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#c61354" stop-opacity="0.26"/>
+      <stop offset="100%" stop-color="#c61354" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.82"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.55"/>
+    </linearGradient>
+    <linearGradient id="border" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.98"/>
+      <stop offset="100%" stop-color="#1E2A78" stop-opacity="0.20"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="ob" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="50"/>
+    </filter>
+    <filter id="cs" x="-10%" y="-30%" width="120%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="22" flood-color="#1E2A78" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="320" fill="url(#bg)"/>
+
+  <g filter="url(#ob)">
+    <circle cx="220"  cy="170" r="190" fill="url(#o1)"/>
+    <circle cx="640"  cy="170" r="190" fill="url(#o2)"/>
+    <circle cx="1060" cy="170" r="190" fill="url(#o3)"/>
+  </g>
+
+  <g opacity="0.22" stroke="#1E2A78" fill="none">
+    <polygon points="0,-14 12.1,-7 12.1,7 0,14 -12.1,7 -12.1,-7" transform="translate(60 70) rotate(8)" stroke-width="1"/>
+    <polygon points="0,-10 8.7,-5 8.7,5 0,10 -8.7,5 -8.7,-5" transform="translate(1220 250) rotate(-12)" stroke-width="1"/>
+    <polygon points="0,-12 10.4,-6 10.4,6 0,12 -10.4,6 -10.4,-6" transform="translate(640 30) rotate(20)" stroke-width="1"/>
+  </g>
+
+  <g filter="url(#cs)">
+    <rect x="40"  y="40"  width="380" height="240" rx="24" fill="url(#card)" stroke="url(#border)" stroke-width="1.5"/>
+  </g>
+  <rect x="56"  y="40"  width="348" height="2" rx="1" fill="url(#shine)"/>
+  <g transform="translate(86 96)" fill="none" stroke="#c61354" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M-10 -22 L-10 -8 L-22 18 a4 4 0 0 0 3.6 5.6 H18.4 a4 4 0 0 0 3.6 -5.6 L10 -8 V-22"/>
+    <line x1="-13" y1="-22" x2="13" y2="-22"/>
+    <line x1="-16" y1="10" x2="16" y2="10" stroke="#096779"/>
+  </g>
+  <text x="138" y="106" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700" fill="#0a1547">Any chemist</text>
+  <g font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="400" fill="#384168">
+    <text x="64" y="174">Upload a CDX or CDXML file in the</text>
+    <text x="64" y="194">browser. No Java, no CLI, no install</text>
+    <text x="64" y="214">gymnastics. Just drop and extract.</text>
+  </g>
+  <g font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="600" letter-spacing="1.2" fill="#c61354">
+    <text x="64" y="252">.CDX  ·  .CDXML  ·  ZIP BUNDLES</text>
+  </g>
+
+  <g filter="url(#cs)">
+    <rect x="450" y="40"  width="380" height="240" rx="24" fill="url(#card)" stroke="url(#border)" stroke-width="1.5"/>
+  </g>
+  <rect x="466" y="40"  width="348" height="2" rx="1" fill="url(#shine)"/>
+  <g transform="translate(496 96)" fill="none" stroke="#096779" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M-2 -22 L-14 4 L-2 4 L-6 22 L14 -6 L0 -6 L8 -22 Z" fill="#096779" fill-opacity="0.18"/>
+  </g>
+  <text x="540" y="106" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700" fill="#0a1547">Any integration</text>
+  <g font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="400" fill="#384168">
+    <text x="474" y="174">REST API with live Swagger and</text>
+    <text x="474" y="194">ReDoc. Curl, Python, R, notebooks;</text>
+    <text x="474" y="214">everything fits.</text>
+  </g>
+  <g font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="600" letter-spacing="1.2" fill="#096779">
+    <text x="474" y="252">/api/extract  ·  /api/search  ·  /api/export</text>
+  </g>
+
+  <g filter="url(#cs)">
+    <rect x="860" y="40"  width="380" height="240" rx="24" fill="url(#card)" stroke="url(#border)" stroke-width="1.5"/>
+  </g>
+  <rect x="876" y="40"  width="348" height="2" rx="1" fill="url(#shine)"/>
+  <g transform="translate(906 96)" fill="none" stroke="#5a6394" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="-4,-16 9,-9 9,5 -4,12 -17,5 -17,-9" stroke="#5a6394" stroke-width="1.8"/>
+    <circle cx="4" cy="0" r="14" stroke="#1E2A78" stroke-width="2.4"/>
+    <line x1="14" y1="10" x2="22" y2="20" stroke="#1E2A78"/>
+  </g>
+  <text x="950" y="106" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700" fill="#0a1547">Any search</text>
+  <g font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="400" fill="#384168">
+    <text x="884" y="174">InChI, formula, canonical SMILES,</text>
+    <text x="884" y="194">substructure (SMILES + SMARTS),</text>
+    <text x="884" y="214">stereo-aware. Live-validated.</text>
+  </g>
+  <g font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="600" letter-spacing="1.2" fill="#1E2A78">
+    <text x="884" y="252">InChIKey  ·  SMILES  ·  SMARTS  ·  FORMULA</text>
+  </g>
+</svg>
