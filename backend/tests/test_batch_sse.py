@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-from tests.conftest import TEST_AUTH_HEADERS
+from tests.conftest import TEST_SESSION_COOKIE
 
 
 def test_batch_progress_returns_error_event_for_unknown_batch():
@@ -18,9 +18,10 @@ def test_batch_progress_returns_error_event_for_unknown_batch():
     with patch("app.routers.batch.GroupResult") as mock_gr:
         mock_gr.restore.return_value = None
         client = TestClient(app, raise_server_exceptions=False)
+        client.cookies.set("bcx_sid", TEST_SESSION_COOKIE)
         response = client.get(
             "/api/batch/nonexistent-id/progress",
-            headers={"Accept": "text/event-stream", **TEST_AUTH_HEADERS},
+            headers={"Accept": "text/event-stream"},
         )
 
     # EventSourceResponse returns 200 even for error events (SSE protocol)

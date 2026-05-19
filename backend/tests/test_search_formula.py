@@ -10,7 +10,7 @@ from app.services.db import AsyncSessionLocal
 
 
 @pytest.mark.asyncio
-async def test_formula_match(client: AsyncClient) -> None:
+async def test_formula_match(client_csrf: AsyncClient) -> None:
     """Querying formula='C6H6' returns benzene-indexed rows (SRCH-02)."""
     async with AsyncSessionLocal() as session:
         await session.execute(
@@ -25,7 +25,7 @@ async def test_formula_match(client: AsyncClient) -> None:
         )
         await session.commit()
 
-    resp = await client.post(
+    resp = await client_csrf.post(
         "/api/search",
         json={"query": "C6H6", "type": "formula"},
     )

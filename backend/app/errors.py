@@ -22,14 +22,21 @@ error source:
 
 Exception tree:
     BridgeError
-    +-- FileSizeError         (413 FILE_TOO_LARGE)
-    +-- JVMStartupError       (503 JVM_UNAVAILABLE)
-    +-- FormatDetectionError  (415 UNSUPPORTED_FORMAT)
-    +-- ExtractionError       (422 EXTRACTION_FAILED)
-    +-- NullFieldError        (500 NULL_FIELD)
-    +-- InvalidSmartsError    (422 INVALID_SMARTS)
-    +-- InvalidInchiKeyError  (422 INVALID_INCHI_KEY)
-    +-- InvalidSmilesError    (422 INVALID_SMILES)
+    +-- FileSizeError              (413 FILE_TOO_LARGE)
+    +-- JVMStartupError            (503 JVM_UNAVAILABLE)
+    +-- FormatDetectionError       (415 UNSUPPORTED_FORMAT)
+    +-- ExtractionError            (422 EXTRACTION_FAILED)
+    +-- NullFieldError             (500 NULL_FIELD)
+    +-- InvalidSmartsError         (422 INVALID_SMARTS)
+    +-- InvalidInchiKeyError       (422 INVALID_INCHI_KEY)
+    +-- InvalidSmilesError         (422 INVALID_SMILES)
+    +-- InvalidQueryError          (422 INVALID_QUERY)
+    +-- QueryTooLargeError         (422 QUERY_TOO_LARGE)
+    +-- CSRFValidationError        (403 CSRF_INVALID)            [Phase 11]
+    +-- InvalidSessionCodeError    (422 INVALID_SESSION_CODE)    [Phase 11]
+    +-- InvalidAdminSecretError    (401 INVALID_ADMIN_SECRET)    [Phase 11]
+    +-- ApiKeyExpiredError         (401 API_KEY_EXPIRED)         [Phase 11]
+    +-- ApiKeyRevokedError         (401 API_KEY_REVOKED)         [Phase 11]
 """
 
 import logging
@@ -99,6 +106,41 @@ class QueryTooLargeError(BridgeError):
 
 
 # ----------------------------------------------------------------------------
+# Phase 11: auth + CSRF + admin BridgeError subclasses (D-13 / Plan 09 unified
+# ErrorResponse shape). Each gets a stable code in _BRIDGE_ERROR_MAP below.
+# ----------------------------------------------------------------------------
+
+
+class CSRFValidationError(BridgeError):
+    """CSRF token missing, tampered, expired, or session-mismatched
+    (403 / CSRF_INVALID). Threat ref: T-11-09."""
+
+
+class InvalidSessionCodeError(BridgeError):
+    """POST /api/auth/restore received a non-UUID4 value (422 / INVALID_SESSION_CODE).
+    Threat ref: T-11-15."""
+
+
+class InvalidAdminSecretError(BridgeError):
+    """X-Admin-Secret missing or mismatched (401 / INVALID_ADMIN_SECRET).
+    Threat ref: T-11-05.
+
+    NOTE: require_admin_auth raises HTTPException directly (it must run
+    inside the constant-time compare path). This subclass exists for
+    test assertions + future composability."""
+
+
+class ApiKeyExpiredError(BridgeError):
+    """Valid API key passed but expires_at < now() (401 / API_KEY_EXPIRED).
+    Threat ref: T-11-04."""
+
+
+class ApiKeyRevokedError(BridgeError):
+    """Valid API key passed but revoked_at IS NOT NULL (401 / API_KEY_REVOKED).
+    Threat ref: T-11-04."""
+
+
+# ----------------------------------------------------------------------------
 # Phase 9 Plan 05: unified ErrorResponse handlers (D-17).
 # ----------------------------------------------------------------------------
 
@@ -136,6 +178,12 @@ _BRIDGE_ERROR_MAP: list[tuple[type[BridgeError], int, str]] = [
     (QueryTooLargeError, 422, "QUERY_TOO_LARGE"),
     (ExtractionError, 422, "EXTRACTION_FAILED"),
     (NullFieldError, 500, "NULL_FIELD"),
+    # Phase 11 auth/CSRF/admin subclasses (Plan 11-02).
+    (CSRFValidationError, 403, "CSRF_INVALID"),
+    (InvalidSessionCodeError, 422, "INVALID_SESSION_CODE"),
+    (InvalidAdminSecretError, 401, "INVALID_ADMIN_SECRET"),
+    (ApiKeyExpiredError, 401, "API_KEY_EXPIRED"),
+    (ApiKeyRevokedError, 401, "API_KEY_REVOKED"),
 ]
 
 

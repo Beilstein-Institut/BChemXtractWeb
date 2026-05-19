@@ -34,13 +34,33 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(bind=True, name="extraction.extract_file")
-def extract_file_task(self, file_b64: str, filename: str, batch_id: str) -> dict:
+def extract_file_task(
+    self,
+    file_b64: str,
+    filename: str,
+    batch_id: str,
+    session_id: str | None = None,
+    api_key_hash_hex: str | None = None,
+) -> dict:
     """Extract substances from one file and persist the result.
+
+    Phase 11 D-01: the request-time scope is serialised through the
+    Celery kwargs so the worker — which has no FastAPI request context
+    — can stamp the same ``(session_id, api_key_hash)`` onto every row
+    it inserts. ``api_key_hash`` is round-tripped as hex because asyncpg
+    accepts BYTEA via hex in ``set_config`` and Celery's Redis broker
+    serialises kwargs as JSON (bytes are not JSON-safe). The worker
+    decodes back to ``bytes`` once per task before calling
+    ``save_extraction``.
 
     Args:
         file_b64: Base64-encoded CDX/CDXML file content (JSON-safe).
         filename: Original filename for metadata and ZIP provenance.
         batch_id: UUID string tagging this extraction to its batch.
+        session_id: Caller's bcx_sid UUID4 (Phase 11 D-01), or None when
+            the caller authenticated via X-API-Key.
+        api_key_hash_hex: Hex-encoded PBKDF2 lookup hash (Phase 11 D-01),
+            or None when the caller authenticated via cookie.
 
     Returns:
         dict with keys: filename, structure_count, extraction_id, error.
@@ -82,9 +102,20 @@ def extract_file_task(self, file_b64: str, filename: str, batch_id: str) -> dict
             extraction_id=None,
         )
 
+        # D-01: decode api_key_hash hex transport → bytes for the owner
+        # column. The worker has no FastAPI request, so it stashes the
+        # scope on db.info so the after_begin listener (services/db.py)
+        # applies the RLS GUCs on every BEGIN — required because the
+        # extractions policy uses USING for INSERTs too, so missing GUCs
+        # raise InsufficientPrivilege under the prod role.
+        akh = bytes.fromhex(api_key_hash_hex) if api_key_hash_hex else None
+
         async def _persist() -> int:
             async with AsyncSessionLocal() as db:
-                extraction = await save_extraction(db, response)
+                db.info["rls_scope"] = (session_id, akh)
+                extraction = await save_extraction(
+                    db, response, scope=(session_id, akh)
+                )
                 extraction.batch_id = batch_id
                 await db.commit()
                 return extraction.id

@@ -8,10 +8,10 @@ from httpx import AsyncClient
 
 @pytest.mark.asyncio
 async def test_http_exception_emits_detail_and_code(
-    client: AsyncClient,
+    client_csrf: AsyncClient,
 ) -> None:
     """Any 404 from any router emits {detail, code} per D-17."""
-    resp = await client.get("/api/history/9999999999")
+    resp = await client_csrf.get("/api/history/9999999999")
     assert resp.status_code == 404
     body = resp.json()
     assert "detail" in body
@@ -21,10 +21,10 @@ async def test_http_exception_emits_detail_and_code(
 
 @pytest.mark.asyncio
 async def test_validation_error_shape(
-    client_no_jvm: AsyncClient,
+    client_no_jvm_csrf: AsyncClient,
 ) -> None:
     """Pydantic validation failure emits code=VALIDATION_ERROR + fields."""
-    resp = await client_no_jvm.post(
+    resp = await client_no_jvm_csrf.post(
         "/api/search",
         json={"query": ""},  # min_length=1 violated
     )
@@ -36,9 +36,9 @@ async def test_validation_error_shape(
 
 
 @pytest.mark.asyncio
-async def test_bad_request_shape(client_no_jvm: AsyncClient) -> None:
+async def test_bad_request_shape(client_no_jvm_csrf: AsyncClient) -> None:
     """Export endpoint 400 path emits code=BAD_REQUEST."""
-    resp = await client_no_jvm.post(
+    resp = await client_no_jvm_csrf.post(
         "/api/export",
         json={"format": "sdf"},  # no substance_ids or extraction_id
     )
@@ -48,14 +48,14 @@ async def test_bad_request_shape(client_no_jvm: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_invalid_smarts_shape(client: AsyncClient) -> None:
+async def test_invalid_smarts_shape(client_csrf: AsyncClient) -> None:
     """InvalidQueryError (dual-path parse) maps to 422 + code=INVALID_QUERY.
 
     Plan 2026-04-24: the substructure service accepts SMILES or SMARTS —
     malformed input that both parsers reject raises :class:`InvalidQueryError`
     (code=INVALID_QUERY), replacing the former SMARTS-only error code.
     """
-    resp = await client.post(
+    resp = await client_csrf.post(
         "/api/search",
         json={"query": "c1ccc(((", "type": "substructure"},
         timeout=30.0,

@@ -10,7 +10,7 @@ from app.services.db import AsyncSessionLocal
 
 
 @pytest.mark.asyncio
-async def test_smiles_canonical_equivalence(client: AsyncClient) -> None:
+async def test_smiles_canonical_equivalence(client_csrf: AsyncClient) -> None:
     """`c1ccccc1` and `C1=CC=CC=C1` collide on the same canonical row (SRCH-03).
 
     Seed a row whose stored SMILES is the Kekulé form but whose
@@ -30,7 +30,7 @@ async def test_smiles_canonical_equivalence(client: AsyncClient) -> None:
         )
         await session.commit()
 
-    resp = await client.post(
+    resp = await client_csrf.post(
         "/api/search",
         json={
             "query": "c1ccccc1",
@@ -43,7 +43,7 @@ async def test_smiles_canonical_equivalence(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_smiles_literal_match(client: AsyncClient) -> None:
+async def test_smiles_literal_match(client_csrf: AsyncClient) -> None:
     """match=literal bypasses canonicalization (exact smiles column match)."""
     async with AsyncSessionLocal() as session:
         await session.execute(
@@ -58,7 +58,7 @@ async def test_smiles_literal_match(client: AsyncClient) -> None:
         )
         await session.commit()
 
-    resp = await client.post(
+    resp = await client_csrf.post(
         "/api/search",
         json={
             "query": "LITERAL_UNIQUE_SMILES_STRING",

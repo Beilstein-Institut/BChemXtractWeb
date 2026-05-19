@@ -30,14 +30,14 @@ from app.models.orm import (
     Reaction,
     Substance,
 )
-from app.services.db import get_db
+from app.services.db import get_scoped_db
 from app.services.export import generate_export, generate_reactions_export
 from app.services.filenames import build_content_disposition
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-DbDep = Annotated[AsyncSession, Depends(get_db)]
+DbDep = Annotated[AsyncSession, Depends(get_scoped_db)]
 
 _EXPORT_SIZE_WARN_BYTES = 50 * 1024 * 1024  # 50 MB log threshold
 # SEC H-06: enforced output cap. One request cannot stream more than

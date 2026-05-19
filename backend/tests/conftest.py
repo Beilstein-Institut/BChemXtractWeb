@@ -3,16 +3,45 @@
 # Configure security-related environment BEFORE importing the app so the
 # Settings validator sees a valid configuration. The default test suite
 # runs with permissive rate limits (effectively disabled) and a fixed
-# API key; focused security tests override these via monkeypatch +
+# session cookie; focused security tests override these via monkeypatch +
 # limiter resets.
 import os
 
 os.environ.setdefault(
-    "API_KEYS",
-    '["test-api-key-for-test-suite-with-sufficient-length-0123456789"]',
+    "SECRET_KEY",
+    "test-secret-key-for-test-suite-32-characters-min-0123",
 )
+os.environ.setdefault(
+    "ADMIN_SECRET",
+    "test-admin-secret-32-characters-min-0123456789",
+)
+# APP_DB_PASSWORD is read by the 2026_05_16_create_app_role migration. The
+# unit suite uses Base.metadata.create_all (see `_ensure_test_schema`) and
+# does NOT exercise that migration, but the seed keeps `alembic upgrade head`
+# runnable in CI for migration-chain validation.
+#
+# RLS caveat: the test DATABASE_URL below connects as a superuser, which
+# bypasses RLS even with FORCE ROW LEVEL SECURITY. Unit tests therefore
+# verify the *wiring* (set_rls_context called, scope threaded through writes
+# — tests/test_session_isolation.py); policy enforcement is validated
+# end-to-end via Playwright against the docker-compose stack (where the
+# backend connects as the NOSUPERUSER NOBYPASSRLS bchemxtract_app role).
+os.environ.setdefault(
+    "APP_DB_PASSWORD",
+    "test-app-db-password-32-characters-min-0123456789",
+)
+# Tests connect to bchemxtract_test as the bootstrap postgres superuser
+# (rolsuper=true, rolbypassrls=true). assert_rls_enforceable() in the
+# backend lifespan would otherwise refuse to start. RLS *enforcement* is
+# verified end-to-end via Playwright; tests verify the wiring.
+os.environ.setdefault("ALLOW_SUPERUSER_DB", "true")
 os.environ.setdefault("DEBUG", "false")
 os.environ.setdefault("EXPOSE_OPENAPI_DOCS", "true")
+# CORS_ORIGINS in the test suite must NOT contain localhost/127.0.0.1
+# because the Plan 11-05 _validate_prod_cors guard rejects that
+# combination under DEBUG=false. Tests run in prod-mode posture
+# (DEBUG=false) to exercise the full security validator chain.
+os.environ.setdefault("CORS_ORIGINS", '["http://test"]')
 # SEC H-04: DATABASE_URL has no default in Settings; tests always target
 # the dedicated bchemxtract_test DB.
 os.environ.setdefault(
@@ -44,11 +73,24 @@ from app.config import settings  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.orm import Base  # noqa: E402
 
-# Single canonical test API key — exposed to tests that need to construct
-# ad-hoc clients (e.g. unauth_client -> 401 assertion, then adds header
-# and re-asserts 200).
-TEST_API_KEY = settings.api_keys[0]
-TEST_AUTH_HEADERS = {"Authorization": f"Bearer {TEST_API_KEY}"}
+# Canonical session-cookie value for the default test client (Phase 11
+# Plan 11-05). Tests that need to probe the un-cookied surface use
+# ``unauth_client``. Tests that need to assert admin behaviour use
+# ``admin_client`` (TEST_ADMIN_HEADERS). A valid UUID4 satisfies the
+# strict ``_UUID_RE`` in ``app.core.session``.
+TEST_SESSION_COOKIE = "11111111-1111-4111-8111-111111111111"
+TEST_ADMIN_HEADERS = {"X-Admin-Secret": os.environ["ADMIN_SECRET"]}
+
+# Shared marker for tests that depend on RLS *enforcement* (cross-session
+# isolation, no-merge restore semantics, GDPR orphan-sweep boundaries).
+# Skips when the test DB connects as a SUPERUSER / BYPASSRLS role and the
+# ``ALLOW_SUPERUSER_DB`` escape hatch is active — Postgres bypasses RLS for
+# such roles regardless of FORCE ROW LEVEL SECURITY. End-to-end RLS is
+# verified via Playwright against the production-shape docker-compose stack.
+skip_under_superuser_db = pytest.mark.skipif(
+    os.environ.get("ALLOW_SUPERUSER_DB", "").lower() == "true",
+    reason="RLS enforcement requires a NOSUPERUSER NOBYPASSRLS DB role",
+)
 
 # Substance + reaction fixtures both live under backend/tests/fixtures/.
 # Substance fixtures (under substances/) were copied verbatim from upstream
@@ -100,26 +142,66 @@ async def started_app():
 
 @pytest.fixture
 async def client(started_app) -> AsyncClient:
-    """Authenticated async HTTP client connected to the lifespan-started app.
+    """Cookie-authenticated async HTTP client connected to the lifespan-started app.
 
     Use for integration tests that need JVM (health detail, extraction, etc.).
-    The ``Authorization: Bearer <test-key>`` header is set on the underlying
-    AsyncClient so every request in the suite authenticates transparently.
-    Tests that need to probe the unauthenticated surface use
-    ``unauth_client`` instead.
+    The ``bcx_sid`` cookie is set on the underlying AsyncClient so every
+    request in the suite authenticates as the same session transparently.
+    Tests that need to probe the un-cookied surface use ``unauth_client``
+    instead; tests against admin endpoints use ``admin_client``.
     """
     transport = ASGITransport(app=started_app)
     async with AsyncClient(
         transport=transport,
         base_url="http://test",
-        headers=TEST_AUTH_HEADERS,
+        cookies={"bcx_sid": TEST_SESSION_COOKIE},
+    ) as ac:
+        yield ac
+
+
+async def _bootstrap_csrf(ac: AsyncClient) -> AsyncClient:
+    """Fetch a CSRF token from ``/api/csrf-token`` and inject it as a default
+    ``X-CSRF-Token`` header on the given client. Returns the same client.
+
+    Without this header the Plan 11-04 D-19 CSRF middleware returns 403
+    ``CSRF_INVALID`` on any state-changing cookie-auth request.
+    """
+    resp = await ac.get("/api/csrf-token")
+    assert resp.status_code == 200, resp.text
+    ac.headers.update({"X-CSRF-Token": resp.json()["csrf_token"]})
+    return ac
+
+
+@pytest_asyncio.fixture
+async def client_csrf(client: AsyncClient) -> AsyncClient:
+    """``client`` + pre-bootstrapped CSRF token (auto-injected per request).
+
+    Used by integration tests that issue POST / PUT / PATCH / DELETE under
+    cookie auth.
+    """
+    return await _bootstrap_csrf(client)
+
+
+@pytest.fixture
+async def admin_client(started_app) -> AsyncClient:
+    """Admin-authenticated async HTTP client (X-Admin-Secret header set).
+
+    Use for tests against ``/api/admin/*`` endpoints. The CSRF middleware
+    skips X-Admin-Secret requests, so this client can issue POST / DELETE
+    without a CSRF token.
+    """
+    transport = ASGITransport(app=started_app)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers=TEST_ADMIN_HEADERS,
     ) as ac:
         yield ac
 
 
 @pytest.fixture
 async def client_no_jvm() -> AsyncClient:
-    """Authenticated async HTTP client WITHOUT lifespan (no JVM).
+    """Cookie-authenticated async HTTP client WITHOUT lifespan (no JVM).
 
     Use for pure-Python unit tests (format detection, config validation, etc.).
     """
@@ -127,19 +209,29 @@ async def client_no_jvm() -> AsyncClient:
     async with AsyncClient(
         transport=transport,
         base_url="http://test",
-        headers=TEST_AUTH_HEADERS,
+        cookies={"bcx_sid": TEST_SESSION_COOKIE},
     ) as ac:
         yield ac
 
 
+@pytest_asyncio.fixture
+async def client_no_jvm_csrf(client_no_jvm: AsyncClient) -> AsyncClient:
+    """``client_no_jvm`` + pre-bootstrapped CSRF token.
+
+    Mirrors ``client_csrf`` for tests that hit the cookie-auth surface
+    without booting the JVM lifespan.
+    """
+    return await _bootstrap_csrf(client_no_jvm)
+
+
 @pytest.fixture
 async def unauth_client() -> AsyncClient:
-    """Un-authenticated async HTTP client for auth-failure tests only.
+    """Un-cookied async HTTP client for auth / session-isolation tests.
 
-    No ``Authorization`` header set. Used by ``test_auth.py`` to assert
-    that protected endpoints return 401 when called without a bearer
-    token. Do NOT use for general integration tests — every route except
-    ``/api/health`` requires an API key.
+    No ``bcx_sid`` cookie and no headers set. Used to assert the
+    un-cookied request flow — e.g. that a fresh browser request gets
+    a Set-Cookie back from get_scoped_db, or that the cross-session
+    isolation tests can mint two distinct sessions.
     """
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:

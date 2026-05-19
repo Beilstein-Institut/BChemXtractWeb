@@ -1,3 +1,4 @@
+import { csrfTokenCache, needsCsrf } from "@/lib/csrfTokenCache";
 import type {
   ExtractionResponse,
   PagedSubstancesResponse,
@@ -12,6 +13,7 @@ import type {
   SearchValidateRequest,
   SearchValidateResponse,
 } from "@/types/search";
+import type { CsrfTokenResponse, RestoreRequest, SessionInfoResponse } from "@/types/auth";
 
 /**
  * Wrapper around ``fetch`` that centralises the patterns every endpoint
@@ -53,17 +55,108 @@ async function extractErrorDetail(response: Response): Promise<string> {
   return "no detail returned";
 }
 
+/**
+ * Detects the Phase 11 CSRF middleware's 403 + `{code: "CSRF_INVALID"}`
+ * sentinel without consuming the original response body. The body is
+ * read from a clone so the outer error handler can still surface the
+ * detail string if the retry also fails.
+ *
+ * Returns false fast when the status is not 403 — avoids cloning on
+ * the happy path (which also keeps test doubles that omit `clone()`
+ * from blowing up the wrapper).
+ */
+async function isCsrfError(response: Response): Promise<boolean> {
+  if (response.status !== 403) return false;
+  // jsdom + the project's test doubles may stub the Response without a
+  // `clone()` method. Fall back to reading the original body in that case
+  // — the only callers downstream are the retry path (cares about status
+  // only) and `extractErrorDetail` (consumes its own body, swallows
+  // already-consumed errors).
+  const probe = typeof response.clone === "function" ? response.clone() : response;
+  try {
+    const body = await probe.json();
+    return body?.code === "CSRF_INVALID";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Refreshes the module-level CSRF token via the public token endpoint.
+ *
+ * Deliberately uses raw `fetch` (NOT `apiFetch`) — going through apiFetch
+ * would inject `X-CSRF-Token` on the very call that fetches the token, and
+ * a 403/CSRF_INVALID response would recursively invoke this function.
+ */
+async function refreshCsrfToken(): Promise<void> {
+  try {
+    const r = await fetch("/api/csrf-token", { credentials: "include" });
+    if (!r.ok) return;
+    const body = await r.json();
+    if (typeof body?.csrf_token === "string") {
+      csrfTokenCache.value = body.csrf_token;
+    }
+  } catch {
+    /* ignore — caller will surface the original 403 if retry fails */
+  }
+}
+
 async function apiFetch(
   url: string,
   { connectionError, errorPrefix, ...init }: ApiFetchOptions,
 ): Promise<Response> {
   let response: Response;
+
+  // Phase 11 D-19: state-changing requests carry the CSRF token from the
+  // module-level cache (populated by useCsrfToken on mount + on retry below).
+  // Cold-start path (returning visitor: cookie present, cache empty because
+  // useCsrfToken hasn't completed its bootstrap yet): pre-fetch the token
+  // so the very first state-changing call doesn't 403 → retry. The retry
+  // path below stays as a fallback for stale tokens mid-session.
+  if (needsCsrf(init.method) && !csrfTokenCache.value) {
+    await refreshCsrfToken();
+  }
+  const csrfHeaders: Record<string, string> = {};
+  if (needsCsrf(init.method) && csrfTokenCache.value) {
+    csrfHeaders["X-CSRF-Token"] = csrfTokenCache.value;
+  }
+
+  // Phase 11 D-20: `credentials: "include"` on EVERY request so the
+  // `bcx_sid` cookie travels with both GET (RLS read scope) and
+  // state-changing calls (RLS write scope).
+  const enhancedInit: RequestInit = {
+    ...init,
+    credentials: "include",
+    headers: {
+      ...(init.headers as Record<string, string> | undefined),
+      ...csrfHeaders,
+    },
+  };
+
   try {
-    response = await fetch(url, init);
+    response = await fetch(url, enhancedInit);
   } catch (err) {
     if (isAbortError(err)) throw err;
     throw new Error(connectionError ?? DEFAULT_CONNECTION_ERROR);
   }
+
+  // PRIV-11 retry path: a stale CSRF token (Phase 11-04 middleware returns
+  // 403 + {code:"CSRF_INVALID"}) triggers a single token refresh + retry.
+  // `isCsrfError` clones the response internally so the outer error path
+  // can still consume the body if the retry attempt also fails.
+  if (await isCsrfError(response)) {
+    await refreshCsrfToken();
+    const retryHeaders = { ...(enhancedInit.headers as Record<string, string>) };
+    if (csrfTokenCache.value) retryHeaders["X-CSRF-Token"] = csrfTokenCache.value;
+    const retryInit: RequestInit = { ...enhancedInit, headers: retryHeaders };
+    try {
+      response = await fetch(url, retryInit);
+    } catch (err) {
+      if (isAbortError(err)) throw err;
+      throw new Error(connectionError ?? DEFAULT_CONNECTION_ERROR);
+    }
+  }
+
   if (!response.ok) {
     const detail = await extractErrorDetail(response);
     throw new Error(`${errorPrefix}: ${detail}`);
@@ -187,17 +280,15 @@ export async function getHistoryDetail(id: number): Promise<ExtractionResponse> 
 /**
  * Delete one history entry by id (D-07).
  * Throws on non-204 response.
+ *
+ * Routed through `apiFetch` so the request carries `credentials: "include"`
+ * and the auto-injected `X-CSRF-Token` header (Phase 11 D-19/D-20).
  */
 export async function deleteHistoryEntry(id: number): Promise<void> {
-  let response: Response;
-  try {
-    response = await fetch(`/api/history/${id}`, { method: "DELETE" });
-  } catch {
-    throw new Error(DEFAULT_CONNECTION_ERROR);
-  }
-  if (!response.ok && response.status !== 204) {
-    throw new Error("Delete failed. The extraction may already be gone; refresh and retry.");
-  }
+  await apiFetch(`/api/history/${id}`, {
+    method: "DELETE",
+    errorPrefix: "Could not delete extraction. Try again",
+  });
 }
 
 /**
@@ -400,4 +491,63 @@ export async function getExtractionReactions(
     "Loading cached reactions failed",
     (b) => Array.isArray((b as { reactions?: unknown }).reactions),
   );
+}
+
+/**
+ * PUT /api/auth/me — idempotent session bootstrap (Phase 11 D-23).
+ *
+ * Causes the backend to issue a `bcx_sid` cookie if none is present (or
+ * to confirm the existing one). Returns the session_id and `has_history`
+ * which drives the Settings page recovery-code display + empty-state UX.
+ */
+export async function putAuthMe(): Promise<SessionInfoResponse> {
+  const response = await apiFetch("/api/auth/me", {
+    method: "PUT",
+    errorPrefix: "Session bootstrap failed",
+  });
+  return response.json() as Promise<SessionInfoResponse>;
+}
+
+/**
+ * POST /api/auth/restore — cookie-swap restore via recovery code (D-09).
+ *
+ * On success the backend returns 204 with a `Set-Cookie: bcx_sid=<code>`
+ * header. No body. Replaces the current session — does NOT merge data.
+ */
+export async function postAuthRestore(code: string): Promise<void> {
+  await apiFetch("/api/auth/restore", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code } satisfies RestoreRequest),
+    errorPrefix: "Restore failed",
+  });
+}
+
+/**
+ * GET /api/csrf-token — fetches a session-bound CSRF token (D-19).
+ *
+ * Deliberately bypasses `apiFetch` because apiFetch would inject the
+ * `X-CSRF-Token` header on a request that fetches the token itself — and
+ * a 403/CSRF_INVALID on this endpoint would recursively call into the
+ * retry path. The cache write happens in `useCsrfToken.refresh()` on the
+ * hook side; this helper just returns the wire shape.
+ */
+export async function getCsrfToken(): Promise<CsrfTokenResponse> {
+  const r = await fetch("/api/csrf-token", { credentials: "include" });
+  if (!r.ok) throw new Error(`CSRF token fetch failed — HTTP ${r.status}`);
+  return r.json() as Promise<CsrfTokenResponse>;
+}
+
+/**
+ * DELETE /api/me/data — GDPR Article 17 hard-delete (Phase 11 D-14).
+ *
+ * Removes all extractions / substances / reactions owned by the caller's
+ * cookie session, clears the cookie, and writes a `data.deleted` audit
+ * row in the same transaction. Returns 204 on success.
+ */
+export async function deleteMyData(): Promise<void> {
+  await apiFetch("/api/me/data", {
+    method: "DELETE",
+    errorPrefix: "Delete-my-data failed",
+  });
 }

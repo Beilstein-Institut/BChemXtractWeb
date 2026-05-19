@@ -65,11 +65,11 @@ def test_trailing_dash_is_not_a_valid_inchi_key() -> None:
 
 @pytest.mark.asyncio
 async def test_partial_block1_returns_all_stereo_variants(
-    client: AsyncClient,
+    client_csrf: AsyncClient,
 ) -> None:
     """14-char prefix returns every stored key sharing that skeleton."""
     await _seed_partial_corpus()
-    resp = await client.post(
+    resp = await client_csrf.post(
         "/api/search",
         json={"query": "JVTAAEKCZFNVCJ", "type": "inchi_key"},
     )
@@ -80,11 +80,11 @@ async def test_partial_block1_returns_all_stereo_variants(
 
 @pytest.mark.asyncio
 async def test_partial_block1_and_2_returns_protonation_variants(
-    client: AsyncClient,
+    client_csrf: AsyncClient,
 ) -> None:
     """14-10 prefix returns keys sharing skeleton + stereo, any protonation."""
     await _seed_partial_corpus()
-    resp = await client.post(
+    resp = await client_csrf.post(
         "/api/search",
         json={"query": "JVTAAEKCZFNVCJ-REOHCLBHSA", "type": "inchi_key"},
     )
@@ -98,11 +98,11 @@ async def test_partial_block1_and_2_returns_protonation_variants(
 
 @pytest.mark.asyncio
 async def test_full_key_returns_only_exact_match(
-    client: AsyncClient,
+    client_csrf: AsyncClient,
 ) -> None:
     """Full key is an exact match, not a prefix match."""
     await _seed_partial_corpus()
-    resp = await client.post(
+    resp = await client_csrf.post(
         "/api/search",
         json={"query": _FULL_1, "type": "inchi_key"},
     )
@@ -113,10 +113,10 @@ async def test_full_key_returns_only_exact_match(
 
 @pytest.mark.asyncio
 async def test_trailing_dash_rejected_as_invalid(
-    client: AsyncClient,
+    client_csrf: AsyncClient,
 ) -> None:
     """Partial key ending in a dash is malformed — 422."""
-    resp = await client.post(
+    resp = await client_csrf.post(
         "/api/search",
         json={"query": "JVTAAEKCZFNVCJ-", "type": "inchi_key"},
     )

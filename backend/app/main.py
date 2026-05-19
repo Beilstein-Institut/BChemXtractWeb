@@ -25,9 +25,20 @@ from app.errors import (
     unhandled_exception_handler,
     validation_exception_handler,
 )
-from app.middleware.auth import require_api_key
 from app.middleware.rate_limit import limiter
-from app.routers import batch, export, extract, health, history, reactions, search
+from app.routers import (
+    admin_api_keys,
+    auth,
+    batch,
+    export,
+    extract,
+    health,
+    history,
+    me,
+    reactions,
+    search,
+)
+from app.services.db import assert_rls_enforceable
 from app.services.jvm_bridge import initialize_jvm, shutdown_pool
 
 logger = logging.getLogger(__name__)
@@ -37,8 +48,14 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler.
 
-    Startup: initialise the JVM with the BChemXtract JAR and create the
-             thread pool.
+    Startup:
+        1. Probe the DB connection role: refuse to start if the runtime
+           user has SUPERUSER or BYPASSRLS (those attributes silently
+           bypass RLS even with FORCE ROW LEVEL SECURITY). The
+           ``bchemxtract_app`` role created by the 2026_05_16 migration
+           satisfies this; backend services connect as it.
+        2. Initialise the JVM with the BChemXtract JAR and create the
+           thread pool.
     Shutdown: shut down the thread pool (JVM shutdown is skipped — it is
               irreversible per JPype).
 
@@ -56,9 +73,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         until Docker gives up.
 
     Raises:
+        RuntimeError: If the runtime DB role has SUPERUSER or BYPASSRLS
+            (RLS would be bypassed for every query — refuse to start).
         JVMStartupError: If JVM fails to start (fatal — app exits,
             Docker restarts).
     """
+    await assert_rls_enforceable()
     initialize_jvm(settings)
     yield
     shutdown_pool()
@@ -111,6 +131,28 @@ _TAGS_METADATA = [
         "name": "health",
         "description": "Liveness and detailed JVM diagnostics.",
     },
+    {
+        "name": "auth",
+        "description": (
+            "Cookie/recovery-code/CSRF-token endpoints (Phase 11). "
+            "Unauthenticated entry points used by browsers before any "
+            "extraction request."
+        ),
+    },
+    {
+        "name": "admin",
+        "description": (
+            "Admin-only API key management (Phase 11). Gated by "
+            "`X-Admin-Secret`; excluded from CSRF."
+        ),
+    },
+    {
+        "name": "me",
+        "description": (
+            "Authenticated-session-bound endpoints (Phase 11). "
+            "Currently only the GDPR `DELETE /me/data` erase route."
+        ),
+    },
 ]
 
 
@@ -122,9 +164,13 @@ def create_app() -> FastAPI:
     - ``/docs``, ``/redoc``, ``/openapi.json`` are suppressed when
       :attr:`Settings.expose_openapi_docs` is false (defaults to
       ``settings.debug``). Prevents API-surface disclosure in production.
-    - Every ``/api/*`` router except :mod:`health` requires a valid bearer
-      API key via :func:`require_api_key` (C-02). ``/health/detail`` is
-      additionally protected at the route level because the minimal
+    - Every ``/api/*`` router except :mod:`health`, :mod:`auth`, and
+      :mod:`admin_api_keys` runs ``get_scoped_db`` which validates
+      X-API-Key against the api_keys table (Phase 11 D-10), auto-issues
+      a ``bcx_sid`` cookie on first browser visit, and sets the
+      Postgres RLS context (D-01 / D-03). ``/health/detail`` is
+      additionally gated by ``require_admin_auth`` because it discloses
+      JVM diagnostics that scrapers should not see; the minimal
       ``/health`` endpoint stays open for Docker HEALTHCHECK probes.
     - Per-IP rate limits are enforced by ``slowapi`` with configurable
       thresholds per resource class (H-05 / DoS hardening). Exceeding a
@@ -179,6 +225,50 @@ def create_app() -> FastAPI:
     # overrides use @limiter.limit() in the router modules.
     application.add_middleware(SlowAPIMiddleware)
 
+    # Phase 11 D-19: CSRF synchronizer-token verification for cookie-auth
+    # state-changing requests. Skipped for:
+    #   - safe methods (GET/HEAD/OPTIONS)
+    #   - X-API-Key / X-Admin-Secret authenticated requests (CLI + admins)
+    #   - /api/csrf-token (the token-issuing endpoint itself)
+    #   - /api/health and /api/health/detail (Docker HEALTHCHECK)
+    #
+    # When the caller carries a valid bcx_sid cookie, an HMAC-bound
+    # `X-CSRF-Token` is required; rejected requests return 403 with the
+    # unified ErrorResponse code `CSRF_INVALID` (T-11-06 / T-11-09).
+    @application.middleware("http")
+    async def csrf_middleware(request, call_next):
+        from fastapi.responses import JSONResponse
+
+        from app.core.security import verify_csrf_token
+        from app.core.session import _UUID_RE, SESSION_COOKIE
+        from app.models.chemistry import ErrorResponse
+
+        path = request.url.path
+        method = request.method
+
+        skip = (
+            method in ("GET", "HEAD", "OPTIONS")
+            or request.headers.get("X-API-Key") is not None
+            or request.headers.get("X-Admin-Secret") is not None
+            or path == "/api/csrf-token"
+            or path.endswith("/health")
+            or path.endswith("/health/detail")
+        )
+        if not skip:
+            sid = request.cookies.get(SESSION_COOKIE)
+            if sid and _UUID_RE.match(sid):
+                # Browser cookie auth → CSRF token required.
+                csrf_token = request.headers.get("X-CSRF-Token", "")
+                if not verify_csrf_token(csrf_token, sid):
+                    return JSONResponse(
+                        status_code=403,
+                        content=ErrorResponse(
+                            detail="Invalid or missing CSRF token",
+                            code="CSRF_INVALID",
+                        ).model_dump(),
+                    )
+        return await call_next(request)
+
     # Register routers.
     #
     # `health.router` stays unauthenticated at the router level because
@@ -186,10 +276,41 @@ def create_app() -> FastAPI:
     # `/api/health/detail` is protected at the route level inside
     # routers/health.py.
     #
-    # Every other router requires a valid bearer API key.
+    # `auth.router` (Phase 11) hosts the cookie / recovery-code /
+    # CSRF-token endpoints. It is mounted WITHOUT the scoped dependency
+    # because PUT /api/auth/me is the entry point that ISSUES the cookie
+    # — running set_rls_context before the cookie exists would race the
+    # bootstrap. No API key is required either: a fresh browser holds none.
+    application.include_router(auth.router, prefix="/api")
     application.include_router(health.router, prefix="/api")
-    protected = [Depends(require_api_key)]
-    for router in (extract, history, batch, export, reactions, search):
+
+    # Admin uses X-Admin-Secret (not cookie/key) — separate from the
+    # protected list. CSRF middleware already skips admin via the
+    # X-API-Key / X-Admin-Secret header skip; admin endpoints rely on
+    # require_admin_auth (router-level).
+    application.include_router(
+        admin_api_keys.router,
+        prefix="/api/admin",
+        tags=["admin"],
+    )
+
+    # Local import to avoid the import-time cycle between app.services.db
+    # and app.config that triggers when main.py is imported by app.config
+    # transitively (settings → cors_origins parsing pulls in middleware
+    # that pulls in main); routers/auth.py uses the same pattern.
+    from app.services.db import get_scoped_db
+
+    # SEC (Phase 11 D-18): every /api/* router except /api/health and
+    # /api/auth/* runs get_scoped_db which:
+    #   - resolves (session_id, api_key_hash) from the cookie/header
+    #   - validates X-API-Key against the api_keys table (post-Plan-11-05;
+    #     unknown / revoked / expired → 401)
+    #   - auto-issues bcx_sid on first browser visit
+    #   - sets the Postgres RLS context (set_config) so user queries are
+    #     filtered structurally even if a router forgets the WHERE clause
+    # CSRF protection runs in the middleware ahead of these dependencies.
+    protected = [Depends(get_scoped_db)]
+    for router in (extract, history, batch, export, reactions, search, me):
         application.include_router(router.router, prefix="/api", dependencies=protected)
 
     # Redoc is served only when OpenAPI docs are exposed. It requires

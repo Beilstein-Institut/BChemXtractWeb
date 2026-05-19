@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.asyncio
-async def test_history_list_returns_200(client: AsyncClient):
+async def test_history_list_returns_200(client_csrf: AsyncClient):
     """HIST-01: GET /api/history returns 200 with items and total fields."""
-    response = await client.get("/api/history")
+    response = await client_csrf.get("/api/history")
     assert response.status_code == 200
     body = response.json()
     assert "items" in body, "Response must have 'items' key"
@@ -27,18 +27,18 @@ async def test_history_list_returns_200(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_history_list_default_limit(client: AsyncClient):
+async def test_history_list_default_limit(client_csrf: AsyncClient):
     """D-05: default limit is 10 — items list never exceeds 10 entries."""
-    response = await client.get("/api/history")
+    response = await client_csrf.get("/api/history")
     assert response.status_code == 200
     body = response.json()
     assert len(body["items"]) <= 10
 
 
 @pytest.mark.asyncio
-async def test_history_list_item_fields(client: AsyncClient):
+async def test_history_list_item_fields(client_csrf: AsyncClient):
     """HIST-01: each item has id, filename, structure_count, created_at."""
-    response = await client.get("/api/history")
+    response = await client_csrf.get("/api/history")
     assert response.status_code == 200
     items = response.json()["items"]
     for item in items:
@@ -49,23 +49,23 @@ async def test_history_list_item_fields(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_history_detail_not_found(client: AsyncClient):
+async def test_history_detail_not_found(client_csrf: AsyncClient):
     """HIST-02: GET /api/history/{id} returns 404 for non-existent ID."""
-    response = await client.get("/api/history/999999999")
+    response = await client_csrf.get("/api/history/999999999")
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_delete_history_not_found(client: AsyncClient):
+async def test_delete_history_not_found(client_csrf: AsyncClient):
     """D-07: DELETE /api/history/{id} returns 404 for non-existent ID."""
-    response = await client.delete("/api/history/999999999")
+    response = await client_csrf.delete("/api/history/999999999")
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_stats_returns_200(client: AsyncClient):
+async def test_stats_returns_200(client_csrf: AsyncClient):
     """HIST-04: GET /api/stats returns 200 with all three stat fields."""
-    response = await client.get("/api/stats")
+    response = await client_csrf.get("/api/stats")
     assert response.status_code == 200
     body = response.json()
     assert "total_extractions" in body
@@ -77,9 +77,9 @@ async def test_stats_returns_200(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_stats_empty_formula_is_string(client: AsyncClient):
+async def test_stats_empty_formula_is_string(client_csrf: AsyncClient):
     """D-08: most_common_formula is empty string (not null) when no substances exist."""
-    response = await client.get("/api/stats")
+    response = await client_csrf.get("/api/stats")
     assert response.status_code == 200
     body = response.json()
     # Even on empty DB, most_common_formula must be a string (never null)
@@ -88,9 +88,9 @@ async def test_stats_empty_formula_is_string(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_history_all_limit(client: AsyncClient):
+async def test_history_all_limit(client_csrf: AsyncClient):
     """D-05: GET /api/history?limit=all returns total items without cap."""
-    response = await client.get("/api/history?limit=all")
+    response = await client_csrf.get("/api/history?limit=all")
     assert response.status_code == 200
     body = response.json()
     assert "items" in body
@@ -99,7 +99,9 @@ async def test_history_all_limit(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_history_detail_success_path(client: AsyncClient, cdx_file_bytes: bytes):
+async def test_history_detail_success_path(
+    client_csrf: AsyncClient, cdx_file_bytes: bytes
+):
     """HIST-02: GET /api/history/{id} returns 200 + substances for real extraction.
 
     Steps:
@@ -108,7 +110,7 @@ async def test_history_detail_success_path(client: AsyncClient, cdx_file_bytes: 
     3. GET /api/history/{id} and verify 200 with ExtractionResponse shape.
     """
     # Step 1: create an extraction via POST /api/extract
-    upload_response = await client.post(
+    upload_response = await client_csrf.post(
         "/api/extract",
         files={
             "file": ("L-lactic-acid.cdx", cdx_file_bytes, "application/octet-stream")
@@ -119,7 +121,7 @@ async def test_history_detail_success_path(client: AsyncClient, cdx_file_bytes: 
     )
 
     # Step 2: retrieve the history list and find our entry by filename
-    history_response = await client.get("/api/history?limit=all")
+    history_response = await client_csrf.get("/api/history?limit=all")
     assert history_response.status_code == 200
     items = history_response.json()["items"]
     matching = [item for item in items if item["filename"] == "L-lactic-acid.cdx"]
@@ -129,7 +131,7 @@ async def test_history_detail_success_path(client: AsyncClient, cdx_file_bytes: 
     extraction_id = matching[0]["id"]
 
     # Step 3: call GET /api/history/{id} and verify full response shape
-    detail_response = await client.get(f"/api/history/{extraction_id}")
+    detail_response = await client_csrf.get(f"/api/history/{extraction_id}")
     assert detail_response.status_code == 200
     body = detail_response.json()
     assert "substances" in body, "Detail response must contain 'substances' key"
@@ -143,7 +145,7 @@ async def test_history_detail_success_path(client: AsyncClient, cdx_file_bytes: 
 
 @pytest.mark.asyncio
 async def test_auto_persist_extraction_appears_in_history(
-    client: AsyncClient, cdx_file_bytes: bytes
+    client_csrf: AsyncClient, cdx_file_bytes: bytes
 ):
     """D-03: POST /api/extract auto-persists the extraction to the DB.
 
@@ -151,12 +153,12 @@ async def test_auto_persist_extraction_appears_in_history(
     after a successful POST, the record must appear in GET /api/history.
     """
     # Get baseline count before upload
-    before_response = await client.get("/api/history?limit=all")
+    before_response = await client_csrf.get("/api/history?limit=all")
     assert before_response.status_code == 200
     before_total = before_response.json()["total"]
 
     # POST a CDX file — auto-persist should fire inside extract_file()
-    upload_response = await client.post(
+    upload_response = await client_csrf.post(
         "/api/extract",
         files={
             "file": ("L-lactic-acid.cdx", cdx_file_bytes, "application/octet-stream")
@@ -167,7 +169,7 @@ async def test_auto_persist_extraction_appears_in_history(
     )
 
     # Verify history count increased by at least 1
-    after_response = await client.get("/api/history?limit=all")
+    after_response = await client_csrf.get("/api/history?limit=all")
     assert after_response.status_code == 200
     after_total = after_response.json()["total"]
     assert after_total >= before_total + 1, (
@@ -178,7 +180,7 @@ async def test_auto_persist_extraction_appears_in_history(
 
 @pytest.mark.asyncio
 async def test_history_includes_reaction_count_after_reactions_extraction(
-    client: AsyncClient, cdx_reaction_file_bytes: bytes
+    client_csrf: AsyncClient, cdx_reaction_file_bytes: bytes
 ):
     """Plan 10 D-23 / VERIFICATION Truth #10: GET /api/history items expose
     reaction_count after a successful POST /api/reactions call.
@@ -197,7 +199,7 @@ async def test_history_includes_reaction_count_after_reactions_extraction(
          reaction_count returned by the POST response.
     """
     # Step 1: extract reactions (auto-persists with reaction_count populated)
-    post_resp = await client.post(
+    post_resp = await client_csrf.post(
         "/api/reactions",
         files={
             "file": (
@@ -215,7 +217,7 @@ async def test_history_includes_reaction_count_after_reactions_extraction(
     )
 
     # Step 2: list history and find our entry
-    history_resp = await client.get("/api/history?limit=all")
+    history_resp = await client_csrf.get("/api/history?limit=all")
     assert history_resp.status_code == 200
     items = history_resp.json()["items"]
     matching = [item for item in items if item["filename"] == "simple_reaction.cdx"]

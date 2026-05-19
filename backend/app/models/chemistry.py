@@ -8,6 +8,12 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+# Phase 11 D-22 / PRIV-13: substances.first_seen_at and reactions.first_seen_at
+# are intentionally NOT in the response shape below. The columns remain in the
+# DB (see backend/app/models/orm.py) for ops/forensics. Adding the field here
+# would re-expose dedup-presence information across sessions, leaking that
+# user A submitted a molecule before user B did.
+
 
 class SubstanceResponse(BaseModel):
     """Extracted chemical substance with all fields guaranteed non-null."""

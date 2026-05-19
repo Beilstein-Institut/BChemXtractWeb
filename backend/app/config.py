@@ -19,9 +19,6 @@ class Settings(BaseSettings):
         jar_path: Directory containing the BChemXtract fat JAR.
         cors_origins: Allowed CORS origins for frontend access.
         debug: Enable debug mode (verbose logging, etc.).
-        api_keys: Valid API keys accepted via ``Authorization: Bearer <key>``.
-            Empty allowed only when ``debug=True``. In non-debug mode the
-            startup validator refuses to initialise without at least one key.
         rate_limit_default: Default per-IP rate limit applied to every route
             via ``SlowAPIMiddleware``. Format: ``"<count>/<period>"`` (slowapi
             syntax, e.g. ``"60/minute"``).
@@ -59,14 +56,38 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
     debug: bool = False
 
-    # --- Authentication & authorisation (Phase SEC-1) ---
-    api_keys: list[str] = Field(
-        default_factory=list,
+    # --- Phase 11: cookie + API key + admin auth secrets ---
+    secret_key: str = Field(
+        default="",
         description=(
-            "Accepted bearer keys. Empty is only valid in debug mode; "
-            "non-debug startup fails without at least one non-empty key."
+            "Server-side secret used as the PBKDF2 salt for API-key lookup "
+            "hashes (Phase 11 D-10) AND as the HMAC key for CSRF tokens "
+            "(D-19). >= 32 chars required in production (DEBUG=false). "
+            "Single key (RESEARCH Open Q #3 RESOLVED) — rotating invalidates "
+            "every stored API-key hash AND every outstanding CSRF token. "
+            "Generate via: python -c "
+            "'import secrets; print(secrets.token_urlsafe(32))'"
         ),
     )
+    admin_secret: str = Field(
+        default="",
+        description=(
+            "Admin-endpoint gate (Phase 11 D-11). Compared constant-time "
+            "against the inbound X-Admin-Secret header. >= 32 chars "
+            "required in production. Safe to rotate via "
+            "`./deploy.sh --rotate-keys` (Plan 11-08)."
+        ),
+    )
+    api_key_default_expiry_days: int = 90
+    """Default expiry for new API keys (Phase 11 D-13). Override per-key
+    via the POST /api/admin/api-keys body."""
+
+    api_key_max_expiry_days: int = 365
+    """Hard cap on per-key expiry (Phase 11 D-13). Values above are clamped."""
+
+    audit_log_retention_days: int = 365
+    """Audit log retention (Phase 11 D-17 — ~12 months). The Celery beat
+    task deletes rows older than this daily at 03:00 UTC."""
 
     # --- Rate limiting (Phase SEC-1, slowapi-backed) ---
     rate_limit_default: str = "120/minute"
@@ -117,30 +138,50 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
-    def _validate_api_keys(self) -> "Settings":
-        """Reject empty API keys, de-duplicate, and refuse empty list in prod.
+    def _validate_phase11_secrets(self) -> "Settings":
+        """Refuse to start in production without Phase 11 secrets.
 
-        In non-debug mode, refusing to start without keys prevents a silent
-        "no auth" deployment — the single most common way security middleware
-        gets accidentally disabled.
+        The Phase 11 cutover (Plan 11-05) replaced the legacy Bearer
+        ``API_KEYS`` env-list with two server-side secrets:
+        ``SECRET_KEY`` (PBKDF2 salt for API-key lookup hashes + CSRF
+        HMAC; Open Q #3 RESOLVED — single key) and ``ADMIN_SECRET``
+        (admin-endpoint gate). In DEBUG=true (dev/test) short or empty
+        values are allowed.
         """
-        cleaned = (k.strip() for k in self.api_keys if k and k.strip())
-        # dict.fromkeys preserves first-seen order while de-duplicating.
-        unique = list(dict.fromkeys(cleaned))
-        if any(len(k) < 16 for k in unique):
+        if not self.debug:
+            if len(self.secret_key) < 32:
+                raise ValueError(
+                    "SECRET_KEY must be at least 32 characters when "
+                    "DEBUG=false. Generate via: python -c "
+                    "'import secrets; print(secrets.token_urlsafe(32))'"
+                )
+            if len(self.admin_secret) < 32:
+                raise ValueError(
+                    "ADMIN_SECRET must be at least 32 characters when "
+                    "DEBUG=false. (see SECRET_KEY for generation command)"
+                )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_prod_cors(self) -> "Settings":
+        """Refuse to start in production with a dev origin in CORS_ORIGINS.
+
+        Phase 11 RESEARCH Pitfall #4: the bcx_sid cookie sets Secure
+        based on whether localhost / 127.0.0.1 appears in
+        ``cors_origins`` (see ``app.core.session._is_dev_origin_set``).
+        A production deploy that forgets to swap localhost out drops
+        Secure silently and the cookie travels over plain HTTP. Reject
+        at startup so the operator notices before users do.
+        """
+        if not self.debug and any(
+            "localhost" in origin or "127.0.0.1" in origin
+            for origin in self.cors_origins
+        ):
             raise ValueError(
-                "API_KEYS entries must be at least 16 characters "
-                '(use `python -c "import secrets; print(secrets.token_urlsafe(32))"` '
-                "to generate one)."
+                "CORS_ORIGINS contains a localhost / 127.0.0.1 origin "
+                "while DEBUG=false. This would disable the Secure flag "
+                "on bcx_sid. Remove dev origins before starting in prod."
             )
-        if not unique and not self.debug:
-            raise ValueError(
-                "API_KEYS must be set when DEBUG=false. Configure at least "
-                "one key of length >= 16 (e.g. via .env: "
-                "API_KEYS='[\"<secret>\"]'). Refusing to start without "
-                "authentication."
-            )
-        self.api_keys = unique
         return self
 
     @model_validator(mode="after")

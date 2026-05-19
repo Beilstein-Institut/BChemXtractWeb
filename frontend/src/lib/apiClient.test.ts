@@ -13,8 +13,23 @@ import {
   postExport,
   postSearchValidate,
   parseContentDispositionFilename,
+  getHistory,
+  putAuthMe,
 } from "./apiClient";
+import { csrfTokenCache } from "./csrfTokenCache";
 import type { ExtractionResponse, ReactionExtractionResponse } from "../types/chemistry";
+
+// Phase 11: apiFetch pre-fetches the CSRF token when the module cache is
+// empty AND the method is state-changing, to avoid the cold-start 403→retry
+// pair on a returning visitor (Plan 11-06). The general-purpose tests below
+// stub `globalThis.fetch` and assert `toHaveBeenCalledOnce`, so we prime the
+// cache here to skip the prefetch path and exercise only the request the
+// test cares about. Tests that explicitly want the cold-cache flow (the
+// "Phase 11: cookie + CSRF wiring (PRIV-11)" suite below) reset it to null
+// in their own beforeEach.
+beforeEach(() => {
+  csrfTokenCache.value = "test-token.0000.signature";
+});
 
 const makeMockResponse = (): ExtractionResponse => ({
   substances: [],
@@ -421,5 +436,106 @@ describe("postSearchValidate", () => {
       }),
     );
     await expect(postSearchValidate({ query: "" })).rejects.toThrow();
+  });
+});
+
+describe("Phase 11: cookie + CSRF wiring (PRIV-11)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    csrfTokenCache.value = null;
+  });
+
+  afterEach(() => {
+    csrfTokenCache.value = null;
+  });
+
+  it("sends credentials: 'include' on every request via apiFetch", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ items: [], total: 0 }),
+    } as Response);
+
+    await getHistory();
+
+    expect(fetchSpy).toHaveBeenCalled();
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect(init.credentials).toBe("include");
+  });
+
+  it("injects X-CSRF-Token on PUT when token is cached", async () => {
+    csrfTokenCache.value = "token-abc.123.signature";
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ session_id: "x", has_history: false }),
+    } as Response);
+
+    await putAuthMe();
+
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers["X-CSRF-Token"]).toBe("token-abc.123.signature");
+  });
+
+  it("does NOT inject X-CSRF-Token on GET", async () => {
+    csrfTokenCache.value = "token-abc.123.signature";
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ items: [], total: 0 }),
+    } as Response);
+
+    await getHistory();
+
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    const headers = (init.headers ?? {}) as Record<string, string>;
+    expect(headers["X-CSRF-Token"]).toBeUndefined();
+  });
+
+  it("retries PUT once with refreshed token on 403/CSRF_INVALID", async () => {
+    csrfTokenCache.value = "stale-token";
+    let callCount = 0;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      callCount += 1;
+      if (callCount === 1) {
+        // First call (state-changing PUT) — 403 + CSRF_INVALID sentinel.
+        // `clone()` must return a thenable Response-like with `json()`
+        // because apiFetch reads the body off the clone.
+        const body = { detail: "CSRF token invalid", code: "CSRF_INVALID" };
+        const mock: Partial<Response> = {
+          ok: false,
+          status: 403,
+          json: () => Promise.resolve(body),
+          clone() {
+            return {
+              ok: false,
+              status: 403,
+              json: () => Promise.resolve(body),
+            } as Response;
+          },
+        };
+        return Promise.resolve(mock as Response);
+      }
+      if (callCount === 2) {
+        // Token refresh GET → returns fresh token.
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ csrf_token: "fresh-token" }),
+        } as Response);
+      }
+      // Retried PUT → 200.
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ session_id: "x", has_history: false }),
+      } as Response);
+    });
+
+    await putAuthMe();
+
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(callCount).toBe(3);
+    expect(csrfTokenCache.value).toBe("fresh-token");
+    // The retried PUT carries the fresh token.
+    const retryInit = fetchSpy.mock.calls[2][1] as RequestInit;
+    const retryHeaders = retryInit.headers as Record<string, string>;
+    expect(retryHeaders["X-CSRF-Token"]).toBe("fresh-token");
   });
 });
