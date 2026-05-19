@@ -163,7 +163,10 @@ cd BChemXtractWeb
 
 Secret rotation:
 - `./deploy.sh --rotate-keys` — regenerate `ADMIN_SECRET` (the `X-Admin-Secret` gate for `/api/admin/api-keys`). `POSTGRES_PASSWORD` and `SECRET_KEY` are left alone; rotating `SECRET_KEY` would invalidate every stored API-key hash and every outstanding CSRF token.
-- `./deploy.sh --rotate-app-db` — regenerate `APP_DB_PASSWORD` and `ALTER ROLE bchemxtract_app` in the running database. Requires a restart of `backend` / `celery-worker` / `celery-beat` so they pick up the new `DATABASE_URL`.
+- `./deploy.sh --rotate-app-db` — regenerate `APP_DB_PASSWORD` and `ALTER ROLE bchemxtract_app` in the running database. Requires a restart of `backend` / `celery-worker` / `celery-beat` so they pick up the new `DATABASE_URL` (the subsequent `docker compose up -d` in `deploy.sh` does this automatically).
+- `./deploy.sh --rotate-postgres-password` — regenerate `POSTGRES_PASSWORD` and `ALTER ROLE bchemxtract` (the bootstrap superuser) in the running database. Recovery path when `migrate` exits with `password authentication failed for user "bchemxtract"` — i.e. `.env` drifted from what Postgres has persisted in the `pgdata` volume (the env var is only honored on first init, so manually editing it or restoring a backup desyncs the role).
+
+Every `./deploy.sh` run now probes the live database with the current `.env` credentials before bringing the stack up, and aborts with the relevant rotation command if either the bootstrap superuser or the `bchemxtract_app` role rejects auth — so a hand-edited `.env` can no longer crash `migrate` silently. The probe is a no-op on a fresh deploy (no `pgdata` volume to drift from).
 
 Upgrading from a pre–Phase-11 deployment: re-run `./deploy.sh` against your existing `.env`. The script auto-mints `APP_DB_PASSWORD` if it is missing and strips the legacy `API_KEYS` / `BROWSER_API_KEY` entries that Phase 11 retired.
 

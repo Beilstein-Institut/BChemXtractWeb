@@ -9,6 +9,12 @@
 #                                # (POSTGRES_PASSWORD + SECRET_KEY untouched)
 #   ./deploy.sh --rotate-app-db  # regenerate APP_DB_PASSWORD + ALTER ROLE
 #                                # bchemxtract_app in the running DB
+#   ./deploy.sh --rotate-postgres-password
+#                                # regenerate POSTGRES_PASSWORD + ALTER ROLE
+#                                # bchemxtract (bootstrap super) in the running
+#                                # DB. Recovery path when .env drifted from
+#                                # pgdata (migrate exits with "password
+#                                # authentication failed for user bchemxtract").
 #   ./deploy.sh -h | --help
 
 set -euo pipefail
@@ -29,24 +35,26 @@ warn() { printf '%s ! %s %s\n' "$C_YELLOW" "$C_RESET" "$*"; }
 die()  { printf '%s ✗ %s %s\n' "$C_RED"    "$C_RESET" "$*" >&2; exit 1; }
 
 usage() {
-  sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 }
 
 # --- args -------------------------------------------------------------------
 ROTATE_KEYS=false
 ROTATE_APP_DB=false
+ROTATE_POSTGRES_PASSWORD=false
 CHANGE_PORT=false
 PORT_FLAG=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --rotate-keys)   ROTATE_KEYS=true; shift ;;
-    --rotate-app-db) ROTATE_APP_DB=true; shift ;;
-    --change-port)   CHANGE_PORT=true; shift ;;
-    --port)          [[ $# -ge 2 ]] || die "--port requires a value"; PORT_FLAG="$2"; shift 2 ;;
-    --port=*)        PORT_FLAG="${1#*=}"; shift ;;
-    -h|--help)       usage ;;
-    *)               die "unknown flag: $1 (try --help)" ;;
+    --rotate-keys)              ROTATE_KEYS=true; shift ;;
+    --rotate-app-db)            ROTATE_APP_DB=true; shift ;;
+    --rotate-postgres-password) ROTATE_POSTGRES_PASSWORD=true; shift ;;
+    --change-port)              CHANGE_PORT=true; shift ;;
+    --port)                     [[ $# -ge 2 ]] || die "--port requires a value"; PORT_FLAG="$2"; shift 2 ;;
+    --port=*)                   PORT_FLAG="${1#*=}"; shift ;;
+    -h|--help)                  usage ;;
+    *)                          die "unknown flag: $1 (try --help)" ;;
   esac
 done
 
@@ -56,6 +64,14 @@ fi
 if [[ "$ROTATE_APP_DB" == true && "$CHANGE_PORT" == true ]]; then
   die "--rotate-app-db and --change-port are mutually exclusive"
 fi
+if [[ "$ROTATE_POSTGRES_PASSWORD" == true && "$CHANGE_PORT" == true ]]; then
+  die "--rotate-postgres-password and --change-port are mutually exclusive"
+fi
+n_rot=0
+[[ "$ROTATE_KEYS"              == true ]] && n_rot=$((n_rot + 1))
+[[ "$ROTATE_APP_DB"            == true ]] && n_rot=$((n_rot + 1))
+[[ "$ROTATE_POSTGRES_PASSWORD" == true ]] && n_rot=$((n_rot + 1))
+(( n_rot <= 1 )) || die "only one --rotate-* flag may be used at a time"
 if [[ -n "$PORT_FLAG" && "$CHANGE_PORT" == true ]]; then
   die "--port and --change-port are mutually exclusive"
 fi
@@ -271,6 +287,111 @@ rotate_app_db_password() {
   update_env_var APP_DB_PASSWORD "$new_password"
 }
 
+rotate_postgres_password() {
+  # args: $1 = new bootstrap superuser password.
+  # `docker compose exec` runs psql inside the db container against the local
+  # Unix socket, which uses `trust` auth for the postgres role per the alpine
+  # image's default pg_hba.conf — so we do NOT need the current password to
+  # perform the ALTER ROLE, which is what makes this a viable recovery path
+  # after .env drifted from the persisted pgdata volume.
+  #
+  # The bootstrap superuser is only consumed by `migrate` (one-shot alembic);
+  # nothing in the runtime path uses POSTGRES_PASSWORD directly. The
+  # `compose up -d` later in this script recreates the migrate container with
+  # the new env and re-runs `alembic upgrade head` (idempotent).
+  local new_password="$1"
+  local pg_user pg_db
+  pg_user="$(read_env_var POSTGRES_USER)"
+  pg_db="$(read_env_var POSTGRES_DB)"
+  pg_user="${pg_user:-bchemxtract}"
+  pg_db="${pg_db:-bchemxtract}"
+  local pg_pwd_escaped
+  pg_pwd_escaped="${new_password//\'/\'\'}"
+  docker compose exec -T db psql -U "$pg_user" -d "$pg_db" \
+    -c "ALTER ROLE \"${pg_user}\" WITH PASSWORD '${pg_pwd_escaped}';" >/dev/null \
+    || die 'ALTER ROLE failed — is the db container running? (docker compose up -d db)'
+  update_env_var POSTGRES_PASSWORD "$new_password"
+}
+
+preflight_db_password_drift() {
+  # Catch the failure mode where POSTGRES_PASSWORD or APP_DB_PASSWORD in .env
+  # diverges from the password actually stored in the pgdata volume. Postgres
+  # only honors POSTGRES_PASSWORD on first init; subsequent boots ignore it,
+  # so a rotated .env will silently desync until `migrate` crashes with
+  # `password authentication failed for user "bchemxtract"`. This probe
+  # exercises the same TCP/scram-sha-256 path migrate uses — connecting via
+  # the `db` service name resolves to the bridge IP (172.x.0.y) which falls
+  # through the `127.0.0.1 trust` and `local trust` rules in the alpine
+  # image's default pg_hba.conf to the catch-all `host all all all
+  # scram-sha-256`. Loopback or unix-socket probes would silently mask drift.
+  #
+  # No-op on a fresh deploy (no pgdata volume yet — nothing to drift from).
+  docker volume inspect bchemxtractweb_pgdata >/dev/null 2>&1 || return 0
+
+  info 'Verifying .env credentials match the pgdata volume'
+
+  # db must be running to exec into it. If the operator ran `compose down`
+  # but kept the volume, start db (and only db) so we can probe — this is
+  # what `compose up` would do anyway a few lines later.
+  if [[ -z "$(docker compose ps -q db 2>/dev/null)" ]]; then
+    info '  db not running — starting it for the probe'
+    docker compose up -d db >/dev/null
+  fi
+  local tries=0 health=""
+  while (( tries < 30 )); do
+    local cid; cid="$(docker compose ps -q db 2>/dev/null)"
+    [[ -n "$cid" ]] && health="$(docker inspect --format '{{.State.Health.Status}}' "$cid" 2>/dev/null || echo '')"
+    [[ "$health" == "healthy" ]] && break
+    sleep 1; tries=$((tries + 1))
+  done
+  [[ "$health" == "healthy" ]] || die 'db container did not become healthy within 30s — check `docker compose logs db`'
+
+  local pg_user pg_pwd pg_db
+  pg_user="$(read_env_var POSTGRES_USER)"; pg_user="${pg_user:-bchemxtract}"
+  pg_pwd="$(read_env_var POSTGRES_PASSWORD)"
+  pg_db="$(read_env_var POSTGRES_DB)";     pg_db="${pg_db:-bchemxtract}"
+  [[ -n "$pg_pwd" ]] || die 'POSTGRES_PASSWORD missing from .env — required'
+
+  if ! docker compose exec -T -e PGPASSWORD="$pg_pwd" db \
+       psql -h db -U "$pg_user" -d "$pg_db" -c 'SELECT 1' >/dev/null 2>&1; then
+    warn '.env POSTGRES_PASSWORD does not match the password stored in the pgdata volume.'
+    warn 'Postgres only honors POSTGRES_PASSWORD on first init, so a hand-edited or'
+    warn 'restored .env will silently desync from the persisted role.'
+    warn ''
+    warn 'Recovery options:'
+    warn '  Keep data:        ./deploy.sh --rotate-postgres-password'
+    warn '                    (mints a fresh secret, ALTERs the role, updates .env)'
+    warn '  Disposable data:  docker compose down -v && ./deploy.sh'
+    warn '                    (wipes pgdata; postgres re-inits with the .env value)'
+    die 'aborting before compose up — bootstrap superuser credential drift detected'
+  fi
+
+  # Probe the runtime app role too — APP_DB_PASSWORD drift would let migrate
+  # succeed but crash backend / celery on first connect. The role is created
+  # by the 2026_05_16 migration, so it may not exist on a first-ever deploy
+  # whose migrate hasn't run yet; in that case there's nothing to drift from.
+  local role_exists
+  role_exists="$(docker compose exec -T -e PGPASSWORD="$pg_pwd" db \
+    psql -h db -U "$pg_user" -d "$pg_db" -tAc \
+    "SELECT 1 FROM pg_roles WHERE rolname='bchemxtract_app';" 2>/dev/null | tr -d '[:space:]' || true)"
+  if [[ "$role_exists" == "1" ]]; then
+    local app_pwd
+    app_pwd="$(read_env_var APP_DB_PASSWORD)"
+    [[ -n "$app_pwd" ]] || die 'APP_DB_PASSWORD missing from .env — required'
+    if ! docker compose exec -T -e PGPASSWORD="$app_pwd" db \
+         psql -h db -U bchemxtract_app -d "$pg_db" -c 'SELECT 1' >/dev/null 2>&1; then
+      warn '.env APP_DB_PASSWORD does not match the bchemxtract_app role in the pgdata volume.'
+      warn 'migrate would succeed (uses POSTGRES_PASSWORD) but backend / celery-worker /'
+      warn 'celery-beat would crash on first DB connect.'
+      warn ''
+      warn 'Recovery:  ./deploy.sh --rotate-app-db'
+      die 'aborting before compose up — runtime app-role credential drift detected'
+    fi
+  fi
+
+  ok '.env credentials verified against pgdata'
+}
+
 migrate_legacy_env() {
   # Pre-Phase-11 .env files carry API_KEYS + BROWSER_API_KEY (gone after
   # 11-05 cutover). Strip those lines on upgrade so docker-compose doesn't
@@ -317,6 +438,11 @@ elif [[ "$ROTATE_APP_DB" == true ]]; then
   rotate_app_db_password "$(gen_secret)"
   ok 'app db password rotated — restart runtime services to apply new DATABASE_URL:'
   ok '    docker compose restart backend celery-worker celery-beat'
+elif [[ "$ROTATE_POSTGRES_PASSWORD" == true ]]; then
+  [[ -f .env ]] || die ".env does not exist — run without --rotate-postgres-password first"
+  info 'Rotating POSTGRES_PASSWORD + ALTER ROLE bchemxtract (bootstrap superuser)'
+  rotate_postgres_password "$(gen_secret)"
+  ok 'bootstrap superuser password rotated — the compose up below will pick it up'
 elif [[ -f .env ]]; then
   # Existing-.env path. Migrate the file in place: strip pre-Phase-11
   # API_KEYS / BROWSER_API_KEY lines if present, and append APP_DB_PASSWORD
@@ -443,6 +569,10 @@ ok "BChemXtract version: $BCHEMXTRACT_VERSION"
 # also network-bound and will resolve upstream's latest release tag.
 info 'Refreshing base images and rebuilding'
 docker compose build --pull
+# Fail fast on .env-vs-pgdata password drift before the full `compose up`
+# would otherwise crash `migrate` with `password authentication failed`.
+# No-op on a fresh deploy (no pgdata volume yet).
+preflight_db_password_drift
 info 'Starting containers'
 docker compose up -d
 
