@@ -19,6 +19,18 @@ import {
 import { csrfTokenCache } from "./csrfTokenCache";
 import type { ExtractionResponse, ReactionExtractionResponse } from "../types/chemistry";
 
+// Phase 11: apiFetch pre-fetches the CSRF token when the module cache is
+// empty AND the method is state-changing, to avoid the cold-start 403→retry
+// pair on a returning visitor (Plan 11-06). The general-purpose tests below
+// stub `globalThis.fetch` and assert `toHaveBeenCalledOnce`, so we prime the
+// cache here to skip the prefetch path and exercise only the request the
+// test cares about. Tests that explicitly want the cold-cache flow (the
+// "Phase 11: cookie + CSRF wiring (PRIV-11)" suite below) reset it to null
+// in their own beforeEach.
+beforeEach(() => {
+  csrfTokenCache.value = "test-token.0000.signature";
+});
+
 const makeMockResponse = (): ExtractionResponse => ({
   substances: [],
   info: { no_fragments: 0, no_inchis: 0, no_substances: 0 },
