@@ -109,6 +109,13 @@ async function apiFetch(
 
   // Phase 11 D-19: state-changing requests carry the CSRF token from the
   // module-level cache (populated by useCsrfToken on mount + on retry below).
+  // Cold-start path (returning visitor: cookie present, cache empty because
+  // useCsrfToken hasn't completed its bootstrap yet): pre-fetch the token
+  // so the very first state-changing call doesn't 403 → retry. The retry
+  // path below stays as a fallback for stale tokens mid-session.
+  if (needsCsrf(init.method) && !csrfTokenCache.value) {
+    await refreshCsrfToken();
+  }
   const csrfHeaders: Record<string, string> = {};
   if (needsCsrf(init.method) && csrfTokenCache.value) {
     csrfHeaders["X-CSRF-Token"] = csrfTokenCache.value;

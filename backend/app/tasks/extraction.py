@@ -102,16 +102,17 @@ def extract_file_task(
             extraction_id=None,
         )
 
-        # Phase 11 D-01: decode the api_key_hash from its hex transport
-        # form back to bytes for save_extraction's owner column. The
-        # worker DOES NOT call set_rls_context — it owns the writes
-        # deterministically via the explicit scope kwarg, and user reads
-        # of these rows always happen later from a scoped request handler
-        # (via get_scoped_db) that re-asserts the RLS context.
+        # D-01: decode api_key_hash hex transport → bytes for the owner
+        # column. The worker has no FastAPI request, so it stashes the
+        # scope on db.info so the after_begin listener (services/db.py)
+        # applies the RLS GUCs on every BEGIN — required because the
+        # extractions policy uses USING for INSERTs too, so missing GUCs
+        # raise InsufficientPrivilege under the prod role.
         akh = bytes.fromhex(api_key_hash_hex) if api_key_hash_hex else None
 
         async def _persist() -> int:
             async with AsyncSessionLocal() as db:
+                db.info["rls_scope"] = (session_id, akh)
                 extraction = await save_extraction(
                     db, response, scope=(session_id, akh)
                 )

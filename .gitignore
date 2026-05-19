@@ -119,9 +119,11 @@ backend/.bchemxtract-build/
 # -----------------------------------------------------------------------------
 # Environment / Secrets
 # -----------------------------------------------------------------------------
-.env
-.envrc
-# Note: .env.example is tracked (contains only placeholder values)
+# .env* covers .env, .envrc, and any backup variant (.env__, .env.bak, .env.old)
+# operators create when rotating secrets — none of those should ever reach the
+# remote. .env.example is the single committed exception (placeholders only).
+.env*
+!.env.example
 
 # -----------------------------------------------------------------------------
 # OS files
@@ -141,6 +143,9 @@ Desktop.ini
 # -----------------------------------------------------------------------------
 .cursorignore
 .cursorindexingignore
+# Per-project Claude Code config + CodeGraph knowledge graph — local-only.
+.claude/
+.codegraph/
 
 # -----------------------------------------------------------------------------
 # Backend-specific
@@ -175,9 +180,6 @@ docs/superpowers/
 # Playwright MCP transient artefacts
 .playwright-mcp/
 nav-*.png
-
-# Runtime secrets — .env.example is committed, .env is not
-.env
 
 # Local-only code-review artefacts
 REVIEW-BACKEND.md

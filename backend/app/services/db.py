@@ -20,8 +20,9 @@ import os
 from collections.abc import AsyncGenerator
 
 from fastapi import BackgroundTasks, HTTPException, Request, Response, status
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import Session
 
 from app.config import settings
 
@@ -31,6 +32,41 @@ logger = logging.getLogger(__name__)
 # expire_on_commit=False: prevents lazy-load failures in async context.
 engine = create_async_engine(settings.database_url, echo=settings.debug)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+
+
+@event.listens_for(Session, "after_begin")
+def _reapply_rls_on_begin(
+    session: Session,
+    transaction: object,  # SessionTransaction — opaque here
+    connection: object,  # sqlalchemy.engine.Connection — sync handle
+) -> None:
+    """Re-emit the RLS GUCs on every BEGIN for scoped sessions.
+
+    ``set_config(..., true)`` is transaction-local, so the GUCs set by
+    ``set_rls_context`` die at COMMIT/ROLLBACK. The next implicit BEGIN
+    (e.g. the ``db.refresh(extraction)`` that follows ``db.commit()`` in
+    ``save_extraction``) would otherwise run without scope, and under
+    the prod ``bchemxtract_app`` role (NOSUPERUSER NOBYPASSRLS) the RLS
+    ``USING`` clause would reject every row.
+
+    Sessions without an ``rls_scope`` tuple in ``session.info`` (Celery
+    bootstrap, migrations, bare-session unit tests) early-return so they
+    keep the legacy zero behaviour. ``AsyncSession.info`` proxies to the
+    underlying sync ``Session.info`` (SQLAlchemy 2.0), so stashes from
+    ``get_scoped_db`` reach this listener.
+    """
+    scope = session.info.get("rls_scope")
+    if scope is None:
+        return
+    session_id, api_key_hash = scope
+    connection.execute(  # type: ignore[attr-defined]
+        text("SELECT set_config('app.session_id', :sid, true)"),
+        {"sid": session_id or ""},
+    )
+    connection.execute(  # type: ignore[attr-defined]
+        text("SELECT set_config('app.api_key_hash', :akh, true)"),
+        {"akh": api_key_hash.hex() if api_key_hash else ""},
+    )
 
 
 async def assert_rls_enforceable() -> None:
@@ -191,6 +227,9 @@ async def get_scoped_db(
             else:
                 session_id = ensure_session_cookie(response, request)
 
+        # Stash for the after_begin listener (see _reapply_rls_on_begin)
+        # so post-commit transactions in this session keep their scope.
+        session.info["rls_scope"] = (session_id, api_key_hash)
         await set_rls_context(session, session_id, api_key_hash)
         request.state.scope = (session_id, api_key_hash)
         yield session
