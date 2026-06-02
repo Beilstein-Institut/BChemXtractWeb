@@ -8,13 +8,13 @@
 
 <br>
 
-[![Tests](https://img.shields.io/badge/tests-passing-266E6A?style=for-the-badge&labelColor=1E2A78&logo=github&logoColor=white)](https://github.com/Beilstein-Institut/BChemXtractWeb/actions/workflows/test.yml)
-[![Lint](https://img.shields.io/badge/lint-passing-266E6A?style=for-the-badge&labelColor=1E2A78&logo=github&logoColor=white)](https://github.com/Beilstein-Institut/BChemXtractWeb/actions/workflows/lint.yml)
+[![Tests](https://img.shields.io/github/actions/workflow/status/Beilstein-Institut/BChemXtractWeb/test.yml?branch=main&style=for-the-badge&labelColor=1E2A78&logo=github&logoColor=white&label=tests)](https://github.com/Beilstein-Institut/BChemXtractWeb/actions/workflows/test.yml)
+[![Lint](https://img.shields.io/github/actions/workflow/status/Beilstein-Institut/BChemXtractWeb/lint.yml?branch=main&style=for-the-badge&labelColor=1E2A78&logo=github&logoColor=white&label=lint)](https://github.com/Beilstein-Institut/BChemXtractWeb/actions/workflows/lint.yml)
 [![Status](https://img.shields.io/badge/status-pre--release-C9255A?style=for-the-badge&labelColor=1E2A78)](https://github.com/Beilstein-Institut/BChemXtractWeb)
 [![License: MIT](https://img.shields.io/badge/license-MIT-C9255A?style=for-the-badge&labelColor=1E2A78)](./LICENSE)
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-1E2A78?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-266E6A?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.135-266E6A?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![React 19](https://img.shields.io/badge/React-19-1E2A78?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
 [![CDK 2.12](https://img.shields.io/badge/CDK-2.12-266E6A?style=for-the-badge&logo=openjdk&logoColor=white)](https://cdk.github.io/)
 [![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-1E2A78?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
@@ -40,11 +40,11 @@
 
 ## 🧬 What it does
 
-BChemXtractWeb wraps the upstream **[BChemXtract](https://github.com/Beilstein-Institut/BChemXtract)** Java library in a production-ready stack, so you get three things the CLI alone can't give you.
+BChemXtractWeb wraps the upstream **[BChemXtract](https://github.com/Beilstein-Institut/BChemXtract)** Java library with what the CLI alone can't give you:
 
 > **A browser UI**, **a REST API**, and **persistent searchable storage**, running side-by-side in a single `docker compose up`.
 
-Parse ChemDraw's binary `.cdx` and XML `.cdxml` formats into rich JSON. Every extracted structure carries its full descriptor bundle: **InChI, InChIKey, canonical SMILES, extended SMILES, molecular formula, MDL V3000**. Every extracted reaction carries **RInChI, RInChI key, reaction SMILES, and per-component atom mappings**. Everything is searchable across every upload you've ever made, with substructure highlights rendered client-side in crisp CDK SVG.
+It parses ChemDraw's binary `.cdx` and XML `.cdxml` formats into JSON. Each extracted structure carries **InChI, InChIKey, canonical SMILES, extended SMILES, molecular formula, and MDL V3000**; each reaction carries **RInChI, RInChI key, reaction SMILES, and per-component atom mappings**. All of it is stored in PostgreSQL, so searches span every past upload, and matches come back highlighted in CDK-rendered SVG.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./assets/readme/divider-dark.svg">
@@ -59,11 +59,10 @@ Parse ChemDraw's binary `.cdx` and XML `.cdxml` formats into rich JSON. Every ex
 <td valign="top" width="50%">
 
 ### 🧪 Structure extraction
-- Full descriptor bundle per hit
 - InChI · InChIKey · SMILES · Extended SMILES
 - Molecular formula · MDL V3000
 - Deduplication via `InChIKey` across the entire DB
-- CDK 2.12 rendering, Apple-Blue match highlights
+- CDK 2.12 rendering with match highlighting
 
 ### 🔬 Reaction extraction *(experimental)*
 - RInChI + long RInChI key
@@ -80,12 +79,12 @@ Parse ChemDraw's binary `.cdx` and XML `.cdxml` formats into rich JSON. Every ex
 </td>
 <td valign="top" width="50%">
 
-### 🔎 Multi-modal search
+### 🔎 Search
 - InChIKey lookup · molecular formula · canonical SMILES · substructure
-- Dual-parser substructure: tries **SMILES first**, falls back to **SMARTS**
+- Substructure queries try **SMILES first**, then fall back to **SMARTS**
 - Stereo-aware matching, opt-in toggle (default: ignore stereo)
-- Hybrid live-search: parse-validate, then debounce-fetch
-- All-matches highlighting (not `uniqueAtoms`; every overlapping ring lights up)
+- Live search that validates the query as you type and fetches only once it parses
+- All-matches highlighting: every overlapping ring lights up
 
 ### 📤 Export everything
 - PNG · JSON · SDF / MOL · CSV · Excel · CML · MDL V3000
@@ -97,7 +96,7 @@ Parse ChemDraw's binary `.cdx` and XML `.cdxml` formats into rich JSON. Every ex
 - Structured error responses with stable `code` strings
 - Single long-lived JVM per process, thread-safe JPype bridge
 - OpenAPI 3.1 at `/docs` and `/redoc`
-- 350+ backend tests, 690+ frontend tests, real-DB integration, no mocks
+- 350+ backend tests (pytest), 690+ frontend tests (Vitest + Playwright), real DB + real JVM, no mocks
 
 </td>
 </tr>
@@ -142,7 +141,7 @@ flowchart LR
     class XT,CDK java
 ```
 
-**Three layers, one container stack.** The frontend talks HTTP/JSON to FastAPI. FastAPI keeps one JVM alive per process and dispatches every CDK call through a thread-attached executor, so async handlers stay responsive. PostgreSQL stores every extraction for later retrieval, and makes global substructure search trivial.
+**Three layers, one container stack.** The frontend talks HTTP/JSON to FastAPI. FastAPI keeps one JVM alive per process and dispatches every CDK call through a thread-attached executor, so async handlers stay responsive. PostgreSQL stores every extraction for later retrieval and cross-upload substructure search.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./assets/readme/divider-dark.svg">
@@ -162,22 +161,14 @@ cd BChemXtractWeb
 
 `deploy.sh` runs preflight checks, resolves the latest BChemXtract release tag from upstream (override with `BCHEMXTRACT_REF=vX.Y.Z` to pin), generates random secrets into `.env` (skipped if `.env` already exists), and brings the stack up via `docker compose`. The backend Docker image clones BChemXtract directly from upstream at image build time. No submodule, no host-side JAR build needed.
 
-Secret rotation:
-
-- `./deploy.sh --rotate-keys`: regenerate `ADMIN_SECRET` (the `X-Admin-Secret` gate for `/api/admin/api-keys`). `POSTGRES_PASSWORD` and `SECRET_KEY` are left alone; rotating `SECRET_KEY` would invalidate every stored API-key hash and every outstanding CSRF token.
-- `./deploy.sh --rotate-app-db`: regenerate `APP_DB_PASSWORD` and `ALTER ROLE bchemxtract_app` in the running database. Requires a restart of `backend` / `celery-worker` / `celery-beat` so they pick up the new `DATABASE_URL` (the subsequent `docker compose up -d` in `deploy.sh` does this automatically).
-- `./deploy.sh --rotate-postgres-password`: regenerate `POSTGRES_PASSWORD` and `ALTER ROLE bchemxtract` (the bootstrap superuser) in the running database. Recovery path when `migrate` exits with `password authentication failed for user "bchemxtract"`, i.e. `.env` drifted from what Postgres has persisted in the `pgdata` volume (the env var is only honored on first init, so manually editing it or restoring a backup desyncs the role).
-
-Every `./deploy.sh` run now probes the live database with the current `.env` credentials before bringing the stack up, and aborts with the relevant rotation command if either the bootstrap superuser or the `bchemxtract_app` role rejects auth, so a hand-edited `.env` can no longer crash `migrate` silently. The probe is a no-op on a fresh deploy (no `pgdata` volume to drift from).
-
-Upgrading from a pre–Phase-11 deployment: re-run `./deploy.sh` against your existing `.env`. The script auto-mints `APP_DB_PASSWORD` if it is missing and strips the legacy `API_KEYS` / `BROWSER_API_KEY` entries that Phase 11 retired.
+Open **<http://localhost:3000>**. The API is behind nginx at `/api`, the interactive docs at `/docs`. The default public port is **3000**, chosen to avoid the Apache/system-nginx collision on Ubuntu/Debian hosts. The first run prompts for the port; press Enter to accept it.
 
 ### Choosing a different host port
 
 `deploy.sh` writes the chosen port to `.env` as `HTTP_PORT` and `docker-compose.yml` interpolates it into the nginx `ports:` mapping. Three ways to set it:
 
 ```bash
-# 1. Interactive prompt (fires only on first run, or with --change-port)
+# 1. Interactive prompt (first run; later runs: add --change-port)
 ./deploy.sh
 #   ==> Selecting public HTTP port
 #   Port [3000]:
@@ -187,9 +178,6 @@ Upgrading from a pre–Phase-11 deployment: re-run `./deploy.sh` against your ex
 
 # 3. Environment variable (equivalent to --port; --port wins if both are set)
 HTTP_PORT=9000 ./deploy.sh
-
-# 4. Re-prompt on an existing deploy (defaults to the current value)
-./deploy.sh --change-port
 ```
 
 Validation:
@@ -198,11 +186,15 @@ Validation:
 - `5432`, `6379`, `8000`, `5173`: warning (collide with stack internals), accepted
 - Anything else: re-prompt (interactive) or exit with an error (flag / env var)
 
-The backend FastAPI is **bound to `127.0.0.1:8000` only**. Direct API consumers (CLI scripts, curl on the deploy host) reach it on `http://127.0.0.1:8000`, but the port is not reachable from other machines. This matches the existing `db` and `redis` services, which are already internal-only, and gives the stack a defense-in-depth posture: the only public surface is nginx on `HTTP_PORT`. Set `BACKEND_PORT=N` in `.env` to change the host port; replace the `127.0.0.1` in `docker-compose.yml` with `0.0.0.0` if you really do want to expose the raw API on the network.
+The backend FastAPI is **bound to `127.0.0.1:8000` only**: curl and CLI scripts on the deploy host reach it at `http://127.0.0.1:8000`; other machines cannot. Like `db` and `redis` it is internal by design, so the only public surface is nginx on `HTTP_PORT`. Set `BACKEND_PORT=N` in `.env` to move the host port, or replace the `127.0.0.1` in `docker-compose.yml` with `0.0.0.0` if you really do want the raw API on the network.
 
-Open **<http://localhost:3000>**. The API is behind nginx at `/api`, the interactive docs at `/docs`.
+### Rotating secrets
 
-> The default public port is **3000** (avoids the Apache/system-nginx collision on Ubuntu/Debian hosts). On first run, `deploy.sh` prompts for the port; press Enter to accept 3000 or type a different one. See [Choosing a different host port](#choosing-a-different-host-port) below.
+Every `./deploy.sh` run probes the live database with the current `.env` credentials before bringing the stack up, and aborts with the matching rotation command if either the bootstrap superuser or the `bchemxtract_app` role rejects auth, so a hand-edited `.env` can't crash `migrate` silently. (The probe is a no-op on a fresh deploy.) Three rotation flags:
+
+- `./deploy.sh --rotate-keys`: regenerate `ADMIN_SECRET` only; `SECRET_KEY` and `POSTGRES_PASSWORD` are deliberately left alone (see **Generating `.env` secrets** below).
+- `./deploy.sh --rotate-app-db`: regenerate `APP_DB_PASSWORD` and `ALTER ROLE bchemxtract_app` in the running database. The script's closing `docker compose up -d` restarts the services that consume it.
+- `./deploy.sh --rotate-postgres-password`: regenerate `POSTGRES_PASSWORD` and `ALTER ROLE` the bootstrap superuser. Recovery path when `migrate` exits with `password authentication failed for user "bchemxtract"`, i.e. `.env` drifted from what Postgres persisted in the `pgdata` volume (the env var is only honored on first init, so hand-editing it or restoring a backup desyncs the role).
 
 <details>
 <summary><b>🛠️ Manual setup (no script)</b></summary>
@@ -214,14 +206,9 @@ git clone https://github.com/Beilstein-Institut/BChemXtractWeb.git
 cd BChemXtractWeb
 cp .env.example .env          # then fill in secrets (see "Generating .env secrets" below)
 
-# Fire it up. backend/Dockerfile clones BChemXtract from upstream at build time.
-# To pin a specific upstream tag, export BCHEMXTRACT_VERSION=vX.Y.Z first.
+# Build + start. backend/Dockerfile clones BChemXtract from upstream at build
+# time; to pin a specific tag, export BCHEMXTRACT_VERSION=vX.Y.Z first.
 docker compose up -d --build
-
-# Optional: only needed for non-docker dev (running uvicorn against a local DB).
-# Clones the resolved tag into backend/.bchemxtract-build/, runs Maven, drops the
-# fat JAR into backend/jars/.
-#   bash backend/scripts/build_jar.sh
 ```
 
 </details>
@@ -231,7 +218,7 @@ docker compose up -d --build
 
 <br>
 
-`.env` needs four random secrets (all 32+ characters). `deploy.sh` mints them on first run; the values below are the ones it generates. Generate manually with:
+`.env` needs four random secrets (all 32+ characters). `deploy.sh` mints them on first run; to generate one manually:
 
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(32))"
@@ -239,10 +226,8 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 - **`POSTGRES_PASSWORD`**: bootstrap Postgres superuser password. The `migrate` service connects as this user to run DDL (alembic upgrades, RLS policies, `CREATE ROLE`).
 - **`APP_DB_PASSWORD`**: password for the runtime `bchemxtract_app` Postgres role (`NOSUPERUSER NOBYPASSRLS`). Backend, celery-worker, and celery-beat all connect as this role so Postgres RLS policies actually enforce session ownership on every query. Without this, the backend silently bypasses RLS via the superuser path and every cookie session can read every other session.
-- **`SECRET_KEY`**: PBKDF2 salt for API-key lookup hashes (D-10) AND HMAC key for CSRF tokens (D-19). **Do not** rotate without coordinating a full API-key re-issue; rotating `SECRET_KEY` invalidates every stored `key_hash`. `deploy.sh --rotate-keys` deliberately leaves it alone.
+- **`SECRET_KEY`**: PBKDF2 salt for API-key lookup hashes and HMAC key for CSRF tokens. **Do not** rotate without coordinating a full API-key re-issue; rotating it invalidates every stored key hash and every outstanding CSRF token. `deploy.sh --rotate-keys` deliberately leaves it alone.
 - **`ADMIN_SECRET`**: gate for `POST/GET/DELETE /api/admin/api-keys`. Constant-time compared against the `X-Admin-Secret` request header. Safe to rotate via `./deploy.sh --rotate-keys`.
-
-Phase 11 auth model in two sentences: the browser SPA is authenticated by a `bcx_sid` UUID4 cookie (HttpOnly, SameSite=Lax, Secure when DEBUG=false) plus a session-bound CSRF token on every mutating request. Programmatic / admin callers mint an `X-API-Key` via `POST /api/admin/api-keys` (X-Admin-Secret gated) and pass it as `X-API-Key: bcx_...` on every request; no `Authorization: Bearer` header is read or accepted any more.
 
 **Production posture switch.** `deploy.sh` brings the stack up on plain-HTTP `http://localhost:${HTTP_PORT}`, so the default `.env` ships with `DEBUG=true` and `CORS_ORIGINS=["http://localhost:${HTTP_PORT}"]`. To run a real HTTPS deployment:
 
@@ -284,11 +269,11 @@ You'll also need a local PostgreSQL 16 on `:5432`, either via `docker compose up
 
 ```bash
 # Backend (real DB, real JVM, no mocks)
-cd backend && pytest                                      # 350+ tests
+cd backend && pytest                                      # full suite
 cd backend && pytest tests/test_substructure_algorithm.py # a single file
 
 # Frontend
-cd frontend && npm run test                               # 690+ tests, Vitest
+cd frontend && npm run test                               # full suite (Vitest)
 cd frontend && npx vitest run src/hooks/useSearchImpl.test.ts
 
 # CI-equivalent green check before pushing
@@ -313,7 +298,7 @@ Every endpoint is documented at `/docs` (Swagger) and `/redoc` once the stack is
 | :--- | :--- | :--- |
 | `POST` | `/api/extract` | Upload CDX/CDXML, full structure extraction with descriptors |
 | `POST` | `/api/reactions` | Same upload, but for reactions (experimental) |
-| `POST` | `/api/search` | Multi-modal search: `inchi_key`, `formula`, `smiles`, `substructure` |
+| `POST` | `/api/search` | Search by `inchi_key`, `formula`, `smiles`, or `substructure` |
 | `POST` | `/api/search/validate` | Parse-only SMILES/SMARTS gate for live-typing UX |
 | `POST` | `/api/export` | Substances in any of 7 formats (PNG, JSON, SDF, CSV, XLSX, CML, V3000) |
 | `POST` | `/api/export` *(fmt=rxn)* | Reactions in RXN / RDfile |
@@ -326,7 +311,7 @@ Every endpoint is documented at `/docs` (Swagger) and `/redoc` once the stack is
 
 <br>
 
-The browser SPA authenticates automatically via the `bcx_sid` cookie. CLI / programmatic callers mint their own `X-API-Key` once, then reuse it on every request:
+The browser SPA needs no key — it authenticates via a `bcx_sid` UUID4 cookie (HttpOnly, SameSite=Lax, Secure in production) plus a session-bound CSRF token on every mutating request. CLI / programmatic callers mint their own `X-API-Key` once, then pass it on every request; `Authorization: Bearer` is not accepted:
 
 ```bash
 # Issue an admin-minted API key (requires the ADMIN_SECRET from .env)
@@ -384,8 +369,6 @@ curl -X POST http://localhost:3000/api/search/validate \
   <source media="(prefers-color-scheme: light)" srcset="./assets/readme/stack-light.svg">
   <img alt="Tech stack: Frontend (React 19, Vite, TypeScript, Base UI, Tailwind), Backend (FastAPI, Uvicorn, Pydantic, SQLAlchemy 2, Alembic, PostgreSQL 16, Redis, slowapi), Chemistry (BChemXtract, CDK 2.12, JPype 1.7, Java 21, Maven, InChI, SMILES/SMARTS, CDX/CDXML)" src="./assets/readme/stack-light.svg" width="100%">
 </picture>
-
-<sub>Frontend tested with **Vitest** and **Playwright**. Backend tested with **pytest** / **pytest-asyncio**, real Postgres, real JVM, no mocks.</sub>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./assets/readme/divider-dark.svg">
@@ -475,6 +458,6 @@ Released under the **[MIT License](./LICENSE)**. © 2026 Beilstein-Institut zur 
 
 <img src="./assets/logo/bchemxtract-icon.png" alt="BChemXtract" width="72" />
 
-<sub><i>Parse the drawings. Keep the chemistry.</i></sub>
+<sub><i>Chemical structures out of ChemDraw files, in the browser.</i></sub>
 
 </div>
