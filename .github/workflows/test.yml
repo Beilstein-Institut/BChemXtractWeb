@@ -171,3 +171,42 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report
           retention-days: 7
+
+  # Regenerates the claymorphic "tests" README chip with the real outcome and
+  # pushes it to the `badges` branch (which the README embeds via raw URLs).
+  # Runs on main pushes only — PR runs must not overwrite main's badge.
+  badge:
+    name: Update tests badge
+    needs: [backend-tests, frontend-unit-tests, frontend-build, frontend-e2e]
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: readme-badges
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate and push badge
+        run: |
+          STATUS=passing
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            STATUS=failing
+          fi
+          python3 scripts/generate_badges.py --ci tests --status "$STATUS" --out /tmp/badges
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch origin badges; then
+            git worktree add -B badges /tmp/wt origin/badges
+          else
+            git worktree add --detach /tmp/wt
+            git -C /tmp/wt checkout --orphan badges
+            git -C /tmp/wt rm -rf --quiet . 2>/dev/null || true
+          fi
+          cp /tmp/badges/*.svg /tmp/wt/
+          git -C /tmp/wt add -A
+          git -C /tmp/wt diff --cached --quiet || git -C /tmp/wt commit -m "badge: tests $STATUS"
+          git -C /tmp/wt push origin badges || {
+            git -C /tmp/wt pull --rebase origin badges && git -C /tmp/wt push origin badges
+          }

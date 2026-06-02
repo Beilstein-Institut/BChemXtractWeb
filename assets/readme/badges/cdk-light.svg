@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="98" height="36" viewBox="0 0 98 36" role="img" aria-label="CDK 2.12">
+  <title>CDK 2.12</title>
+  <defs>
+    <linearGradient id="b" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e0f4f5"/>
+      <stop offset="100%" stop-color="#b0dde0"/>
+    </linearGradient>
+    <linearGradient id="s" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="d" x="-20%" y="-40%" width="140%" height="200%">
+      <feDropShadow dx="0" dy="3" stdDeviation="2.6" flood-color="#096779" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+  <rect x="5" y="2" width="88" height="26" rx="13" fill="url(#b)" filter="url(#d)"/>
+  <rect x="6.5" y="3.5" width="85" height="12" rx="6" fill="url(#s)"/>
+  <circle cx="18" cy="15" r="4" fill="#096779"/>
+  <circle cx="16.8" cy="13.8" r="1.3" fill="#ffffff" opacity="0.8"/>
+  <g font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="13" font-weight="700">
+    <text x="27.0" y="19.5" fill="#0a1547">CDK</text>
+    <text x="59" y="19.5" fill="#075e66">2.12</text>
+  </g>
+</svg>
