@@ -141,9 +141,9 @@ export function TermsPage() {
             extracted results remain the property of the person who uploaded them.
           </li>
           <li>
-            The BChemXtractWeb software and the underlying BChemXtract library are open source
-            under the MIT License. Bundled third-party components retain their own licenses, as
-            set out in the sections below.
+            The BChemXtractWeb software and the underlying BChemXtract library are open source under
+            the MIT License. Bundled third-party components retain their own licenses, as set out in
+            the sections below.
           </li>
           <li>
             This website and its content are provided for use &ldquo;as is&rdquo;. The
@@ -160,14 +160,13 @@ export function TermsPage() {
             apply.
           </li>
           <li>
-            The Beilstein-Institut reserves the right, in whole or in part, to change or delete
-            this website, suspend your access, or terminate this website at any time without
-            notice.
+            The Beilstein-Institut reserves the right, in whole or in part, to change or delete this
+            website, suspend your access, or terminate this website at any time without notice.
           </li>
           <li>
             In no event shall the Beilstein-Institut be liable for any damages of any nature
-            resulting directly or indirectly from the use or non-use of the information provided
-            on this website, unless the damages were demonstrably caused deliberately or by gross
+            resulting directly or indirectly from the use or non-use of the information provided on
+            this website, unless the damages were demonstrably caused deliberately or by gross
             negligence of the Beilstein-Institut.
           </li>
           <li>
