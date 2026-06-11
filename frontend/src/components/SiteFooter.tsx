@@ -1,6 +1,5 @@
 import { Coffee, Globe } from "lucide-react";
 
-import { BrandName } from "@/components/BrandName";
 import { Footer, type FooterTextLink } from "@/components/ui/footer";
 import { Link } from "@/lib/Link";
 
@@ -25,8 +24,10 @@ function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
  *   - Social: BChemXtractWeb GitHub + Beilstein-Institut website
  *   - Main links: Extract / Browse / History / About — routed through
  *     the internal <Link /> so clicks stay inside the SPA
- *   - Legal: License / Imprint / Privacy — all internal pages
- *   - Copyright: © 2026 <BrandName /> · Open source
+ *   - Legal: Terms and conditions / Imprint / Privacy — all internal pages
+ *   - Copyright: © 2026 Beilstein-Institut · Open source — the © line names
+ *     the legal rights holder (industry standard); the logo beside it and
+ *     the AppHeader carry the BChemXtract product branding
  *   - Centered band: "Built with [animated ☕] at the Beilstein-Institut"
  */
 
@@ -120,7 +121,7 @@ export function SiteFooter() {
         { href: "/about", label: "About", internal: true },
       ]}
       legalLinks={[
-        { href: "/license", label: "License", internal: true },
+        { href: "/terms", label: "Terms and conditions", internal: true },
         { href: "/imprint", label: "Imprint", internal: true },
         { href: "/privacy", label: "Privacy", internal: true },
       ]}
@@ -134,7 +135,15 @@ export function SiteFooter() {
               className="h-5 w-5 shrink-0"
             />
             <span>
-              © 2026 <BrandName />
+              © 2026{" "}
+              <a
+                href="https://www.beilstein-institut.de/en/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground underline-offset-4 hover:text-primary hover:underline"
+              >
+                Beilstein-Institut
+              </a>
             </span>
           </span>
         ),

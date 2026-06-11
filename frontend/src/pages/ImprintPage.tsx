@@ -5,9 +5,10 @@
  * der Chemischen Wissenschaften (a German civil-law foundation). The imprint
  * below reproduces the entity identification published by the operator at
  * https://www.beilstein-institut.de/en/impressum/, with attribution. The
- * "Responsible for this website" block names the delivery channel that
- * surfaces the content — the parent imprint is the authoritative legal
- * identification for the operating entity.
+ * VAT ID and copyright notice follow the institute's standard legal notice
+ * (cf. https://www.beilstein-strenda-db.org/strenda/legalNotice.xhtml). The
+ * parent imprint is the authoritative legal identification for the
+ * operating entity.
  */
 import { ArrowUpRightIcon, BuildingIcon } from "lucide-react";
 
@@ -76,6 +77,10 @@ const GOVERNANCE: LabelledEntry[] = [
     value: "AZ III 21-25d 04/11-(12)-22",
   },
   {
+    label: "VAT ID (§27a UStG)",
+    value: "DE 114234743",
+  },
+  {
     label: "Responsible for content (§18 (2) MStV)",
     value: "Dr. Wendy Patterson (address as above)",
   },
@@ -88,7 +93,7 @@ export function ImprintPage() {
         icon={<BuildingIcon aria-hidden="true" className="size-3.5" />}
         eyebrow="Imprint"
         title="Imprint"
-        lede="Legal identification of the site operator pursuant to §5 of the German Telemedia Act (TMG) and §18 of the Interstate Media Treaty (MStV)."
+        lede="Legal identification of the site operator pursuant to §5 of the German Digital Services Act (DDG) and §18 of the Interstate Media Treaty (MStV)."
       />
 
       <section
@@ -153,6 +158,12 @@ export function ImprintPage() {
           adaptation, distribution, or any form of exploitation beyond the limits of copyright law
           requires the written consent of the respective author or creator. Downloads and copies of
           this page are permitted for private, non-commercial use only.
+        </p>
+        <p
+          className="mt-5 max-w-[70ch] text-sm font-medium text-foreground"
+          data-slot="imprint-copyright"
+        >
+          Copyright © 2026 Beilstein-Institut zur Förderung der Chemischen Wissenschaften.
         </p>
       </section>
 
