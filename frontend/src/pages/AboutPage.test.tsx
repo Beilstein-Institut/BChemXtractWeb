@@ -4,13 +4,14 @@
  * Covers:
  *   - Root + every tile expose their `data-slot` hook.
  *   - Hero tile renders mission copy + "Start extracting" link + GitHub CTA.
- *   - Version tile shows the hardcoded version numeral.
+ *   - Version tile shows the package.json version (__APP_VERSION__ define)
+ *     and the BChemXtract engine version when the env var is baked in.
  *   - Links tile renders BChemXtractWeb / BChemXtract (upstream) / CDK as
  *     outbound anchors with `target="_blank" rel="noreferrer"`.
  *   - Tech-stack tile renders a Badge chip per declared technology.
  *   - Credits tile links to the Beilstein-Institut.
  */
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 import { AboutPage } from "./AboutPage";
@@ -58,11 +59,34 @@ describe("AboutPage", () => {
     expect(github).toHaveAttribute("rel", "noreferrer");
   });
 
-  it("renders the version tile with the current version numeral", () => {
-    const { container } = render(<AboutPage />);
-    const valueEl = container.querySelector('[data-slot="about-version-value"]');
-    expect(valueEl).not.toBeNull();
-    expect(valueEl?.textContent).toMatch(/\d/);
+  describe("version tile", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("shows the app version stamped from package.json", () => {
+      const { container } = render(<AboutPage />);
+      const valueEl = container.querySelector('[data-slot="about-version-value"]');
+      expect(valueEl).not.toBeNull();
+      // __APP_VERSION__ is injected by the define block in vite.config.ts,
+      // which vitest shares — the tile must show exactly that value.
+      expect(valueEl?.textContent).toBe(__APP_VERSION__);
+      expect(valueEl?.textContent).toMatch(/^\d+\.\d+\.\d+/);
+    });
+
+    it("shows the engine version when VITE_BCHEMXTRACT_VERSION is set", () => {
+      vi.stubEnv("VITE_BCHEMXTRACT_VERSION", "v1.1.1");
+      const { container } = render(<AboutPage />);
+      const engine = container.querySelector('[data-slot="about-engine-version"]');
+      expect(engine).not.toBeNull();
+      expect(engine?.textContent).toBe("BChemXtract v1.1.1");
+    });
+
+    it("omits the engine line when VITE_BCHEMXTRACT_VERSION is unset", () => {
+      vi.stubEnv("VITE_BCHEMXTRACT_VERSION", "");
+      const { container } = render(<AboutPage />);
+      expect(container.querySelector('[data-slot="about-engine-version"]')).toBeNull();
+    });
   });
 
   it("renders the resources list with outbound links only", () => {

@@ -32,16 +32,6 @@ import { BackgroundPaths } from "@/components/ui/background-paths";
 import { buttonVariants } from "@/components/ui/button";
 import { Link } from "@/lib/Link";
 
-// TODO: replace VERSION with a build-time define from vite.config / package.json
-// so releases stamp the correct version automatically.
-const VERSION = "1.0";
-// Current month / year, computed once per module load. Avoids stale labels
-// like "April 2026" lingering past the month they were shipped in.
-const BUILD_LABEL = new Intl.DateTimeFormat("en-US", {
-  month: "long",
-  year: "numeric",
-}).format(new Date());
-
 interface TechEntry {
   label: string;
   detail: string;
@@ -164,7 +154,15 @@ function HeroTile() {
   );
 }
 
+/**
+ * Version tile: app version stamped from package.json at build time
+ * (__APP_VERSION__ define in vite.config.ts), plus the running BChemXtract
+ * engine version when VITE_BCHEMXTRACT_VERSION is baked into the bundle —
+ * same source the SiteFooter uses, so the two never disagree. Outside the
+ * docker flow (plain `npm run dev`) the engine line is simply omitted.
+ */
 function VersionTile() {
+  const engineVersion = import.meta.env.VITE_BCHEMXTRACT_VERSION?.trim();
   return (
     <article
       data-slot="about-version"
@@ -177,9 +175,13 @@ function VersionTile() {
         data-slot="about-version-value"
         className="font-display text-5xl font-semibold leading-none text-primary tabular-nums"
       >
-        {VERSION}
+        {__APP_VERSION__}
       </span>
-      <span className="text-caption text-foreground-muted">{BUILD_LABEL}</span>
+      {engineVersion && (
+        <span className="text-caption text-foreground-muted" data-slot="about-engine-version">
+          BChemXtract {engineVersion}
+        </span>
+      )}
     </article>
   );
 }
