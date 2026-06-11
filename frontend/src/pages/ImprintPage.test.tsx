@@ -32,6 +32,26 @@ describe("ImprintPage", () => {
     expect(text).toMatch(/Wendy Patterson/);
   });
 
+  it("states the VAT identification number", () => {
+    const { container } = render(<ImprintPage />);
+    const governance = container.querySelector(
+      '[data-slot="imprint-governance"]',
+    ) as HTMLElement | null;
+    expect(governance).not.toBeNull();
+    expect(governance!.textContent).toMatch(/DE 114234743/);
+  });
+
+  it("renders the copyright notice", () => {
+    const { container } = render(<ImprintPage />);
+    const copyright = container.querySelector(
+      '[data-slot="imprint-copyright"]',
+    ) as HTMLElement | null;
+    expect(copyright).not.toBeNull();
+    expect(copyright!.textContent).toMatch(
+      /Copyright © 2026 Beilstein-Institut zur Förderung der Chemischen Wissenschaften/,
+    );
+  });
+
   it("provides a working mailto for the operator", () => {
     render(<ImprintPage />);
     const mail = screen.getByRole("link", {
