@@ -124,6 +124,21 @@ describe("AboutPage", () => {
     expect(screen.getByText("CDK 2.12")).toBeInTheDocument();
   });
 
+  describe("delight touches", () => {
+    it("logs the API-builder console note once per session", async () => {
+      // Fresh module registry so the module-level once-guard resets —
+      // earlier tests in this file have already rendered AboutPage.
+      vi.resetModules();
+      const info = vi.spyOn(console, "info").mockImplementation(() => {});
+      const { AboutPage: FreshAboutPage } = await import("./AboutPage");
+      render(<FreshAboutPage />);
+      render(<FreshAboutPage />);
+      const apiNotes = info.mock.calls.filter((call) => String(call[0]).includes("REST API"));
+      expect(apiNotes.length).toBe(1);
+      info.mockRestore();
+    });
+  });
+
   it("renders the credits tile with a Beilstein-Institut link", () => {
     render(<AboutPage />);
     const institute = screen.getAllByRole("link", {

@@ -20,7 +20,7 @@
  * tile carries a stable `data-slot` hook so selectors / tests can anchor
  * without depending on class names.
  */
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { ArrowUpRightIcon, ExternalLinkIcon, FlaskConicalIcon, BookOpenIcon } from "lucide-react";
 
 import { BentoCell } from "@/components/layout/BentoCell";
@@ -76,7 +76,29 @@ const LINKS: LinkEntry[] = [
   },
 ];
 
+// Module-level so the note fires once per session, not once per /about visit
+// (and survives StrictMode's double-invoked effects in dev).
+let apiConsoleNoteShown = false;
+
+/**
+ * One-time console note for the API-builder audience (PRODUCT.md secondary
+ * persona): integrators scoping the tool land on /about, and the console is
+ * where they already are. Crimson tag matches the BrandName "X" tint.
+ */
+function useApiBuilderConsoleNote() {
+  useEffect(() => {
+    if (apiConsoleNoteShown) return;
+    apiConsoleNoteShown = true;
+    console.info(
+      "%cBChemXtract%c Same extraction, no browser: the REST API is documented at /docs.",
+      "font-weight:700;color:#C71354",
+      "color:inherit",
+    );
+  }, []);
+}
+
 export function AboutPage() {
+  useApiBuilderConsoleNote();
   return (
     <PageContainer data-slot="about-page">
       <header className="space-y-2">
@@ -216,9 +238,12 @@ function LinksTile() {
                 </span>
                 <span className="text-caption text-foreground-muted">{description}</span>
               </span>
+              {/* Nudge previews the action: this arrow leaves the site.
+                  Translate is motion-safe-gated so reduced-motion users get
+                  the color change only. */}
               <ExternalLinkIcon
                 aria-hidden="true"
-                className="mt-1 size-3.5 shrink-0 text-foreground-muted group-hover/link:text-primary"
+                className="mt-1 size-3.5 shrink-0 text-foreground-muted ease-out group-hover/link:text-primary motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover/link:translate-x-0.5 motion-safe:group-hover/link:-translate-y-0.5"
               />
             </a>
           </li>
