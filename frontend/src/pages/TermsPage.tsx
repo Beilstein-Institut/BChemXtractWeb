@@ -1,9 +1,13 @@
 /**
- * LicensePage — MIT license text for BChemXtractWeb plus third-party
- * attributions for the major runtime components whose licenses require
- * notice (CDK / LGPL) or are customary to cite (upstream BChemXtract).
+ * TermsPage — Terms and Conditions for using BChemXtractWeb, followed by
+ * the MIT license text and third-party attributions for the major runtime
+ * components whose licenses require notice (CDK / LGPL) or are customary
+ * to cite (upstream BChemXtract).
  *
  * Sourced from:
+ *   - Beilstein-Institut standard Terms & Conditions (adapted from
+ *     https://www.beilstein-strenda-db.org/strenda/termsConditions.xhtml
+ *     to fit BChemXtractWeb — no registration, no public datasets)
  *   - /LICENSE at the repo root (BChemXtractWeb MIT)
  *   - https://github.com/Beilstein-Institut/BChemXtract/blob/main/LICENSE (upstream BChemXtract MIT)
  *   - https://github.com/cdk/cdk/blob/main/LICENSE.txt (CDK 2.12 LGPL-2.1-or-later)
@@ -15,6 +19,7 @@
 import { ArrowUpRightIcon, ScaleIcon } from "lucide-react";
 
 import { PageContainer } from "@/components/layout/PageContainer";
+import { Link } from "@/lib/Link";
 import { LEGAL_LINK_CLASS, LegalPageHeader } from "@/pages/legalShared";
 import { cn } from "@/lib/utils";
 
@@ -104,15 +109,77 @@ const THIRD_PARTY: ThirdPartyEntry[] = [
   },
 ];
 
-export function LicensePage() {
+export function TermsPage() {
   return (
-    <PageContainer data-slot="license-page">
+    <PageContainer data-slot="terms-page">
       <LegalPageHeader
         icon={<ScaleIcon aria-hidden="true" className="size-3.5" />}
-        eyebrow="License"
-        title="Open source under the MIT License"
-        lede="BChemXtractWeb is released under the MIT License. You are free to use, modify, and redistribute the software subject to the notice below. Third-party components retain their own licenses, listed further down."
+        eyebrow="Terms and conditions"
+        title="Terms and conditions"
+        lede="Use of BChemXtractWeb is subject to the terms below. The software itself is open source under the MIT License — the full notice and third-party attributions follow the terms."
       />
+
+      <section
+        aria-labelledby="terms-conditions-heading"
+        className="mt-10 rounded-lg border border-border bg-surface p-6 sm:p-8"
+        data-slot="terms-conditions"
+      >
+        <h2 id="terms-conditions-heading" className="text-lg font-semibold text-foreground">
+          Terms and conditions of use
+        </h2>
+        <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-foreground-muted">
+          This website and its content are protected by copyright law. Use of this website is
+          subject to these Terms and Conditions.
+        </p>
+        <ol
+          className="mt-5 ml-5 max-w-[70ch] list-decimal space-y-3 text-sm leading-relaxed text-foreground-muted marker:text-foreground-muted"
+          data-slot="terms-conditions-list"
+        >
+          <li>
+            Everybody is free to use BChemXtractWeb to extract chemical structures and reactions
+            from ChemDraw (CDX/CDXML) files. No registration is required. Uploaded files and the
+            extracted results remain the property of the person who uploaded them.
+          </li>
+          <li>
+            The BChemXtractWeb software and the underlying BChemXtract library are open source under
+            the MIT License. Bundled third-party components retain their own licenses, as set out in
+            the sections below.
+          </li>
+          <li>
+            This website and its content are provided for use &ldquo;as is&rdquo;. The
+            Beilstein-Institut makes no representations or warranties with respect to this website
+            or its contents, including without limitation the quality, completeness, timeliness or
+            accuracy of data. Computed descriptors (InChI, SMILES, molecular formulas, RInChI) are
+            generated automatically and may contain errors.
+          </li>
+          <li>
+            The general terms and conditions of the{" "}
+            <Link to="/privacy" className={LEGAL_LINK_CLASS}>
+              Privacy Policy
+            </Link>{" "}
+            apply.
+          </li>
+          <li>
+            The Beilstein-Institut reserves the right, in whole or in part, to change or delete this
+            website, suspend your access, or terminate this website at any time without notice.
+          </li>
+          <li>
+            In no event shall the Beilstein-Institut be liable for any damages of any nature
+            resulting directly or indirectly from the use or non-use of the information provided on
+            this website, unless the damages were demonstrably caused deliberately or by gross
+            negligence of the Beilstein-Institut.
+          </li>
+          <li>
+            The Beilstein-Institut shall not be held liable for the content of any third-party
+            websites linked from this website.
+          </li>
+          <li>
+            These terms shall be governed by the laws of the Federal Republic of Germany. The sole
+            place of jurisdiction for all disputes arising out of or in connection with the use of
+            this website and its contents shall be Frankfurt am Main.
+          </li>
+        </ol>
+      </section>
 
       <section
         aria-labelledby="license-mit-heading"
