@@ -27,6 +27,17 @@
 # merges the anchor picks it up — no risk of one service drifting from
 # the others. Service-level entries below the merge override the anchor.
 
+# Size-capped log rotation for every service. Container logs carry the
+# nginx/Uvicorn access lines (client IP, request path, user agent), so
+# rotation is what enforces the privacy policy's statement that access-log
+# data is overwritten in rotation and never archived (§ 2 of /privacy).
+# 3 × 10 MB per container also bounds disk usage on the deploy host.
+x-logging: &default_logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 # Phase 11 secrets + posture (CORS / DEBUG) required by app.config.Settings
 # on import. Identical in every Python service (backend, celery-worker,
 # celery-beat, migrate).
@@ -53,6 +64,7 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *default_logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-bchemxtract}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set (32+ random chars)}
@@ -107,6 +119,7 @@ services:
       # with it. Runtime services connect as that role afterwards.
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD must be set (32+ chars)}
     restart: "no"
+    logging: *default_logging
 
   backend:
     build:
@@ -119,6 +132,7 @@ services:
         # the Dockerfile fall back to its own auto-resolve.
         BCHEMXTRACT_REF: ${BCHEMXTRACT_VERSION:-}
     restart: unless-stopped
+    logging: *default_logging
     depends_on:
       db:
         condition: service_healthy
@@ -158,6 +172,7 @@ services:
         # deploy.sh writes BCHEMXTRACT_VERSION to .env before `compose build`.
         BCHEMXTRACT_VERSION: ${BCHEMXTRACT_VERSION:-}
     restart: unless-stopped
+    logging: *default_logging
     depends_on:
       backend:
         condition: service_healthy
@@ -171,6 +186,7 @@ services:
   nginx:
     image: nginx:alpine
     restart: unless-stopped
+    logging: *default_logging
     depends_on:
       frontend:
         condition: service_healthy
@@ -196,6 +212,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    logging: *default_logging
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -209,6 +226,7 @@ services:
       args:
         BCHEMXTRACT_REF: ${BCHEMXTRACT_VERSION:-}
     restart: unless-stopped
+    logging: *default_logging
     # SEC H-03: --pool=solo is mandatory — extraction tasks use
     # asyncio.run() internally and will error on prefork/thread pools.
     # The Celery app also asserts solo pool at worker_process_init.
@@ -252,6 +270,7 @@ services:
       args:
         BCHEMXTRACT_REF: ${BCHEMXTRACT_VERSION:-}
     restart: unless-stopped
+    logging: *default_logging
     command: celery -A app.celery_app beat --loglevel=info
     depends_on:
       redis:

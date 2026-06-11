@@ -9,16 +9,16 @@ describe("PrivacyPage", () => {
     expect(container.querySelector('[data-slot="privacy-page"]')).not.toBeNull();
   });
 
-  it("renders every topic section with an anchor target", () => {
+  it("renders every § section with an anchor target", () => {
     const { container } = render(<PrivacyPage />);
     const topicIds = [
-      "controller",
-      "uploads",
-      "logs",
-      "client-storage",
-      "third-parties",
+      "collection",
+      "website-visit",
+      "extractions",
+      "cookies",
+      "analytics",
       "rights",
-      "supervisory-authority",
+      "objection",
     ];
     for (const id of topicIds) {
       const section = container.querySelector(`#${id}`);
@@ -31,7 +31,7 @@ describe("PrivacyPage", () => {
   it("names the controller and the data protection officer", () => {
     render(<PrivacyPage />);
     const section = document.querySelector(
-      '[data-slot="privacy-controller"]',
+      '[data-slot="privacy-collection"]',
     ) as HTMLElement | null;
     expect(section).not.toBeNull();
     const text = section!.textContent ?? "";
@@ -39,37 +39,65 @@ describe("PrivacyPage", () => {
     expect(text).toMatch(/datenschutz@beilstein-institut\.de/);
   });
 
-  it("discloses that uploads are persisted and can be deleted from History", () => {
+  it("discloses that uploads are persisted and can be deleted from History or Settings", () => {
     const { container } = render(<PrivacyPage />);
-    const section = container.querySelector('[data-slot="privacy-uploads"]') as HTMLElement | null;
+    const section = container.querySelector(
+      '[data-slot="privacy-extractions"]',
+    ) as HTMLElement | null;
     expect(section).not.toBeNull();
     expect(section!.textContent).toMatch(/PostgreSQL/);
     expect(section!.textContent).toMatch(/InChIKey/);
-    // Internal Link to the History page so users can act on their erasure right.
-    const historyLink = section!.querySelector('a[href="/history"]') as HTMLAnchorElement | null;
-    expect(historyLink).not.toBeNull();
+    // Internal links so users can act on their erasure right.
+    expect(section!.querySelector('a[href="/history"]')).not.toBeNull();
+    expect(section!.querySelector('a[href="/settings"]')).not.toBeNull();
   });
 
-  it("discloses browser storage and confirms no cookies", () => {
+  it("discloses the audit log with its 12-month retention", () => {
     const { container } = render(<PrivacyPage />);
     const section = container.querySelector(
-      '[data-slot="privacy-client-storage"]',
+      '[data-slot="privacy-extractions"]',
     ) as HTMLElement | null;
     expect(section).not.toBeNull();
     const text = section!.textContent ?? "";
-    expect(text).toMatch(/no cookies/i);
+    expect(text).toMatch(/audit log/i);
+    expect(text).toMatch(/IP address/);
+    expect(text).toMatch(/12 months/);
+  });
+
+  it("discloses the bcx_sid session cookie in a table plus browser storage", () => {
+    const { container } = render(<PrivacyPage />);
+    const section = container.querySelector('[data-slot="privacy-cookies"]') as HTMLElement | null;
+    expect(section).not.toBeNull();
+    const text = section!.textContent ?? "";
+    expect(text).toMatch(/bcx_sid/);
+    expect(text).toMatch(/30 days/);
     expect(text).toMatch(/bchemxtract-theme/);
     expect(text).toMatch(/bcx\.reactions\.experimentalBannerDismissed/);
+    expect(section!.querySelector('[data-slot="privacy-cookie-table"]')).not.toBeNull();
+  });
+
+  it("states that no web analytics are used", () => {
+    const { container } = render(<PrivacyPage />);
+    const section = container.querySelector(
+      '[data-slot="privacy-analytics"]',
+    ) as HTMLElement | null;
+    expect(section).not.toBeNull();
+    expect(section!.textContent).toMatch(/does not use any web-analytics service/i);
   });
 
   it("states the competent supervisory authority", () => {
     render(<PrivacyPage />);
-    const section = document.querySelector(
-      '[data-slot="privacy-supervisory-authority"]',
-    ) as HTMLElement | null;
+    const section = document.querySelector('[data-slot="privacy-rights"]') as HTMLElement | null;
     expect(section).not.toBeNull();
     expect(section!.textContent).toMatch(/Hessian Commissioner for Data Protection/i);
     expect(section!.textContent).toMatch(/Wiesbaden/);
+  });
+
+  it("renders a version date", () => {
+    const { container } = render(<PrivacyPage />);
+    const version = container.querySelector('[data-slot="privacy-version"]') as HTMLElement | null;
+    expect(version).not.toBeNull();
+    expect(version!.textContent).toMatch(/Version \d{2}\.\d{2}\.\d{4}/);
   });
 
   it("links to the Beilstein-Institut full privacy policy", () => {
