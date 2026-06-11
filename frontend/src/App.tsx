@@ -28,9 +28,7 @@ const AboutPage = lazy(() => import("@/pages/AboutPage").then((m) => ({ default:
 const ImprintPage = lazy(() =>
   import("@/pages/ImprintPage").then((m) => ({ default: m.ImprintPage })),
 );
-const TermsPage = lazy(() =>
-  import("@/pages/TermsPage").then((m) => ({ default: m.TermsPage })),
-);
+const TermsPage = lazy(() => import("@/pages/TermsPage").then((m) => ({ default: m.TermsPage })));
 const PrivacyPage = lazy(() =>
   import("@/pages/PrivacyPage").then((m) => ({ default: m.PrivacyPage })),
 );

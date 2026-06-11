@@ -53,9 +53,9 @@ const TOPICS: Topic[] = [
           your name, address, e-mail address, or user behaviour.
         </p>
         <p>
-          (2) The controller pursuant to Art. 4 (7) of the General Data Protection Regulation
-          (GDPR) is the Beilstein-Institut zur Förderung der Chemischen Wissenschaften, Trakehner
-          Straße 7–9, 60487 Frankfurt am Main, Germany (telephone: +49 (0) 69 71673-20, email:{" "}
+          (2) The controller pursuant to Art. 4 (7) of the General Data Protection Regulation (GDPR)
+          is the Beilstein-Institut zur Förderung der Chemischen Wissenschaften, Trakehner Straße
+          7–9, 60487 Frankfurt am Main, Germany (telephone: +49 (0) 69 71673-20, email:{" "}
           <a href="mailto:info@beilstein-institut.de" className={LEGAL_LINK_CLASS}>
             info@beilstein-institut.de
           </a>
@@ -67,9 +67,9 @@ const TOPICS: Topic[] = [
         </p>
         <p>
           (3) If you contact us by e-mail, telephone, or mail, the data you provide is stored by us
-          in order to answer your questions. We delete the data arising in this context once
-          storage is no longer required, or restrict its processing where statutory retention
-          obligations apply. The legal basis is Art. 6 (1) lit. f GDPR.
+          in order to answer your questions. We delete the data arising in this context once storage
+          is no longer required, or restrict its processing where statutory retention obligations
+          apply. The legal basis is Art. 6 (1) lit. f GDPR.
         </p>
         <p>
           (4) This website is operated on infrastructure of the Beilstein-Institut. No external
@@ -88,8 +88,8 @@ const TOPICS: Topic[] = [
     body: (
       <>
         <p>
-          (1) When you visit this website, your browser transmits data that is technically
-          necessary to display the website and to ensure its stability and security. This includes:
+          (1) When you visit this website, your browser transmits data that is technically necessary
+          to display the website and to ensure its stability and security. This includes:
         </p>
         <ul className="ml-5 list-disc space-y-1 marker:text-foreground-muted">
           <li>IP address</li>
@@ -110,8 +110,8 @@ const TOPICS: Topic[] = [
           entirely when a service is redeployed. Log data whose continued storage is required for
           evidentiary purposes (for example, to investigate a security incident) is retained until
           the incident has been clarified. In addition, a rate limiter inspects the client IP
-          address transiently on each request to decide whether to permit or throttle it; this IP
-          is discarded at the end of the request and is not written to application tables.
+          address transiently on each request to decide whether to permit or throttle it; this IP is
+          discarded at the end of the request and is not written to application tables.
         </p>
         <p>
           (3) The processing is carried out in accordance with Art. 6 (1) lit. f GDPR (legitimate
@@ -133,15 +133,14 @@ const TOPICS: Topic[] = [
           extraction history.
         </p>
         <p>
-          (2) When you extract a file via the Extract page, your browser sends the selected
-          ChemDraw file (<code>.cdx</code> or <code>.cdxml</code>) to our server. The server parses
-          the file, runs structure extraction via the BChemXtract Java library, and persists an
-          extraction record to our PostgreSQL database together with the extracted chemical
-          structures. The record contains the original file name, file size, format, structure
-          count, processing time, and any warnings emitted by the extractor. Extracted structures
-          are deduplicated by InChIKey and stored as SMILES, InChI, molecular formula, MDL V3000
-          block, and rendered SVG. These records are retained until you delete them — individually
-          via the{" "}
+          (2) When you extract a file via the Extract page, your browser sends the selected ChemDraw
+          file (<code>.cdx</code> or <code>.cdxml</code>) to our server. The server parses the file,
+          runs structure extraction via the BChemXtract Java library, and persists an extraction
+          record to our PostgreSQL database together with the extracted chemical structures. The
+          record contains the original file name, file size, format, structure count, processing
+          time, and any warnings emitted by the extractor. Extracted structures are deduplicated by
+          InChIKey and stored as SMILES, InChI, molecular formula, MDL V3000 block, and rendered
+          SVG. These records are retained until you delete them — individually via the{" "}
           <Link to="/history" className={LEGAL_LINK_CLASS}>
             History page
           </Link>
@@ -153,9 +152,9 @@ const TOPICS: Topic[] = [
         </p>
         <p>
           (3) Security-relevant events (for example session creation, session restore from a
-          recovery code, and data deletion) are recorded in an audit log together with a hashed
-          form of the session identifier, the IP address, and the browser user agent. Audit-log
-          entries are deleted automatically after 12 months.
+          recovery code, and data deletion) are recorded in an audit log together with a hashed form
+          of the session identifier, the IP address, and the browser user agent. Audit-log entries
+          are deleted automatically after 12 months.
         </p>
         <p>
           (4) The legal basis for processing your uploads is Art. 6 (1) lit. b GDPR (performance of
@@ -173,12 +172,11 @@ const TOPICS: Topic[] = [
         <p>
           (1) For functions of the website, technical aids — in particular cookies — may be stored
           on your terminal equipment. We use only technically necessary cookies; no optional,
-          marketing, or tracking cookies are set, which is why this website shows no consent
-          banner.
+          marketing, or tracking cookies are set, which is why this website shows no consent banner.
         </p>
         <p>
-          (2) The single cookie used is set with the <code>HttpOnly</code>, <code>Secure</code>,
-          and <code>SameSite=Lax</code> attributes:
+          (2) The single cookie used is set with the <code>HttpOnly</code>, <code>Secure</code>, and{" "}
+          <code>SameSite=Lax</code> attributes:
         </p>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm" data-slot="privacy-cookie-table">
@@ -227,8 +225,8 @@ const TOPICS: Topic[] = [
           </li>
         </ul>
         <p>
-          Both entries remain in your browser, are never sent to the server, and contain no
-          personal data. You can clear them at any time through your browser's site-data settings.
+          Both entries remain in your browser, are never sent to the server, and contain no personal
+          data. You can clear them at any time through your browser's site-data settings.
         </p>
         <p>
           (4) The storage of and access to this information is carried out in accordance with
@@ -245,9 +243,9 @@ const TOPICS: Topic[] = [
       <>
         <p>
           (1) BChemXtractWeb does not use any web-analytics service. No usage statistics are
-          collected, no advertising or social tracking pixels are loaded, and no third-party
-          content is embedded. The JetBrains Mono webfont used by the interface is self-hosted from
-          our own origin via the fontsource package.
+          collected, no advertising or social tracking pixels are loaded, and no third-party content
+          is embedded. The JetBrains Mono webfont used by the interface is self-hosted from our own
+          origin via the fontsource package.
         </p>
         <p>
           (2) The only outbound requests your browser makes are to this site itself. External links
@@ -305,9 +303,7 @@ const TOPICS: Topic[] = [
           will review the circumstances and either discontinue or adjust the processing, or
           demonstrate compelling legitimate grounds for its continuation.
         </p>
-        <p>
-          (3) You can address an objection at any time using the contact details given in § 1.
-        </p>
+        <p>(3) You can address an objection at any time using the contact details given in § 1.</p>
       </>
     ),
   },
