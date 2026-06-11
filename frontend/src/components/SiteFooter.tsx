@@ -25,7 +25,7 @@ function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
  *   - Social: BChemXtractWeb GitHub + Beilstein-Institut website
  *   - Main links: Extract / Browse / History / About — routed through
  *     the internal <Link /> so clicks stay inside the SPA
- *   - Legal: License / Imprint / Privacy — all internal pages
+ *   - Legal: Terms and conditions / Imprint / Privacy — all internal pages
  *   - Copyright: © 2026 <BrandName /> · Open source
  *   - Centered band: "Built with [animated ☕] at the Beilstein-Institut"
  */
@@ -120,7 +120,7 @@ export function SiteFooter() {
         { href: "/about", label: "About", internal: true },
       ]}
       legalLinks={[
-        { href: "/license", label: "License", internal: true },
+        { href: "/terms", label: "Terms and conditions", internal: true },
         { href: "/imprint", label: "Imprint", internal: true },
         { href: "/privacy", label: "Privacy", internal: true },
       ]}

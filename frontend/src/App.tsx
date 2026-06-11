@@ -28,8 +28,8 @@ const AboutPage = lazy(() => import("@/pages/AboutPage").then((m) => ({ default:
 const ImprintPage = lazy(() =>
   import("@/pages/ImprintPage").then((m) => ({ default: m.ImprintPage })),
 );
-const LicensePage = lazy(() =>
-  import("@/pages/LicensePage").then((m) => ({ default: m.LicensePage })),
+const TermsPage = lazy(() =>
+  import("@/pages/TermsPage").then((m) => ({ default: m.TermsPage })),
 );
 const PrivacyPage = lazy(() =>
   import("@/pages/PrivacyPage").then((m) => ({ default: m.PrivacyPage })),
@@ -222,8 +222,9 @@ function App() {
     switch (route) {
       case "/about":
         return <AboutPage />;
-      case "/license":
-        return <LicensePage />;
+      case "/terms":
+      case "/license": // legacy alias — the page lived at /license before the Terms rename
+        return <TermsPage />;
       case "/imprint":
         return <ImprintPage />;
       case "/privacy":

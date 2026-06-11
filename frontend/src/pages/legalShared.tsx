@@ -1,5 +1,5 @@
 /**
- * Shared pieces for the three legal pages (License / Imprint / Privacy).
+ * Shared pieces for the three legal pages (Terms / Imprint / Privacy).
  *
  * These three routes share the same editorial chrome — a small uppercase
  * eyebrow badge above the title, a large heading, and a lede paragraph —

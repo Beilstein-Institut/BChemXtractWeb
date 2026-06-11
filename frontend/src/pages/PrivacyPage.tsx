@@ -148,7 +148,8 @@ const TOPICS: Topic[] = [
         </p>
         <p>
           The only outbound requests your browser makes are to this site itself. External links (for
-          example on the About and License pages) are plain anchors that you follow explicitly.
+          example on the About and Terms and conditions pages) are plain anchors that you follow
+          explicitly.
         </p>
       </>
     ),
