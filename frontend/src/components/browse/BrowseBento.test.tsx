@@ -1,9 +1,11 @@
 /**
  * BrowseBento — bento-landing tile tests (Phase 3 Task 11).
  *
- * Verifies the 5 cells render with the expected data-slot hooks,
- * the "Browse all" CTA invokes its callback, and empty-state copy
- * appears when the filtered slice is empty.
+ * Verifies the 5 cells render with the expected data-slot hooks
+ * (the former "Featured structures" strip was removed — it carried
+ * no signal and duplicated the full browser below), the "Browse all"
+ * CTA invokes its callback, and empty-state copy appears when the
+ * filtered slice is empty.
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { vi } from "vitest";
@@ -40,7 +42,7 @@ function makeList(n: number): SubstanceResponse[] {
 }
 
 describe("BrowseBento", () => {
-  it("renders all 6 bento cells with data-slot hooks", () => {
+  it("renders all 5 bento cells with data-slot hooks", () => {
     const substances = makeList(10);
     const { container } = render(
       <BrowseBento
@@ -57,8 +59,9 @@ describe("BrowseBento", () => {
     expect(container.querySelector('[data-slot="browse-bento-cell-total"]')).not.toBeNull();
     expect(container.querySelector('[data-slot="browse-bento-cell-unique"]')).not.toBeNull();
     expect(container.querySelector('[data-slot="browse-bento-cell-cta"]')).not.toBeNull();
-    expect(container.querySelector('[data-slot="browse-bento-cell-popular"]')).not.toBeNull();
     expect(container.querySelector('[data-slot="browse-bento-cell-format"]')).not.toBeNull();
+    // The "Featured structures" strip was removed — must not render.
+    expect(container.querySelector('[data-slot="browse-bento-cell-popular"]')).toBeNull();
   });
 
   it("shows the filtered count and total count", () => {
@@ -109,18 +112,18 @@ describe("BrowseBento", () => {
         onBrowseAll={onBrowseAll}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /open grid/i }));
+    fireEvent.click(screen.getByRole("button", { name: /view all/i }));
     expect(onBrowseAll).toHaveBeenCalledTimes(1);
   });
 
-  it("renders empty-state copy inside Recent tile when no matches", () => {
+  it("renders empty-state copy inside the preview tile when no matches", () => {
     render(
       <BrowseBento substances={[]} totalSubstances={5} format="cdxml" onBrowseAll={vi.fn()} />,
     );
-    expect(screen.getByText(/adjust your search to see structures/i)).toBeInTheDocument();
+    expect(screen.getByText(/adjust your search or filters to see structures/i)).toBeInTheDocument();
   });
 
-  it("calls onOpenSubstance with the absolute index for Recent thumbnails", () => {
+  it("calls onOpenSubstance with the absolute index for preview thumbnails", () => {
     const onOpen = vi.fn();
     const list = makeList(3);
     render(
@@ -136,6 +139,34 @@ describe("BrowseBento", () => {
     const thumbs = screen.getAllByRole("button", { name: /open details for/i });
     fireEvent.click(thumbs[0]);
     expect(onOpen).toHaveBeenCalledWith(0);
+  });
+
+  it("trims the preview to 3 thumbnails when more than 5 structures are present", () => {
+    render(
+      <BrowseBento
+        substances={makeList(12)}
+        totalSubstances={12}
+        format="cdx"
+        onBrowseAll={vi.fn()}
+        onOpenSubstance={vi.fn()}
+      />,
+    );
+    expect(screen.getAllByRole("button", { name: /open details for/i })).toHaveLength(3);
+    expect(screen.getByText(/showing the first 3 of 12 structures/i)).toBeInTheDocument();
+  });
+
+  it("shows all structures in the preview when 5 or fewer are present", () => {
+    render(
+      <BrowseBento
+        substances={makeList(5)}
+        totalSubstances={5}
+        format="cdx"
+        onBrowseAll={vi.fn()}
+        onOpenSubstance={vi.fn()}
+      />,
+    );
+    expect(screen.getAllByRole("button", { name: /open details for/i })).toHaveLength(5);
+    expect(screen.getByText(/showing all 5 structures/i)).toBeInTheDocument();
   });
 
   it("displays the uppercase source format", () => {

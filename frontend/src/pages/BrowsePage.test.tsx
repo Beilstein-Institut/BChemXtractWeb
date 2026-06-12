@@ -18,13 +18,22 @@ vi.mock("@/components/StructureBrowser", () => ({
   StructureBrowser: (props: {
     extractionId: number | null | undefined;
     filters?: { q: string; hasName: boolean; hasSmiles: boolean; hasInchi: boolean };
+    depiction?: string;
+    onDepictionChange?: (d: "cdx" | "cdk") => void;
   }) => (
     <div
       data-testid="structure-browser"
       data-extraction-id={props.extractionId ?? ""}
       data-filter-q={props.filters?.q ?? ""}
       data-filter-has-name={String(props.filters?.hasName ?? false)}
-    />
+      data-depiction={props.depiction ?? ""}
+    >
+      {/* Stand-in for the toolbar's ChemDraw/CDK toggle. */}
+      <button
+        data-testid="mock-depiction-switch"
+        onClick={() => props.onDepictionChange?.("cdk")}
+      />
+    </div>
   ),
 }));
 
@@ -142,6 +151,35 @@ describe("BrowsePage", () => {
     expect(browser.getAttribute("data-filter-has-name")).toBe("true");
   });
 
+  it("defaults the page depiction to ChemDraw (cdx)", () => {
+    render(
+      <BrowsePage
+        {...makeProps({
+          activeExtractionId: 42,
+          activeResult: makeResponse([makeSubstance()]),
+        })}
+      />,
+    );
+    expect(screen.getByTestId("structure-browser").getAttribute("data-depiction")).toBe("cdx");
+  });
+
+  it("flips the depiction page-wide when the toolbar toggle fires", () => {
+    render(
+      <BrowsePage
+        {...makeProps({
+          activeExtractionId: 42,
+          activeResult: makeResponse([makeSubstance()]),
+        })}
+      />,
+    );
+
+    act(() => {
+      fireEvent.click(screen.getByTestId("mock-depiction-switch"));
+    });
+
+    expect(screen.getByTestId("structure-browser").getAttribute("data-depiction")).toBe("cdk");
+  });
+
   it("renders the historical view banner when isHistoricalView=true", () => {
     render(
       <BrowsePage
@@ -152,6 +190,6 @@ describe("BrowsePage", () => {
         })}
       />,
     );
-    expect(screen.getByText(/viewing historical extraction/i)).toBeInTheDocument();
+    expect(screen.getByText(/viewing past extraction: sample\.cdxml/i)).toBeInTheDocument();
   });
 });

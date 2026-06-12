@@ -10,9 +10,9 @@
  *     assumes a cross-extraction index — the per-extraction data surface
  *     does not expose those fields per substance, so chips are instead
  *     keyed on substance-shape predicates that ARE available:
- *       - "Has IUPAC name"  → substance.iupac_name non-empty
- *       - "SMILES available" → substance.smiles non-empty
- *       - "InChI available"  → substance.inchi non-empty
+ *       - "Has IUPAC name" → substance.iupac_name non-empty
+ *       - "Has SMILES"     → substance.smiles non-empty
+ *       - "Has InChI"      → substance.inchi non-empty
  *
  * Debounce: the free-text query runs through `useDebouncedValue(q, 250)`
  * so bento tile re-renders (hero grid + stats + popular strip) only
@@ -169,13 +169,13 @@ export function SearchFilter({ value, onChange, debounceMs = 250, className }: S
           active={value.hasSmiles}
           onToggle={() => onChange({ ...value, hasSmiles: !value.hasSmiles })}
         >
-          SMILES available
+          Has SMILES
         </FilterChip>
         <FilterChip
           active={value.hasInchi}
           onToggle={() => onChange({ ...value, hasInchi: !value.hasInchi })}
         >
-          InChI available
+          Has InChI
         </FilterChip>
 
         {anyActive && (

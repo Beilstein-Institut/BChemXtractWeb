@@ -317,4 +317,67 @@ describe("StructureSheet component", () => {
     expect(img).not.toBeNull();
     expect(img.src).toMatch(/^blob:/);
   });
+
+  it("defaults to the ChemDraw layout when both renders are stored", () => {
+    // Product default: depiction prop omitted -> ChemDraw ("cdx").
+    render(
+      <StructureSheet
+        open={true}
+        onOpenChange={vi.fn()}
+        substance={{ ...mockSubstance, svg_cdx: "<svg>cdx</svg>" }}
+        substanceIndex={0}
+        totalSubstances={1}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /^ChemDraw$/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /^CDK$/i })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("initializes from the page-level depiction prop (cdk)", () => {
+    render(
+      <StructureSheet
+        open={true}
+        onOpenChange={vi.fn()}
+        substance={{ ...mockSubstance, svg_cdx: "<svg>cdx</svg>" }}
+        substanceIndex={0}
+        totalSubstances={1}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+        depiction="cdk"
+      />,
+    );
+    expect(screen.getByRole("button", { name: /^CDK$/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("falls back to CDK when cdx is preferred but svg_cdx is missing", () => {
+    render(
+      <StructureSheet
+        open={true}
+        onOpenChange={vi.fn()}
+        substance={{ ...mockSubstance, svg_cdx: "" }}
+        substanceIndex={0}
+        totalSubstances={1}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+        depiction="cdx"
+      />,
+    );
+    // ChemDraw layout not stored -> the sheet shows the CDK render.
+    expect(screen.getByRole("button", { name: /^CDK$/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /^ChemDraw$/i })).toBeDisabled();
+  });
 });
