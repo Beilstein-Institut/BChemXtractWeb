@@ -249,9 +249,7 @@ export function BrowseToolbar({
       {/* ChemDraw/CDK depiction toggle — immediately left of Export all so
           the layout choice and the image export it governs sit together.
           ChemDraw (original drawing) is the default. */}
-      {onDepictionChange && (
-        <DepictionToggle depiction={depiction} onChange={onDepictionChange} />
-      )}
+      {onDepictionChange && <DepictionToggle depiction={depiction} onChange={onDepictionChange} />}
 
       {/* Export all — always visible when extraction is active and has substances (D-03) */}
       {extractionId !== null && total > 0 && (

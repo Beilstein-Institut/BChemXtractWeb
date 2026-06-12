@@ -120,7 +120,9 @@ describe("BrowseBento", () => {
     render(
       <BrowseBento substances={[]} totalSubstances={5} format="cdxml" onBrowseAll={vi.fn()} />,
     );
-    expect(screen.getByText(/adjust your search or filters to see structures/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/adjust your search or filters to see structures/i),
+    ).toBeInTheDocument();
   });
 
   it("calls onOpenSubstance with the absolute index for preview thumbnails", () => {

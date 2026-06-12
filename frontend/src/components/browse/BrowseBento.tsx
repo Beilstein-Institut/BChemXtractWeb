@@ -130,7 +130,9 @@ function StructureThumb({
 function previewCaption(shown: number, totalFiltered: number, totalUnfiltered: number): string {
   if (totalFiltered === 0) return "No structures match the current filters.";
   if (shown >= totalFiltered) {
-    return totalFiltered === 1 ? "Showing 1 structure." : `Showing all ${totalFiltered} structures.`;
+    return totalFiltered === 1
+      ? "Showing 1 structure."
+      : `Showing all ${totalFiltered} structures.`;
   }
   const noun = totalFiltered === totalUnfiltered ? "structures" : "matches";
   return `Showing the first ${shown} of ${totalFiltered} ${noun}.`;

@@ -252,9 +252,7 @@ describe("BrowseToolbar", () => {
       const { container } = render(<BrowseToolbar {...depictionProps} />);
       const group = container.querySelector('[data-slot="depiction-toggle"]');
       expect(group?.getAttribute("data-depiction")).toBe("cdx");
-      expect(screen.getByLabelText(/ChemDraw depiction/).getAttribute("aria-pressed")).toBe(
-        "true",
-      );
+      expect(screen.getByLabelText(/ChemDraw depiction/).getAttribute("aria-pressed")).toBe("true");
       expect(screen.getByLabelText(/CDK depiction/).getAttribute("aria-pressed")).toBe("false");
     });
 

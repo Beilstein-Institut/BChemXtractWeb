@@ -335,10 +335,7 @@ describe("StructureSheet component", () => {
       "aria-pressed",
       "true",
     );
-    expect(screen.getByRole("button", { name: /^CDK$/i })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    expect(screen.getByRole("button", { name: /^CDK$/i })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("initializes from the page-level depiction prop (cdk)", () => {
@@ -354,10 +351,7 @@ describe("StructureSheet component", () => {
         depiction="cdk"
       />,
     );
-    expect(screen.getByRole("button", { name: /^CDK$/i })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(screen.getByRole("button", { name: /^CDK$/i })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("falls back to CDK when cdx is preferred but svg_cdx is missing", () => {
@@ -374,10 +368,7 @@ describe("StructureSheet component", () => {
       />,
     );
     // ChemDraw layout not stored -> the sheet shows the CDK render.
-    expect(screen.getByRole("button", { name: /^CDK$/i })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(screen.getByRole("button", { name: /^CDK$/i })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: /^ChemDraw$/i })).toBeDisabled();
   });
 });
