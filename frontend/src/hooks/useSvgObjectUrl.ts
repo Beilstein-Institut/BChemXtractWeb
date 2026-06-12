@@ -27,9 +27,7 @@ export function useSvgObjectUrl(svg: string | null | undefined): string | null {
   const [url, setUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    const objectUrl = svg
-      ? URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }))
-      : null;
+    const objectUrl = svg ? URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" })) : null;
     // The URL is an external resource that must be created (and revoked)
     // inside the effect; publishing its handle via state is the
     // StrictMode-safe pattern.
