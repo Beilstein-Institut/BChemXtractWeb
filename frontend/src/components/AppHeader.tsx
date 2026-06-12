@@ -100,7 +100,7 @@ export function AppHeader() {
           CTA slot, though we keep it as a tight flex row rather than a
           wrapping pill so the chem flask toggle can breathe.
         */}
-        <div data-slot="header-right-cluster" className="flex items-center gap-3">
+        <div data-slot="header-right-cluster" className="flex min-w-0 items-center gap-3">
           <SearchInput />
           <ChemistryThemeSwitch />
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>

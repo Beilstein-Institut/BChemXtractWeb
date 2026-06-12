@@ -2,6 +2,7 @@
  * Export types for Phase 8 multi-format chemical export.
  * Matches backend ExportRequest Pydantic model exactly.
  */
+import type { Depiction } from "@/types/chemistry";
 
 export type ExportFormat = "sdf" | "json" | "csv" | "png" | "svg" | "v3000" | "rxn";
 
@@ -36,4 +37,11 @@ export interface ExportRequest {
   extraction_id?: number;
   /** Explicit reaction IDs for RXN export (Plan 10 D-22). Mirrors substance_ids. */
   reaction_ids?: number[];
+  /**
+   * 2D layout for the image formats (png/svg): "cdx" = original ChemDraw
+   * coordinates, "cdk" = fresh CDK layout. Backend defaults to "cdk" when
+   * omitted; the UI always sends its active depiction so exports match
+   * what is displayed. Ignored by the non-image formats.
+   */
+  depiction?: Depiction;
 }

@@ -4,14 +4,26 @@ All six export formats are implemented here:
   - SDF: CDK SDFWriter (JVM thread required)
   - JSON: pure Python dict serialization
   - CSV: pure Python csv stdlib
-  - PNG: CDK DepictionGenerator.toImg() + ImageIO (JVM thread required)
-  - SVG: served from stored `svg` field (pure Python)
+  - PNG: rasterized from the stored SVG of the requested depiction via
+    cairosvg; falls back per structure to CDK DepictionGenerator.toImg()
+    when no stored SVG exists (JVM thread required for the fallback only)
+  - SVG: served from the stored SVG of the requested depiction
   - V3000: CDK MDLV3000Writer (JVM thread required)
   - RXN: empty RDF stub (D-11, Phase 10 will populate)
 
 Per D-08: single unified generate_export() function dispatches to per-format helpers.
-Per D-09: CDK/Java handles SDF, V3000, PNG. Python handles JSON, CSV, SVG.
-Per D-10: PNG uses CDK DepictionGenerator (same CDK pipeline as stored svg field).
+Per D-09: CDK/Java handles SDF, V3000. Python handles JSON, CSV, SVG, PNG.
+
+Depiction contract (image formats): exports must match what the UI
+displays. ``depiction="cdk"`` selects the stored ``svg`` column (fresh
+CDK layout); ``depiction="cdx"`` selects ``svg_cdx`` (original ChemDraw
+coordinates). When the requested layout is missing for a structure the
+other stored layout is used — the same fallback the frontend applies
+when rendering — so the exported image always equals the displayed one.
+PNG rasterizes that exact stored SVG (supersedes the original D-10
+SMILES-reparse pipeline, which could expand abbreviations and re-layout
+differently from the on-screen depiction); the SMILES pipeline remains
+as the per-structure fallback when no stored SVG exists at all.
 
 Security:
   T-08-03: CDK SmilesParser exceptions caught per-molecule — never crash full export.
@@ -19,6 +31,7 @@ Security:
   T-08-05: PNG export hard-limited to 200 structures.
 """
 
+import asyncio
 import csv
 import io
 import json
@@ -26,6 +39,7 @@ import logging
 import zipfile
 from datetime import UTC, datetime
 
+import cairosvg
 from fastapi import HTTPException
 
 from app.services.filenames import safe_filename
@@ -34,6 +48,24 @@ from app.services.jvm_bridge import run_in_jvm_thread
 _logger = logging.getLogger(__name__)
 
 _PNG_LIMIT = 200
+
+# Rasterization target for PNG export. Matches the legacy CDK
+# DepictionGenerator size so existing consumers see no dimension change.
+_PNG_SIZE = 1000
+
+
+def _pick_depiction_svg(substance: dict, depiction: str) -> str:
+    """Return the stored SVG matching ``depiction``, with display-parity fallback.
+
+    "cdx" prefers the original-ChemDraw-coordinates render (``svg_cdx``),
+    "cdk" prefers the fresh CDK layout (``svg``). When the preferred field
+    is empty the other one is returned — identical to the frontend's
+    rendering fallback — so exports always match what the user sees.
+    Returns "" when neither layout exists.
+    """
+    preferred, other = ("svg_cdx", "svg") if depiction == "cdx" else ("svg", "svg_cdx")
+    return substance.get(preferred) or substance.get(other) or ""
+
 
 # IN-01: date is generated at call time in _generate_rxn_stub() — not hardcoded here.
 
@@ -209,6 +241,34 @@ def _generate_png_sync(smiles: str, width: int = 1000, height: int = 1000) -> by
         _logger.debug(
             "PNG generation failed for SMILES %r — returning empty bytes", smiles[:40]
         )
+        return b""
+
+
+def _rasterize_svg_sync(svg_markup: str, size: int = _PNG_SIZE) -> bytes:
+    """Rasterize stored SVG markup to PNG bytes via cairosvg.
+
+    This is the primary PNG path: the stored SVG is exactly what the UI
+    displays, so the PNG pixel-matches the chosen depiction. CDK emits
+    glyphs as vector paths (no ``<text>`` elements), so rasterization is
+    font-independent. The stored SVGs have their CDK white-backdrop rect
+    stripped at storage time (SEC L-05), so an explicit white background
+    is applied here to match the legacy CDK ``toImg()`` output.
+
+    Pure Python / no JVM. Returns b'' on any failure so the caller can
+    fall back to the SMILES-based CDK pipeline (T-08-03 spirit: one bad
+    structure never crashes the whole export).
+    """
+    if not svg_markup:
+        return b""
+    try:
+        return cairosvg.svg2png(
+            bytestring=svg_markup.encode("utf-8"),
+            output_width=size,
+            output_height=size,
+            background_color="#ffffff",
+        )
+    except Exception as exc:  # noqa: BLE001 — contract: never raise
+        _logger.warning("SVG rasterization failed — falling back to CDK: %s", exc)
         return b""
 
 
@@ -425,15 +485,21 @@ def _generate_csv(substances: list[dict]) -> bytes:
     return buf.getvalue().encode("utf-8")
 
 
-def _svg_entries(substances: list[dict]) -> list[tuple[str, bytes]]:
+def _svg_entries(
+    substances: list[dict], depiction: str = "cdk"
+) -> list[tuple[str, bytes]]:
     """Build ``(filename, svg_bytes)`` entries from substance dicts.
 
     Filename construction uses inchi_key prefix + sequential index directly
     to ensure unique entry names (avoids silent overwrites from identical
-    InChI key prefixes). Substances with empty ``svg`` are skipped.
+    InChI key prefixes). The SVG content is selected per substance by
+    ``depiction`` (see :func:`_pick_depiction_svg`); substances with no
+    stored SVG in either layout are skipped.
 
     Args:
-        substances: List of substance dicts with ``svg`` and ``inchi_key`` fields.
+        substances: List of substance dicts with ``svg``/``svg_cdx`` and
+            ``inchi_key`` fields.
+        depiction: "cdk" or "cdx" layout selector.
 
     Returns:
         List of ``(filename, utf8_bytes)`` pairs, one per substance with
@@ -441,7 +507,7 @@ def _svg_entries(substances: list[dict]) -> list[tuple[str, bytes]]:
     """
     entries: list[tuple[str, bytes]] = []
     for i, s in enumerate(substances):
-        svg_content = s.get("svg", "")
+        svg_content = _pick_depiction_svg(s, depiction)
         if not svg_content:
             continue
         inchi_key = s.get("inchi_key", "")
@@ -477,16 +543,21 @@ def _generate_rxn_stub() -> bytes:
 async def generate_export(
     substances: list[dict],
     fmt: str,
+    depiction: str = "cdk",
 ) -> tuple[bytes, str, str]:
     """Generate export bytes for the given format.
 
     Dispatches to the appropriate format generator. JVM-dependent formats
-    (sdf, png, v3000) are dispatched via run_in_jvm_thread. Pure Python
-    formats (json, csv, svg, rxn) run directly.
+    (sdf, v3000, and the PNG fallback path) are dispatched via
+    run_in_jvm_thread. Pure Python formats (json, csv, svg, rxn) and the
+    primary PNG rasterization run on a worker thread or directly.
 
     Args:
         substances: List of substance dicts from the ORM layer.
         fmt: Export format string (validated upstream by Pydantic ExportRequest).
+        depiction: 2D layout for the image formats (png/svg): "cdk" for the
+            fresh CDK layout, "cdx" for original ChemDraw coordinates
+            (validated upstream by Pydantic). Ignored by other formats.
 
     Returns:
         Tuple of (content_bytes, media_type, filename).
@@ -521,7 +592,7 @@ async def generate_export(
         )
 
     if fmt == "svg":
-        svg_entries = _svg_entries(substances)
+        svg_entries = _svg_entries(substances, depiction)
         if len(svg_entries) == 1:
             return svg_entries[0][1], "image/svg+xml", svg_entries[0][0]
         return _build_zip(svg_entries), "application/zip", multi_name
@@ -537,7 +608,18 @@ async def generate_export(
             )
         png_entries: list[tuple[str, bytes]] = []
         for s in substances:
-            png_bytes = await run_in_jvm_thread(_generate_png_sync, s.get("smiles", ""))
+            # Primary path: rasterize the stored SVG of the requested
+            # depiction so the PNG matches what the UI displays. Fallback:
+            # legacy CDK SMILES-reparse pipeline when no stored SVG exists
+            # or rasterization fails for this structure.
+            svg_markup = _pick_depiction_svg(s, depiction)
+            png_bytes = b""
+            if svg_markup:
+                png_bytes = await asyncio.to_thread(_rasterize_svg_sync, svg_markup)
+            if not png_bytes:
+                png_bytes = await run_in_jvm_thread(
+                    _generate_png_sync, s.get("smiles", "")
+                )
             if png_bytes:
                 png_entries.append((_single_filename(s, "png"), png_bytes))
         if len(png_entries) == 1:

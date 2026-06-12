@@ -34,8 +34,9 @@ import { CopyButton } from "@/components/internal/CopyButton";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { postExport } from "@/lib/apiClient";
+import { DEFAULT_DEPICTION } from "@/lib/depiction";
 import { safeDownloadSlug } from "@/lib/safeStrings";
-import type { SubstanceResponse } from "@/types/chemistry";
+import type { Depiction, SubstanceResponse } from "@/types/chemistry";
 import type { ExportFormat } from "@/types/export";
 import { FORMAT_EXT } from "@/types/export";
 
@@ -48,6 +49,12 @@ export interface StructureSheetProps {
   totalSubstances: number;
   onPrev: () => void;
   onNext: () => void;
+  /**
+   * Page-level 2D layout preference. Initializes the sheet's per-structure
+   * CDK/ChemDraw toggle whenever the displayed substance changes; the user
+   * can still override it locally for the structure on screen.
+   */
+  depiction?: Depiction;
 }
 
 /** Labeled metadata field + CopyButton, rendered inside the side-sheet. */
@@ -77,21 +84,30 @@ export function StructureSheet({
   totalSubstances,
   onPrev,
   onNext,
+  depiction = DEFAULT_DEPICTION,
 }: StructureSheetProps) {
   const [zoom, setZoom] = useState(1);
-  const [useCdxCoords, setUseCdxCoords] = useState(false);
+  const [useCdxCoords, setUseCdxCoords] = useState(depiction === "cdx");
 
-  // Reset zoom and pick initial layout when substance changes. Default to CDK;
-  // fall back to ChemDraw when CDK isn't available. Computed once per substance
-  // change so there's only a single commit (no cascading effects).
+  // Reset zoom and pick initial layout when substance changes. Follow the
+  // page-level depiction preference (ChemDraw by default); fall back to
+  // the other layout when the preferred one isn't stored for this
+  // structure. Computed once per substance change so there's only a
+  // single commit (no cascading effects).
   // why: keying off `substance` to remount would break the Sheet
   //      animation and focus. Ephemeral UI state resets sync to the prop.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- prop-sync
     setZoom(1);
 
-    setUseCdxCoords(substance ? !substance.svg && !!substance.svg_cdx : false);
-  }, [substance]);
+    setUseCdxCoords(
+      substance
+        ? depiction === "cdx"
+          ? !!substance.svg_cdx
+          : !substance.svg && !!substance.svg_cdx
+        : depiction === "cdx",
+    );
+  }, [substance, depiction]);
 
   function zoomIn() {
     setZoom((z) => Math.min(z + 0.25, 5));
@@ -109,7 +125,13 @@ export function StructureSheet({
     toast.loading("Preparing export\u2026", { id: toastId });
     try {
       await postExport(
-        { format, substance_ids: [substance.id] },
+        {
+          format,
+          substance_ids: [substance.id],
+          // Export what this sheet is actually showing \u2014 the local
+          // CDK/ChemDraw toggle wins over the page-level preference.
+          depiction: useCdxCoords ? "cdx" : "cdk",
+        },
         `${safeDownloadSlug(substance.inchi_key?.slice(0, 8))}_${format}.${FORMAT_EXT[format]}`,
       );
       toast.success("Export ready \u2014 downloading", { id: toastId, duration: 3000 });
@@ -220,10 +242,12 @@ export function StructureSheet({
             <div className="relative h-[50vh] bg-background rounded-xl border border-border mx-4 overflow-hidden">
               {svgSrc ? (
                 <div className="w-full h-full overflow-auto flex items-center justify-center">
+                  {/* key: fade in the swapped layout when CDK/ChemDraw flips. */}
                   <img
+                    key={useCdxCoords ? "cdx" : "cdk"}
                     src={svgSrc}
                     alt={`${substance.molecular_formula} structure — full size`}
-                    className="object-contain transition-transform duration-150"
+                    className="object-contain transition-transform duration-150 animate-in fade-in motion-reduce:animate-none"
                     style={{
                       transform: `scale(${zoom})`,
                       transformOrigin: "center center",

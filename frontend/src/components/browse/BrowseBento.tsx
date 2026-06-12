@@ -1,28 +1,29 @@
 /**
  * BrowseBento — bento-grid landing for the Browse page (Phase 3 Task 11).
  *
- * Composition:
- *   ┌─────────────┬───────┬───────┐
- *   │ Recent       │ Total │ CTA   │   row 1  (Recent 2:2 · Total 1:1 · CTA 1:1)
- *   │ (2×2 hero)   ├───────┼───────┤
- *   │              │Unique │Format │   row 2  (Unique 1:1 · Format 1:1)
- *   ├──────────────┴───────┴───────┤
- *   │ Popular structures (4:1)      │   row 3  (Popular spans full width)
- *   └───────────────────────────────┘
- *
- * The design renders a 4-col grid at `lg:` and collapses gracefully
- * through 2-col (md) to 1-col (mobile) via BentoGrid's responsive
- * contract — every cell stacks vertically on small screens.
+ * Composition — one band at `lg:` (6 columns, 2 rows):
+ *   ┌──────────────────────────────┬───────┬───────┐
+ *   │ Preview (4:2)                 │ Total │Format │
+ *   │                               ├───────┼───────┤
+ *   │                               │Unique │  CTA  │
+ *   └──────────────────────────────┴───────┴───────┘
+ * The hero preview takes 2/3 of the band so the structure thumbnails
+ * render wide enough to read; the four small tiles form two columns of
+ * near-square cells (counts stacked on the left, format + CTA on the
+ * right). The accented "Browse all" CTA sits bottom-right so the
+ * reading order ends on the action. Collapses through 2-col (md) to
+ * 1-col (mobile) via BentoGrid's responsive contract — spans are
+ * ignored and every cell stacks on small screens.
  *
  * Data shape: takes a pre-filtered `SubstanceResponse[]` (parent does
  * the filtering once; the bento + the StructureBrowser grid below
- * consume the same slice). "Recent" and "Popular" are approximations
- * since the backend doesn't expose those as dedicated endpoints:
- *   - Recent   → first 6 substances (extraction order)
- *   - Popular  → next 4 substances (a distinct slice so the same tile
- *                content doesn't appear twice)
- * Both fall back to the Recent slice when fewer than 10 substances are
- * present, clearly labelled "Featured" in the tile heading.
+ * consume the same slice). The hero tile previews substances in
+ * extraction order — the backend exposes no recency or popularity
+ * signal, so the copy says "preview", not "recent". When more than 5
+ * structures are present, the preview trims to 3 thumbnails (one clean
+ * row); at 5 or fewer, it shows them all. A former "Featured
+ * structures" strip (substances 7–10) was removed: it carried no
+ * signal and duplicated the full browser below.
  */
 import type { MouseEventHandler } from "react";
 import { CompassIcon, FlaskConicalIcon, LayoutGridIcon } from "lucide-react";
@@ -33,7 +34,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { cn } from "@/lib/utils";
-import type { SubstanceResponse } from "@/types/chemistry";
+import { DEFAULT_DEPICTION, pickSvg } from "@/lib/depiction";
+import type { Depiction, SubstanceResponse } from "@/types/chemistry";
 
 export interface BrowseBentoProps {
   /** Substance slice after `SearchFilter` filters are applied. */
@@ -44,22 +46,26 @@ export interface BrowseBentoProps {
   format?: string;
   /** Called when the "Browse all" CTA is clicked. */
   onBrowseAll: () => void;
-  /** Called when a hero / popular thumbnail is clicked. */
+  /** Called when a preview thumbnail is clicked. */
   onOpenSubstance?: (index: number) => void;
+  /** Active 2D layout for thumbnails (ChemDraw "cdx" default / CDK "cdk"). */
+  depiction?: Depiction;
   className?: string;
 }
 
-/** Small white thumbnail reused across Recent + Popular tiles. */
+/** Small white thumbnail used in the preview tile. */
 function StructureThumb({
   substance,
   onClick,
+  depiction,
   className,
 }: {
   substance: SubstanceResponse;
   onClick?: MouseEventHandler<HTMLButtonElement>;
+  depiction: Depiction;
   className?: string;
 }) {
-  const src = useSvgObjectUrl(substance.svg);
+  const src = useSvgObjectUrl(pickSvg(substance, depiction));
   const label =
     substance.iupac_name?.trim() ||
     substance.molecular_formula ||
@@ -70,10 +76,13 @@ function StructureThumb({
     <>
       <div className="flex min-h-[96px] flex-1 items-center justify-center rounded-md bg-white p-3">
         {src ? (
+          // key={depiction}: remount on layout switch so the new render
+          // fades in instead of snapping (motion-reduce disables it).
           <img
+            key={depiction}
             src={src}
             alt={`${label} structure`}
-            className="max-h-full max-w-full object-contain"
+            className="max-h-full max-w-full object-contain animate-in fade-in duration-200 motion-reduce:animate-none"
           />
         ) : (
           <FlaskConicalIcon className="size-6 text-foreground-muted" aria-hidden="true" />
@@ -117,14 +126,30 @@ function StructureThumb({
   );
 }
 
-function RecentExtractionsTile({
+/** Sub-line for the preview tile: filter-aware, honest about ordering. */
+function previewCaption(shown: number, totalFiltered: number, totalUnfiltered: number): string {
+  if (totalFiltered === 0) return "No structures match the current filters.";
+  if (shown >= totalFiltered) {
+    return totalFiltered === 1
+      ? "Showing 1 structure."
+      : `Showing all ${totalFiltered} structures.`;
+  }
+  const noun = totalFiltered === totalUnfiltered ? "structures" : "matches";
+  return `Showing the first ${shown} of ${totalFiltered} ${noun}.`;
+}
+
+function StructurePreviewTile({
   substances,
   totalFiltered,
+  totalUnfiltered,
   onOpenSubstance,
+  depiction,
 }: {
   substances: readonly SubstanceResponse[];
   totalFiltered: number;
+  totalUnfiltered: number;
   onOpenSubstance?: (index: number) => void;
+  depiction: Depiction;
 }) {
   return (
     <Card data-slot="browse-bento-recent" className="flex h-full flex-col bg-surface">
@@ -134,20 +159,21 @@ function RecentExtractionsTile({
             Current extraction
           </p>
           <h2 className="font-display text-2xl font-semibold leading-tight text-foreground">
-            Recent structures
+            Structure preview
           </h2>
           <p className="text-sm text-foreground-muted">
-            {totalFiltered === 0
-              ? "No structures match the current filters."
-              : `Previewing ${Math.min(substances.length, totalFiltered)} of ${totalFiltered} matches.`}
+            {previewCaption(substances.length, totalFiltered, totalUnfiltered)}
           </p>
         </header>
         {substances.length > 0 ? (
-          <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="grid flex-1 grid-cols-3 gap-3">
             {substances.map((s, index) => (
+              // Composite key: fresh-upload envelopes return id 0 for every
+              // substance, so `s.id ?? …` alone collides (0 is not nullish).
               <StructureThumb
-                key={s.id ?? `${s.inchi_key}-${index}`}
+                key={`${s.id}-${s.inchi_key}-${index}`}
                 substance={s}
+                depiction={depiction}
                 onClick={onOpenSubstance ? () => onOpenSubstance(index) : undefined}
               />
             ))}
@@ -162,7 +188,7 @@ function RecentExtractionsTile({
             <div className="space-y-1">
               <LayoutGridIcon className="mx-auto size-6 text-foreground-muted" aria-hidden="true" />
               <p className="text-sm text-foreground-muted">
-                Adjust your search to see structures here.
+                Adjust your search or filters to see structures here.
               </p>
             </div>
           </div>
@@ -188,6 +214,7 @@ function StatTile({
     <Card
       data-slot="browse-bento-stat"
       data-tone={tone}
+      size="sm"
       className="flex h-full flex-col justify-between bg-surface"
     >
       <CardContent className="flex h-full flex-col justify-between gap-2">
@@ -205,6 +232,7 @@ function BrowseAllTile({ count, onClick }: { count: number; onClick: () => void 
   return (
     <Card
       data-slot="browse-bento-cta"
+      size="sm"
       className={cn(
         "flex h-full flex-col justify-between",
         "bg-[color-mix(in_oklch,var(--color-primary)_12%,var(--color-surface))]",
@@ -215,76 +243,26 @@ function BrowseAllTile({ count, onClick }: { count: number; onClick: () => void 
           <p className="text-caption font-medium uppercase tracking-wide text-foreground-muted">
             Full list
           </p>
-          <h2 className="font-display text-xl font-semibold leading-tight text-foreground">
+          <h2 className="font-display text-lg font-semibold leading-tight text-foreground">
             Browse all
           </h2>
-          <p className="text-sm text-foreground-muted">
-            Jump to the full paginated grid of {count.toLocaleString()}{" "}
-            {count === 1 ? "structure" : "structures"}.
+          <p className="text-sm leading-snug text-foreground-muted">
+            Jump to the full list of {count.toLocaleString()}{" "}
+            {count === 1 ? "structure" : "structures"} below.
           </p>
         </div>
+        {/* gap-1.5/px-2: at the 1024px band the square tile's content box
+            is ~100px and the default padding clips the icon + label. */}
         <Button
           variant="primary"
           size="sm"
           onClick={onClick}
           data-slot="browse-bento-cta-button"
-          className="self-start whitespace-nowrap"
+          className="w-full justify-center gap-1.5 px-2"
           icon={<CompassIcon />}
         >
-          Open grid
+          View all
         </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-function PopularStructuresTile({
-  substances,
-  onOpenSubstance,
-  offset,
-}: {
-  substances: readonly SubstanceResponse[];
-  onOpenSubstance?: (index: number) => void;
-  /** Absolute index offset for onOpenSubstance callbacks. */
-  offset: number;
-}) {
-  const label = substances.length > 0 ? "Featured structures" : "No featured yet";
-  return (
-    <Card data-slot="browse-bento-popular" className="flex h-full flex-col bg-surface">
-      <CardContent className="flex flex-1 flex-col gap-3">
-        <header className="flex items-end justify-between gap-2">
-          <div className="space-y-1">
-            <p className="text-caption font-medium uppercase tracking-wide text-foreground-muted">
-              A look inside
-            </p>
-            <h2 className="font-display text-xl font-semibold leading-tight text-foreground">
-              {label}
-            </h2>
-          </div>
-          <p className="text-caption text-foreground-muted">{substances.length} shown</p>
-        </header>
-        {substances.length > 0 ? (
-          <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
-            {substances.map((s, i) => (
-              <StructureThumb
-                key={s.id ?? `${s.inchi_key}-${i}`}
-                substance={s}
-                onClick={onOpenSubstance ? () => onOpenSubstance(offset + i) : undefined}
-              />
-            ))}
-          </div>
-        ) : (
-          <div
-            className={cn(
-              "flex flex-1 items-center justify-center rounded-md border border-dashed border-border",
-              "bg-surface-muted/50 p-4 text-center",
-            )}
-          >
-            <p className="text-sm text-foreground-muted">
-              More structures will appear here as the extraction grows.
-            </p>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
@@ -296,15 +274,12 @@ export function BrowseBento({
   format,
   onBrowseAll,
   onOpenSubstance,
+  depiction = DEFAULT_DEPICTION,
   className,
 }: BrowseBentoProps) {
-  const recent = substances.slice(0, 6);
-  // Popular slice starts after the hero so the same thumbnails don't
-  // appear twice when the extraction has plenty of content. For smaller
-  // extractions we fall back to the first 4 so the tile is never empty
-  // when any matches exist.
-  const popularStart = substances.length > 6 ? 6 : 0;
-  const popular = substances.slice(popularStart, popularStart + 4);
+  // Preview rule: more than 5 structures → trim to 3 thumbnails (one
+  // clean row in the 3-col thumb grid); 5 or fewer → show them all.
+  const preview = substances.slice(0, substances.length > 5 ? 3 : 5);
 
   const filteredCount = substances.length;
   const uniqueInchiCount = new Set(
@@ -313,18 +288,23 @@ export function BrowseBento({
 
   return (
     <BentoGrid
-      cols={4}
+      cols={6}
       className={cn("auto-rows-[minmax(160px,auto)]", className)}
       data-slot="browse-bento"
     >
-      <BentoCell span="2:2" data-slot="browse-bento-cell-recent">
-        <RecentExtractionsTile
-          substances={recent}
+      <BentoCell span="4:2" data-slot="browse-bento-cell-recent">
+        <StructurePreviewTile
+          substances={preview}
           totalFiltered={filteredCount}
+          totalUnfiltered={totalSubstances}
           onOpenSubstance={onOpenSubstance}
+          depiction={depiction}
         />
       </BentoCell>
 
+      {/* DOM order fills row-first: Total + Format on row 1, Unique +
+          CTA on row 2 — so the two counts stack in the left square
+          column and the CTA ends bottom-right. */}
       <BentoCell span="1:1" data-slot="browse-bento-cell-total">
         <StatTile
           label="Structures in view"
@@ -337,8 +317,13 @@ export function BrowseBento({
         />
       </BentoCell>
 
-      <BentoCell span="1:1" data-slot="browse-bento-cell-cta">
-        <BrowseAllTile count={filteredCount} onClick={onBrowseAll} />
+      <BentoCell span="1:1" data-slot="browse-bento-cell-format">
+        <StatTile
+          label="Source format"
+          value={format ? format.toUpperCase() : "—"}
+          tone="secondary"
+          hint="ChemDraw file type detected at upload."
+        />
       </BentoCell>
 
       <BentoCell span="1:1" data-slot="browse-bento-cell-unique">
@@ -350,21 +335,8 @@ export function BrowseBento({
         />
       </BentoCell>
 
-      <BentoCell span="1:1" data-slot="browse-bento-cell-format">
-        <StatTile
-          label="Source format"
-          value={format ? format.toUpperCase() : "—"}
-          tone="secondary"
-          hint="ChemDraw file type detected at upload."
-        />
-      </BentoCell>
-
-      <BentoCell span="4:1" data-slot="browse-bento-cell-popular">
-        <PopularStructuresTile
-          substances={popular}
-          onOpenSubstance={onOpenSubstance}
-          offset={popularStart}
-        />
+      <BentoCell span="1:1" data-slot="browse-bento-cell-cta">
+        <BrowseAllTile count={filteredCount} onClick={onBrowseAll} />
       </BentoCell>
     </BentoGrid>
   );

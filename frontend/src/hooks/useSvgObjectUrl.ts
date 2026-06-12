@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * Produce a Blob URL for an SVG string, suitable for `<img src>`.
@@ -15,27 +15,28 @@ import { useEffect, useMemo } from "react";
  * still sandboxes it (no script execution) — same safety guarantee as
  * the data URI it replaces.
  *
- * The URL is revoked when the SVG changes or the component unmounts so
- * we don't leak memory on long-lived pages. Using `useMemo` to derive the
- * URL (rather than `useState` + `useEffect`) avoids a cascading re-render
- * and keeps the computed value in sync with the input without a set-state
- * inside an effect.
+ * Create + revoke both live in the same effect: an earlier version derived
+ * the URL with `useMemo` and only revoked in an effect, but StrictMode's
+ * dev double-mount then revoked the memoized URL on the simulated unmount
+ * and never recreated it (memo survives the remount), leaving `<img>`
+ * pointing at a dead blob. Pairing create/revoke per effect run makes the
+ * URL valid by construction under any mount/unmount sequence, at the cost
+ * of one extra render on mount.
  */
 export function useSvgObjectUrl(svg: string | null | undefined): string | null {
-  const url = useMemo(() => {
-    if (!svg) return null;
-    const blob = new Blob([svg], { type: "image/svg+xml" });
-    return URL.createObjectURL(blob);
-  }, [svg]);
+  const [url, setUrl] = useState<string | null>(null);
 
-  // Revoke the previous URL on unmount or when `url` changes. Creating a
-  // new URL is a side effect on the document's object-URL table; revoking
-  // belongs in an effect so the cleanup runs at the right moment in the
-  // React lifecycle.
   useEffect(() => {
-    if (!url) return;
-    return () => URL.revokeObjectURL(url);
-  }, [url]);
+    const objectUrl = svg ? URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" })) : null;
+    // The URL is an external resource that must be created (and revoked)
+    // inside the effect; publishing its handle via state is the
+    // StrictMode-safe pattern.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setUrl(objectUrl);
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [svg]);
 
   return url;
 }

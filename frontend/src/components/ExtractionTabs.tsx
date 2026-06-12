@@ -1,10 +1,13 @@
 /**
  * ExtractionTabs — local-state tabs wrapping the results area (Plan 10 D-08).
  *
- * Two triggers: `Substances (N)` and `Reactions` with an "Experimental" pill
- * badge. Default active is Substances. The children prop is rendered inside
- * the Substances tab panel (existing StructureBrowser stays here); the
+ * Two triggers: `Structures (N)` and `Reactions` with an "Experimental" pill
+ * badge. Default active is Structures. The children prop is rendered inside
+ * the Structures tab panel (existing StructureBrowser stays here); the
  * Reactions tab panel mounts a ReactionsTab with the supplied props.
+ * (Internal tab values and the `substanceCount` prop keep the "substances"
+ * naming — only the visible label says "Structures", matching the rest of
+ * the Browse page.)
  *
  * CRITICAL D-08 contract: tab state is LOCAL React state — never persisted
  * to the URL. Phase 6 URL params (?extraction=&page=&view=&sort=) continue to
@@ -20,9 +23,9 @@ import { cn } from "@/lib/utils";
 import { ReactionsTab, type ReactionsTabProps } from "@/components/ReactionsTab";
 
 export interface ExtractionTabsProps {
-  /** Used inside the Substances tab trigger label: "Substances (N)". */
+  /** Used inside the Structures tab trigger label: "Structures (N)". */
   substanceCount: number;
-  /** Rendered inside the Substances tab panel (existing StructureBrowser). */
+  /** Rendered inside the Structures tab panel (existing StructureBrowser). */
   children: ReactNode;
   /** Forwarded to ReactionsTab inside the Reactions tab panel. */
   reactionsTabProps: ReactionsTabProps;
@@ -44,7 +47,7 @@ export function ExtractionTabs({
       <TabsList className="h-9 w-full sm:w-fit">
         <TabsTrigger value="substances">
           <span className="flex items-center gap-2">
-            Substances
+            Structures
             <span className="text-muted-foreground tabular-nums">({substanceCount})</span>
           </span>
         </TabsTrigger>

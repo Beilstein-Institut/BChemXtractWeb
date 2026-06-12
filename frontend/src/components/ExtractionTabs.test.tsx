@@ -1,7 +1,7 @@
 /**
  * Tests for ExtractionTabs container (Plan 10-05 Task 5.2).
  *
- * Verifies Substances (N) + Reactions [Experimental] triggers, default active
+ * Verifies Structures (N) + Reactions [Experimental] triggers, default active
  * tab, tab-switch behavior, and — crucially — the URL-state contract (D-08):
  * tab switching is LOCAL STATE ONLY; never calls history.pushState/
  * replaceState and never touches window.location.search.
@@ -46,13 +46,13 @@ describe("ExtractionTabs", () => {
     );
   }
 
-  it("renders Substances and Reactions tab triggers", () => {
+  it("renders Structures and Reactions tab triggers", () => {
     renderTabs();
-    expect(screen.getByRole("tab", { name: /Substances/ })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Structures/ })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Reactions/ })).toBeInTheDocument();
   });
 
-  it("shows substance count in the Substances tab label", () => {
+  it("shows structure count in the Structures tab label", () => {
     renderTabs();
     expect(screen.getByText("(12)")).toBeInTheDocument();
   });
@@ -62,7 +62,7 @@ describe("ExtractionTabs", () => {
     expect(screen.getByText("Experimental")).toBeInTheDocument();
   });
 
-  it("default active tab is Substances — children visible", () => {
+  it("default active tab is Structures — children visible", () => {
     renderTabs();
     expect(screen.getByTestId("substances-content")).toBeInTheDocument();
   });
@@ -76,7 +76,7 @@ describe("ExtractionTabs", () => {
   it("tab switch does NOT modify browser history or URL (D-08)", () => {
     renderTabs();
     fireEvent.click(screen.getByRole("tab", { name: /Reactions/ }));
-    fireEvent.click(screen.getByRole("tab", { name: /Substances/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /Structures/ }));
     expect(pushSpy).not.toHaveBeenCalled();
     expect(replaceSpy).not.toHaveBeenCalled();
   });

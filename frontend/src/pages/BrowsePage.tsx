@@ -7,8 +7,9 @@
  *
  *   1. Page header (display title + sub-copy).
  *   2. `SearchFilter` composite (debounced 250 ms query + 3 chips).
- *   3. `BrowseBento` — 4-col bento grid with Recent / Total / Unique
- *      InChI / Source format / Browse-all CTA / Featured tiles.
+ *   3. `BrowseBento` — one-band bento (6 cols at lg): wide Structure
+ *      preview hero + two square columns (Total/Unique stacked, Source
+ *      format/Browse-all CTA stacked).
  *   4. `ExtractionTabs` wrapping `StructureBrowser` (full paginated
  *      grid/table view + Reactions tab).
  *
@@ -32,8 +33,10 @@ import { StructureDetail } from "@/components/StructureDetail";
 import { Dialog } from "@/components/ui/dialog";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DEFAULT_DEPICTION } from "@/lib/depiction";
 import { Link } from "@/lib/Link";
 import type {
+  Depiction,
   ExtractionResponse,
   ReactionExtractionResponse,
   SubstanceResponse,
@@ -68,6 +71,11 @@ export function BrowsePage({
 
   const [filters, setFilters] = useState<BrowseFilters>({ ...EMPTY_FILTERS });
   const [activeSubstance, setActiveSubstance] = useState<SubstanceResponse | null>(null);
+  // Page-wide 2D layout: ChemDraw (original drawing) by default, CDK via
+  // the toolbar toggle. Drives every structure render on this page plus
+  // the depiction sent with image exports. Deliberately NOT persisted —
+  // the product default is ChemDraw on every visit.
+  const [depiction, setDepiction] = useState<Depiction>(DEFAULT_DEPICTION);
 
   const browserRef = useRef<HTMLDivElement | null>(null);
 
@@ -103,7 +111,9 @@ export function BrowsePage({
           Browse
         </h1>
         <p className="text-base text-foreground-muted">
-          Explore the structures and reactions in the active extraction.
+          {hasExtraction
+            ? `Structures and reactions extracted from ${activeResult.filename}.`
+            : "Browse extracted structures and reactions."}
         </p>
       </header>
 
@@ -112,7 +122,7 @@ export function BrowsePage({
           <EmptyState
             icon={FileUpIcon}
             title="No extraction loaded"
-            message="Upload a ChemDraw file or reload one from your history to start browsing."
+            message="Upload a ChemDraw file or open a past extraction from your history to start browsing."
             action={
               <div className="flex flex-wrap justify-center gap-3">
                 <Link to="/" className={buttonVariants({ size: "lg" }) + " gap-2"}>
@@ -135,7 +145,7 @@ export function BrowsePage({
           {isHistoricalView && (
             <div className="mt-6 flex items-center gap-3">
               <span className="text-caption text-foreground-muted">
-                Viewing historical extraction
+                Viewing past extraction: {activeResult.filename}
               </span>
               <button
                 onClick={onBackToLatest}
@@ -155,6 +165,7 @@ export function BrowsePage({
               format={activeResult.format}
               onBrowseAll={handleBrowseAll}
               onOpenSubstance={handleOpenSubstance}
+              depiction={depiction}
             />
           </section>
 
@@ -176,6 +187,8 @@ export function BrowsePage({
                 onSearchWithin={onSearchWithin}
                 reactionsAvailable={liveReactionCount > 0}
                 filters={filters}
+                depiction={depiction}
+                onDepictionChange={setDepiction}
               />
             </ExtractionTabs>
           </div>
@@ -186,7 +199,9 @@ export function BrowsePage({
               if (!open) setActiveSubstance(null);
             }}
           >
-            {activeSubstance && <StructureDetail substance={activeSubstance} />}
+            {activeSubstance && (
+              <StructureDetail substance={activeSubstance} depiction={depiction} />
+            )}
           </Dialog>
         </>
       )}

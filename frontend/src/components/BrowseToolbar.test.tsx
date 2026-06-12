@@ -5,7 +5,7 @@
  * Mocks base-ui primitives used by shadcn wrappers to avoid portal/animation
  * complexity in jsdom.
  */
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { vi } from "vitest";
 import { BrowseToolbar } from "./BrowseToolbar";
 
@@ -231,5 +231,54 @@ describe("BrowseToolbar", () => {
     const toolbar = container.firstChild as HTMLElement;
     expect(toolbar.className).toMatch(/opacity-50/);
     expect(toolbar.className).toMatch(/pointer-events-none/);
+  });
+
+  describe("depiction toggle", () => {
+    const depictionProps = {
+      ...defaultProps,
+      selectedIds: new Set<number>(),
+      extractionId: 42,
+      depiction: "cdx" as const,
+      onDepictionChange: vi.fn(),
+    };
+
+    it("renders ChemDraw and CDK options when onDepictionChange is provided", () => {
+      render(<BrowseToolbar {...depictionProps} />);
+      expect(screen.getByLabelText(/ChemDraw depiction/)).toBeTruthy();
+      expect(screen.getByLabelText(/CDK depiction/)).toBeTruthy();
+    });
+
+    it("marks ChemDraw as pressed by default", () => {
+      const { container } = render(<BrowseToolbar {...depictionProps} />);
+      const group = container.querySelector('[data-slot="depiction-toggle"]');
+      expect(group?.getAttribute("data-depiction")).toBe("cdx");
+      expect(screen.getByLabelText(/ChemDraw depiction/).getAttribute("aria-pressed")).toBe("true");
+      expect(screen.getByLabelText(/CDK depiction/).getAttribute("aria-pressed")).toBe("false");
+    });
+
+    it("fires onDepictionChange('cdk') when the CDK segment is clicked", () => {
+      const onDepictionChange = vi.fn();
+      render(<BrowseToolbar {...depictionProps} onDepictionChange={onDepictionChange} />);
+      fireEvent.click(screen.getByLabelText(/CDK depiction/));
+      expect(onDepictionChange).toHaveBeenCalledWith("cdk");
+    });
+
+    it("does not fire when the already-active segment is clicked", () => {
+      const onDepictionChange = vi.fn();
+      render(<BrowseToolbar {...depictionProps} onDepictionChange={onDepictionChange} />);
+      fireEvent.click(screen.getByLabelText(/ChemDraw depiction/));
+      expect(onDepictionChange).not.toHaveBeenCalled();
+    });
+
+    it("renders the sliding indicator", () => {
+      const { container } = render(<BrowseToolbar {...depictionProps} />);
+      expect(container.querySelector('[data-slot="depiction-toggle-indicator"]')).not.toBeNull();
+    });
+
+    it("is hidden when no onDepictionChange handler is provided", () => {
+      render(<BrowseToolbar {...defaultProps} />);
+      expect(screen.queryByLabelText(/ChemDraw depiction/)).toBeNull();
+      expect(screen.queryByLabelText(/CDK depiction/)).toBeNull();
+    });
   });
 });

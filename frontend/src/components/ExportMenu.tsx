@@ -3,7 +3,7 @@
  *
  * Used at all four export entry points (D-01 through D-04, D-05, D-06):
  *   - Toolbar selected: triggerVariant="label", triggerLabel="Export N selected"
- *   - Toolbar Export All: triggerVariant="label", triggerLabel="Export All"
+ *   - Toolbar Export all: triggerVariant="label", triggerLabel="Export all"
  *   - StructureSheet: triggerVariant="label", triggerLabel="Export"
  *   - Per-card icon: triggerVariant="icon"
  *

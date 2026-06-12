@@ -11,6 +11,7 @@ celery[redis]>=5.4.0
 sse-starlette>=2.0.0
 lxml>=5.3.0
 slowapi>=0.1.9
+cairosvg>=2.7.0
 
 # Dev / test dependencies (mirrors pyproject.toml [project.optional-dependencies].dev)
 pytest>=9.0.0
