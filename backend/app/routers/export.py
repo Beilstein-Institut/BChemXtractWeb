@@ -118,6 +118,9 @@ async def _fetch_substances(payload: ExportRequest, db: AsyncSession) -> list[di
             "extended_smiles": s.extended_smiles,
             "molecular_formula": s.molecular_formula,
             "svg": s.svg,
+            # Original-ChemDraw-coordinates render — selected by the
+            # image formats when payload.depiction == "cdx".
+            "svg_cdx": s.svg_cdx,
             "mdlv3000": s.mdlv3000,
             # iupac_name is not stored on Substance; JSON/CSV get empty.
             "iupac_name": "",
@@ -237,7 +240,10 @@ def _stream_export_response(
         "D-01/D-02/D-04) or an `extraction_id` (D-03 Export All); setting "
         "both restricts the selection to the intersection for IDOR safety "
         "(CR-01). Supported formats: `sdf`, `json`, `csv`, `png`, `svg`, "
-        "`v3000`, and `rxn` (stub until Phase 10 per D-11)."
+        "`v3000`, and `rxn` (stub until Phase 10 per D-11). The image "
+        "formats (`png`, `svg`) honor `depiction`: `cdk` (default) exports "
+        "the fresh CDK layout, `cdx` exports the original ChemDraw "
+        "coordinates as displayed in the UI."
     ),
     responses={
         200: {
@@ -299,7 +305,7 @@ async def export_substances(
 
     substance_dicts = await _fetch_substances(payload, db)
     content, media_type, filename = await generate_export(
-        substance_dicts, payload.format
+        substance_dicts, payload.format, payload.depiction
     )
     return _stream_export_response(
         content,

@@ -16,6 +16,7 @@ dependencies = [
     "sse-starlette>=2.0.0",
     "lxml>=5.3.0",
     "slowapi>=0.1.9",
+    "cairosvg>=2.7.0",
 ]
 
 [project.optional-dependencies]
