@@ -17,7 +17,8 @@ import {
 import { CopyButton } from "@/components/internal/CopyButton";
 import { AttributionPill } from "@/components/AttributionPill";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
-import type { SubstanceResponse } from "@/types/chemistry";
+import { DEFAULT_DEPICTION, pickSvg } from "@/lib/depiction";
+import type { Depiction, SubstanceResponse } from "@/types/chemistry";
 import type { StructureCardAttribution } from "@/components/StructureCard";
 
 export interface StructureDetailProps {
@@ -27,6 +28,8 @@ export interface StructureDetailProps {
   attribution?: StructureCardAttribution;
   /** Fired when the user clicks the chip / picks an extraction in the popover. */
   onViewExtraction?: (extractionId: number) => void;
+  /** Active 2D layout (ChemDraw "cdx" default / CDK "cdk"). */
+  depiction?: Depiction;
 }
 
 function MetadataRow({ label, value }: { label: string; value: string }) {
@@ -45,8 +48,9 @@ export function StructureDetail({
   substance,
   attribution,
   onViewExtraction,
+  depiction = DEFAULT_DEPICTION,
 }: StructureDetailProps) {
-  const svgSrc = useSvgObjectUrl(substance.svg);
+  const svgSrc = useSvgObjectUrl(pickSvg(substance, depiction));
 
   return (
     <DialogContent className="sm:max-w-2xl w-full" showCloseButton={true}>
@@ -68,10 +72,12 @@ export function StructureDetail({
       {/* SVG container: 400px fixed height */}
       <div className="h-[400px] bg-background rounded-lg p-6 flex items-center justify-center">
         {svgSrc ? (
+          // key={depiction}: fade in the swapped layout (motion-reduce: none).
           <img
+            key={depiction}
             src={svgSrc}
             alt={`${substance.molecular_formula} structure — full size`}
-            className="max-h-full max-w-full object-contain"
+            className="max-h-full max-w-full object-contain animate-in fade-in duration-200 motion-reduce:animate-none"
           />
         ) : (
           <div className="flex items-center justify-center w-full h-full bg-muted rounded">

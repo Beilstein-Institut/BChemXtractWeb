@@ -200,7 +200,11 @@ export function SearchInput({ className }: { className?: string }) {
                 "h-10 rounded-full bg-surface px-4",
                 "shadow-[var(--shadow-neu-inset)]",
                 "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0",
-                "w-[280px] md:w-[280px] lg:w-[360px] xl:w-[440px]",
+                // 280px must hold through lg: at 1024px the nav pill +
+                // theme switch leave no room for a wider pill (it used to
+                // leak 76px past the viewport). min-w-0 + shrink let the
+                // pill compress instead of overflowing if space runs out.
+                "w-[280px] min-w-0 shrink xl:w-[440px]",
               ]
             : "h-9 w-full",
           className,

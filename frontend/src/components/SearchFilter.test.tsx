@@ -44,8 +44,8 @@ describe("SearchFilter", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /has iupac name/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /smiles available/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /inchi available/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /has smiles/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /has inchi/i })).toBeInTheDocument();
   });
 
   it("debounces the free-text query by 250 ms before emitting", () => {

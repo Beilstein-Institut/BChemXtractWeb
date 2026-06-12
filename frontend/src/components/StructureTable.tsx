@@ -25,7 +25,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CopyButton } from "@/components/internal/CopyButton";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { cn } from "@/lib/utils";
-import type { SubstanceResponse } from "@/types/chemistry";
+import { DEFAULT_DEPICTION, pickSvg } from "@/lib/depiction";
+import type { Depiction, SubstanceResponse } from "@/types/chemistry";
 
 export interface StructureTableProps {
   substances: SubstanceResponse[];
@@ -35,6 +36,8 @@ export interface StructureTableProps {
   allSelected: boolean;
   onOpen: (index: number) => void;
   loading?: boolean;
+  /** Active 2D layout for thumbnails (ChemDraw "cdx" default / CDK "cdk"). */
+  depiction?: Depiction;
 }
 
 const SMILES_MAX = 40;
@@ -53,6 +56,7 @@ export function StructureTable({
   allSelected,
   onOpen,
   loading = false,
+  depiction = DEFAULT_DEPICTION,
 }: StructureTableProps) {
   if (loading) {
     return (
@@ -115,13 +119,15 @@ export function StructureTable({
       </TableHeader>
       <TableBody>
         {substances.map((substance, index) => (
+          // Composite key: ids can be 0 across a fresh-upload envelope.
           <StructureTableRow
-            key={substance.id}
+            key={`${substance.id}-${substance.inchi_key}-${index}`}
             substance={substance}
             index={index}
             selected={selectedIds.has(substance.id)}
             onToggleSelect={onToggleSelect}
             onOpen={onOpen}
+            depiction={depiction}
           />
         ))}
       </TableBody>
@@ -135,14 +141,22 @@ interface RowProps {
   selected: boolean;
   onToggleSelect: (id: number) => void;
   onOpen: (index: number) => void;
+  depiction: Depiction;
 }
 
 function truncate(value: string, max: number): string {
   return value.length > max ? value.slice(0, max) + "\u2026" : value;
 }
 
-function StructureTableRow({ substance, index, selected, onToggleSelect, onOpen }: RowProps) {
-  const svgSrc = useSvgObjectUrl(substance.svg);
+function StructureTableRow({
+  substance,
+  index,
+  selected,
+  onToggleSelect,
+  onOpen,
+  depiction,
+}: RowProps) {
+  const svgSrc = useSvgObjectUrl(pickSvg(substance, depiction));
 
   const smilesTruncated = truncate(substance.smiles, SMILES_MAX);
   const inchiKeyTruncated = truncate(substance.inchi_key, INCHI_KEY_MAX);
@@ -168,10 +182,12 @@ function StructureTableRow({ substance, index, selected, onToggleSelect, onOpen 
       {/* SVG thumbnail — 48×48px */}
       <TableCell className="w-14">
         {svgSrc ? (
+          // key={depiction}: fade in the swapped layout (motion-reduce: none).
           <img
+            key={depiction}
             src={svgSrc}
             alt={`${substance.molecular_formula} structure`}
-            className="h-12 w-12 object-contain"
+            className="h-12 w-12 object-contain animate-in fade-in duration-200 motion-reduce:animate-none"
           />
         ) : (
           <div className="h-12 w-12 flex items-center justify-center bg-muted rounded">

@@ -48,7 +48,8 @@ import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { postExport } from "@/lib/apiClient";
 import { safeDownloadSlug } from "@/lib/safeStrings";
 import { cn } from "@/lib/utils";
-import type { SubstanceResponse } from "@/types/chemistry";
+import { DEFAULT_DEPICTION, pickSvg } from "@/lib/depiction";
+import type { Depiction, SubstanceResponse } from "@/types/chemistry";
 import type { ExportFormat } from "@/types/export";
 import type { SearchResult } from "@/types/search";
 import { FORMAT_EXT } from "@/types/export";
@@ -83,6 +84,12 @@ export interface StructureCardProps {
   attribution?: StructureCardAttribution;
   /** Fired when the user picks an extraction from the in-dialog AttributionPill. */
   onViewExtraction?: (extractionId: number) => void;
+  /**
+   * Active 2D layout: ChemDraw original coordinates ("cdx", default) or
+   * fresh CDK layout ("cdk"). Drives both the rendered thumbnail and the
+   * image export payload so the download matches the display.
+   */
+  depiction?: Depiction;
 }
 
 /**
@@ -122,11 +129,12 @@ export function StructureCard({
   className,
   attribution,
   onViewExtraction,
+  depiction = DEFAULT_DEPICTION,
 }: StructureCardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { shared, share } = useShareLink();
 
-  const svgSrc = useSvgObjectUrl(substance.svg);
+  const svgSrc = useSvgObjectUrl(pickSvg(substance, depiction));
 
   // Prefer IUPAC name for the Inter-semibold headline; fall back to the
   // molecular formula (same text that already appears in the formula row, but
@@ -150,7 +158,7 @@ export function StructureCard({
     toast.loading("Preparing export\u2026", { id: toastId });
     try {
       await postExport(
-        { format, substance_ids: [substance.id] },
+        { format, substance_ids: [substance.id], depiction },
         `${safeDownloadSlug(substance.inchi_key?.slice(0, 8))}_${format}.${FORMAT_EXT[format]}`,
       );
       toast.success("Export ready \u2014 downloading", { id: toastId, duration: 3000 });
@@ -196,10 +204,12 @@ export function StructureCard({
         className="flex min-h-[160px] items-center justify-center rounded-md bg-white p-4"
       >
         {svgSrc ? (
+          // key={depiction}: fade in the swapped layout (motion-reduce: none).
           <img
+            key={depiction}
             src={svgSrc}
             alt={`${substance.molecular_formula} structure`}
-            className="max-h-full max-w-full object-contain transition-transform duration-200 group-hover:scale-[1.02]"
+            className="max-h-full max-w-full object-contain transition-transform duration-200 group-hover:scale-[1.02] animate-in fade-in motion-reduce:animate-none"
           />
         ) : (
           <div className="flex size-full items-center justify-center">
@@ -338,6 +348,7 @@ export function StructureCard({
       <StructureDetail
         substance={substance}
         attribution={attribution}
+        depiction={depiction}
         onViewExtraction={(id) => {
           setIsDialogOpen(false);
           onViewExtraction?.(id);

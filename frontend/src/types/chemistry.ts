@@ -19,6 +19,14 @@ export interface SubstanceResponse {
   svg_cdx?: string; // original ChemDraw coordinates (may have crossing bonds)
 }
 
+/**
+ * 2D layout used when displaying or exporting structure images.
+ * Mirrors the backend `DepictionLiteral`:
+ *   "cdx" — original ChemDraw coordinates (`svg_cdx`)
+ *   "cdk" — fresh CDK canonical layout (`svg`)
+ */
+export type Depiction = "cdx" | "cdk";
+
 export interface SubstanceInfoResponse {
   no_fragments: number;
   no_inchis: number;

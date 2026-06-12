@@ -5,7 +5,7 @@
  * Layout: flex row, 48px height, border-b.
  * Mobile: Sort + page size collapse into an "Options" Popover.
  */
-import { useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { LayoutGridIcon, ListIcon, SearchIcon, SlidersHorizontalIcon } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -22,7 +22,9 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { BrowseView, BrowseSort } from "@/hooks/useBrowse";
 import { ExportMenu } from "@/components/ExportMenu";
+import { DEFAULT_DEPICTION } from "@/lib/depiction";
 import { postExport } from "@/lib/apiClient";
+import type { Depiction } from "@/types/chemistry";
 import type { ExportFormat } from "@/types/export";
 import { FORMAT_EXT } from "@/types/export";
 
@@ -54,6 +56,18 @@ export interface BrowseToolbarProps {
    * to false (RXN entry stays disabled with the "no reactions" tooltip).
    */
   reactionsAvailable?: boolean;
+  /**
+   * Active 2D layout for structure displays and image exports. Defaults
+   * to ChemDraw ("cdx" — the original drawing). Image export payloads
+   * (PNG/SVG) carry this value so the download matches the display.
+   */
+  depiction?: Depiction;
+  /**
+   * Called when the ChemDraw/CDK depiction toggle is switched. The toggle
+   * is hidden when this is undefined (toolbar embedded without a
+   * depiction-aware parent).
+   */
+  onDepictionChange?: (depiction: Depiction) => void;
 }
 
 /**
@@ -76,6 +90,8 @@ export function BrowseToolbar({
   extractionId,
   onSearchWithin,
   reactionsAvailable = false,
+  depiction = DEFAULT_DEPICTION,
+  onDepictionChange,
 }: BrowseToolbarProps) {
   const [isExporting, setIsExporting] = useState(false);
 
@@ -106,6 +122,7 @@ export function BrowseToolbar({
     await runExport("export", `export.${FORMAT_EXT[format]}`, {
       format,
       substance_ids: Array.from(selectedIds),
+      depiction,
     });
   }
 
@@ -115,6 +132,7 @@ export function BrowseToolbar({
       format,
       substance_ids: [],
       extraction_id: extractionId,
+      depiction,
     });
   }
 
@@ -172,13 +190,13 @@ export function BrowseToolbar({
 
       {/* Sort dropdown — hidden on mobile, shown in Options popover */}
       <div className="hidden sm:flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">Sort by</span>
+        <span className="whitespace-nowrap text-xs text-muted-foreground">Sort by</span>
         {renderSortSelect(sort, onSortChange, "w-[160px]", "Sort order")}
       </div>
 
       {/* Page size dropdown — hidden on mobile */}
       <div className="hidden sm:flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">Per page</span>
+        <span className="whitespace-nowrap text-xs text-muted-foreground">Per page</span>
         {renderPageSizeSelect(pageSize, onPageSizeChange, "w-[72px]", "Items per page")}
       </div>
 
@@ -228,11 +246,18 @@ export function BrowseToolbar({
         </div>
       )}
 
-      {/* Export All — always visible when extraction is active and has substances (D-03) */}
+      {/* ChemDraw/CDK depiction toggle — immediately left of Export all so
+          the layout choice and the image export it governs sit together.
+          ChemDraw (original drawing) is the default. */}
+      {onDepictionChange && (
+        <DepictionToggle depiction={depiction} onChange={onDepictionChange} />
+      )}
+
+      {/* Export all — always visible when extraction is active and has substances (D-03) */}
       {extractionId !== null && total > 0 && (
         <ExportMenu
           onExport={handleExportAll}
-          triggerLabel="Export All"
+          triggerLabel="Export all"
           triggerVariant="label"
           align="end"
           disabled={isExporting}
@@ -248,6 +273,95 @@ export function BrowseToolbar({
       >
         {countLabel}
       </span>
+    </div>
+  );
+}
+
+/**
+ * DepictionToggle — rounded segmented control for ChemDraw/CDK layout.
+ *
+ * A pill container with a sliding Apple-Blue indicator behind the active
+ * segment (220 ms ease-out per the motion grammar; `motion-reduce`
+ * disables the slide). The indicator is measured from the active button
+ * because the two labels have different widths; a ResizeObserver
+ * re-measures after web-font swaps change the text metrics.
+ */
+function DepictionToggle({
+  depiction,
+  onChange,
+}: {
+  depiction: Depiction;
+  onChange: (depiction: Depiction) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const cdxRef = useRef<HTMLButtonElement | null>(null);
+  const cdkRef = useRef<HTMLButtonElement | null>(null);
+  const [indicator, setIndicator] = useState({ left: 0, width: 0 });
+
+  const measure = useCallback(() => {
+    const active = (depiction === "cdx" ? cdxRef : cdkRef).current;
+    if (active) {
+      setIndicator({ left: active.offsetLeft, width: active.offsetWidth });
+    }
+  }, [depiction]);
+
+  useLayoutEffect(() => {
+    measure();
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [measure]);
+
+  function segment(
+    value: Depiction,
+    label: string,
+    ariaLabel: string,
+    ref: React.RefObject<HTMLButtonElement | null>,
+  ) {
+    const active = depiction === value;
+    return (
+      <button
+        type="button"
+        ref={ref}
+        onClick={() => {
+          if (!active) onChange(value);
+        }}
+        aria-pressed={active}
+        aria-label={ariaLabel}
+        className={cn(
+          "relative z-10 h-7 rounded-full px-3 text-xs font-medium",
+          "transition-colors duration-200 motion-reduce:transition-none",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          active ? "text-primary-foreground" : "text-foreground-muted hover:text-foreground",
+        )}
+      >
+        {label}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      role="group"
+      aria-label="Depiction style"
+      data-slot="depiction-toggle"
+      data-depiction={depiction}
+      className="relative flex shrink-0 items-center rounded-full border border-border bg-surface-muted p-0.5"
+    >
+      <span
+        aria-hidden="true"
+        data-slot="depiction-toggle-indicator"
+        className={cn(
+          "absolute top-0.5 bottom-0.5 rounded-full bg-primary",
+          "transition-[left,width] duration-200 ease-out motion-reduce:transition-none",
+        )}
+        style={{ left: indicator.left, width: indicator.width }}
+      />
+      {segment("cdx", "ChemDraw", "ChemDraw depiction — original drawing coordinates", cdxRef)}
+      {segment("cdk", "CDK", "CDK depiction — regenerated canonical layout", cdkRef)}
     </div>
   );
 }

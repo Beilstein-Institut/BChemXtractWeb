@@ -34,6 +34,8 @@ import { StructureTable } from "@/components/StructureTable";
 import { StructureSheet } from "@/components/StructureSheet";
 import { filterSubstances } from "@/components/browse/filterSubstances";
 import { hasActiveFilters, type BrowseFilters } from "@/components/browse/browseFilters";
+import { DEFAULT_DEPICTION } from "@/lib/depiction";
+import type { Depiction } from "@/types/chemistry";
 
 export interface StructureBrowserProps {
   /** The extraction ID to browse. Null/undefined renders idle state. */
@@ -66,6 +68,13 @@ export interface StructureBrowserProps {
    * itself is unchanged — useBrowse still drives `page` / `size` / `sort`.
    */
   filters?: BrowseFilters;
+  /**
+   * Active 2D layout for all structure renders (cards, table, sheet) and
+   * for image exports. Defaults to ChemDraw ("cdx").
+   */
+  depiction?: Depiction;
+  /** Forwarded to BrowseToolbar's ChemDraw/CDK toggle. */
+  onDepictionChange?: (depiction: Depiction) => void;
 }
 
 /**
@@ -93,6 +102,8 @@ export function StructureBrowser({
   onSearchWithin,
   reactionsAvailable = false,
   filters,
+  depiction = DEFAULT_DEPICTION,
+  onDepictionChange,
 }: StructureBrowserProps) {
   const {
     browseState,
@@ -152,6 +163,8 @@ export function StructureBrowser({
         disabled={browseState === "loading" && page === null}
         onSearchWithin={onSearchWithin}
         reactionsAvailable={reactionsAvailable}
+        depiction={depiction}
+        onDepictionChange={onDepictionChange}
       />
 
       {/* Loading state — skeleton cards/rows (D-13) */}
@@ -196,8 +209,8 @@ export function StructureBrowser({
           title={filtersActive ? "No structures match these filters" : "Nothing to browse yet"}
           message={
             filtersActive
-              ? "Clear a chip or change the search query to see more results."
-              : "Upload a file or pick an extraction from your history to see its structures here."
+              ? "Remove a filter or broaden your search to see more results."
+              : "Upload a ChemDraw file or open a past extraction from your history to see its structures here."
           }
           size="large"
         />
@@ -207,13 +220,16 @@ export function StructureBrowser({
       {browseState === "success" && substances.length > 0 && view === "grid" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
           {substances.map((substance, index) => (
+            // Composite key: ids can be 0 across a fresh-upload envelope,
+            // and `id ?? …` does not fall back on 0.
             <StructureCard
-              key={substance.id ?? `${substance.inchi_key}-${index}`}
+              key={`${substance.id}-${substance.inchi_key}-${index}`}
               substance={substance}
               itemIndex={index}
               onOpen={handleOpenStructure}
               isChecked={selectedIds.has(substance.id)}
               onSelect={toggleSelect}
+              depiction={depiction}
             />
           ))}
         </div>
@@ -229,6 +245,7 @@ export function StructureBrowser({
             onSelectAll={allSelected ? clearSelection : selectAll}
             allSelected={allSelected}
             onOpen={handleOpenStructure}
+            depiction={depiction}
           />
         </div>
       )}
@@ -285,6 +302,7 @@ export function StructureBrowser({
         totalSubstances={substances.length}
         onPrev={() => setSheetIndex((i) => Math.max(0, i - 1))}
         onNext={() => setSheetIndex((i) => Math.min(substances.length - 1, i + 1))}
+        depiction={depiction}
       />
     </div>
   );

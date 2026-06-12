@@ -166,6 +166,12 @@ class BatchStartResponse(BaseModel):
 
 ExportFormatLiteral = Literal["sdf", "json", "csv", "png", "svg", "v3000", "rxn"]
 
+# Which 2D layout the image formats (png/svg) use:
+#   "cdk" — fresh CDK canonical layout (stored ``svg`` column)
+#   "cdx" — original ChemDraw coordinates (stored ``svg_cdx`` column)
+# Mirrors the per-substance dual-render semantics from extractor.py.
+DepictionLiteral = Literal["cdk", "cdx"]
+
 
 class ExportRequest(BaseModel):
     """Request body for POST /api/export (D-08).
@@ -177,12 +183,17 @@ class ExportRequest(BaseModel):
     format: one of the six export formats plus rxn stub.
     reaction_ids: explicit reaction selection for RXN export (Plan 10 D-22).
         Capped at 500 entries for the same reason as ``substance_ids``.
+    depiction: 2D layout used by the image formats (png/svg). Defaults to
+        "cdk" so pre-existing API clients keep their current output;
+        the web UI sends its active depiction toggle explicitly.
+        Ignored by the non-image formats.
     """
 
     format: ExportFormatLiteral
     substance_ids: list[int] = Field(default_factory=list, max_length=1000)
     extraction_id: int | None = None
     reaction_ids: list[int] = Field(default_factory=list, max_length=500)
+    depiction: DepictionLiteral = "cdk"
 
 
 # ============================================================================
