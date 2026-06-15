@@ -1,9 +1,9 @@
 /**
- * Checkbox — tests for the Phase 3 Liquid Glass state primitive (Task 5).
+ * Checkbox — tests for the Liquid Glass state primitive.
  *
  * Covers: render, data-slot on Root + Indicator, toggle behavior
  * (data-checked flips, onCheckedChange fires), disabled suppression,
- * ARIA checked attribute, plan-specified styling (bg-surface-muted,
+ * ARIA checked attribute, styling (bg-surface-muted,
  * border-border, rounded-sm, data-checked:bg-primary), and the
  * focus-visible ring class.
  *

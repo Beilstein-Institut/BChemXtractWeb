@@ -6,7 +6,7 @@ with the StandardGenerator for stereo wedges and atom labels.
 
 Must be called inside run_in_jvm_thread (JVM-attached thread).
 
-Security (SEC L-05): CDK's SVG writer is trusted, but any future CVE
+Security: CDK's SVG writer is trusted, but any future CVE
 that causes it to emit ``<script>``, ``<foreignObject>``, or ``on*=``
 event-handler attributes would become a stored-XSS vector once the SVG
 is rendered inline. Every string returned by this module runs through
@@ -23,11 +23,11 @@ import jpype
 
 logger = logging.getLogger(__name__)
 
-# Target SVG viewport size per D-02 (~400-500px publication quality)
+# Target SVG viewport size (~400-500px publication quality)
 SVG_TARGET_WIDTH = 450
 SVG_TARGET_HEIGHT = 450
 
-# SEC L-05 SVG sanitiser ---------------------------------------------------
+# SVG sanitiser ------------------------------------------------------------
 # Defence in depth against a hypothetical CDK CVE that causes the SVG
 # writer to emit script-bearing content. Regex-based because (a) we own
 # both ends — CDK's output is well-formed by construction — and (b)
@@ -75,7 +75,7 @@ _CDK_WHITE_BACKGROUND_RECT_RE = re.compile(
 
 
 def sanitize_svg(svg: str) -> str:
-    """Strip scriptable constructs + CDK's white backdrop (SEC L-05).
+    """Strip scriptable constructs + CDK's white backdrop.
 
     Removes:
       * ``<script>...</script>`` tags
@@ -106,7 +106,7 @@ def sanitize_svg(svg: str) -> str:
 def _make_depiction_generator():
     """Shared DepictionGenerator factory.
 
-    Publication-quality settings per D-02:
+    Publication-quality settings:
       - withAtomColors(): CPK coloring for atom labels
       - withFillToFit(): fill available space
       - IUPAC hydrogen visibility: show H only where stereo/chemically relevant
@@ -150,7 +150,7 @@ def _depict_container_to_svg(container, dg=None) -> str:
     depict_gen = dg if dg is not None else _make_depiction_generator()
     svg = str(depict_gen.depict(container).toSvgStr())
     svg = _set_svg_dimensions(svg, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
-    return sanitize_svg(svg)  # SEC L-05
+    return sanitize_svg(svg)
 
 
 def render_substance_svg(java_substance) -> str:
@@ -160,7 +160,7 @@ def render_substance_svg(java_substance) -> str:
     coordinates (no SMILES re-parsing or coordinate generation
     needed).
 
-    Per D-03: returns empty string on any failure -- never raises.
+    Returns empty string on any failure -- never raises.
 
     Args:
         java_substance: A Java BCXSubstance instance.
@@ -173,7 +173,7 @@ def render_substance_svg(java_substance) -> str:
         if container is None:
             return ""
         return _depict_container_to_svg(container)
-    except Exception as exc:  # noqa: BLE001 — D-03: never raise from SVG render
+    except Exception as exc:  # noqa: BLE001 — never raise from SVG render
         logger.warning("CDK SVG rendering failed for substance: %s", exc)
         return ""
 
@@ -243,13 +243,13 @@ def _set_svg_dimensions(svg: str, width: int, height: int) -> str:
 def _inject_svg_title(svg: str, title: str) -> str:
     """Insert a <title> element right after the opening <svg> tag.
 
-    Per UI-SPEC §Accessibility (Plan 09-04), substructure match SVGs embed
+    For accessibility, substructure match SVGs embed
     ``<title>Matches {query}</title>`` so screen readers announce the match
     context. No-op when ``title`` is empty or the SVG has no ``<svg>`` root
     (already-malformed CDK output is left untouched).
 
     Minimal XML escaping on ``title`` prevents user-supplied SMARTS text
-    from breaking the SVG structure (threat model T-09-04-02).
+    from breaking the SVG structure.
 
     Args:
         svg: Raw SVG markup.
@@ -283,23 +283,23 @@ def render_substance_svg_with_highlight(
 ) -> str:
     """Render a substance to SVG with matched atoms + bonds tinted Apple Blue.
 
-    Signature change 2026-04-24: ``bond_indices`` is now an explicit
-    parameter. The previous implementation inferred bonds from the
-    atom-union set, which was correct when uniqueAtoms() collapsed all
-    mappings to one — but wrong after the algorithm rewrite accumulates
-    ALL mappings. See spec §"Bug B".
+    ``bond_indices`` is an explicit parameter. The previous
+    implementation inferred bonds from the atom-union set, which was
+    correct when uniqueAtoms() collapsed all mappings to one — but wrong
+    after the algorithm rewrite accumulates ALL mappings, so callers must
+    pass the bonds they actually want highlighted.
 
     When ``bond_indices`` is ``None``, the function falls back to the
     legacy atom-union inference for backward compat with any caller that
-    hasn't been updated yet. New callers (post-redesign) should always
-    pass an explicit list.
+    hasn't been updated yet. New callers should always pass an explicit
+    list.
 
     Args:
         mol_or_substance: BCXSubstance or CDK IAtomContainer.
         atom_indices: 0-based atom positions to highlight.
         bond_indices: 0-based bond positions to highlight. None triggers
             legacy atom-union inference.
-        title: Optional <title> for screen-reader a11y (UI-SPEC §A11y).
+        title: Optional <title> for screen-reader a11y.
 
     Returns:
         SVG markup string. Non-empty on success or fallback.

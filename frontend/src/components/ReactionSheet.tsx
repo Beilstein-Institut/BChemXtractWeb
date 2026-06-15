@@ -12,7 +12,7 @@
  * - 0          — reset zoom to 1.0
  * - Escape     — close (handled by shadcn Sheet primitive default)
  *
- * SVG rendered via a Blob URL in `<img src>` (T-10-05) — never innerHTML.
+ * SVG rendered via a Blob URL in `<img src>` — never innerHTML.
  */
 import { useEffect, useState } from "react";
 import { ChevronLeftIcon, ChevronRightIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react";
@@ -48,8 +48,8 @@ function MetadataRow({ label, value }: { label: string; value: string }) {
 
 /**
  * ComponentBlock — a single reaction component (reactant / product / agent).
- * Suppressed entirely when both inchi and inchi_key are empty (D-13 allows
- * backend to return empty fields).
+ * Suppressed entirely when both inchi and inchi_key are empty (the backend
+ * may return empty fields).
  */
 function ComponentBlock({
   index,
@@ -173,7 +173,7 @@ export function ReactionSheet({
     setZoom(1);
   }, [reactionIndex]);
 
-  // T-10-05: SVG rendered via a Blob URL — never innerHTML. Hook must be
+  // SVG rendered via a Blob URL — never innerHTML. Hook must be
   // called before the early return so its order is stable across renders.
   const svgSrc = useSvgObjectUrl(reaction?.svg);
 

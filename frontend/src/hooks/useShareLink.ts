@@ -1,5 +1,5 @@
 /**
- * useShareLink — copy a structure share URL to the clipboard (Phase 3 Task 14).
+ * useShareLink — copy a structure share URL to the clipboard.
  *
  * Builds a deep-link of the form `${origin}/browse#s=<urlencoded-inchikey>`
  * so a recipient opening the link can be routed to the same substance. The
@@ -7,9 +7,9 @@
  * successful copy (so callers can render a "Copied" hint), and cleans up
  * its timeout on unmount.
  *
- * Factored out of `StructureCard` — the Task 9 review flagged the inline
- * `setTimeout` as a potential leak when the card unmounts mid-flash. That
- * leak is handled here by the effect-level cleanup.
+ * Factored out of `StructureCard` — the inline `setTimeout` was a potential
+ * leak when the card unmounts mid-flash. That leak is handled here by the
+ * effect-level cleanup.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 

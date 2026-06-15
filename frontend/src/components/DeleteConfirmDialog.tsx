@@ -1,6 +1,6 @@
 /**
- * DeleteConfirmDialog — AlertDialog for destructive extraction deletion (D-07).
- * UI-SPEC: AlertDialog (not Dialog), "Delete extraction?" title, outline cancel,
+ * DeleteConfirmDialog — AlertDialog for destructive extraction deletion.
+ * AlertDialog (not Dialog), "Delete extraction?" title, outline cancel,
  * destructive confirm. Max 400px wide.
  */
 

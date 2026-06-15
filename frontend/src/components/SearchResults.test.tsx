@@ -1,12 +1,12 @@
 /**
- * SearchResults — concrete tests flipped from Wave-0 stub (Plan 09-07).
+ * SearchResults — concrete behavior tests.
  *
  * Mocks postSearch so we don't hit the network, and mocks sonner so we can
  * assert the warning toast fires on backend warnings. Mocks base-ui Popover
  * + Separator primitives for jsdom hygiene (same pattern as
  * BrowseToolbar.test.tsx / SearchInput.test.tsx).
  *
- * Covers plan truths:
+ * Covers:
  *   - Metadata row renders with `{total} results for <code>{query}</code> · {type} · {scope}`
  *   - Empty state shows `<EmptyState>` + `<DidYouMean>`
  *   - Error branch shows retry Button
@@ -180,7 +180,7 @@ import { SearchProvider } from "@/context/SearchContext";
 
 /**
  * Every render() must wrap the component in <SearchProvider> — useSearch
- * throws if called outside the provider (Task 16).
+ * throws if called outside the provider.
  */
 function renderWithProvider(ui: React.ReactElement) {
   return render(<SearchProvider>{ui}</SearchProvider>);

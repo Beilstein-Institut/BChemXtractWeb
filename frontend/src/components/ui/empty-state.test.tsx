@@ -1,9 +1,9 @@
 /**
- * EmptyState — concrete tests for the shared empty-state primitive (D-19).
+ * EmptyState — concrete tests for the shared empty-state primitive.
  *
  * Co-located with the implementation at
- * `frontend/src/components/ui/empty-state.tsx` (fix #2 — tests live beside
- * implementation under `ui/`, NOT at `frontend/src/components/EmptyState.test.tsx`).
+ * `frontend/src/components/ui/empty-state.tsx` — tests live beside the
+ * implementation under `ui/`, NOT at `frontend/src/components/EmptyState.test.tsx`.
  */
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";

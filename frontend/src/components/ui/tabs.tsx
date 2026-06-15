@@ -4,12 +4,12 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 /**
- * Tabs — state tier (Phase 3 Liquid Glass rebuild, Task 5).
+ * Tabs — state tier (Liquid Glass rebuild).
  *
  * Pill-shaped container: `bg-surface-muted rounded-full p-1 inline-flex`.
  * Trigger uses Base UI's `data-active` attribute (confirmed from
  * `TabsTabDataAttributes.d.ts`) to swap to the primary fill on the
- * selected trigger. `data-slot` hooks are preserved so Task 6's glass
+ * selected trigger. `data-slot` hooks are preserved so the glass
  * selectors can target Tabs parts.
  *
  * The `line` variant is preserved for downstream call sites that use a

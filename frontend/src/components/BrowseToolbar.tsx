@@ -1,6 +1,6 @@
 /**
  * BrowseToolbar — grid/table toggle, sort dropdown, page size selector,
- * structure count, selection badge, and export action bar (D-04, D-11, D-13, D-16, D-17).
+ * structure count, selection badge, and export action bar.
  *
  * Layout: flex row, 48px height, border-b.
  * Mobile: Sort + page size collapse into an "Options" Popover.
@@ -44,16 +44,16 @@ export interface BrowseToolbarProps {
   /** Current extraction ID — used for Export All. Null when no extraction active. */
   extractionId: number | null;
   /**
-   * Callback fired when "Search within this extraction" is clicked (D-20).
+   * Callback fired when "Search within this extraction" is clicked.
    * The button is hidden when this is undefined or `extractionId` is null.
    * Parent writes `?scope=extraction:{id}` to the URL and focuses the
    * header SearchInput (via `searchInputRef` from `@/lib/searchFocus`).
    */
   onSearchWithin?: () => void;
   /**
-   * When true, the ExportMenu enables the RXN/RDfile entry (Plan 10 D-22 /
-   * EXPO-08). True when reactions exist for the active extraction. Defaults
-   * to false (RXN entry stays disabled with the "no reactions" tooltip).
+   * When true, the ExportMenu enables the RXN/RDfile entry. True when
+   * reactions exist for the active extraction. Defaults to false (RXN
+   * entry stays disabled with the "no reactions" tooltip).
    */
   reactionsAvailable?: boolean;
   /**
@@ -71,9 +71,9 @@ export interface BrowseToolbarProps {
 }
 
 /**
- * BrowseToolbar component (D-04, D-11, D-13, D-16, D-17).
+ * BrowseToolbar component.
  * Renders a 48px toolbar row with view toggle, sort/size selects, count, selection badge,
- * and export action bar (D-01, D-03).
+ * and export action bar.
  */
 export function BrowseToolbar({
   view,
@@ -171,10 +171,10 @@ export function BrowseToolbar({
         </ToggleGroupItem>
       </ToggleGroup>
 
-      {/* Search within this extraction (D-20) — immediately right of the view
-          toggle per UI-SPEC §4. Hidden when no extraction is active or when
-          the parent did not provide a handler. Focuses the header SearchInput
-          via `searchInputRef` (fix #8 — no DOM queries). */}
+      {/* Search within this extraction — immediately right of the view
+          toggle. Hidden when no extraction is active or when the parent did
+          not provide a handler. Focuses the header SearchInput via the shared
+          `searchInputRef` rather than a brittle DOM query. */}
       {extractionId !== null && onSearchWithin && (
         <Button
           variant="ghost"
@@ -229,7 +229,7 @@ export function BrowseToolbar({
 
       <div className="flex-1" />
 
-      {/* Export "N selected" button — only when selections exist (D-01) */}
+      {/* Export "N selected" button — only when selections exist */}
       {selectedCount > 0 && (
         <div className="flex items-center gap-2" aria-live="polite">
           <Badge variant="secondary" className="text-xs font-semibold">
@@ -251,7 +251,7 @@ export function BrowseToolbar({
           ChemDraw (original drawing) is the default. */}
       {onDepictionChange && <DepictionToggle depiction={depiction} onChange={onDepictionChange} />}
 
-      {/* Export all — always visible when extraction is active and has substances (D-03) */}
+      {/* Export all — always visible when extraction is active and has substances */}
       {extractionId !== null && total > 0 && (
         <ExportMenu
           onExport={handleExportAll}

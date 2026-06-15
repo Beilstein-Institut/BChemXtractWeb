@@ -1,4 +1,4 @@
-"""Crypto primitives for Phase 11 auth (PBKDF2, admin secret, CSRF token,
+"""Crypto primitives for auth (PBKDF2, admin secret, CSRF token,
 api_key validation). Lifted from ChemAudit security.py with one structural
 divergence: validate_api_key reads from Postgres (this repo), not Redis
 (ChemAudit).
@@ -45,7 +45,7 @@ def hash_api_key_for_lookup(api_key_plain: str) -> str:
 
 
 def calculate_expiry_date(expiry_days: int | None = None) -> datetime | None:
-    """Compute expires_at for a new API key. None/0 means no expiry (D-13).
+    """Compute expires_at for a new API key. None/0 means no expiry.
 
     Values above Settings.api_key_max_expiry_days (365) are clamped.
     Returns timezone-aware datetime in UTC, or None for non-expiring.
@@ -62,7 +62,7 @@ async def require_admin_auth(
     admin_secret: str | None = Security(admin_secret_header),
 ) -> bool:
     """FastAPI dependency: enforce X-Admin-Secret header.
-    Constant-time compare via secrets.compare_digest (T-11-05).
+    Constant-time compare via secrets.compare_digest.
     """
     if not admin_secret:
         raise HTTPException(
@@ -81,13 +81,13 @@ async def require_admin_auth(
 
 
 def generate_csrf_token(session_id: str = "") -> str:
-    """HMAC-bound CSRF token (D-19 + Pitfall #5 — session-binding).
+    """HMAC-bound CSRF token with session-binding.
 
     Shape: random_bytes_hex.timestamp.signature
     Signature: HMAC-SHA256(SECRET_KEY, random_bytes + timestamp + session_id)
 
     session_id is folded into the HMAC input so a token issued for session A
-    cannot be replayed against session B (RESEARCH.md §Threat 2; T-11-06).
+    cannot be replayed against session B.
     """
     random_bytes = secrets.token_bytes(32)
     timestamp = str(int(time.time())).encode()
@@ -137,7 +137,7 @@ async def validate_api_key(
     Returns the row on success, None on failure (unknown, revoked,
     expired). Updates ``last_used_at`` + ``request_count`` on success.
     Emits ``auth.api_key.used.first`` EXACTLY once per key — the call
-    where ``last_used_at`` transitions from NULL → now() (D-16).
+    where ``last_used_at`` transitions from NULL → now().
 
     The audit emit is gated on ``background_tasks is not None`` so
     direct-call unit tests (which bypass FastAPI's request lifecycle)

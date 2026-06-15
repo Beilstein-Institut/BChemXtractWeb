@@ -1,8 +1,8 @@
-"""SQLAlchemy 2.0 ORM models for extraction persistence (Phase 5).
+"""SQLAlchemy 2.0 ORM models for extraction persistence.
 
-Three-table normalized schema per D-01:
+Three-table normalized schema:
   - extractions: one row per POST /api/extract call
-  - substances: one row per unique molecule (deduplicated by inchi_key per D-02)
+  - substances: one row per unique molecule (deduplicated by inchi_key)
   - extraction_substances: M-to-N join table linking extractions to substances
 """
 
@@ -33,7 +33,7 @@ class Base(DeclarativeBase):
 class Extraction(Base):
     """One extraction event — a single POST /api/extract call result.
 
-    Attributes per D-01: id, filename, file_size, format, structure_count,
+    Attributes: id, filename, file_size, format, structure_count,
     extraction_time_ms, warnings (JSONB list), created_at.
     """
 
@@ -53,14 +53,14 @@ class Extraction(Base):
     )
     batch_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
-    # Plan 10 D-16: reaction_count populated by save_reactions; 0 until user
+    # reaction_count populated by save_reactions; 0 until user
     # re-extracts reactions for this file.
     reaction_count: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
 
-    # Phase 11 D-01: per-row ownership for Postgres RLS. Nullable for
-    # legacy rows (wiped by the Phase 11 migration before RLS is forced).
+    # Per-row ownership for Postgres RLS. Nullable for legacy rows (wiped
+    # by the ownership migration before RLS is forced).
     # session_id: 36-char UUID string. api_key_hash: 32-byte PBKDF2 digest.
     session_id: Mapped[str | None] = mapped_column(
         String(36), nullable=True, index=True
@@ -82,7 +82,7 @@ class Extraction(Base):
 
 
 class Substance(Base):
-    """A unique chemical substance, deduplicated by inchi_key (D-02).
+    """A unique chemical substance, deduplicated by inchi_key.
 
     INSERT ON CONFLICT (inchi_key) DO NOTHING — first-seen metadata wins.
     """
@@ -102,9 +102,10 @@ class Substance(Base):
         Text, nullable=False, default="", server_default=""
     )
     mdlv3000: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    # D-04/D-05: CDK canonical SMILES for SRCH-03 exact-match queries.
+    # CDK canonical SMILES for exact-match search queries.
     # Nullable so rows with unparsable SMILES stay literal SQL NULL (never
-    # empty string) — see RESEARCH §Pattern 6 and threat model T-09-02-07.
+    # empty string), preserving the "row is unparsable" vs "canonicalized to
+    # empty" distinction.
     canonical_smiles: Mapped[str | None] = mapped_column(Text, nullable=True)
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -122,7 +123,7 @@ class Substance(Base):
 class ExtractionSubstance(Base):
     """M-to-N join table linking extractions to substances.
 
-    CASCADE on both FKs: deleting an Extraction cascades join rows (D-07/D-10).
+    CASCADE on both FKs: deleting an Extraction cascades join rows.
     """
 
     __tablename__ = "extraction_substances"
@@ -144,8 +145,8 @@ class ExtractionSubstance(Base):
     )
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    # Phase 11 D-01: per-row ownership for Postgres RLS. Nullable for
-    # legacy rows (wiped by the Phase 11 migration before RLS is forced).
+    # Per-row ownership for Postgres RLS. Nullable for legacy rows (wiped
+    # by the ownership migration before RLS is forced).
     # session_id: 36-char UUID string. api_key_hash: 32-byte PBKDF2 digest.
     session_id: Mapped[str | None] = mapped_column(
         String(36), nullable=True, index=True
@@ -158,20 +159,20 @@ class ExtractionSubstance(Base):
 class Reaction(Base):
     """A unique chemical reaction, deduplicated by long_rinchi_key.
 
-    Plan 10 D-18 amended: upstream BChemXtract never populates rinchi_key
+    Upstream BChemXtract never populates rinchi_key
     (ReactionXtractor.java:132 does not call setRinchiKey). We use
     long_rinchi_key as the UNIQUE dedup column. Rows with empty
     long_rinchi_key get a synthetic NO_RINCHI_{sha1(reaction_smiles)}
     placeholder in the persistence layer.
 
     INSERT ON CONFLICT (long_rinchi_key) DO NOTHING — first-seen wins
-    (mirrors Phase 5 D-02 for substances).
+    (mirrors the substance dedup strategy).
     """
 
     __tablename__ = "reactions"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    # D-18 amended: the real dedup key.
+    # The real dedup key.
     long_rinchi_key: Mapped[str] = mapped_column(
         String(256), unique=True, nullable=False
     )
@@ -185,7 +186,7 @@ class Reaction(Base):
     reaction_smiles: Mapped[str] = mapped_column(Text, nullable=False, default="")
     aux_info: Mapped[str] = mapped_column(Text, nullable=False, default="")
     svg: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    # D-17: components live as JSONB on the reaction row (not a separate table)
+    # components live as JSONB on the reaction row (not a separate table)
     components: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -203,7 +204,7 @@ class Reaction(Base):
 class ExtractionReaction(Base):
     """M-to-N join table linking extractions to reactions.
 
-    Plan 10 D-21: CASCADE on both FKs so deleting an Extraction removes its
+    CASCADE on both FKs so deleting an Extraction removes its
     reaction join rows. Orphan Reaction cleanup runs inline in persistence.
     """
 
@@ -224,8 +225,8 @@ class ExtractionReaction(Base):
     )
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    # Phase 11 D-01: per-row ownership for Postgres RLS. Nullable for
-    # legacy rows (wiped by the Phase 11 migration before RLS is forced).
+    # Per-row ownership for Postgres RLS. Nullable for legacy rows (wiped
+    # by the ownership migration before RLS is forced).
     # session_id: 36-char UUID string. api_key_hash: 32-byte PBKDF2 digest.
     session_id: Mapped[str | None] = mapped_column(
         String(36), nullable=True, index=True
@@ -236,14 +237,14 @@ class ExtractionReaction(Base):
 
 
 class ApiKey(Base):
-    """Admin-issued API key (Phase 11 D-10).
+    """Admin-issued API key.
 
     `key_hash` is the deterministic PBKDF2-HMAC-SHA256 (600k iter, 32-byte)
     digest of the plaintext key — the plaintext itself is shown to the
     admin ONCE on creation and never persisted. UNIQUE index on key_hash
     enforces O(log n) lookup at request time.
 
-    Expiry semantics (D-13): `expires_at IS NULL` means no expiry
+    Expiry semantics: `expires_at IS NULL` means no expiry
     (admin-explicit only). `revoked_at IS NOT NULL` short-circuits the
     validity check regardless of expiry.
     """
@@ -276,14 +277,14 @@ class ApiKey(Base):
 
 
 class AuditLog(Base):
-    """Append-only auth/data-lifecycle audit trail (Phase 11 D-16).
+    """Append-only auth/data-lifecycle audit trail.
 
     `session_id_hash` stores sha256(session_id) — never raw UUID — so the
     audit log itself is not a credential leak. `api_key_hash` is the
     request's lookup hash (same byte shape as ApiKey.key_hash) when the
     caller authenticated with X-API-Key; null otherwise.
 
-    12-month retention enforced by a Celery beat task (D-17). Indexed on
+    12-month retention enforced by a Celery beat task. Indexed on
     `(event, at DESC)` for routine queries and `(at)` for the prune
     sweep.
     """

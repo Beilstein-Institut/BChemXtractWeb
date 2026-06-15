@@ -1,4 +1,4 @@
-"""PRIV-05/06 admin API-key tests (Phase 11 Wave 0 RED → green on Plan 11-04).
+"""Admin API-key tests.
 
 Covers:
 - POST /api/admin/api-keys with X-Admin-Secret returns plaintext ONCE +

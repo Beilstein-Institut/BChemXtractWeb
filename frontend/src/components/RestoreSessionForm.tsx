@@ -1,5 +1,5 @@
 /**
- * RestoreSessionForm — Phase 11 D-09 cookie-swap restore.
+ * RestoreSessionForm — cookie-swap restore.
  *
  * The user pastes a recovery code (UUID4 from another browser's Settings
  * page) and submits. We:
@@ -10,8 +10,8 @@
  *      `Set-Cookie: bcx_sid=<code>`.
  *   3. Full reload — every component rehydrates from the new cookie,
  *      avoiding partial state where History sees the new session but
- *      something else still holds the old session_id. No data merge per
- *      D-09; the previous session's extractions remain attached to the
+ *      something else still holds the old session_id. No data merge;
+ *      the previous session's extractions remain attached to the
  *      previous UUID but are no longer reachable from this browser until
  *      the user restores back.
  *

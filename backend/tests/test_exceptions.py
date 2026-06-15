@@ -1,12 +1,12 @@
-"""Tests for exception translation and HTTP mapping (JPYP-04 + D-17).
+"""Tests for exception translation and HTTP mapping.
 
 Verifies that BridgeError subtypes map to correct HTTP status codes and
 stable error codes, and that no Java stack traces or class names leak
 into responses.
 
-Plan 09-05 (D-17) rewrote bridge_error_handler to emit the unified
-ErrorResponse shape (``{detail, code, fields?}``). The legacy
-``{"error": ...}`` body is gone — these tests assert the new shape.
+bridge_error_handler emits the unified ErrorResponse shape
+(``{detail, code, fields?}``). The legacy ``{"error": ...}`` body is
+gone — these tests assert the new shape.
 """
 
 import json
@@ -79,7 +79,7 @@ async def test_base_bridge_error_returns_500() -> None:
 
 
 async def test_error_response_is_json() -> None:
-    """All error responses are JSON with unified {detail, code} shape (D-17)."""
+    """All error responses are JSON with unified {detail, code} shape."""
     request = MagicMock()
     exc = FormatDetectionError("Bad format")
     response = await bridge_error_handler(request, exc)

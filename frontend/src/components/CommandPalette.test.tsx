@@ -1,5 +1,5 @@
 /**
- * CommandPalette — Spotlight-style rebuild tests (Phase 3 Task 19).
+ * CommandPalette — Spotlight-style rebuild tests.
  *
  * Covers the behaviour we can meaningfully exercise in jsdom:
  *   - ⌘K / Ctrl+K toggle the palette open/closed

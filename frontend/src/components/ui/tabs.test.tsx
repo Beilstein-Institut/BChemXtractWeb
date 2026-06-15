@@ -1,5 +1,5 @@
 /**
- * Tabs — tests for the Phase 3 Liquid Glass state primitive (Task 5).
+ * Tabs — tests for the Liquid Glass state primitive.
  *
  * Covers: render, data-slot contract on Tabs/List/Trigger/Panel,
  * Base UI data-active on the selected trigger, switch-behavior when a

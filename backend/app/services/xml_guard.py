@@ -1,4 +1,4 @@
-"""Defensive XML guard for CDXML uploads (SEC C-01).
+"""Defensive XML guard for CDXML uploads.
 
 The upstream Java CDXMLReader hands bytes to a JAXP SAX parser with
 ``FEATURE_SECURE_PROCESSING`` NOT applied (``XMLUtils.parse(..., validate=false)``

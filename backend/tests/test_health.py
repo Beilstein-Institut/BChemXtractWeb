@@ -51,7 +51,7 @@ async def test_health_detail_contains_all_fields(
 async def test_health_detail_includes_jar_version(
     admin_client: AsyncClient,
 ) -> None:
-    """GET /api/health/detail includes jar_version field per D-08."""
+    """GET /api/health/detail includes jar_version field."""
     response = await admin_client.get("/api/health/detail")
     data = response.json()
     assert "jar_version" in data

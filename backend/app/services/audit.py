@@ -1,4 +1,4 @@
-"""Audit-log writer (Phase 11 D-16).
+"""Audit-log writer.
 
 Two patterns:
 - ``audit_log_insert``: opens a FRESH AsyncSession, never blocks the
@@ -7,10 +7,10 @@ Two patterns:
 - ``audit_log_insert_in_session``: writes via the CALLER's session (in
   the same transaction). Use ONLY for ``data.deleted`` (GDPR Article 17)
   where the audit record must land or the deletion must roll back
-  atomically (RESEARCH §Pitfall #6).
+  atomically.
 
 ``session_id`` values are sha256-hashed (32 bytes) BEFORE storage so the
-audit log itself is not a credential leak (D-22 / T-11-07).
+audit log itself is not a credential leak.
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ async def audit_log_insert(
             )
             db.add(row)
             await db.commit()
-    except Exception as e:  # noqa: BLE001 — best-effort audit per D-16
+    except Exception as e:  # noqa: BLE001 — best-effort audit
         logger.warning("audit_log insert failed: event=%s err=%s", event, e)
 
 
@@ -76,8 +76,7 @@ async def audit_log_insert_in_session(
     meta: dict | None = None,
 ) -> None:
     """In-transaction audit insert. Raises on failure — used by
-    ``data.deleted`` so the GDPR delete and audit record are atomic
-    (Pitfall #6).
+    ``data.deleted`` so the GDPR delete and audit record are atomic.
     """
     ip = request.client.host if request and request.client else None
     ua = request.headers.get("user-agent") if request else None

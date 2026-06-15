@@ -6,7 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 /**
- * Toggle — state tier (Phase 3 Liquid Glass rebuild, Task 5).
+ * Toggle — state tier (Liquid Glass rebuild).
  *
  * Single-button two-state control (unlike Switch). Off: transparent w/
  * border; hover: `bg-accent`; pressed: primary fill. Base UI exposes

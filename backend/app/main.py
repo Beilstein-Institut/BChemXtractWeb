@@ -59,8 +59,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     Shutdown: shut down the thread pool (JVM shutdown is skipped — it is
               irreversible per JPype).
 
-    Alembic migrations are NO LONGER run from the request-path process
-    (SEC M-08). Operators must apply migrations via the standalone
+    Alembic migrations are NO LONGER run from the request-path process.
+    Operators must apply migrations via the standalone
     ``migrate`` service in docker-compose (``alembic upgrade head``)
     before bringing the backend up. Rationale:
 
@@ -84,7 +84,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     shutdown_pool()
 
 
-# D-16 (Plan 09-05): curated OpenAPI metadata. Each tag groups the routes
+# Curated OpenAPI metadata. Each tag groups the routes
 # assigned to it in /docs and /redoc. Descriptions render in both UIs as
 # the expandable section header.
 _TAGS_METADATA = [
@@ -93,7 +93,7 @@ _TAGS_METADATA = [
         "description": (
             "Upload CDX/CDXML files and extract chemical substances and "
             "reactions. Synchronous path for single files. Reactions are "
-            "opt-in via a separate endpoint (Plan 10, experimental)."
+            "opt-in via a separate endpoint (experimental)."
         ),
     },
     {
@@ -134,7 +134,7 @@ _TAGS_METADATA = [
     {
         "name": "auth",
         "description": (
-            "Cookie/recovery-code/CSRF-token endpoints (Phase 11). "
+            "Cookie/recovery-code/CSRF-token endpoints. "
             "Unauthenticated entry points used by browsers before any "
             "extraction request."
         ),
@@ -142,14 +142,14 @@ _TAGS_METADATA = [
     {
         "name": "admin",
         "description": (
-            "Admin-only API key management (Phase 11). Gated by "
+            "Admin-only API key management. Gated by "
             "`X-Admin-Secret`; excluded from CSRF."
         ),
     },
     {
         "name": "me",
         "description": (
-            "Authenticated-session-bound endpoints (Phase 11). "
+            "Authenticated-session-bound endpoints. "
             "Currently only the GDPR `DELETE /me/data` erase route."
         ),
     },
@@ -166,14 +166,14 @@ def create_app() -> FastAPI:
       ``settings.debug``). Prevents API-surface disclosure in production.
     - Every ``/api/*`` router except :mod:`health`, :mod:`auth`, and
       :mod:`admin_api_keys` runs ``get_scoped_db`` which validates
-      X-API-Key against the api_keys table (Phase 11 D-10), auto-issues
+      X-API-Key against the api_keys table, auto-issues
       a ``bcx_sid`` cookie on first browser visit, and sets the
-      Postgres RLS context (D-01 / D-03). ``/health/detail`` is
+      Postgres RLS context. ``/health/detail`` is
       additionally gated by ``require_admin_auth`` because it discloses
       JVM diagnostics that scrapers should not see; the minimal
       ``/health`` endpoint stays open for Docker HEALTHCHECK probes.
     - Per-IP rate limits are enforced by ``slowapi`` with configurable
-      thresholds per resource class (H-05 / DoS hardening). Exceeding a
+      thresholds per resource class (DoS hardening). Exceeding a
       limit produces a ``429`` through the unified ``ErrorResponse`` shape.
     """
     docs_visible = settings.expose_openapi_docs
@@ -197,10 +197,10 @@ def create_app() -> FastAPI:
     # up. This must happen before add_middleware(SlowAPIMiddleware).
     application.state.limiter = limiter
 
-    # D-17 (Plan 09-05): unified ErrorResponse handlers. Order of registration
+    # Unified ErrorResponse handlers. Order of registration
     # does not matter — FastAPI dispatches by exception type. The BridgeError
     # handler must remain the single registered handler for that class
-    # (Pitfall 7) to avoid a second add_exception_handler overwriting it.
+    # to avoid a second add_exception_handler overwriting it.
     application.add_exception_handler(HTTPException, http_exception_handler)
     application.add_exception_handler(
         RequestValidationError, validation_exception_handler
@@ -225,7 +225,7 @@ def create_app() -> FastAPI:
     # overrides use @limiter.limit() in the router modules.
     application.add_middleware(SlowAPIMiddleware)
 
-    # Phase 11 D-19: CSRF synchronizer-token verification for cookie-auth
+    # CSRF synchronizer-token verification for cookie-auth
     # state-changing requests. Skipped for:
     #   - safe methods (GET/HEAD/OPTIONS)
     #   - X-API-Key / X-Admin-Secret authenticated requests (CLI + admins)
@@ -234,7 +234,7 @@ def create_app() -> FastAPI:
     #
     # When the caller carries a valid bcx_sid cookie, an HMAC-bound
     # `X-CSRF-Token` is required; rejected requests return 403 with the
-    # unified ErrorResponse code `CSRF_INVALID` (T-11-06 / T-11-09).
+    # unified ErrorResponse code `CSRF_INVALID`.
     @application.middleware("http")
     async def csrf_middleware(request, call_next):
         from fastapi.responses import JSONResponse
@@ -276,7 +276,7 @@ def create_app() -> FastAPI:
     # `/api/health/detail` is protected at the route level inside
     # routers/health.py.
     #
-    # `auth.router` (Phase 11) hosts the cookie / recovery-code /
+    # `auth.router` hosts the cookie / recovery-code /
     # CSRF-token endpoints. It is mounted WITHOUT the scoped dependency
     # because PUT /api/auth/me is the entry point that ISSUES the cookie
     # — running set_rls_context before the cookie exists would race the
@@ -300,11 +300,11 @@ def create_app() -> FastAPI:
     # that pulls in main); routers/auth.py uses the same pattern.
     from app.services.db import get_scoped_db
 
-    # SEC (Phase 11 D-18): every /api/* router except /api/health and
+    # Every /api/* router except /api/health and
     # /api/auth/* runs get_scoped_db which:
     #   - resolves (session_id, api_key_hash) from the cookie/header
-    #   - validates X-API-Key against the api_keys table (post-Plan-11-05;
-    #     unknown / revoked / expired → 401)
+    #   - validates X-API-Key against the api_keys table
+    #     (unknown / revoked / expired → 401)
     #   - auto-issues bcx_sid on first browser visit
     #   - sets the Postgres RLS context (set_config) so user queries are
     #     filtered structurally even if a router forgets the WHERE clause

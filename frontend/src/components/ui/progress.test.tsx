@@ -1,10 +1,10 @@
 /**
- * Progress — tests for the Phase 3 Liquid Glass state primitive (Task 5).
+ * Progress — tests for the Liquid Glass state primitive.
  *
  * Covers: render, data-slot on Root + Track + Indicator + Label + Value,
  * aria-valuenow reflection, inline-width on the indicator (Base UI
  * generates `width: 50%` via its render helper when value=50), and
- * plan-specified styling (bg-surface-muted track, bg-primary indicator,
+ * core styling (bg-surface-muted track, bg-primary indicator,
  * transition-[width]).
  *
  * Base UI Progress sets width on the indicator via inline style from
@@ -66,7 +66,7 @@ describe("Progress", () => {
     const track = container.querySelector('[data-slot="progress-track"]') as HTMLElement;
     expect(track.className).toContain("bg-surface-muted");
     expect(track.className).toContain("rounded-full");
-    // Task 22: thicker track (h-3) with a ring border for definition.
+    // Thicker track (h-3) with a ring border for definition.
     expect(track.className).toContain("h-3");
     expect(track.className).toContain("ring-1");
     expect(track.className).toContain("ring-border");
@@ -75,7 +75,7 @@ describe("Progress", () => {
   it("applies the shimmer animation overlay on the indicator", () => {
     const { container } = render(<Progress value={50} aria-label="p" />);
     const indicator = container.querySelector('[data-slot="progress-indicator"]') as HTMLElement;
-    // Task 22: pseudo-element shimmer keyed off the batch-shimmer
+    // Pseudo-element shimmer keyed off the batch-shimmer
     // keyframe declared in src/index.css.
     expect(indicator.className).toContain("after:animate-[batch-shimmer");
     expect(indicator.className).toContain("after:bg-gradient-to-r");

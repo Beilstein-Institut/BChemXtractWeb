@@ -1,5 +1,5 @@
 /**
- * RecoveryCodeCard — unit tests for Phase 11 D-06.
+ * RecoveryCodeCard — unit tests.
  *
  * Verifies:
  *   - Renders the session UUID when `sessionId` is supplied.

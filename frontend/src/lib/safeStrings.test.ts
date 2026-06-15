@@ -1,6 +1,5 @@
 /**
- * Tests for the client-side string hardening helpers (SEC MED-03 /
- * MED-04 / MED-05 / LOW-07).
+ * Tests for the client-side string hardening helpers.
  */
 import { describe, expect, it } from "vitest";
 import {

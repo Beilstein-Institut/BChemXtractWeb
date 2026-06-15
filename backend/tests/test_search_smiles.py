@@ -1,4 +1,4 @@
-"""SRCH-03: SMILES match — canonical (default) + literal (Plan 09-03 wave 3)."""
+"""SRCH-03: SMILES match — canonical (default) + literal."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ async def test_smiles_canonical_equivalence(client_csrf: AsyncClient) -> None:
     """`c1ccccc1` and `C1=CC=CC=C1` collide on the same canonical row (SRCH-03).
 
     Seed a row whose stored SMILES is the Kekulé form but whose
-    ``canonical_smiles`` is the aromatic form. Plan 02's write-through
-    would have produced this shape for any real extraction.
+    ``canonical_smiles`` is the aromatic form. The extraction
+    write-through path produces this shape for any real extraction.
     """
     async with AsyncSessionLocal() as session:
         await session.execute(

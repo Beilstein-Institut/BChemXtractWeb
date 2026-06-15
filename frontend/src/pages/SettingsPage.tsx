@@ -1,5 +1,5 @@
 /**
- * SettingsPage — Phase 11 D-07 user-facing privacy controls.
+ * SettingsPage — user-facing privacy controls.
  *
  * Three sections, top to bottom:
  *   1. Recovery code (RecoveryCodeCard) — the session UUID + copy button.

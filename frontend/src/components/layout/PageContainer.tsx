@@ -3,7 +3,7 @@ import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * PageContainer — Phase 3 Liquid Glass rebuild (Task 8).
+ * PageContainer — Liquid Glass rebuild.
  *
  * Centered max-width wrapper with the page-level padding used by every
  * route (Extract, Browse, History, About). Layers compose on top:

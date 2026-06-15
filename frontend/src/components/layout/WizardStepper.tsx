@@ -4,27 +4,27 @@ import { useCallback } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * WizardStepper — Phase 3 Liquid Glass rebuild (Task 8).
+ * WizardStepper — Liquid Glass rebuild.
  *
  * Top-of-page step indicator: a horizontal sequence of numbered pills
  * joined by thin connector lines, followed by a content slot below.
- * Task 10 will compose the Extract page wizard on top of this.
+ * The Extract page wizard composes on top of this.
  *
- * Visual contract (derived from the phase plan):
+ * Visual contract:
  *   - pending  → `bg-surface-muted text-foreground-muted` pill
  *   - active   → `bg-primary text-primary-foreground` pill (crimson)
  *   - complete → `bg-secondary text-secondary-foreground` pill (teal)
  *   - connector between completed / active steps inherits the higher of
  *     the two adjacent states (teal if both complete, teal->crimson
- *     gradient not attempted — plan is terse; we use teal when the left
- *     side is complete, muted otherwise).
+ *     gradient not attempted — we use teal when the left side is
+ *     complete, muted otherwise).
  *
- * Keyboard navigation (per plan): focusing the stepper root and pressing
+ * Keyboard navigation: focusing the stepper root and pressing
  *   - ArrowRight → advance to the next step (consumer decides via
  *     `onStepChange` whether to gate past not-yet-unlocked steps).
  *   - ArrowLeft  → move to the previous step.
- *   - Home / End → jump to first / last (UX nicety; not required by
- *     the plan but inexpensive and discoverable).
+ *   - Home / End → jump to first / last (UX nicety; inexpensive and
+ *     discoverable).
  *
  * `data-slot="wizard-stepper"` on the root; each step button is
  * `data-slot="wizard-step"` with `data-status={pending|active|complete}`

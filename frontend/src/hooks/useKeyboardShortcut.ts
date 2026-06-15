@@ -1,5 +1,5 @@
 /**
- * useKeyboardShortcut — window-level keyboard shortcut hook (Phase 3 Task 14).
+ * useKeyboardShortcut — window-level keyboard shortcut hook.
  *
  * Registers a single `keydown` listener on `window` and fires the supplied
  * handler when the event matches the descriptor. Typical usage is the ⌘K

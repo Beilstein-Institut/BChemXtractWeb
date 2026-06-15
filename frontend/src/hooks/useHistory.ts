@@ -1,5 +1,5 @@
 /**
- * History state machine for Phase 5 persistence features.
+ * History state machine for persistence features.
  * Mirrors useExtract.ts pattern: explicit state enum, useCallback for stable refs.
  *
  * Manages:

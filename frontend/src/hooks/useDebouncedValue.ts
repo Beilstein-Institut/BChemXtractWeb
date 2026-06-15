@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
  * useDebouncedValue — trailing-edge debounce for a reactive value.
  *
  * Returns the latest `value` after `delay` ms of inactivity. Changing the
- * value resets the timer. Used by Phase 3 Task 11 SearchFilter to keep
- * bento tile re-renders cheap while the user is actively typing.
+ * value resets the timer. Used by the SearchFilter to keep bento tile
+ * re-renders cheap while the user is actively typing.
  *
  * The effect cleanup clears the pending timer on every run, so fast
  * successive changes collapse into a single trailing update. Unmount

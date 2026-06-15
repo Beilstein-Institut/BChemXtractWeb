@@ -21,9 +21,8 @@ _FORMAT_LABELS: dict[str, str] = {
 def check_extension_mismatch(filename: str, detected_format: str) -> list[str]:
     """Return warnings when the file extension disagrees with content detection.
 
-    Per D-07: extension mismatch is a warning, not an error — the
-    content-based detection (D-06, magic-bytes / XML probe) is always
-    authoritative.
+    Extension mismatch is a warning, not an error — the content-based
+    detection (magic-bytes / XML probe) is always authoritative.
 
     Args:
         filename: Original upload filename.

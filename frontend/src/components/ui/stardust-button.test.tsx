@@ -1,5 +1,5 @@
 /**
- * StardustButton — Phase 3 Task 22 (dark-navy pearl CTA).
+ * StardustButton — dark-navy pearl CTA.
  *
  * Covers: default label, label override, children override, onClick
  * dispatch, disabled short-circuits onClick, data-slot contract,

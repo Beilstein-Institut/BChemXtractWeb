@@ -1,9 +1,9 @@
 /**
- * StatCard tests — Phase 3 Task 12 rewrite.
+ * StatCard tests.
  *
  * Covers:
  *   - label + numeric value rendering with default `count` format.
- *   - legacy string value path (Phase 2: pre-formatted values render as-is).
+ *   - legacy string value path (pre-formatted values render as-is).
  *   - em-dash fallback for empty / null / undefined values.
  *   - loading state renders the Skeleton without showing the value.
  *   - tone variants (primary / secondary / neutral) apply the right text
@@ -26,7 +26,7 @@ describe("StatCard", () => {
     expect(screen.getByText("1,234")).toBeInTheDocument();
   });
 
-  it("renders a string value as-is (legacy Phase 2 path)", () => {
+  it("renders a string value as-is (legacy path)", () => {
     render(<StatCard label="Most common formula" value="C6H12O6" />);
     expect(screen.getByText("C6H12O6")).toBeInTheDocument();
   });

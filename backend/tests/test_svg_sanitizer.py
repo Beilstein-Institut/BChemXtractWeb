@@ -1,4 +1,4 @@
-"""Tests for the SVG sanitiser (SEC L-05).
+"""Tests for the SVG sanitiser.
 
 Defence-in-depth against a hypothetical CDK CVE that emits scriptable
 content. Every depiction path runs through :func:`sanitize_svg` before

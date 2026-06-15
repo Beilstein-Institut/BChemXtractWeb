@@ -1,5 +1,5 @@
 /**
- * Liquid Glass surface utilities (Phase 3, Task 6).
+ * Liquid Glass surface utilities.
  *
  * Single source of truth for the Tailwind class cluster that skins every
  * floating primitive (Dialog, Popover, Tooltip, DropdownMenu, Sheet, Drawer,

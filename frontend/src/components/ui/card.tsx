@@ -3,13 +3,13 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Card — minimal surface tier (Phase 3 Liquid Glass rebuild, Task 3).
+ * Card — minimal surface tier (Liquid Glass rebuild).
  *
  * No neo shadows, no hover lift. Hover / glass / elevation are layered on
  * per-usage (e.g. StructureCard, Bento cards) — keep this primitive a flat
  * surface so downstream compositions can opt in.
  *
- * `data-slot` attributes are preserved for Task 6 glass selectors and for
+ * `data-slot` attributes are preserved for glass selectors and for
  * existing tests.
  */
 function Card({

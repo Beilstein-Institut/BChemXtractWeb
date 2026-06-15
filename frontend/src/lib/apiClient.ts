@@ -56,7 +56,7 @@ async function extractErrorDetail(response: Response): Promise<string> {
 }
 
 /**
- * Detects the Phase 11 CSRF middleware's 403 + `{code: "CSRF_INVALID"}`
+ * Detects the CSRF middleware's 403 + `{code: "CSRF_INVALID"}`
  * sentinel without consuming the original response body. The body is
  * read from a clone so the outer error handler can still surface the
  * detail string if the retry also fails.
@@ -107,7 +107,7 @@ async function apiFetch(
 ): Promise<Response> {
   let response: Response;
 
-  // Phase 11 D-19: state-changing requests carry the CSRF token from the
+  // State-changing requests carry the CSRF token from the
   // module-level cache (populated by useCsrfToken on mount + on retry below).
   // Cold-start path (returning visitor: cookie present, cache empty because
   // useCsrfToken hasn't completed its bootstrap yet): pre-fetch the token
@@ -121,7 +121,7 @@ async function apiFetch(
     csrfHeaders["X-CSRF-Token"] = csrfTokenCache.value;
   }
 
-  // Phase 11 D-20: `credentials: "include"` on EVERY request so the
+  // `credentials: "include"` on EVERY request so the
   // `bcx_sid` cookie travels with both GET (RLS read scope) and
   // state-changing calls (RLS write scope).
   const enhancedInit: RequestInit = {
@@ -140,7 +140,7 @@ async function apiFetch(
     throw new Error(connectionError ?? DEFAULT_CONNECTION_ERROR);
   }
 
-  // PRIV-11 retry path: a stale CSRF token (Phase 11-04 middleware returns
+  // CSRF retry path: a stale CSRF token (the middleware returns
   // 403 + {code:"CSRF_INVALID"}) triggers a single token refresh + retry.
   // `isCsrfError` clones the response internally so the outer error path
   // can still consume the body if the retry attempt also fails.
@@ -278,11 +278,11 @@ export async function getHistoryDetail(id: number): Promise<ExtractionResponse> 
 }
 
 /**
- * Delete one history entry by id (D-07).
+ * Delete one history entry by id.
  * Throws on non-204 response.
  *
  * Routed through `apiFetch` so the request carries `credentials: "include"`
- * and the auto-injected `X-CSRF-Token` header (Phase 11 D-19/D-20).
+ * and the auto-injected `X-CSRF-Token` header.
  */
 export async function deleteHistoryEntry(id: number): Promise<void> {
   await apiFetch(`/api/history/${id}`, {
@@ -292,7 +292,7 @@ export async function deleteHistoryEntry(id: number): Promise<void> {
 }
 
 /**
- * Fetch aggregate statistics (HIST-04, D-08).
+ * Fetch aggregate statistics (HIST-04).
  */
 export async function getStats(): Promise<StatsResponse> {
   const response = await apiFetch("/api/stats", {
@@ -302,7 +302,7 @@ export async function getStats(): Promise<StatsResponse> {
 }
 
 /**
- * Fetch one page of substances for a stored extraction (DISP-03, D-01).
+ * Fetch one page of substances for a stored extraction (DISP-03).
  * @param extractionId - DB primary key from ExtractionResponse.extraction_id
  * @param page - 1-based page number
  * @param size - items per page (12 | 24 | 48)
@@ -348,7 +348,7 @@ export function getBatchSSEUrl(batchId: string): string {
 }
 
 /**
- * DELETE /api/batch/{batchId} — cancel pending tasks (current task finishes, D-10).
+ * DELETE /api/batch/{batchId} — cancel pending tasks (current task finishes).
  */
 export async function cancelBatch(batchId: string): Promise<void> {
   await apiFetch(`/api/batch/${encodeURIComponent(batchId)}`, {
@@ -403,7 +403,7 @@ export async function postExport(payload: ExportRequest, suggestedFilename: stri
  *
  * Returns the parsed JSON response. Throws an Error on HTTP errors or
  * network failure. Error message pulls `body.detail` from the unified
- * ErrorResponse shape (Plan 05, D-17).
+ * ErrorResponse shape.
  */
 export async function postSearch(payload: SearchRequest): Promise<SearchResponse> {
   const response = await apiFetch("/api/search", {
@@ -434,13 +434,13 @@ export async function postSearchValidate(
 }
 
 /**
- * POST /api/reactions — experimental reaction extraction (Plan 10 D-02).
+ * POST /api/reactions — experimental reaction extraction.
  *
  * Accepts a CDX/CDXML File + optional AbortSignal to cancel in-flight requests
- * (mirrors useSearch AbortController pattern; mitigates Pitfall 10 react
+ * (mirrors useSearch AbortController pattern; avoids the react
  * dev-mode warning about state updates on unmounted components).
  *
- * Per D-06: a 200 response may contain reactions=[] + warnings (timeout path).
+ * A 200 response may contain reactions=[] + warnings (timeout path).
  * Callers treat timeout as a non-error success state.
  */
 export async function postReactions(
@@ -466,7 +466,7 @@ export async function postReactions(
 
 /**
  * GET /api/extractions/{extractionId}/reactions — load cached reactions
- * for a prior extraction (Plan 10 D-23 history hydration).
+ * for a prior extraction (history hydration).
  *
  * Returns a ReactionExtractionResponse mirroring the POST shape — reactions
  * are read from the DB rather than freshly extracted. When reaction_count
@@ -494,7 +494,7 @@ export async function getExtractionReactions(
 }
 
 /**
- * PUT /api/auth/me — idempotent session bootstrap (Phase 11 D-23).
+ * PUT /api/auth/me — idempotent session bootstrap.
  *
  * Causes the backend to issue a `bcx_sid` cookie if none is present (or
  * to confirm the existing one). Returns the session_id and `has_history`
@@ -509,7 +509,7 @@ export async function putAuthMe(): Promise<SessionInfoResponse> {
 }
 
 /**
- * POST /api/auth/restore — cookie-swap restore via recovery code (D-09).
+ * POST /api/auth/restore — cookie-swap restore via recovery code.
  *
  * On success the backend returns 204 with a `Set-Cookie: bcx_sid=<code>`
  * header. No body. Replaces the current session — does NOT merge data.
@@ -524,7 +524,7 @@ export async function postAuthRestore(code: string): Promise<void> {
 }
 
 /**
- * GET /api/csrf-token — fetches a session-bound CSRF token (D-19).
+ * GET /api/csrf-token — fetches a session-bound CSRF token.
  *
  * Deliberately bypasses `apiFetch` because apiFetch would inject the
  * `X-CSRF-Token` header on a request that fetches the token itself — and
@@ -539,7 +539,7 @@ export async function getCsrfToken(): Promise<CsrfTokenResponse> {
 }
 
 /**
- * DELETE /api/me/data — GDPR Article 17 hard-delete (Phase 11 D-14).
+ * DELETE /api/me/data — GDPR Article 17 hard-delete.
  *
  * Removes all extractions / substances / reactions owned by the caller's
  * cookie session, clears the cookie, and writes a `data.deleted` audit

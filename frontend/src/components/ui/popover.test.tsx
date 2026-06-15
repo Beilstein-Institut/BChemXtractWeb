@@ -1,5 +1,5 @@
 /**
- * Popover — tests for the Phase 3 Liquid Glass floating primitive (Task 6).
+ * Popover — tests for the Liquid Glass floating primitive.
  *
  * Base UI's Popover uses data-open / data-closed idioms (not data-state).
  * The popup portals to document.body, so we query the whole document.

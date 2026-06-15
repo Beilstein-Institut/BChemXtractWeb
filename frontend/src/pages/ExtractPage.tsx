@@ -1,5 +1,5 @@
 /**
- * ExtractPage — Phase 3 Liquid Glass wizard (Task 10 rewrite).
+ * ExtractPage — Liquid Glass wizard.
  *
  * Three-step wizard routed through `WizardStepper`:
  *   1. Upload  — dashed drop zone + file queue + primary CTA.
@@ -15,8 +15,8 @@
  *   - process → single loading OR  batch processing
  *   - results → batch complete (single-file success auto-navigates to /browse)
  *
- * Hook signatures are untouched per the Task 10 plan; the parent still owns
- * the state and passes it down via props.
+ * Hook signatures are untouched; the parent still owns the state and passes
+ * it down via props.
  */
 import { useCallback, useMemo } from "react";
 import { CheckIcon, LoaderIcon, UploadIcon } from "lucide-react";

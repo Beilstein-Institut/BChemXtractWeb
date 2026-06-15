@@ -4,7 +4,7 @@ import { cancelBatch as apiCancelBatch, getBatchSSEUrl, postBatchStart } from "@
 import type { BatchFileStatus, FileCompleteEvent } from "@/types/batch";
 
 /**
- * Runtime guard for the SSE ``file_complete`` payload (SEC MED-02).
+ * Runtime guard for the SSE ``file_complete`` payload.
  *
  * ``JSON.parse`` returns ``unknown``; a compile-time ``as`` cast is a
  * promise to the reader, not a runtime check. A server-side protocol
@@ -45,14 +45,14 @@ export interface UseBatchReturn {
   errorMessage: string | null;
   /** Start a new batch with the given files */
   startBatch: (files: File[]) => Promise<void>;
-  /** Cancel pending tasks (current task completes, D-10) */
+  /** Cancel pending tasks (current task completes) */
   cancelBatch: () => Promise<void>;
-  /** Reset to idle — allows starting a new batch (D-04) */
+  /** Reset to idle — allows starting a new batch */
   reset: () => void;
 }
 
 /**
- * Batch lifecycle state machine for multi-file CDX/CDXML extraction (Phase 7).
+ * Batch lifecycle state machine for multi-file CDX/CDXML extraction.
  *
  * States: idle -> processing -> complete | error | cancelled
  * Call reset() to return to idle from any terminal state.
@@ -81,7 +81,7 @@ export function useBatch(): UseBatchReturn {
   }, []);
 
   const handleFileComplete = useCallback((event: MessageEvent) => {
-    // SEC MED-02: runtime-validate the SSE payload shape rather than
+    // Runtime-validate the SSE payload shape rather than
     // trusting the compile-time `as FileCompleteEvent` cast. Malformed
     // payloads are dropped silently — the UI stays on the last known
     // good state rather than crashing the handler.

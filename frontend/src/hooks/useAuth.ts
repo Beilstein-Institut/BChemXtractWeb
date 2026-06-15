@@ -11,7 +11,7 @@ export interface UseAuthReturn {
 }
 
 /**
- * Boot-time session bootstrap (Phase 11 D-23).
+ * Boot-time session bootstrap.
  *
  * Calls `PUT /api/auth/me` on mount, which causes the backend to issue a
  * fresh `bcx_sid` cookie when none is present. The response carries the

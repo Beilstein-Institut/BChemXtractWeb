@@ -90,7 +90,7 @@ async def client() -> AsyncClient:
     _fetch_substances() never actually hits the database. The ``bcx_sid``
     cookie is attached so ``get_scoped_db`` finds a valid session, and a
     fresh CSRF token is pulled before yielding so POSTs survive the
-    CSRF middleware (Phase 11 D-19).
+    CSRF middleware.
     """
     app = create_app()
     transport = ASGITransport(app=app)

@@ -13,7 +13,7 @@ export interface UseReactionsReturn {
 }
 
 /**
- * Plan 10 D-04 + Pitfall 10: hook for POST /api/reactions.
+ * Hook for POST /api/reactions.
  *
  * Mirrors the useExtract state machine (idle → loading → success | error) but
  * layers an AbortController on every extract() call so rapid re-clicks (or a
@@ -21,9 +21,10 @@ export interface UseReactionsReturn {
  * matches the useSearch cancellation posture and prevents React dev-mode
  * warnings about setting state on an unmounted component.
  *
- * D-06 timeout semantics: a 200 response with `reactions: []` and
- * non-empty `warnings` is delivered to `result` with `state === "success"`.
- * Callers inspect `result.warnings` to surface timeout toasts (UI-SPEC §3b).
+ * Timeout semantics: a 200 response with `reactions: []` and non-empty
+ * `warnings` is delivered to `result` with `state === "success"`. Callers
+ * inspect `result.warnings` to surface a timeout toast once the request
+ * transitions to success.
  */
 export function useReactions(): UseReactionsReturn {
   const [state, setState] = useState<ReactionsState>("idle");

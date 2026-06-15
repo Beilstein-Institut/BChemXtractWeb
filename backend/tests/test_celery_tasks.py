@@ -134,7 +134,7 @@ def test_extract_file_task_stashes_rls_scope_on_session():
 
 
 def test_extract_file_task_returns_error_dict_on_failure():
-    """Task returns error dict (not raises) when extraction fails (D-09)."""
+    """Task returns error dict (not raises) when extraction fails."""
     from app.tasks.extraction import extract_file_task
 
     with patch(

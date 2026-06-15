@@ -70,11 +70,11 @@ class TestBridgeErrorHierarchy:
             assert response.status_code == status, f"{cls.__name__} -> {status}"
 
     async def test_bridge_error_handler_returns_clean_json(self) -> None:
-        """Error response uses the unified {detail, code} shape (D-17).
+        """Error response uses the unified {detail, code} shape.
 
-        Plan 09-05 rewrote bridge_error_handler to emit ErrorResponse —
-        ``detail`` carries the human-readable message and ``code`` carries
-        the machine-stable identifier (``EXTRACTION_FAILED`` here).
+        bridge_error_handler emits ErrorResponse — ``detail`` carries the
+        human-readable message and ``code`` carries the machine-stable
+        identifier (``EXTRACTION_FAILED`` here).
         """
         mock_request = AsyncMock()
         exc = ExtractionError("Extraction failed for uploaded file")

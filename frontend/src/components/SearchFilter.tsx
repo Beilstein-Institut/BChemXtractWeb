@@ -1,12 +1,12 @@
 /**
- * SearchFilter — browse-page quick filter bar (Phase 3 Task 11).
+ * SearchFilter — browse-page quick filter bar.
  *
  * Compact glass composite that sits above the bento landing:
  *   - Free-text search inside a neomorphic pill (`--shadow-neu-inset`)
  *     so it echoes the AppHeader and command-palette inputs. Matches
  *     against molecular formula, SMILES, InChI key, and IUPAC name.
- *   - Three filter chips that narrow the current-extraction slice. The
- *     plan's original chip list (has-reaction / .cdx / .cdxml / date range)
+ *   - Three filter chips that narrow the current-extraction slice. An
+ *     earlier chip list (has-reaction / .cdx / .cdxml / date range)
  *     assumes a cross-extraction index — the per-extraction data surface
  *     does not expose those fields per substance, so chips are instead
  *     keyed on substance-shape predicates that ARE available:
@@ -39,7 +39,7 @@ import { cn } from "@/lib/utils";
 // Call sites import `BrowseFilters` / `EMPTY_FILTERS` from
 // `@/components/browse/browseFilters` directly — keeping them out of this
 // file's exports preserves the `react-refresh/only-export-components`
-// contract used across the Phase 3 primitives.
+// contract used across the primitives.
 
 export interface SearchFilterProps {
   value: BrowseFilters;
@@ -50,7 +50,7 @@ export interface SearchFilterProps {
 }
 
 /**
- * Small pill-shaped toggle button matching Phase 3 token palette.
+ * Small pill-shaped toggle button matching the token palette.
  * Uses `data-active` (not a Base UI `[data-checked]`) because this is a
  * plain toggle rather than a form primitive.
  */
@@ -96,7 +96,7 @@ export function SearchFilter({ value, onChange, debounceMs = 250, className }: S
   const lastFlushedRef = useRef<string>(value.q);
 
   // Sync external `value.q` changes into the local input (e.g. parent
-  // clears filters programmatically — Task 14 share-link handling).
+  // clears filters programmatically — share-link handling).
   // Guarded by `lastFlushedRef` so we don't ping-pong with the debounce
   // flush effect below.
   useEffect(() => {

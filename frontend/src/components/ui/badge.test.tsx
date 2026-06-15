@@ -1,5 +1,5 @@
 /**
- * Badge — tests for the Phase 3 Liquid Glass chip primitive (Task 3).
+ * Badge — tests for the Liquid Glass chip primitive.
  *
  * Covers: render, data-slot + data-variant contract, className forwarding,
  * variant class resolution for each of the five supported variants.

@@ -3,12 +3,12 @@
 These cover the :class:`app.config.Settings` startup validators that refuse
 misconfigured deployments before the app even starts.
 
-Phase 11 (Plan 11-05) removed the ``api_keys`` field and its validator —
-admin-minted API keys live in the ``api_keys`` Postgres table now, gated
-by ``X-Admin-Secret``. The remaining startup-time validators are
-``_validate_phase11_secrets`` (≥32-char ``SECRET_KEY`` / ``ADMIN_SECRET`` /
-``APP_DB_PASSWORD`` in production) and ``_validate_prod_cors`` (refuses a
-``localhost`` origin under ``DEBUG=false``).
+The ``api_keys`` field and its validator were removed — admin-minted API
+keys live in the ``api_keys`` Postgres table now, gated by ``X-Admin-Secret``.
+The remaining startup-time validators are ``_validate_auth_secrets``
+(≥32-char ``SECRET_KEY`` / ``ADMIN_SECRET`` / ``APP_DB_PASSWORD`` in
+production) and ``_validate_prod_cors`` (refuses a ``localhost`` origin
+under ``DEBUG=false``).
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ def debug_env(monkeypatch):
 
 
 def test_settings_refuses_short_secret_key_in_prod(prod_env) -> None:
-    """_validate_phase11_secrets rejects a short SECRET_KEY under DEBUG=false."""
+    """_validate_auth_secrets rejects a short SECRET_KEY under DEBUG=false."""
     prod_env.setenv("SECRET_KEY", "tooshort")
     with pytest.raises(Exception) as exc_info:
         Settings()  # type: ignore[call-arg]
@@ -56,7 +56,7 @@ def test_settings_refuses_short_secret_key_in_prod(prod_env) -> None:
 
 
 def test_settings_refuses_short_admin_secret_in_prod(prod_env) -> None:
-    """_validate_phase11_secrets rejects a short ADMIN_SECRET under DEBUG=false."""
+    """_validate_auth_secrets rejects a short ADMIN_SECRET under DEBUG=false."""
     prod_env.setenv("ADMIN_SECRET", "short")
     with pytest.raises(Exception) as exc_info:
         Settings()  # type: ignore[call-arg]

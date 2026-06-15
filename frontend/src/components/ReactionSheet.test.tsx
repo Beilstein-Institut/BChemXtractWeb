@@ -2,8 +2,8 @@
  * Tests for ReactionSheet component.
  * Vitest globals: true — no need to import describe/it/expect.
  *
- * Plan 10-04 — right-side detail sheet mirroring StructureSheet with
- * reaction-specific metadata + component groups + keyboard nav + zoom.
+ * Right-side detail sheet mirroring StructureSheet with reaction-specific
+ * metadata + component groups + keyboard nav + zoom.
  */
 import { render, screen, fireEvent } from "@testing-library/react";
 import { vi, beforeEach } from "vitest";

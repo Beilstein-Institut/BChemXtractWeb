@@ -8,8 +8,9 @@ All functions that call into CDK MUST be invoked inside
 below is pure Python and thread-agnostic.
 
 Replaces the inline ``_substructure_sync`` implementation in
-``app/services/search.py`` — see the Plan 2026-04-24 design doc for
-bug root-causes (``uniqueAtoms()`` drop + atom-union bond inference).
+``app/services/search.py``, which had two matching bugs: an
+``uniqueAtoms()`` call that dropped repeated mappings, and atom-union
+bond inference that highlighted bonds the query never matched.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ from app.errors import InvalidQueryError, QueryTooLargeError
 QueryLanguage = Literal["smiles", "smarts"]
 
 
-# Safety ceilings — see design spec §"Safety guard". 10k mappings per
+# Safety ceilings. 10k mappings per
 # molecule absorbs naphthalene-in-coronene and similar legitimate
 # high-multiplicity cases while stopping pathological `*`-only SMARTS
 # from OOMing the JVM. 200-atom query cap rejects queries far larger
@@ -329,10 +330,9 @@ def enumerate_matches(
       3. Return MatchResult with sorted, unique atom + bond indices and
          the partial_match flag.
 
-    Per-mapping bond reconstruction (vs atom-union inference) is the fix
-    for Bug B — it prevents stray bonds like the C-C in HO-CH2-CH2-OH
-    from being marked when the query CO has no bond between its two
-    match sites.
+    Per-mapping bond reconstruction (vs atom-union inference) prevents
+    stray bonds like the C-C in HO-CH2-CH2-OH from being marked when the
+    query CO has no bond between its two match sites.
 
     Must be called inside run_in_jvm_thread.
     """

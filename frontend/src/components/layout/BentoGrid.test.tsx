@@ -1,5 +1,5 @@
 /**
- * Tests for BentoGrid + BentoCell — Phase 3 Task 8.
+ * Tests for BentoGrid + BentoCell.
  *
  * Covers:
  *   - parseSpan pure-function behavior (happy path + graceful fallback)

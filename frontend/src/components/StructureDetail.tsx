@@ -2,8 +2,9 @@
  * StructureDetail — Dialog content displaying full SVG and all metadata fields
  * for an extracted chemical substance.
  *
- * SVG is rendered via a Blob URL in an <img> src (T-04-04 — never as raw
- * innerHTML). The dialog closes itself before any AttributionPill navigation
+ * SVG is rendered via a Blob URL in an <img> src — never as raw innerHTML,
+ * so a malicious backend SVG string cannot inject script into the DOM. The
+ * dialog closes itself before any AttributionPill navigation
  * (handled by StructureCard's wrapper callback).
  */
 import { FlaskConicalIcon } from "lucide-react";

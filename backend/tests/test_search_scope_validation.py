@@ -1,4 +1,4 @@
-"""Tests for explicit scope validation (SEC M-06)."""
+"""Tests for explicit scope validation."""
 
 from __future__ import annotations
 

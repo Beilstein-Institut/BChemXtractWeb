@@ -1,4 +1,4 @@
-"""API-layer tests for history and stats endpoints (Phase 5).
+"""API-layer tests for history and stats endpoints.
 
 Requirements: HIST-01, HIST-02, HIST-04
 Uses the `client` fixture (lifespan-started app + JVM) from conftest.py.
@@ -28,7 +28,7 @@ async def test_history_list_returns_200(client_csrf: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_history_list_default_limit(client_csrf: AsyncClient):
-    """D-05: default limit is 10 — items list never exceeds 10 entries."""
+    """Default limit is 10 — items list never exceeds 10 entries."""
     response = await client_csrf.get("/api/history")
     assert response.status_code == 200
     body = response.json()
@@ -57,7 +57,7 @@ async def test_history_detail_not_found(client_csrf: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_delete_history_not_found(client_csrf: AsyncClient):
-    """D-07: DELETE /api/history/{id} returns 404 for non-existent ID."""
+    """DELETE /api/history/{id} returns 404 for non-existent ID."""
     response = await client_csrf.delete("/api/history/999999999")
     assert response.status_code == 404
 
@@ -78,7 +78,7 @@ async def test_stats_returns_200(client_csrf: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_stats_empty_formula_is_string(client_csrf: AsyncClient):
-    """D-08: most_common_formula is empty string (not null) when no substances exist."""
+    """most_common_formula is empty string (not null) when no substances exist."""
     response = await client_csrf.get("/api/stats")
     assert response.status_code == 200
     body = response.json()
@@ -89,7 +89,7 @@ async def test_stats_empty_formula_is_string(client_csrf: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_history_all_limit(client_csrf: AsyncClient):
-    """D-05: GET /api/history?limit=all returns total items without cap."""
+    """GET /api/history?limit=all returns total items without cap."""
     response = await client_csrf.get("/api/history?limit=all")
     assert response.status_code == 200
     body = response.json()
@@ -147,7 +147,7 @@ async def test_history_detail_success_path(
 async def test_auto_persist_extraction_appears_in_history(
     client_csrf: AsyncClient, cdx_file_bytes: bytes
 ):
-    """D-03: POST /api/extract auto-persists the extraction to the DB.
+    """POST /api/extract auto-persists the extraction to the DB.
 
     Proves the save_extraction() hook in extract.py fires end-to-end:
     after a successful POST, the record must appear in GET /api/history.
@@ -182,18 +182,19 @@ async def test_auto_persist_extraction_appears_in_history(
 async def test_history_includes_reaction_count_after_reactions_extraction(
     client_csrf: AsyncClient, cdx_reaction_file_bytes: bytes
 ):
-    """Plan 10 D-23 / VERIFICATION Truth #10: GET /api/history items expose
-    reaction_count after a successful POST /api/reactions call.
+    """GET /api/history items expose reaction_count after a successful
+    POST /api/reactions call.
 
     Regression guard for the silently-dropped HistoryListItem.reaction_count
-    field (chemistry.py + history.py — see 10-VERIFICATION.md). Without this
-    test, the frontend HistoryEntry chip ('{N} substances · {M} reactions')
-    can revert to undefined again because no other test exercises the wire
-    contract end-to-end.
+    field (chemistry.py + history.py). The field was missing from the
+    HistoryListItem Pydantic model, so it was dropped during serialisation.
+    Without this test, the frontend HistoryEntry chip
+    ('{N} substances · {M} reactions') can revert to undefined again because
+    no other test exercises the wire contract end-to-end.
 
     Steps:
       1. POST simple_reaction.cdx to /api/reactions — creates extraction row
-         with reaction_count populated by save_reactions (Plan 10-02 D-19).
+         with reaction_count populated by save_reactions.
       2. GET /api/history?limit=all — locate our entry by filename.
       3. Assert reaction_count is present, is an int, and matches the
          reaction_count returned by the POST response.
@@ -231,8 +232,8 @@ async def test_history_includes_reaction_count_after_reactions_extraction(
     # history.py, this assertion failed because the field was silently
     # dropped during Pydantic serialisation.
     #
-    # Per IN-01 (10-REVIEW.md): use a ranged assertion (>= 1) rather than
-    # strict equality with the immediately-preceding POST. The DB fixture
+    # Use a ranged assertion (>= 1) rather than strict equality with the
+    # immediately-preceding POST. The DB fixture
     # is session-scoped without per-test rollback for client-driven tests,
     # and `get_or_create_extraction_row` deduplicates by
     # (filename, file_size, format). Under pytest-xdist or a future test

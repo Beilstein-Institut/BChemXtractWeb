@@ -1,4 +1,4 @@
-"""Tests for ``ExportRequest`` size bounds (SEC H-06).
+"""Tests for ``ExportRequest`` size bounds.
 
 The model rejects requests where ``substance_ids`` or ``reaction_ids``
 exceed the Pydantic ``max_length`` cap before the router ever runs a DB
@@ -38,7 +38,7 @@ def test_reaction_ids_above_limit_rejected() -> None:
 
 def test_empty_lists_are_valid() -> None:
     """Empty lists are permitted — the router pairs them with
-    ``extraction_id`` for the Export-All path (D-03)."""
+    ``extraction_id`` for the Export-All path."""
     req = ExportRequest(format="sdf", extraction_id=42)
     assert req.substance_ids == []
     assert req.reaction_ids == []

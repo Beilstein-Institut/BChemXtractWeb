@@ -4,7 +4,7 @@ WORKDIR /build
 # Resolve the latest BChemXtract release tag at build time, then shallow-clone
 # only that tag.
 #
-# Trade-off vs the prior `--branch v1.0` hard-pin (T-01-02): builds now follow
+# Trade-off vs the prior `--branch v1.0` hard-pin: builds now follow
 # upstream releases automatically — the same Dockerfile may produce a newer
 # JAR tomorrow than today. Operators who need a frozen artifact override the
 # resolution explicitly with `--build-arg BCHEMXTRACT_REF=vX.Y`.
@@ -58,7 +58,7 @@ COPY backend/alembic.ini /app/alembic.ini
 ENV PATH="/app/.venv/bin:$PATH"
 ENV JAR_PATH=/app/jars
 
-# Run as non-root user (T-01-05 mitigation)
+# Run as non-root user
 RUN useradd -r -u 1001 -s /usr/sbin/nologin appuser \
     && chown -R appuser:appuser /app
 USER appuser

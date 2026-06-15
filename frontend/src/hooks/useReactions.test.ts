@@ -1,8 +1,8 @@
 /**
- * Tests for useReactions hook (Plan 10-03 Task 3.2).
+ * Tests for useReactions hook.
  *
  * Mirrors useExtract.test.ts (state machine) + adds coverage for
- * AbortController cancellation on re-invocation and unmount (Pitfall 10).
+ * AbortController cancellation on re-invocation and unmount.
  *
  * postReactions is mocked via vi.mock so hook state transitions can be
  * driven deterministically without touching the real fetch layer.
@@ -74,7 +74,7 @@ describe("useReactions hook", () => {
     expect(result.current.result).toBeNull();
   });
 
-  it("treats 200 with warnings as success — D-06 timeout contract", async () => {
+  it("treats 200 with warnings as success — timeout contract", async () => {
     mockPostReactions.mockResolvedValueOnce(
       buildResponse({
         reactions: [],
@@ -111,7 +111,7 @@ describe("useReactions hook", () => {
     expect(result.current.errorMessage).toBeNull();
   });
 
-  it("cancels prior in-flight request when extract() is called again (Pitfall 10)", async () => {
+  it("cancels prior in-flight request when extract() is called again", async () => {
     const capturedSignals: (AbortSignal | undefined)[] = [];
 
     // First call: hangs until its signal is aborted, then rejects with AbortError.

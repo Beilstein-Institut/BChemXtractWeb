@@ -1,4 +1,4 @@
-"""Tests for UTC date handling in export artefacts (SEC L-01)."""
+"""Tests for UTC date handling in export artefacts."""
 
 from __future__ import annotations
 

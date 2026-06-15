@@ -1,4 +1,4 @@
-"""Tests for POST /api/search/validate (Plan 2026-04-24)."""
+"""Tests for POST /api/search/validate."""
 
 from __future__ import annotations
 

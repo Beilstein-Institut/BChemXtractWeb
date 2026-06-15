@@ -1,4 +1,4 @@
-"""SMILES canonicalization helper (D-04/D-05)."""
+"""SMILES canonicalization helper."""
 
 from __future__ import annotations
 
@@ -35,5 +35,5 @@ async def test_canonicalize_empty_returns_empty(started_app) -> None:
 
 @pytest.mark.asyncio
 async def test_canonicalize_invalid_returns_empty(started_app) -> None:
-    """Unparsable SMILES returns empty string, never raises (D-09)."""
+    """Unparsable SMILES returns empty string, never raises."""
     assert await canonicalize_smiles("banana-not-smiles-XYZ!!") == ""

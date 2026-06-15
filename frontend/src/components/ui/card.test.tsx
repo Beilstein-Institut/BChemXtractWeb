@@ -1,5 +1,5 @@
 /**
- * Card — tests for the Phase 3 Liquid Glass surface primitive (Task 3).
+ * Card — tests for the Liquid Glass surface primitive.
  *
  * Covers: render, data-slot contract, size prop, className forwarding,
  * and the sub-slots (Header, Title, Description, Content, Footer, Action).

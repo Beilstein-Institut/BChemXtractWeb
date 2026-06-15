@@ -4,7 +4,7 @@ Revision ID: b1c2d3e4f5a6
 Revises: a2b3c4d5e6f7
 Create Date: 2026-04-14 00:00:00.000000+00:00
 
-Adds batch_id column to extractions table for bulk processing (Phase 7).
+Adds batch_id column to extractions table for bulk processing.
 batch_id is a UUID4 string (36 chars) linking an extraction to its batch.
 Nullable because single-file extractions have no batch.
 """

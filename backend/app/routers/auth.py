@@ -1,4 +1,4 @@
-"""Cookie / recovery-code / CSRF-token routes (Phase 11 D-09 / D-19 / D-23).
+"""Cookie / recovery-code / CSRF-token routes.
 
 These three endpoints are intentionally OUTSIDE the global scoped
 dependency in ``main.py``: ``PUT /api/auth/me`` is the endpoint that
@@ -50,7 +50,7 @@ def _is_dev_origin_set() -> bool:
 
     Inlined here so the auth router has zero coupling to ``session``'s
     private helper while still honouring the same dev-vs-prod cookie
-    discipline (D-05).
+    discipline.
     """
     return any(
         "localhost" in origin or "127.0.0.1" in origin
@@ -82,7 +82,7 @@ async def put_auth_me(
     background: BackgroundTasks,
     db: DbDep,
 ) -> SessionInfoResponse:
-    """Bootstrap or refresh the caller's session (D-23).
+    """Bootstrap or refresh the caller's session.
 
     ``ensure_session_cookie`` returns the existing cookie value when it
     matches the canonical UUID4 regex, otherwise mints a fresh one and
@@ -90,10 +90,10 @@ async def put_auth_me(
     RLS context for ``session_id`` so it cannot leak counts across
     scopes.
 
-    Phase 11 D-16: when the cookie was freshly minted (no valid cookie
-    presented), schedule a background ``auth.session.created`` audit
-    insert. Routine audit events use ``BackgroundTasks`` so they never
-    block the user response (Pitfall #6).
+    When the cookie was freshly minted (no valid cookie presented),
+    schedule a background ``auth.session.created`` audit insert. Routine
+    audit events use ``BackgroundTasks`` so they never block the user
+    response.
     """
     raw_cookie = request.cookies.get(SESSION_COOKIE)
     minted_new_cookie = not (raw_cookie and _UUID_RE.match(raw_cookie))
@@ -143,9 +143,9 @@ async def post_auth_restore(
     response: Response,
     background: BackgroundTasks,
 ) -> Response:
-    """Restore a session by pasting a recovery code (D-09).
+    """Restore a session by pasting a recovery code.
 
-    D-09 semantics: cookie swap, NOT data merge. The pasted UUID4 has
+    Semantics: cookie swap, NOT data merge. The pasted UUID4 has
     already been validated by ``RestoreRequest.code``'s
     ``field_validator``; this handler simply echoes that validated
     value into the ``Set-Cookie`` header. Returning ``Response(204)``
@@ -164,10 +164,9 @@ async def post_auth_restore(
             samesite="lax",
             path="/",
         )
-        # D-16: emit auth.session.restored on the SUCCESS path. The
-        # session_id we audit is the RESTORED one (body.code) per
-        # RESEARCH Open Q #8 — that's the session the caller is now
-        # bound to.
+        # Emit auth.session.restored on the SUCCESS path. The session_id
+        # we audit is the RESTORED one (body.code) — that's the session
+        # the caller is now bound to, not the prior cookie.
         background.add_task(
             audit_log_insert,
             event="auth.session.restored",
@@ -179,7 +178,7 @@ async def post_auth_restore(
         )
     except Exception:
         # Defensive: any unexpected failure on the cookie/audit-schedule
-        # path emits auth.session.restore.failed (D-16) for the operator
+        # path emits auth.session.restore.failed for the operator
         # audit trail, then re-raises so FastAPI's default handler
         # surfaces 500. The Pydantic validator already rejected malformed
         # UUIDs at the boundary, so this catches runtime issues only.
@@ -218,11 +217,11 @@ async def get_csrf_token(
     request: Request,
     response: Response,
 ) -> CsrfTokenResponse:
-    """Mint a session-bound CSRF token (D-19).
+    """Mint a session-bound CSRF token.
 
     Auto-issues ``bcx_sid`` if absent so the token has a session_id to
-    bind. Plan 11-04 wires the verification middleware that consumes
-    this token on cookie-auth state-changing requests.
+    bind. A verification middleware consumes this token on cookie-auth
+    state-changing requests.
     """
     sid = ensure_session_cookie(response, request)
     token = generate_csrf_token(sid)

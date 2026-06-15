@@ -1,10 +1,10 @@
 /**
- * SearchInput — concrete tests for the global smart-box search input (Plan 06).
+ * SearchInput — concrete tests for the global smart-box search input.
  *
- * Captures required behaviors from D-01 (type badge + override), D-03
- * (substructure = explicit submit), and D-18 (`/` keyboard shortcut).
- * Also verifies fix #8: the underlying <input> element is published to
- * `@/lib/searchFocus`'s `searchInputRef.current` on mount so Plan 07's
+ * Captures required behaviors: type badge + override, substructure =
+ * explicit submit, and the `/` keyboard shortcut.
+ * Also verifies that the underlying <input> element is published to
+ * `@/lib/searchFocus`'s `searchInputRef.current` on mount so the
  * BrowseToolbar "Search within" can focus without DOM queries.
  *
  * Mocks base-ui primitives used by shadcn wrappers to avoid portal/animation
@@ -152,7 +152,7 @@ import { postSearch, postSearchValidate } from "@/lib/apiClient";
 
 /**
  * Every render() must wrap the component in <SearchProvider> — useSearch
- * throws if called outside the provider (Task 16).
+ * throws if called outside the provider.
  */
 function renderWithProvider(ui: React.ReactElement) {
   return render(<SearchProvider>{ui}</SearchProvider>);
@@ -170,7 +170,7 @@ describe("SearchInput", () => {
     expect(screen.getAllByPlaceholderText("Search structures…").length).toBeGreaterThan(0);
   });
 
-  it("publishes its input element to searchInputRef on mount (fix #8)", () => {
+  it("publishes its input element to searchInputRef on mount", () => {
     // Drop any leftover pointer from a prior render (ref is module-scoped).
     searchInputRef.current = null;
     renderWithProvider(<SearchInput />);

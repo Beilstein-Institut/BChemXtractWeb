@@ -1,6 +1,6 @@
 /**
- * HoverCard — tests for the Phase 3 Liquid Glass floating primitive
- * (Task 6). Backed by Base UI's PreviewCard. Portals to document.body.
+ * HoverCard — tests for the Liquid Glass floating primitive.
+ * Backed by Base UI's PreviewCard. Portals to document.body.
  */
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";

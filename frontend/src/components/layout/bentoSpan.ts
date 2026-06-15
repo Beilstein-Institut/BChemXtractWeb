@@ -1,5 +1,5 @@
 /**
- * `BentoCell` span parsing helpers — Phase 3 Task 8.
+ * `BentoCell` span parsing helpers.
  *
  * Kept in a standalone module so the `BentoCell.tsx` file only exports
  * components (matches the `react-refresh/only-export-components` rule).

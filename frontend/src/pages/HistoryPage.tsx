@@ -1,5 +1,5 @@
 /**
- * HistoryPage — Phase 3 Liquid Glass rebuild (Task 12).
+ * HistoryPage — Liquid Glass rebuild.
  *
  * Bento dashboard:
  *

@@ -1,5 +1,5 @@
 /**
- * Tooltip — tests for the Phase 3 Liquid Glass floating primitive (Task 6).
+ * Tooltip — tests for the Liquid Glass floating primitive.
  *
  * Base UI's Tooltip portals the popup to document.body and is driven by the
  * data-open / data-closed idioms. We set delay=0 via the provider so the

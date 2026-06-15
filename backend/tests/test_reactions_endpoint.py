@@ -1,7 +1,4 @@
-"""Integration tests for POST /api/reactions + GET /api/extractions/{id}/reactions.
-
-Plan 10 RXTN-01 / RXTN-04 / D-06 / D-23 / D-25.
-"""
+"""Integration tests for POST /api/reactions + GET /api/extractions/{id}/reactions."""
 
 from httpx import AsyncClient
 
@@ -30,7 +27,7 @@ async def test_upload_cdx_returns_reactions(
 async def test_response_has_svg(
     client_csrf: AsyncClient, cdx_reaction_file_bytes: bytes
 ) -> None:
-    """RXTN-02: At least one reaction has a rendered svg (matches plan-01 pattern).
+    """RXTN-02: At least one reaction has a rendered svg.
 
     CDK's DepictionGenerator.toSvgStr() prefixes the SVG with an XML prolog,
     so we accept "<svg" at the start or anywhere in the string
@@ -76,7 +73,7 @@ async def test_timeout_returns_200_with_warning(
     cdx_reaction_file_bytes: bytes,
     monkeypatch,
 ) -> None:
-    """D-06: On timeout, returns HTTP 200 with reactions=[] + warning (NOT 408/503)."""
+    """On timeout, returns HTTP 200 with reactions=[] + warning (NOT 408/503)."""
     from app.config import settings as app_settings
 
     monkeypatch.setattr(app_settings, "reaction_timeout_secs", 0.001)
@@ -95,7 +92,7 @@ async def test_timeout_returns_200_with_warning(
 
 
 async def test_error_response_shapes(client_csrf: AsyncClient) -> None:
-    """D-25: 415 errors return unified ErrorResponse shape."""
+    """415 errors return unified ErrorResponse shape."""
     # 415 -- not CDX/CDXML (send plain text)
     resp_415 = await client_csrf.post(
         "/api/reactions",
@@ -124,7 +121,7 @@ async def test_substance_extraction_unaffected(
 async def test_get_extraction_reactions_returns_cached(
     client_csrf: AsyncClient, cdx_reaction_file_bytes: bytes
 ) -> None:
-    """D-23: /api/extractions/{id}/reactions returns cached reactions for hydration."""
+    """/api/extractions/{id}/reactions returns cached reactions for hydration."""
     # First extract to populate the DB
     post_resp = await client_csrf.post(
         "/api/reactions",
@@ -170,7 +167,7 @@ async def test_get_extraction_reactions_404_unknown_extraction(
 async def test_get_extraction_reactions_empty_when_no_reactions_saved(
     client_csrf: AsyncClient, cdx_file_bytes: bytes
 ) -> None:
-    """D-23: extraction exists with reaction_count=0 -> 200 + reactions=[] (NOT 404)."""
+    """Extraction exists with reaction_count=0 -> 200 + reactions=[] (NOT 404)."""
     # Create a substance-only extraction (no reactions extracted for it)
     post_resp = await client_csrf.post(
         "/api/extract",

@@ -1,8 +1,8 @@
 /**
- * Select — tests for the Phase 3 Liquid Glass form primitive (Task 4).
+ * Select — tests for the Liquid Glass form primitive.
  *
  * Covers: render with a static trigger, data-slot contract on the trigger,
- * plan-specified form-tier styling on the trigger, and the disclosure flow
+ * form-tier styling on the trigger, and the disclosure flow
  * (click trigger -> options render -> clicking an option fires
  * onValueChange with the clicked value).
  *

@@ -1,4 +1,4 @@
-"""Regression tests for the formula regex ReDoS fix (SEC M-01).
+"""Regression tests for the formula regex ReDoS fix.
 
 The previous pattern ``^([A-Z][a-z]?\\d*)+$`` had catastrophic-backtracking
 potential on CPython's ``re`` engine: an outer ``+`` quantifier over a

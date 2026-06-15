@@ -4,14 +4,13 @@ Revision ID: e7f8a9b0c1d2
 Revises: c3d4e5f6a7b8
 Create Date: 2026-04-18 14:00:00.000000+00:00
 
-Plan 10 D-16, D-18 amended, D-20, D-21.
-
 Creates:
-  - reactions (long_rinchi_key UNIQUE dedup per D-18 amended — rinchi_key is
-    always empty upstream; see 10-RESEARCH §Critical Finding 1).
-  - extraction_reactions (M-to-N, CASCADE on both FKs for D-21).
+  - reactions (long_rinchi_key UNIQUE dedup — rinchi_key is always empty
+    upstream because BChemXtract's createBcxReaction() never calls
+    setRinchiKey(), so long_rinchi_key is the only reliable dedup key).
+  - extraction_reactions (M-to-N, CASCADE on both FKs).
 Adds:
-  - extractions.reaction_count INTEGER NOT NULL DEFAULT 0 (D-16, D-23).
+  - extractions.reaction_count INTEGER NOT NULL DEFAULT 0.
 
 No backfill — existing rows get reaction_count=0 until user re-extracts.
 """
@@ -33,7 +32,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # 1. reaction_count column on existing extractions table (D-16)
+    # 1. reaction_count column on existing extractions table
     op.add_column(
         "extractions",
         sa.Column(
@@ -44,7 +43,7 @@ def upgrade() -> None:
         ),
     )
 
-    # 2. reactions table (D-16, D-17, D-18 amended)
+    # 2. reactions table
     op.create_table(
         "reactions",
         sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
@@ -81,7 +80,7 @@ def upgrade() -> None:
         ["long_rinchi_key"],
     )
 
-    # 3. M-to-N join table (D-16, D-21)
+    # 3. M-to-N join table
     op.create_table(
         "extraction_reactions",
         sa.Column("extraction_id", sa.BigInteger(), nullable=False),

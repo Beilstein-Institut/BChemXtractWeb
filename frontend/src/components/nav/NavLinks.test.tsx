@@ -1,12 +1,12 @@
 /**
- * NavLinks — tests for the Phase 3 Liquid Glass primary nav (Task 7).
+ * NavLinks — tests for the Liquid Glass primary nav.
  *
  * Covers: 5-link render, `data-slot` contract, active-route styling
  * + aria-current, path-prefix detection (`/browse/123` → Browse active),
  * and root-only match for Extract (`/` must not match `/browse`).
  *
- * The Settings link was added in Phase 11 (D-07) for the recovery code +
- * restore + delete-my-data surface.
+ * The Settings link surfaces the recovery code + restore + delete-my-data
+ * controls.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";

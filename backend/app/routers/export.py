@@ -3,12 +3,11 @@
 Accepts substance IDs (or extraction_id for Export All) + format string.
 Generates file server-side, returns StreamingResponse for browser download.
 
-Per D-08: single unified endpoint for all formats.
-Per D-11: RXN format built now but returns empty stub until Phase 10.
-Per security:
-  T-08-01: Pydantic validates format as Literal (unknown values return 422).
-  T-08-04: ZIP filenames sanitized in export service against path traversal.
-  T-08-05: PNG limit enforced in export service (400 for > 200 structures).
+Single unified endpoint for all formats.
+Security:
+  - Pydantic validates format as Literal (unknown values return 422).
+  - ZIP filenames sanitized in export service against path traversal.
+  - PNG limit enforced in export service (400 for > 200 structures).
 """
 
 import io
@@ -40,7 +39,7 @@ router = APIRouter()
 DbDep = Annotated[AsyncSession, Depends(get_scoped_db)]
 
 _EXPORT_SIZE_WARN_BYTES = 50 * 1024 * 1024  # 50 MB log threshold
-# SEC H-06: enforced output cap. One request cannot stream more than
+# Enforced output cap. One request cannot stream more than
 # 500 MB regardless of how many IDs are requested — if an attacker finds
 # a way past the Pydantic ``max_length`` bounds on ``substance_ids``, the
 # generator output is still gated here. 500 MB leaves ample headroom for
@@ -54,17 +53,17 @@ async def _fetch_substances(payload: ExportRequest, db: AsyncSession) -> list[di
 
     If substance_ids is non-empty, fetch those specific substances.
     If substance_ids is empty and extraction_id is set, fetch all
-    substances for that extraction in position order (D-03 Export All).
+    substances for that extraction in position order (Export All).
 
     Raises:
         HTTPException 400: Neither substance_ids nor extraction_id provided.
         HTTPException 404: Extraction not found or yields no substances.
     """
     if payload.substance_ids:
-        # CR-01: Join through ExtractionSubstance to prevent IDOR —
+        # Join through ExtractionSubstance to prevent IDOR —
         # callers must not be able to export substance rows from
         # arbitrary extractions by guessing integer IDs. When
-        # extraction_id is present (the normal case for D-01/D-02
+        # extraction_id is present (the normal case for explicit
         # selection flows), restrict to substances that belong to that
         # extraction. When extraction_id is absent, still require that
         # the substance is linked to *some* extraction (prevents
@@ -130,7 +129,7 @@ async def _fetch_substances(payload: ExportRequest, db: AsyncSession) -> list[di
 
 
 async def _fetch_reactions(payload: ExportRequest, db: AsyncSession) -> list[dict]:
-    """Fetch reaction dicts for RXN export. IDOR-safe (Plan 10 T-10-04).
+    """Fetch reaction dicts for RXN export. IDOR-safe.
 
     Mirrors _fetch_substances IDOR protection:
       - Explicit reaction_ids + extraction_id -> JOIN through
@@ -200,7 +199,7 @@ def _stream_export_response(
     export_format: str,
     item_count: int,
 ) -> StreamingResponse:
-    """Enforce the SEC H-06 size cap and wrap the bytes in a StreamingResponse.
+    """Enforce the output size cap and wrap the bytes in a StreamingResponse.
 
     Raises HTTP 413 when ``content`` exceeds the hard limit; logs a
     warning when it crosses the soft threshold. Keeps the 413-vs-warn
@@ -236,11 +235,11 @@ def _stream_export_response(
     summary="Export substances in the chosen chemical format",
     description=(
         "Generate a downloadable file containing one or more substances. "
-        "Supply either a `substance_ids` list (explicit selection per "
-        "D-01/D-02/D-04) or an `extraction_id` (D-03 Export All); setting "
-        "both restricts the selection to the intersection for IDOR safety "
-        "(CR-01). Supported formats: `sdf`, `json`, `csv`, `png`, `svg`, "
-        "`v3000`, and `rxn` (stub until Phase 10 per D-11). The image "
+        "Supply either a `substance_ids` list (explicit selection) or an "
+        "`extraction_id` (Export All); setting both restricts the selection "
+        "to the intersection for IDOR safety. Supported formats: `sdf`, "
+        "`json`, `csv`, `png`, `svg`, `v3000`, and `rxn` (stub -- not yet "
+        "implemented). The image "
         "formats (`png`, `svg`) honor `depiction`: `cdk` (default) exports "
         "the fresh CDK layout, `cdx` exports the original ChemDraw "
         "coordinates as displayed in the UI."
@@ -279,7 +278,7 @@ async def export_substances(
 ) -> StreamingResponse:
     """Generate and stream a chemical export file.
 
-    Plan 10 EXPO-08: when ``payload.format == "rxn"`` the router
+    When ``payload.format == "rxn"`` the router
     dispatches to ``_fetch_reactions`` + ``generate_reactions_export``.
     ``generate_export`` is substance-only — the rxn branch was removed
     so the substance and reaction pipelines stay disjoint.

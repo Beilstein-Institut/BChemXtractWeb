@@ -126,15 +126,15 @@ async def test_different_ips_have_separate_budgets() -> None:
 
 
 # ============================================================================
-# PRIV-12 — rate_limit_key partitioning (Phase 11 D-21 / Plan 11-05 Task 5.0-A)
+# rate_limit_key partitioning
 #
 # These tests cover the SYNC key_func that partitions limit buckets:
 #   - "sid:<uuid>" when a valid bcx_sid cookie is present
 #   - "akh:<first 16 hex>" when no cookie but X-API-Key header is set
 #   - "ip:<client ip>" fallback
 #
-# Wave 0 RED today (rate_limit_key does not exist); GREEN after Task 5.1
-# swaps the Limiter to use it.
+# The Limiter is wired to use rate_limit_key instead of get_remote_address so
+# buckets are keyed by session/API-key/IP rather than raw client address.
 # ============================================================================
 
 import inspect  # noqa: E402

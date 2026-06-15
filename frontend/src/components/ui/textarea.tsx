@@ -3,7 +3,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Textarea — form tier (Phase 3 Liquid Glass rebuild, Task 4).
+ * Textarea — form tier (Liquid Glass rebuild).
  *
  * Shares the form-input pattern with Input and Select trigger:
  *   bg-surface-muted / border-border / rounded-sm / focus-visible ring-ring.

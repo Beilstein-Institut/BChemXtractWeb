@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { parseSpan, SPAN_CLASSES } from "./bentoSpan";
 
 /**
- * BentoCell — Phase 3 Liquid Glass rebuild (Task 8).
+ * BentoCell — Liquid Glass rebuild.
  *
  * Single cell in a {@link BentoGrid}. Its `span` prop uses the
  * `"colSpan:rowSpan"` shorthand (e.g. `"2:1"` for a 2x1 wide tile,
