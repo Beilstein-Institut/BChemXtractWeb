@@ -1,5 +1,5 @@
 /**
- * ExtractionTabs — local-state tabs wrapping the results area (Plan 10 D-08).
+ * ExtractionTabs — local-state tabs wrapping the results area.
  *
  * Two triggers: `Structures (N)` and `Reactions` with an "Experimental" pill
  * badge. Default active is Structures. The children prop is rendered inside
@@ -9,8 +9,8 @@
  * naming — only the visible label says "Structures", matching the rest of
  * the Browse page.)
  *
- * CRITICAL D-08 contract: tab state is LOCAL React state — never persisted
- * to the URL. Phase 6 URL params (?extraction=&page=&view=&sort=) continue to
+ * CRITICAL contract: tab state is LOCAL React state — never persisted
+ * to the URL. URL params (?extraction=&page=&view=&sort=) continue to
  * own what the Substances tab looks like; the tab pick is transient view
  * state, like a collapsible section or a sort direction toggle. The tests
  * for this file spy on history.pushState / replaceState and assert zero

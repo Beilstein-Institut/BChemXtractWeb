@@ -1,5 +1,5 @@
 /**
- * Button — tests for the Phase 3 Liquid Glass surface primitive.
+ * Button — tests for the Liquid Glass surface primitive.
  *
  * Covers: render, data-slot + data-variant contract, click handler,
  * disabled behavior (no click fires), focus-visible ring class,

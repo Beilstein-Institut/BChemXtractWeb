@@ -1,5 +1,5 @@
 /**
- * SettingsPage — integration tests for Phase 11 D-07.
+ * SettingsPage — integration tests for the user-facing privacy controls.
  *
  * Verifies:
  *   - useAuth() bootstrap resolves and the session UUID surfaces in the
@@ -28,7 +28,7 @@ function mockAuthMe(sessionId = SESSION_ID, hasHistory = false) {
   } as Response);
 }
 
-describe("SettingsPage (Phase 11 D-07)", () => {
+describe("SettingsPage", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     csrfTokenCache.value = "fake-token.123.sig";

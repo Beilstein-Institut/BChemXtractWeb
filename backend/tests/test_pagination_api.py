@@ -1,4 +1,4 @@
-"""Integration tests for GET /api/extractions/{id}/substances (Phase 6, DISP-03).
+"""Integration tests for GET /api/extractions/{id}/substances (DISP-03).
 
 Tests the paginated substances endpoint, extraction_id in POST /api/extract,
 and various sort/page/size parameter combinations.

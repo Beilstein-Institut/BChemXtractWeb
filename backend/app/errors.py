@@ -5,7 +5,7 @@ consistent interface (message + optional detail) and maps to HTTP
 status codes via the FastAPI exception handler at the bottom of this
 module.
 
-Per D-17 (Plan 09-05), all 4xx/5xx responses across /api/* emit a
+All 4xx/5xx responses across /api/* emit a
 unified :class:`ErrorResponse` shape ``{detail, code, fields?}`` — never
 the legacy ``{"error": ...}`` shape. Four global handlers cover every
 error source:
@@ -32,11 +32,11 @@ Exception tree:
     +-- InvalidSmilesError         (422 INVALID_SMILES)
     +-- InvalidQueryError          (422 INVALID_QUERY)
     +-- QueryTooLargeError         (422 QUERY_TOO_LARGE)
-    +-- CSRFValidationError        (403 CSRF_INVALID)            [Phase 11]
-    +-- InvalidSessionCodeError    (422 INVALID_SESSION_CODE)    [Phase 11]
-    +-- InvalidAdminSecretError    (401 INVALID_ADMIN_SECRET)    [Phase 11]
-    +-- ApiKeyExpiredError         (401 API_KEY_EXPIRED)         [Phase 11]
-    +-- ApiKeyRevokedError         (401 API_KEY_REVOKED)         [Phase 11]
+    +-- CSRFValidationError        (403 CSRF_INVALID)
+    +-- InvalidSessionCodeError    (422 INVALID_SESSION_CODE)
+    +-- InvalidAdminSecretError    (401 INVALID_ADMIN_SECRET)
+    +-- ApiKeyExpiredError         (401 API_KEY_EXPIRED)
+    +-- ApiKeyRevokedError         (401 API_KEY_REVOKED)
 """
 
 import logging
@@ -77,7 +77,7 @@ class FileSizeError(BridgeError):
 
 
 # ----------------------------------------------------------------------------
-# Phase 9: Search-domain BridgeError subclasses (Plan 03). Map to 422 + stable
+# Search-domain BridgeError subclasses. Map to 422 + stable
 # codes via bridge_error_handler below.
 # ----------------------------------------------------------------------------
 
@@ -106,24 +106,23 @@ class QueryTooLargeError(BridgeError):
 
 
 # ----------------------------------------------------------------------------
-# Phase 11: auth + CSRF + admin BridgeError subclasses (D-13 / Plan 09 unified
-# ErrorResponse shape). Each gets a stable code in _BRIDGE_ERROR_MAP below.
+# Auth + CSRF + admin BridgeError subclasses sharing the unified
+# ErrorResponse shape. Each gets a stable code in _BRIDGE_ERROR_MAP below.
 # ----------------------------------------------------------------------------
 
 
 class CSRFValidationError(BridgeError):
     """CSRF token missing, tampered, expired, or session-mismatched
-    (403 / CSRF_INVALID). Threat ref: T-11-09."""
+    (403 / CSRF_INVALID)."""
 
 
 class InvalidSessionCodeError(BridgeError):
-    """POST /api/auth/restore received a non-UUID4 value (422 / INVALID_SESSION_CODE).
-    Threat ref: T-11-15."""
+    """POST /api/auth/restore received a non-UUID4 value
+    (422 / INVALID_SESSION_CODE)."""
 
 
 class InvalidAdminSecretError(BridgeError):
     """X-Admin-Secret missing or mismatched (401 / INVALID_ADMIN_SECRET).
-    Threat ref: T-11-05.
 
     NOTE: require_admin_auth raises HTTPException directly (it must run
     inside the constant-time compare path). This subclass exists for
@@ -131,17 +130,15 @@ class InvalidAdminSecretError(BridgeError):
 
 
 class ApiKeyExpiredError(BridgeError):
-    """Valid API key passed but expires_at < now() (401 / API_KEY_EXPIRED).
-    Threat ref: T-11-04."""
+    """Valid API key passed but expires_at < now() (401 / API_KEY_EXPIRED)."""
 
 
 class ApiKeyRevokedError(BridgeError):
-    """Valid API key passed but revoked_at IS NOT NULL (401 / API_KEY_REVOKED).
-    Threat ref: T-11-04."""
+    """Valid API key passed but revoked_at IS NOT NULL (401 / API_KEY_REVOKED)."""
 
 
 # ----------------------------------------------------------------------------
-# Phase 9 Plan 05: unified ErrorResponse handlers (D-17).
+# Unified ErrorResponse handlers.
 # ----------------------------------------------------------------------------
 
 
@@ -164,7 +161,7 @@ _HTTP_STATUS_CODE_MAP: dict[int, str] = {
 
 # Ordered map of BridgeError subtype -> (HTTP status, stable code). Order
 # matters: :class:`InvalidSmartsError`/:class:`InvalidInchiKeyError`/
-# :class:`InvalidSmilesError` (Plan 03) must be tested before
+# :class:`InvalidSmilesError` must be tested before
 # :class:`ExtractionError` because they are peer classes, not subclasses
 # — ``isinstance`` walks in insertion order and the first match wins.
 _BRIDGE_ERROR_MAP: list[tuple[type[BridgeError], int, str]] = [
@@ -178,7 +175,7 @@ _BRIDGE_ERROR_MAP: list[tuple[type[BridgeError], int, str]] = [
     (QueryTooLargeError, 422, "QUERY_TOO_LARGE"),
     (ExtractionError, 422, "EXTRACTION_FAILED"),
     (NullFieldError, 500, "NULL_FIELD"),
-    # Phase 11 auth/CSRF/admin subclasses (Plan 11-02).
+    # Auth/CSRF/admin subclasses.
     (CSRFValidationError, 403, "CSRF_INVALID"),
     (InvalidSessionCodeError, 422, "INVALID_SESSION_CODE"),
     (InvalidAdminSecretError, 401, "INVALID_ADMIN_SECRET"),
@@ -188,7 +185,7 @@ _BRIDGE_ERROR_MAP: list[tuple[type[BridgeError], int, str]] = [
 
 
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
-    """Map FastAPI :class:`HTTPException` to :class:`ErrorResponse` (D-17).
+    """Map FastAPI :class:`HTTPException` to :class:`ErrorResponse`.
 
     Existing routers call ``raise HTTPException(status_code=N, detail='msg')``
     with a plain string. The handler derives ``code`` from the status-code
@@ -234,7 +231,7 @@ async def validation_exception_handler(
 
 
 async def bridge_error_handler(request: Request, exc: BridgeError) -> JSONResponse:
-    """Map :class:`BridgeError` subtypes to :class:`ErrorResponse` (D-17).
+    """Map :class:`BridgeError` subtypes to :class:`ErrorResponse`.
 
     Replaces the legacy ``{"error": str(exc)}`` shape. Status + stable
     code come from :data:`_BRIDGE_ERROR_MAP` (ordered, first-match wins).
@@ -294,13 +291,12 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
     """Catch-all for unexpected errors.
 
     Logs the full traceback server-side, returns a generic message in the
-    response body — no Java class names, no stack frames exposed (D-17,
-    §Security Domain, threat T-09-05-01).
+    response body — no Java class names, no stack frames exposed.
 
     Special case: :class:`asyncio.TimeoutError` (aliased to the built-in
     :class:`TimeoutError` on Python 3.11+) from ``run_in_jvm_thread`` is
     re-mapped to 503 + ``code='JVM_TIMEOUT'`` so the client can retry
-    with a narrower query (threat T-09-05-02).
+    with a narrower query.
     """
     if isinstance(exc, TimeoutError):
         logger.warning("JVM call timed out on %s: %s", request.url.path, exc)

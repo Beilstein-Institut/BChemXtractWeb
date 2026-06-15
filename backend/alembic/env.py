@@ -1,4 +1,4 @@
-"""Alembic async migration environment (Phase 5).
+"""Alembic async migration environment.
 
 Converted from sync engine_from_config to async_engine_from_config per
 the official Alembic async template. Required because the app uses

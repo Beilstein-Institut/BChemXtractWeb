@@ -1,5 +1,5 @@
 /**
- * Tests for the FileUpload component (Phase 3 wizard Step 1).
+ * Tests for the FileUpload component (wizard Step 1).
  * Vitest globals: true — no need to import describe/it/expect.
  */
 import { act, render, screen, fireEvent } from "@testing-library/react";

@@ -1,9 +1,9 @@
-"""PRIV-07 audit-log tests (Phase 11 Wave 0 RED → green on Plan 11-04).
+"""Audit-log tests.
 
 Covers:
 - auth.session.created emitted after first PUT /api/auth/me with no cookie.
 - auth.api_key.used.first emitted EXACTLY once per key (idempotent).
-- session_id_hash is sha256(session_id) — never the raw UUID (D-22).
+- session_id_hash is sha256(session_id) — never the raw UUID.
 - Background-task audit insert does NOT block the user response.
 """
 

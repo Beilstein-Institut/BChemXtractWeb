@@ -1,5 +1,5 @@
 /**
- * BrowseBento — bento-landing tile tests (Phase 3 Task 11).
+ * BrowseBento — bento-landing tile tests.
  *
  * Verifies the 5 cells render with the expected data-slot hooks
  * (the former "Featured structures" strip was removed — it carried

@@ -1,9 +1,9 @@
 /**
- * Switch — tests for the Phase 3 Liquid Glass state primitive (Task 5).
+ * Switch — tests for the Liquid Glass state primitive.
  *
  * Covers: render, data-slot contract on Root + Thumb, toggle behavior
  * (data-checked flips, onCheckedChange fires), disabled suppression,
- * plan-specified track/thumb styling (bg-border off, data-checked:bg-primary,
+ * track/thumb styling (bg-border off, data-checked:bg-primary,
  * bg-white thumb), and focus-visible ring class.
  *
  * Base UI Switch emits `data-checked` when on (confirmed from

@@ -1,7 +1,7 @@
 """Single-file extraction endpoint for CDX/CDXML uploads.
 
 POST /api/extract accepts a ChemDraw file via multipart/form-data, detects
-the format from content (D-06), extracts substances with SVG depictions,
+the format from content, extracts substances with SVG depictions,
 and returns ExtractionResponse JSON with metadata and optional warnings.
 """
 
@@ -77,25 +77,25 @@ async def extract_file(
     """Extract chemical substances from a CDX/CDXML file upload.
 
     Accepts a single file via multipart/form-data. Detects format from
-    content (D-06), extracts substances with SVG depictions, and returns
+    content, extracts substances with SVG depictions, and returns
     a structured response with metadata and optional warnings.
     """
-    # D-05 + SEC M-02: bounded streaming read aborts the body scan the
-    # moment accumulated bytes exceed ``max_upload_size`` even when the
-    # client omits Content-Length or uses chunked transfer encoding.
+    # Bounded streaming read aborts the body scan the moment accumulated
+    # bytes exceed ``max_upload_size`` even when the client omits
+    # Content-Length or uses chunked transfer encoding.
     file_bytes = await read_upload_bounded(file, settings.max_upload_size)
 
     start = time.perf_counter()
 
-    # D-06: Content-based format detection is authoritative.
+    # Content-based format detection is authoritative.
     format_type = detect_format(file_bytes)
 
-    # D-07: Extension mismatch is a warning, not an error.
+    # Extension mismatch is a warning, not an error.
     warnings: list[str] = []
     if file.filename:
         warnings.extend(check_extension_mismatch(file.filename, format_type))
 
-    # D-08/D-01: substances only (reactions are Phase 10); SVGs inline.
+    # Substances only (reactions not yet supported); SVGs inline.
     # extract_substances_with_svg handles fallback internally and returns
     # extraction-level warnings (e.g. fallback mode, no InChI).
     substances, info, extraction_warnings = await extract_substances_with_svg(
@@ -116,13 +116,13 @@ async def extract_file(
         warnings=warnings,
     )
 
-    # D-03: auto-persist every extraction. Best-effort — DB failures are
+    # Auto-persist every extraction. Best-effort — DB failures are
     # logged but never break extraction. CancelledError re-raises so
-    # graceful shutdown and client-disconnect handling still work
-    # (SEC M-05). Filename is repr-wrapped + truncated to prevent
-    # log-injection via crafted names (e.g. ``"x\n[CRITICAL] fake"``).
+    # graceful shutdown and client-disconnect handling still work.
+    # Filename is repr-wrapped + truncated to prevent log-injection via
+    # crafted names (e.g. ``"x\n[CRITICAL] fake"``).
     try:
-        # Phase 11 D-01: thread the scoped dependency's resolved
+        # Thread the scoped dependency's resolved
         # (session_id, api_key_hash) tuple through to save_extraction so
         # the inserted rows carry the owner columns RLS reads from.
         # get_scoped_db (added to the global dep stack in main.py for every
@@ -150,7 +150,7 @@ async def extract_file(
     summary="Paginated substances for one extraction",
     description=(
         "Return a paginated slice of substances belonging to a single "
-        "extraction (D-01, DISP-03). `page` is 1-based; `size` is clamped "
+        "extraction. `page` is 1-based; `size` is clamped "
         "to 1-48 (default 12). `sort` accepts `extraction_order` (default) "
         "or `formula`."
     ),
@@ -168,7 +168,7 @@ async def get_substances_page(
     size: int = Query(12, ge=1, le=48),
     sort: str = Query("extraction_order"),
 ) -> PagedSubstancesResponse:
-    """Paginated substances for one extraction (D-01, DISP-03)."""
+    """Paginated substances for one extraction."""
     exists = await db.scalar(
         select(func.count())
         .select_from(Extraction)

@@ -1,6 +1,5 @@
-"""PRIV-08 CSRF synchronizer-token tests (Phase 11 Wave 0 RED → green on Plan 11-04).
+"""CSRF synchronizer-token tests.
 
-Covers D-19:
 - GET /api/csrf-token issues a token HMAC-bound to the caller's session_id.
 - POST /api/extract under cookie auth WITHOUT X-CSRF-Token → 403 CSRF_INVALID.
 - A token issued for session A cannot be replayed against session B.
@@ -70,7 +69,7 @@ async def test_csrf_replay_blocked(started_app):
 
 async def test_csrf_skip_for_x_api_key(started_app):
     """Requests authenticated via X-API-Key skip the CSRF middleware
-    (D-19 skip list). The request will likely fail auth (the dummy key is
+    (skip list). The request will likely fail auth (the dummy key is
     not real) but it must NOT fail with 403/CSRF_INVALID.
     """
     transport = ASGITransport(app=started_app)

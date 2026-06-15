@@ -4,16 +4,15 @@ from pydantic import BaseModel
 
 
 class HealthResponse(BaseModel):
-    """Minimal health check for Docker HEALTHCHECK (D-08)."""
+    """Minimal health check for Docker HEALTHCHECK."""
 
     status: str
 
 
 class HealthDetailResponse(BaseModel):
-    """Detailed health diagnostics (D-08).
+    """Detailed health diagnostics.
 
-    Includes heap usage, thread pool stats, JAR version, and JVM info
-    as specified in D-08.
+    Includes heap usage, thread pool stats, JAR version, and JVM info.
     """
 
     status: str

@@ -1,6 +1,6 @@
 """Pydantic models for extracted chemical data.
 
-All fields are guaranteed non-null by the DTO coercion layer (D-09).
+All fields are guaranteed non-null by the DTO coercion layer.
 Downstream code never needs to check for None.
 """
 
@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-# Phase 11 D-22 / PRIV-13: substances.first_seen_at and reactions.first_seen_at
+# substances.first_seen_at and reactions.first_seen_at
 # are intentionally NOT in the response shape below. The columns remain in the
 # DB (see backend/app/models/orm.py) for ops/forensics. Adding the field here
 # would re-expose dedup-presence information across sessions, leaking that
@@ -56,7 +56,7 @@ class ReactionResponse(BaseModel):
     reactants: list[ReactionComponentResponse] = Field(default_factory=list)
     products: list[ReactionComponentResponse] = Field(default_factory=list)
     agents: list[ReactionComponentResponse] = Field(default_factory=list)
-    # Plan 10 D-04 amended: CDK-rendered combined reaction SVG (D-12/D-15).
+    # CDK-rendered combined reaction SVG.
     svg: str = ""
 
 
@@ -71,7 +71,7 @@ class SubstanceInfoResponse(BaseModel):
 class ExtractionResponse(BaseModel):
     """Full extraction result including substances, metadata, and warnings.
 
-    Matches the D-10 response shape for the single-file extraction endpoint.
+    Matches the response shape for the single-file extraction endpoint.
     """
 
     substances: list[SubstanceResponse]
@@ -86,7 +86,7 @@ class ExtractionResponse(BaseModel):
 
 
 class ReactionExtractionResponse(BaseModel):
-    """Full reaction extraction result for POST /api/reactions (Plan 10, D-04).
+    """Full reaction extraction result for POST /api/reactions.
 
     Parallels ExtractionResponse but reactions-centric. reaction_count replaces
     structure_count; no SubstanceInfoResponse block.
@@ -113,7 +113,7 @@ class PagedSubstancesResponse(BaseModel):
 
 
 class HistoryListItem(BaseModel):
-    """One entry in the extraction history list (D-04).
+    """One entry in the extraction history list.
 
     Returned by GET /api/history. Contains only the summary fields
     needed to render HistoryList and HistoryEntry components.
@@ -124,7 +124,7 @@ class HistoryListItem(BaseModel):
     file_size: int
     format: str
     structure_count: int
-    # Plan 10 D-23 — populated by save_reactions; 0 until reactions extracted.
+    # Populated by save_reactions; 0 until reactions extracted.
     reaction_count: int = 0
     extraction_time_ms: float
     warnings: list[str] = Field(default_factory=list)
@@ -139,7 +139,7 @@ class HistoryListResponse(BaseModel):
 
 
 class StatsResponse(BaseModel):
-    """Response shape for GET /api/stats (D-08).
+    """Response shape for GET /api/stats.
 
     Counts total extractions, unique substances, and identifies the most
     frequently occurring molecular formula across all stored substances.
@@ -174,14 +174,14 @@ DepictionLiteral = Literal["cdk", "cdx"]
 
 
 class ExportRequest(BaseModel):
-    """Request body for POST /api/export (D-08).
+    """Request body for POST /api/export.
 
-    substance_ids: explicit selection (D-01, D-02, D-04). Capped at 1000
-        entries to bound JVM thread-pool fan-out and response size (SEC H-06).
-    extraction_id: export all from this extraction (D-03) — used when
+    substance_ids: explicit selection. Capped at 1000
+        entries to bound JVM thread-pool fan-out and response size.
+    extraction_id: export all from this extraction — used when
         substance_ids is empty.
     format: one of the six export formats plus rxn stub.
-    reaction_ids: explicit reaction selection for RXN export (Plan 10 D-22).
+    reaction_ids: explicit reaction selection for RXN export.
         Capped at 500 entries for the same reason as ``substance_ids``.
     depiction: 2D layout used by the image formats (png/svg). Defaults to
         "cdk" so pre-existing API clients keep their current output;
@@ -197,7 +197,7 @@ class ExportRequest(BaseModel):
 
 
 # ============================================================================
-# Phase 9: Search & API — search request/response + unified ErrorResponse
+# Search & API — search request/response + unified ErrorResponse
 # ============================================================================
 
 SearchType = Literal["auto", "inchi_key", "formula", "smiles", "substructure"]
@@ -205,13 +205,13 @@ SearchMatch = Literal["canonical", "literal"]
 
 
 class SearchRequest(BaseModel):
-    """POST /api/search request body (D-14).
+    """POST /api/search request body.
 
     query: user input; 500-char cap bounds ReDoS + DoS.
-    type: 'auto' lets backend detect (D-01). Explicit values override.
-    scope: 'global' default; 'extraction:{id}' restricts to one extraction (D-20).
+    type: 'auto' lets backend detect. Explicit values override.
+    scope: 'global' default; 'extraction:{id}' restricts to one extraction.
     match: canonical (default) vs literal — only meaningful for type=smiles.
-    page/size: pagination; capped per D-14 response shape.
+    page/size: pagination; capped by the response shape.
     """
 
     query: str = Field(..., min_length=1, max_length=500)
@@ -220,14 +220,14 @@ class SearchRequest(BaseModel):
     match: SearchMatch = "canonical"
     page: int = Field(1, ge=1, le=1000)
     size: int = Field(24, ge=1, le=100)
-    # New in 2026-04-24 substructure redesign. Defaults to False per
-    # user-confirmed design decision ("ignore stereo by default, opt-in
-    # toggle"). Ignored for non-substructure types.
+    # Added for substructure search. Defaults to False
+    # ("ignore stereo by default, opt-in toggle"). Ignored for
+    # non-substructure types.
     stereo: bool = False
 
 
 class SearchExtractionRef(BaseModel):
-    """One extraction where a matched substance was seen (D-10 attribution)."""
+    """One extraction where a matched substance was seen (attribution)."""
 
     extraction_id: int
     filename: str
@@ -240,20 +240,21 @@ class SearchResult(BaseModel):
     substance: SubstanceResponse
     extraction_count: int = 0
     extractions: list[SearchExtractionRef] = Field(default_factory=list)
-    # Populated only for type='substructure' hits (D-13).
-    # Plan 04 will wire match_svg (highlight depiction); Plan 03 leaves it None.
+    # Populated only for type='substructure' hits.
+    # match_svg carries the depiction with the matched substructure
+    # highlighted; None for non-substructure hits.
     match_svg: str | None = None
     match_atom_indices: list[int] = Field(default_factory=list)
-    # New in 2026-04-24. Per-mapping-reconstructed bond indices. Empty
+    # Per-mapping-reconstructed bond indices. Empty
     # list for non-substructure hits (canonical/InChI/formula queries).
     match_bond_indices: list[int] = Field(default_factory=list)
-    # New in 2026-04-24. True when the mapping cap was hit on this hit;
+    # True when the mapping cap was hit on this hit;
     # frontend renders a "partial highlight" sub-badge.
     partial_match: bool = False
 
 
 class SearchResponse(BaseModel):
-    """POST /api/search response (D-14)."""
+    """POST /api/search response."""
 
     results: list[SearchResult]
     total: int = 0
@@ -279,7 +280,7 @@ class SearchValidateResponse(BaseModel):
 
 
 class ErrorResponse(BaseModel):
-    """Unified error response shape across all /api/* endpoints (D-17).
+    """Unified error response shape across all /api/* endpoints.
 
     detail: human-readable message, always present and always the first field
       so the existing frontend apiClient (reads body.detail) keeps working.

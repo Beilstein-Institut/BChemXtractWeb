@@ -1,7 +1,11 @@
 /**
  * SearchContext — single source of truth for search state across
- * SearchInput, SearchResults, and any other consumer (Plan 2026-04-24
- * Bug C fix).
+ * SearchInput, SearchResults, and any other consumer.
+ *
+ * Without this, SearchInput and SearchResults each called useSearch()
+ * separately and owned de-synced state, so typing in the input never
+ * updated the already-mounted results (the "stuck search" bug). A single
+ * shared instance keeps every consumer reading the same query state.
  *
  * Wrap the route tree in <SearchProvider> once (done in App.tsx), then
  * read state via useSearch() from this file — NOT from

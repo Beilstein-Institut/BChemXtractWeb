@@ -1,13 +1,13 @@
 /**
- * EmptyState — shared empty-state primitive (D-19).
+ * EmptyState — shared empty-state primitive.
  *
- * Variants per UI-SPEC §3:
+ * Variants:
  *   large   (default): illustration at size-16, title in text-sub-heading/600
  *   compact: illustration at size-10, title in text-caption/600
  *
  * We compose raw shadcn `Empty` primitives rather than relying on
- * `EmptyMedia` variants (size-8) because UI-SPEC requires larger icon
- * wrappers (see UI-SPEC "Checker Recommendations Deferred to Planner").
+ * `EmptyMedia` variants (size-8) because the design requires larger icon
+ * wrappers (size-16 large / size-10 compact) than the size-8 default.
  */
 import type { LucideIcon } from "lucide-react";
 import { PackageOpenIcon } from "lucide-react";

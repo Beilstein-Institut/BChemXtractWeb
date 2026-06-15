@@ -1,10 +1,10 @@
 /**
- * Toggle — tests for the Phase 3 Liquid Glass state primitive (Task 5).
+ * Toggle — tests for the Liquid Glass state primitive.
  *
  * Covers: render, data-slot + data-variant + data-size contracts, toggle
  * behavior (data-pressed flips, onPressedChange fires), disabled
  * suppression, variant class resolution (default, outline), size class
- * resolution, plan-specified pressed-fill (data-pressed:bg-primary), and
+ * resolution, pressed-fill (data-pressed:bg-primary), and
  * focus-visible ring class.
  *
  * Base UI Toggle emits `data-pressed` when active (confirmed from

@@ -1,6 +1,6 @@
 /**
  * Shared filter predicate used by the browse bento tiles and the
- * `StructureBrowser` current-page slice (Phase 3 Task 11).
+ * `StructureBrowser` current-page slice.
  *
  * Keeps the `SearchFilter` / `BrowsePage` / `StructureBrowser` triad
  * aligned on one matching rule: the free-text query is compared

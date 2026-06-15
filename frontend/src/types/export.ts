@@ -1,12 +1,12 @@
 /**
- * Export types for Phase 8 multi-format chemical export.
+ * Export types for multi-format chemical export.
  * Matches backend ExportRequest Pydantic model exactly.
  */
 import type { Depiction } from "@/types/chemistry";
 
 export type ExportFormat = "sdf" | "json" | "csv" | "png" | "svg" | "v3000" | "rxn";
 
-/** Human-readable labels for each format. Ordered as shown in UI-SPEC dropdown. */
+/** Human-readable labels for each format. Ordered as shown in the export dropdown. */
 export const FORMAT_LABELS: Record<ExportFormat, string> = {
   sdf: "SDF / MOL",
   json: "JSON",
@@ -31,11 +31,11 @@ export const FORMAT_EXT: Record<ExportFormat, string> = {
 /** Request body for POST /api/export. Mirrors backend ExportRequest model. */
 export interface ExportRequest {
   format: ExportFormat;
-  /** Explicit substance IDs (D-01, D-02, D-04). */
+  /** Explicit substance IDs. */
   substance_ids: number[];
-  /** Export all substances from extraction (D-03). Used when substance_ids is empty. */
+  /** Export all substances from extraction. Used when substance_ids is empty. */
   extraction_id?: number;
-  /** Explicit reaction IDs for RXN export (Plan 10 D-22). Mirrors substance_ids. */
+  /** Explicit reaction IDs for RXN export. Mirrors substance_ids. */
   reaction_ids?: number[];
   /**
    * 2D layout for the image formats (png/svg): "cdx" = original ChemDraw

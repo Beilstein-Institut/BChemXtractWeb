@@ -1,5 +1,5 @@
 /**
- * DeleteMyDataButton — Phase 11 D-14 GDPR Article 17.
+ * DeleteMyDataButton — GDPR Article 17.
  *
  * Trigger button → AlertDialog confirmation → DELETE /api/me/data. On success
  * the backend has cascaded the delete + cleared the `bcx_sid` cookie; we full

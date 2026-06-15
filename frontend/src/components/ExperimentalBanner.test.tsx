@@ -2,17 +2,18 @@
  * Tests for ExperimentalBanner component.
  * Vitest globals: true — no need to import describe/it/expect.
  *
- * Plan 10-04 D-09 / UI-SPEC §2 — dismissible amber banner with
- * sessionStorage-backed state (NOT localStorage per Pitfall 7).
+ * Dismissible amber banner with sessionStorage-backed state. Dismissal must
+ * use sessionStorage, never localStorage: it is session-scoped so closing the
+ * tab/browser resets it, whereas localStorage would keep the banner dismissed
+ * forever across all future sessions.
  *
  * Environment note: this project's jsdom configuration exposes
  * `window.sessionStorage` as a fully-functional Storage object, while
  * `window.localStorage` is a stub whose methods are not callable
- * (matches the pre-existing `App.test.tsx` ThemeProvider failures
- * logged in STATE.md / deferred-items.md). Pitfall 7 is therefore
- * verified indirectly via a `vi.spyOn` guard on `localStorage.setItem`
- * (asserts the spy is never called) rather than by reading a value
- * back out of `localStorage.getItem`.
+ * (matches the pre-existing `App.test.tsx` ThemeProvider failures).
+ * The no-localStorage rule is therefore verified indirectly via a `vi.spyOn`
+ * guard on `localStorage.setItem` (asserts the spy is never called) rather
+ * than by reading a value back out of `localStorage.getItem`.
  */
 import { render, screen, fireEvent } from "@testing-library/react";
 import { beforeEach, afterEach, vi } from "vitest";
@@ -64,7 +65,7 @@ describe("ExperimentalBanner", () => {
     expect(window.sessionStorage.getItem(STORAGE_KEY)).toBe("1");
   });
 
-  it("does NOT persist to localStorage (Pitfall 7)", () => {
+  it("does NOT persist to localStorage", () => {
     // Install a callable stub on localStorage so vi.spyOn has a function to
     // wrap (the jsdom stub has no callable setItem by default). If the
     // banner ever hits localStorage, the spy will record it — and we assert

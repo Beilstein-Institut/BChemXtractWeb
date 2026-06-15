@@ -1,4 +1,4 @@
-"""Centralised filename + Content-Disposition helpers (SEC M-03 / M-04).
+"""Centralised filename + Content-Disposition helpers.
 
 Upload filenames and extraction identifiers flow into several response
 surfaces — ZIP entry names, ``Content-Disposition`` headers, streamed

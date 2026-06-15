@@ -1,7 +1,7 @@
-"""Cookie-based session identity + RLS scope resolution (Phase 11).
+"""Cookie-based session identity + RLS scope resolution.
 
 Lifted from ChemAudit (github.com/Kohulan/ChemAudit/main/backend/app/core/session.py)
-with three D-05 adaptations: cookie name bcx_sid; is_dev derived from
+with three adaptations: cookie name bcx_sid; is_dev derived from
 list[str] cors_origins; import path app.config.settings.
 
 Discipline preserved verbatim:
@@ -25,7 +25,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 SESSION_COOKIE = "bcx_sid"
-SESSION_MAX_AGE = 30 * 24 * 3600  # 30 days (D-05)
+SESSION_MAX_AGE = 30 * 24 * 3600  # 30 days
 
 _UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
@@ -91,7 +91,7 @@ async def set_rls_context(
     session_id: str | None,
     api_key_hash: bytes | None,
 ) -> None:
-    """Set Postgres session vars for RLS policy evaluation (D-03).
+    """Set Postgres session vars for RLS policy evaluation.
 
     set_config(name, value, true) is transaction-local. The bytea round-trips
     via hex string — the policy's ::bytea cast on NULLIF rewraps it.

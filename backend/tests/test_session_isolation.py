@@ -1,4 +1,4 @@
-"""PRIV-01 RLS cross-session isolation tests (Wave 0 RED → green on 11-03).
+"""RLS cross-session isolation tests.
 
 Verifies that the `set_rls_context` execution inside `get_scoped_db` plus the
 FORCE ROW LEVEL SECURITY policies on extractions/substances/reactions actually
@@ -38,7 +38,7 @@ async def _seed_extraction(session_id: str) -> int:
 
     Sets ``app.session_id`` first so the row passes the policy WITH CHECK
     on insert. Mirrors the column shape declared on the Extraction ORM
-    (Phase 5 + Phase 11 ownership columns).
+    (including the ownership columns).
     """
     async with AsyncSessionLocal() as db:
         await db.execute(

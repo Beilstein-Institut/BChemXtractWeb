@@ -1,5 +1,5 @@
 /**
- * TypeScript interfaces for extraction history and statistics (Phase 5).
+ * TypeScript interfaces for extraction history and statistics.
  * Mirrors backend Pydantic models: HistoryListItem, HistoryListResponse, StatsResponse.
  */
 
@@ -12,7 +12,7 @@ export interface HistoryListItem {
   extraction_time_ms: number;
   warnings: string[];
   created_at: string; // ISO 8601 UTC string
-  // Plan 10 D-23: count of reactions extracted for this file (0 until user runs /api/reactions).
+  // count of reactions extracted for this file (0 until user runs /api/reactions).
   reaction_count: number;
 }
 

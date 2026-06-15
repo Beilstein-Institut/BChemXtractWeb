@@ -1,8 +1,8 @@
 /**
- * Label — tests for the Phase 3 Liquid Glass form primitive (Task 4).
+ * Label — tests for the Liquid Glass form primitive.
  *
  * Covers: render, data-slot contract, htmlFor association with an input,
- * className forwarding, and the core plan-specified classes
+ * className forwarding, and the core base classes
  * (`text-sm font-medium mb-2 block`).
  */
 import { describe, it, expect } from "vitest";

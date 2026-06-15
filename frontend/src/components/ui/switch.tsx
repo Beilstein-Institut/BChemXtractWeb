@@ -3,12 +3,12 @@ import { Switch as SwitchPrimitive } from "@base-ui/react/switch";
 import { cn } from "@/lib/utils";
 
 /**
- * Switch — state tier (Phase 3 Liquid Glass rebuild, Task 5).
+ * Switch — state tier (Liquid Glass rebuild).
  *
  * Track flips between `bg-border` (off) and `bg-primary` (on, via
  * Base UI's `data-checked`). Thumb is a white circle that slides across
  * the track with a 150 ms transform transition. `data-slot` hooks are
- * preserved so Task 6's glass selectors can target Switch parts.
+ * preserved so the glass selectors can target Switch parts.
  *
  * Size variants (`default`, `sm`) are preserved for downstream call
  * sites that predate the rebuild.

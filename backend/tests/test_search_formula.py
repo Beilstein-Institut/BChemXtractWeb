@@ -1,4 +1,4 @@
-"""SRCH-02: molecular formula match (Plan 09-03 wave 3)."""
+"""SRCH-02: molecular formula match."""
 
 from __future__ import annotations
 

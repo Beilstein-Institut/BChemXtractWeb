@@ -3,10 +3,10 @@ import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * BentoGrid — Phase 3 Liquid Glass rebuild (Task 8).
+ * BentoGrid — Liquid Glass rebuild.
  *
  * Responsive CSS-grid container for the bento composition idiom used by
- * Tasks 11–13 (Browse, History, About). Breakpoints:
+ * the Browse, History, and About pages. Breakpoints:
  *
  *   - base (<md): single column, every cell stacks
  *   - md:         capped at 2 columns (tablet)

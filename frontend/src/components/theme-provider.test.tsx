@@ -1,8 +1,8 @@
 /**
- * ThemeProvider — class emission on <html> (Phase 3 Task 7 contract).
+ * ThemeProvider — class emission on <html>.
  *
- * Phase 3 dropped the `neo-ui` / `hc` / `?ui=neo` URL-param machinery that
- * used to live here. The provider is now scoped to a single concern: emit
+ * The `neo-ui` / `hc` / `?ui=neo` URL-param machinery that used to live
+ * here has been dropped. The provider is now scoped to a single concern: emit
  * `light` or `dark` on `<html>` based on:
  *   1. The `bchemxtract-theme` entry in localStorage (if set), or
  *   2. The `defaultTheme` prop fallback ("system" by default), or

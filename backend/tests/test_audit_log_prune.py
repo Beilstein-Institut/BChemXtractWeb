@@ -1,4 +1,4 @@
-"""Phase 11 PRIV-08 — audit_log retention prune Celery beat task.
+"""audit_log retention prune Celery beat task.
 
 Exercises ``app.tasks.audit_log.prune_old_entries`` in Celery eager mode
 (``task_always_eager=True``) so the test runs the real task body without

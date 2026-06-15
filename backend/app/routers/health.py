@@ -1,6 +1,6 @@
 """Health check endpoints for the BChemXtract Web API.
 
-Two-tier health system (D-08):
+Two-tier health system:
 - GET /health -- Minimal status for Docker HEALTHCHECK (fast, cheap)
 - GET /health/detail -- Full diagnostics: heap, thread pool, JAR version
 """
@@ -115,7 +115,7 @@ def _collect_jvm_diagnostics() -> dict:
         "Requires the admin secret (`X-Admin-Secret` header) — unlike "
         "`/health`, this endpoint discloses internal JVM/CDK/BChemXtract "
         "versions useful for targeted CVE lookup and is therefore "
-        "protected (Phase 11 D-18 / Open Q #4)."
+        "protected."
     ),
     responses={
         200: {"description": "Diagnostics collected successfully."},
@@ -140,7 +140,7 @@ async def health_detail() -> HealthDetailResponse:
     the thread pool to avoid blocking the event loop.
 
     Returns:
-        HealthDetailResponse with full diagnostics including jar_version (D-08).
+        HealthDetailResponse with full diagnostics including jar_version.
     """
     jvm_running = jpype.isJVMStarted()
 

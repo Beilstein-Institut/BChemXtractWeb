@@ -1,9 +1,9 @@
-"""SRCH-04: SMARTS substructure match via CDK (Plan 09-03 wave 3).
+"""SMARTS substructure match via CDK.
 
-Plan 04 (highlight depiction) flips the match_svg highlight stub;
-this file flips the other four: benzene-in-naphthalene, invalid
-SMARTS, skip-and-warn on unparsable stored SMILES (D-09), and
-attribution aggregation (D-10).
+The highlight-depiction work covers the match_svg highlight stub;
+this file covers the other four: benzene-in-naphthalene, invalid
+SMARTS, skip-and-warn on unparsable stored SMILES, and
+attribution aggregation.
 """
 
 from __future__ import annotations
@@ -50,9 +50,9 @@ async def test_substructure_benzene_in_naphthalene(client_csrf: AsyncClient) -> 
     # All 10 naphthalene atoms — both fused rings must be highlighted
     # (Bug A fix: was previously >= 6, which masked the uniqueAtoms() bug).
     assert sorted(hits[0]["match_atom_indices"]) == list(range(10))
-    # Plan 04: match_svg is now populated for every substructure hit.
+    # match_svg is populated for every substructure hit.
     assert hits[0]["match_svg"] is not None, (
-        "Plan 04 must populate match_svg on substructure hits"
+        "match_svg must be populated on substructure hits"
     )
 
 
@@ -60,9 +60,9 @@ async def test_substructure_benzene_in_naphthalene(client_csrf: AsyncClient) -> 
 async def test_substructure_invalid_smarts(client_csrf: AsyncClient) -> None:
     """Invalid query raises InvalidQueryError → 422 + code=INVALID_QUERY.
 
-    Plan 2026-04-24: the substructure service now accepts SMILES or
-    SMARTS (dual-path parse). Malformed input that both paths reject
-    raises :class:`InvalidQueryError`, which the unified ErrorResponse
+    The substructure service accepts SMILES or SMARTS (dual-path
+    parse). Malformed input that both paths reject raises
+    :class:`InvalidQueryError`, which the unified ErrorResponse
     handler maps to 422 + code=INVALID_QUERY.
     """
     resp = await client_csrf.post(
@@ -80,10 +80,10 @@ async def test_substructure_invalid_smarts(client_csrf: AsyncClient) -> None:
 async def test_substructure_match_svg_highlight(client_csrf: AsyncClient) -> None:
     """Substructure hit response includes match_svg with Apple Blue highlight.
 
-    Plan 04: D-13 + UI-SPEC §Color. Every substructure hit carries a
+    Every substructure hit carries a
     :func:`render_substance_svg_with_highlight`-rendered SVG that contains:
-      - the Apple Blue color (#0071e3 or rgba(0,113,227,…)) per UI-SPEC §Color
-      - a ``<title>Matches …</title>`` accessibility tag per UI-SPEC §Accessibility
+      - the Apple Blue color (#0071e3 or rgba(0,113,227,…))
+      - a ``<title>Matches …</title>`` accessibility tag
     """
     # Seed naphthalene (needs a hit to produce match_svg)
     async with AsyncSessionLocal() as session:
@@ -118,18 +118,18 @@ async def test_substructure_match_svg_highlight(client_csrf: AsyncClient) -> Non
     assert hit is not None, "expected naphthalene in hits"
     svg = hit["match_svg"]
     assert svg, "match_svg must be populated for substructure hits"
-    # UI-SPEC §Color: Apple Blue appears either as the #0071e3 hex
-    # literal or as an rgba()/rgb() fragment (with or without spaces).
+    # Apple Blue appears either as the #0071e3 hex literal or as an
+    # rgba()/rgb() fragment (with or without spaces).
     svg_lower = svg.lower()
     svg_compact = svg.replace(" ", "").lower()
     assert (
         "0071e3" in svg_lower
         or "rgba(0,113,227" in svg_compact
         or "rgb(0,113,227" in svg_compact
-    ), "match_svg must contain Apple Blue highlight color per UI-SPEC §Color"
+    ), "match_svg must contain Apple Blue highlight color"
     # Accessibility contract: the helper injects <title>Matches …</title>
     assert "<title>Matches " in svg, (
-        "match_svg must embed <title>Matches …</title> per UI-SPEC §Accessibility"
+        "match_svg must embed <title>Matches …</title> for accessibility"
     )
 
 
@@ -137,7 +137,7 @@ async def test_substructure_match_svg_highlight(client_csrf: AsyncClient) -> Non
 async def test_substructure_unparsable_skipped_with_warning(
     client_csrf: AsyncClient,
 ) -> None:
-    """Unparsable stored SMILES is skipped and counted in warnings (D-09)."""
+    """Unparsable stored SMILES is skipped and counted in warnings."""
     async with AsyncSessionLocal() as session:
         await session.execute(
             text(
@@ -164,7 +164,7 @@ async def test_substructure_unparsable_skipped_with_warning(
 
 @pytest.mark.asyncio
 async def test_attribution_aggregation(client_csrf: AsyncClient) -> None:
-    """Hit response carries extraction_count + populated extractions list (D-10)."""
+    """Hit response carries extraction_count + populated extractions list."""
     async with AsyncSessionLocal() as session:
         await session.execute(
             text(

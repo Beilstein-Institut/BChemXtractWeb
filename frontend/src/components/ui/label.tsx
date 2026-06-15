@@ -5,9 +5,9 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Label — form tier (Phase 3 Liquid Glass rebuild, Task 4).
+ * Label — form tier (Liquid Glass rebuild).
  *
- * Plan-specified base classes: `text-sm font-medium mb-2 block`.
+ * Base classes: `text-sm font-medium mb-2 block`.
  *
  * The legacy peer-disabled / group-disabled selectors are preserved so
  * existing form layouts that nest this label next to a disabled input or

@@ -1,4 +1,4 @@
-"""Tests for extractor.extract_reactions_with_svg + _render_reaction_svg (Plan 10-01).
+"""Tests for extractor.extract_reactions_with_svg + _render_reaction_svg.
 
 The first three tests exercise the pure guards (empty / no-arrow / oversized)
 by driving _render_reaction_svg directly through run_in_jvm_thread. The fourth
@@ -32,13 +32,16 @@ def test_render_reaction_svg_empty_smiles_returns_empty(started_app):
 
 
 def test_render_reaction_svg_no_arrow_returns_empty(started_app):
-    # Pitfall 3: CDK parseReactionSmiles requires `>` in input.
+    # CDK parseReactionSmiles requires `>` in input; without it the parser
+    # raises InvalidSmilesException, so the guard returns an empty SVG instead.
     svg, warning = _render_in_jvm("c1ccccc1")
     assert svg == ""
 
 
 def test_render_reaction_svg_oversized_guarded(started_app):
-    # Pitfall 6: length > 1500 chars must be guarded.
+    # Reaction SMILES longer than 1500 chars must be guarded — CDK's
+    # SMILES parser / depiction can enter a pathological branch and block
+    # the JVM thread indefinitely on very large inputs.
     big = "C" * (MAX_REACTION_SMILES_LEN + 1) + ">>O"
     svg, warning = _render_in_jvm(big)
     assert svg == ""
@@ -59,6 +62,6 @@ async def test_extract_reactions_with_svg_renders_depiction(
     )
 
 
-@pytest.mark.skip(reason="Wave 0 stub — kept for Plan 02 implementation")
+@pytest.mark.skip(reason="stub — reaction extraction not yet implemented")
 def test_render_reaction_svg_invalid_smiles_returns_empty_with_warning():
     pass

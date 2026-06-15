@@ -1,5 +1,5 @@
 /**
- * filterSubstances — shared predicate tests (Phase 3 Task 11).
+ * filterSubstances — shared predicate tests.
  */
 import type { SubstanceResponse } from "@/types/chemistry";
 

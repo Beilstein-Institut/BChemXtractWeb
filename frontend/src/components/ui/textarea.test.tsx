@@ -1,5 +1,5 @@
 /**
- * Textarea — tests for the Phase 3 Liquid Glass form primitive (Task 4).
+ * Textarea — tests for the Liquid Glass form primitive.
  *
  * Covers: render, data-slot contract, controlled value/onChange, disabled
  * surfacing, rows/cols forwarding, focus-visible ring class, and core

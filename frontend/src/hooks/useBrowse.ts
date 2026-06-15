@@ -1,6 +1,6 @@
 /**
  * useBrowse — pagination state, URL sync, API calls, and multi-select
- * for the StructureBrowser component (Phase 6, D-01, D-15).
+ * for the StructureBrowser component.
  *
  * Mirrors useHistory.ts pattern: explicit state enum, useCallback for stable refs.
  * URL state: window.history.replaceState (not pushState) to avoid flooding history.

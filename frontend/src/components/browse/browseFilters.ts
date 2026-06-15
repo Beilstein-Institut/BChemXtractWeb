@@ -1,5 +1,5 @@
 /**
- * Browse filter contract — Phase 3 Task 11.
+ * Browse filter contract.
  *
  * Kept in a standalone module so `SearchFilter.tsx` and the `filterSubstances`
  * helper can share the type without pulling each other into their component

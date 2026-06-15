@@ -1,5 +1,5 @@
 /**
- * Tests for StructureCard component (Phase 3 Liquid Glass rewrite).
+ * Tests for StructureCard component (Liquid Glass rewrite).
  * Vitest globals: true — no need to import describe/it/expect.
  *
  * Note: The dialog mock renders both the trigger and content always visible.
@@ -288,11 +288,10 @@ describe("StructureCard component", () => {
     });
   });
 
-  it("shows a toast.error when the share clipboard write fails (I-3 regression)", async () => {
-    // Regression guard for Task 14 review item I-3: useShareLink used to
-    // swallow clipboard rejections, making the handler's catch branch dead
-    // code. The hook now rejects, so StructureCard must surface the error
-    // via sonner's toast.error.
+  it("shows a toast.error when the share clipboard write fails", async () => {
+    // Regression guard: useShareLink used to swallow clipboard rejections,
+    // making the handler's catch branch dead code. The hook now rejects, so
+    // StructureCard must surface the error via sonner's toast.error.
     const { toast } = await import("sonner");
     (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new Error("denied"),

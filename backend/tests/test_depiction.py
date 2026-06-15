@@ -1,4 +1,4 @@
-"""Unit tests for backend/app/services/depiction.py (Plan 09-04).
+"""Unit tests for backend/app/services/depiction.py.
 
 Covers render_substance_svg_with_highlight behavior in isolation — both the
 happy path (Apple Blue tint on matched atoms) and the graceful-fallback
@@ -33,7 +33,7 @@ def _benzene_container():
 async def test_highlight_empty_list_falls_back_to_plain_svg(started_app) -> None:
     """Empty atom_indices → non-empty SVG identical in shape to the plain path.
 
-    Guards UI-SPEC contract: "Empty list → fallback to render_substance_svg".
+    Contract: an empty list falls back to render_substance_svg.
     """
     from app.services.depiction import render_substance_svg_with_highlight
     from app.services.jvm_bridge import run_in_jvm_thread
@@ -52,9 +52,9 @@ async def test_highlight_empty_list_falls_back_to_plain_svg(started_app) -> None
 async def test_highlight_benzene_contains_apple_blue(started_app) -> None:
     """All 6 benzene atoms highlighted → SVG contains Apple Blue #0071e3.
 
-    UI-SPEC §Color: match-highlight fill = rgba(0, 113, 227, 0.20-0.25).
-    RESEARCH §Pitfall 5: CDK DepictionGenerator emits the color as either
-    hex "0071e3" or rgb/rgba fragment — either form counts as a pass.
+    Match-highlight fill = rgba(0, 113, 227, 0.20-0.25). CDK
+    DepictionGenerator emits the color as either hex "0071e3" or an
+    rgb/rgba fragment — either form counts as a pass.
     """
     from app.services.depiction import render_substance_svg_with_highlight
     from app.services.jvm_bridge import run_in_jvm_thread
@@ -74,15 +74,15 @@ async def test_highlight_benzene_contains_apple_blue(started_app) -> None:
         "0071e3" in svg_lower
         or "rgba(0,113,227" in svg_compact
         or "rgb(0,113,227" in svg_compact
-    ), "highlighted SVG must contain Apple Blue color per UI-SPEC §Color"
+    ), "highlighted SVG must contain Apple Blue highlight color"
 
 
 @pytest.mark.asyncio
 async def test_highlight_accessibility_title_inserted(started_app) -> None:
     """With non-empty title, SVG contains <title>Matches …</title> a11y tag.
 
-    UI-SPEC §Accessibility: "Substructure match-highlight SVG includes
-    <title>Matches {query}</title> as the first child of the <svg>."
+    Accessibility contract: the substructure match-highlight SVG includes
+    <title>Matches {query}</title> as the first child of the <svg>.
     """
     from app.services.depiction import render_substance_svg_with_highlight
     from app.services.jvm_bridge import run_in_jvm_thread

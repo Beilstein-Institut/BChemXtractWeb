@@ -18,7 +18,7 @@ XML_PREFIXES = (b"<?xml", b"<CDXML")
 def detect_format(file_bytes: bytes) -> str:
     """Detect whether file_bytes is CDX binary, CDXML, or unknown.
 
-    Three-step detection per D-10:
+    Three-step detection:
     1. First 4 bytes == VjCD -> CDX binary
     2. Starts with <?xml or <CDXML (after stripping UTF-8 BOM) -> CDXML
     3. Neither -> raise FormatDetectionError (HTTP 415)
@@ -26,7 +26,7 @@ def detect_format(file_bytes: bytes) -> str:
     When step 2 matches, the payload is additionally run through
     :func:`app.services.xml_guard.reject_xml_external_entities` to reject
     external DOCTYPEs and ``<!ENTITY>`` declarations before the bytes reach
-    the (unhardened) upstream Java SAX parser (SEC C-01).
+    the (unhardened) upstream Java SAX parser.
 
     Args:
         file_bytes: Raw file content bytes.

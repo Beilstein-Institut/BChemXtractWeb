@@ -9,7 +9,7 @@ APPROVED_OPERATION_IDS = {
     # extraction
     "extractFile",
     "getExtractionSubstances",
-    # extraction (Plan 10 -- experimental reactions)
+    # extraction (experimental reactions)
     "extractReactions",
     "getExtractionReactions",
     # history
@@ -27,11 +27,11 @@ APPROVED_OPERATION_IDS = {
     # health
     "healthCheck",
     "healthDetail",
-    # search (already curated in Plan 03)
+    # search
     "searchSubstances",
-    # search (Plan 2026-04-24 — parse-only validate endpoint)
+    # search (parse-only validate endpoint)
     "validateSearchQuery",
-    # Phase 11 — auth / CSRF / GDPR / admin api keys
+    # auth / CSRF / GDPR / admin api keys
     "putAuthMe",
     "postAuthRestore",
     "getCsrfToken",
@@ -52,7 +52,7 @@ async def test_swagger_docs_served(client_no_jvm: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_redoc_served(client_no_jvm: AsyncClient) -> None:
-    """GET /redoc returns 200 and Redoc markup (API-01, D-16)."""
+    """GET /redoc returns 200 and Redoc markup (API-01)."""
     resp = await client_no_jvm.get("/redoc")
     assert resp.status_code == 200
     assert "redoc" in resp.text.lower()

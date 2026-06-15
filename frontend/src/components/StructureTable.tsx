@@ -1,14 +1,15 @@
 /**
- * StructureTable — compact table view for extracted substances (D-06, D-16, DISP-04).
+ * StructureTable — compact table view for extracted substances.
  *
  * Columns: [checkbox] [thumbnail] [formula] [SMILES] [InChI key] [copy]
  *
- * SVG thumbnails are rendered via Blob URLs (T-04-04 mitigation — same
- * pattern as StructureCard). Never set innerHTML with backend SVG strings.
+ * SVG thumbnails are rendered via Blob URLs (same pattern as StructureCard).
+ * Never set innerHTML with backend SVG strings, so a malicious SVG cannot
+ * inject script into the DOM.
  *
  * SMILES is truncated at 40 chars with a Tooltip showing the full string.
  * InChI key is truncated to 27 chars (prefix) with a Tooltip. Column is hidden
- * on mobile (hidden md:table-cell) per UI-SPEC.
+ * on mobile (hidden md:table-cell).
  */
 import { FlaskConicalIcon } from "lucide-react";
 import {
@@ -46,7 +47,7 @@ const SKELETON_ROWS = 12;
 
 /**
  * StructureTable — table view with checkbox selection, SVG thumbnail,
- * formula, truncated SMILES, InChI key, and copy button per D-06.
+ * formula, truncated SMILES, InChI key, and copy button.
  */
 export function StructureTable({
   substances,

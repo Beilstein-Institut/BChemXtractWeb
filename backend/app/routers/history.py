@@ -1,10 +1,10 @@
-"""History and statistics endpoints (Phase 5).
+"""History and statistics endpoints.
 
 Endpoints:
-  GET  /api/history             — list recent extractions (D-04, D-05)
-  GET  /api/history/{id}        — reload one extraction's full result (D-06, HIST-02)
-  DELETE /api/history/{id}      — delete one extraction (D-07)
-  GET  /api/stats               — aggregate statistics (D-08, HIST-04)
+  GET  /api/history             — list recent extractions
+  GET  /api/history/{id}        — reload one extraction's full result
+  DELETE /api/history/{id}      — delete one extraction
+  GET  /api/stats               — aggregate statistics
 """
 
 import logging
@@ -53,7 +53,7 @@ def _extraction_to_list_item(e: Extraction) -> HistoryListItem:
         file_size=e.file_size,
         format=e.format,
         structure_count=e.structure_count,
-        reaction_count=e.reaction_count,  # Plan 10 D-23 — bridges ORM column to wire
+        reaction_count=e.reaction_count,  # bridges ORM column to wire
         extraction_time_ms=e.extraction_time_ms,
         warnings=e.warnings or [],
         created_at=e.created_at.isoformat(),
@@ -95,7 +95,7 @@ def _extraction_to_response(e: Extraction) -> ExtractionResponse:
     """Convert an Extraction ORM row (with loaded substances) to ExtractionResponse.
 
     Returns the same shape as POST /api/extract so the frontend can pass it
-    directly to StructureGrid and ExtractionSummary (D-06, Pattern 6).
+    directly to StructureGrid and ExtractionSummary.
     """
     substances = [
         SubstanceResponse(
@@ -135,8 +135,8 @@ def _extraction_to_response(e: Extraction) -> ExtractionResponse:
     summary="List recent extractions",
     description=(
         "Return a paginated list of past extractions ordered newest-first. "
-        "Pass `limit=all` to return every stored extraction (capped at 500 "
-        "per D-10). Integer limits are clamped to the DEFAULT_HISTORY_LIMIT "
+        "Pass `limit=all` to return every stored extraction (capped at 500). "
+        "Integer limits are clamped to the DEFAULT_HISTORY_LIMIT "
         "if invalid."
     ),
     responses={
@@ -152,7 +152,7 @@ def _extraction_to_response(e: Extraction) -> ExtractionResponse:
                                 "file_size": 4823,
                                 "format": "cdx",
                                 "structure_count": 12,
-                                # Plan 10 D-23 — populated by save_reactions
+                                # populated by save_reactions
                                 "reaction_count": 3,
                                 "extraction_time_ms": 412.3,
                                 "warnings": [],
@@ -176,7 +176,7 @@ async def list_history(
 
     Args:
         db: AsyncSession from get_db() dependency.
-        limit: Number of entries to return. Use "all" to return every entry (D-05).
+        limit: Number of entries to return. Use "all" to return every entry.
 
     Returns:
         HistoryListResponse with items list and total count.
@@ -214,7 +214,7 @@ async def list_history(
         "Return the full extraction result for one history entry, matching "
         "the `POST /api/extract` response shape so the frontend can hand "
         "it directly to StructureGrid / ExtractionSummary without format "
-        "translation (HIST-02, D-06)."
+        "translation."
     ),
     responses={
         200: {"description": "Extraction found; full detail returned."},
@@ -224,7 +224,7 @@ async def list_history(
     tags=["history"],
 )
 async def get_history_detail(extraction_id: int, db: DbDep) -> ExtractionResponse:
-    """Return full extraction result for one history entry (HIST-02, D-06).
+    """Return full extraction result for one history entry.
 
     The response shape matches POST /api/extract so the frontend can pass it
     directly to StructureGrid without any format translation.
@@ -266,7 +266,7 @@ async def get_history_detail(extraction_id: int, db: DbDep) -> ExtractionRespons
     summary="Delete an extraction",
     description=(
         "Delete one extraction record. Orphaned substances (those no longer "
-        "linked to any extraction) are cleaned up as well (D-07). Returns "
+        "linked to any extraction) are cleaned up as well. Returns "
         "204 No Content on success."
     ),
     responses={
@@ -277,12 +277,13 @@ async def get_history_detail(extraction_id: int, db: DbDep) -> ExtractionRespons
     tags=["history"],
 )
 async def delete_history_entry(extraction_id: int, request: Request, db: DbDep) -> None:
-    """Delete one extraction record and clean up orphaned substances (D-07).
+    """Delete one extraction record and clean up orphaned substances.
 
-    Phase 11 D-16: emits ``extraction.deleted`` via
-    ``audit_log_insert_in_session`` BEFORE the commit so the audit row
-    and the deletion are atomic — same Pitfall #6 contract as
-    ``DELETE /api/me/data``.
+    Emits ``extraction.deleted`` via ``audit_log_insert_in_session``
+    BEFORE the commit so the audit row and the deletion are atomic: if
+    the audit insert fails the whole DELETE rolls back, closing the
+    timing window where the row is gone but no audit record exists —
+    same contract as ``DELETE /api/me/data``.
 
     Args:
         extraction_id: Primary key of the Extraction record.
@@ -293,7 +294,7 @@ async def delete_history_entry(extraction_id: int, request: Request, db: DbDep) 
     Raises:
         HTTPException 404: If the extraction_id does not exist.
     """
-    # Read the scope set by get_scoped_db (Phase 11 Wave 2). Fallback to
+    # Read the scope set by get_scoped_db. Fallback to
     # (None, None) for the legacy code path / direct-call unit tests.
     session_id, api_key_hash = (
         request.state.scope if hasattr(request.state, "scope") else (None, None)
@@ -306,7 +307,7 @@ async def delete_history_entry(extraction_id: int, request: Request, db: DbDep) 
     await db.delete(extraction)
     await db.flush()
 
-    # Orphan sweep (D-07 / Plan 10 D-21) — same pattern as
+    # Orphan sweep — same pattern as
     # services.persistence.delete_extraction_by_id, inlined here so the
     # audit row lands in the same transaction.
     await db.execute(
@@ -320,8 +321,9 @@ async def delete_history_entry(extraction_id: int, request: Request, db: DbDep) 
         )
     )
 
-    # Phase 11 D-16: in-transaction audit emit. If the audit insert
-    # fails, the entire DELETE rolls back atomically (Pitfall #6).
+    # In-transaction audit emit. If the audit insert fails, the entire
+    # DELETE rolls back atomically so the row and its audit record stay
+    # consistent.
     await audit_log_insert_in_session(
         db,
         event="extraction.deleted",
@@ -343,7 +345,7 @@ async def delete_history_entry(extraction_id: int, request: Request, db: DbDep) 
     description=(
         "Return total extraction count, unique-substance count (by InChI "
         "key), and the most frequently occurring molecular formula across "
-        'the entire store (HIST-04, D-08). `most_common_formula` is `""` '
+        'the entire store. `most_common_formula` is `""` '
         "when no substances exist."
     ),
     responses={
@@ -364,7 +366,7 @@ async def delete_history_entry(extraction_id: int, request: Request, db: DbDep) 
     tags=["history"],
 )
 async def get_stats(db: DbDep) -> StatsResponse:
-    """Return aggregate statistics across all stored data (HIST-04, D-08).
+    """Return aggregate statistics across all stored data.
 
     Returns:
         StatsResponse with total_extractions, unique_structures, most_common_formula.

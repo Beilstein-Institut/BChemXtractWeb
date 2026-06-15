@@ -1,11 +1,11 @@
-"""Audit-log prune Celery beat task (Phase 11 D-17).
+"""Audit-log prune Celery beat task.
 
 Daily at 03:00 UTC, delete ``audit_log`` rows older than
 ``Settings.audit_log_retention_days`` (default 365 days).
 
 Idempotent: re-running on the same day removes zero additional rows.
 A single beat scheduler in the deployment ensures the cron is not
-double-fired (Docker Compose `celery-beat` service, Plan 11-08).
+double-fired (Docker Compose `celery-beat` service).
 """
 
 from __future__ import annotations

@@ -1,5 +1,5 @@
 /**
- * useCSVExport tests — Phase 3 Task 12.
+ * useCSVExport tests.
  *
  * Covers:
  *   - `escapeCSVCell`: comma, double quote, CR, LF escaping.

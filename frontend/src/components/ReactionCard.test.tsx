@@ -2,11 +2,11 @@
  * Tests for ReactionCard component.
  * Vitest globals: true — no need to import describe/it/expect.
  *
- * Plan 10-04 — full-width horizontal card with combined reaction SVG,
- * reaction SMILES, short RInChI key, and component chip. Click opens sheet.
+ * Full-width horizontal card with combined reaction SVG, reaction SMILES,
+ * short RInChI key, and component chip. Click opens sheet.
  *
  * SVG rendered via `<img src="blob:...">` produced by useSvgObjectUrl
- * (T-10-05 XSS mitigation) — never innerHTML.
+ * (XSS mitigation) — never innerHTML.
  */
 import { render, screen, fireEvent } from "@testing-library/react";
 import { vi, beforeEach } from "vitest";

@@ -247,8 +247,8 @@ fi
 
 write_env() {
   # args: $1 = postgres password    (bootstrap superuser; DDL + role mgmt)
-  #       $2 = secret_key           (PBKDF2 salt + CSRF HMAC; D-10/D-19)
-  #       $3 = admin_secret         (gate for /api/admin/api-keys; D-11)
+  #       $2 = secret_key           (PBKDF2 salt + CSRF HMAC)
+  #       $3 = admin_secret         (gate for /api/admin/api-keys)
   #       $4 = app_db_password      (runtime bchemxtract_app role; RLS-enforcing)
   update_env_var POSTGRES_PASSWORD "$1"
   update_env_var SECRET_KEY         "$2"
@@ -393,10 +393,10 @@ preflight_db_password_drift() {
 }
 
 migrate_legacy_env() {
-  # Pre-Phase-11 .env files carry API_KEYS + BROWSER_API_KEY (gone after
-  # 11-05 cutover). Strip those lines on upgrade so docker-compose doesn't
-  # surface them as "extra inputs" warnings (Settings rejects them since
-  # Plan 11-05). Idempotent: no-op if the lines are already gone.
+  # Legacy .env files carry API_KEYS + BROWSER_API_KEY (no longer used).
+  # Strip those lines on upgrade so docker-compose doesn't surface them as
+  # "extra inputs" warnings (Settings now rejects them). Idempotent: no-op
+  # if the lines are already gone.
   "$PY" - <<'PYEOF'
 import re, pathlib
 p = pathlib.Path('.env')
@@ -444,10 +444,10 @@ elif [[ "$ROTATE_POSTGRES_PASSWORD" == true ]]; then
   rotate_postgres_password "$(gen_secret)"
   ok 'bootstrap superuser password rotated — the compose up below will pick it up'
 elif [[ -f .env ]]; then
-  # Existing-.env path. Migrate the file in place: strip pre-Phase-11
+  # Existing-.env path. Migrate the file in place: strip legacy
   # API_KEYS / BROWSER_API_KEY lines if present, and append APP_DB_PASSWORD
-  # if it is missing (operators who deploy across the Phase 11 cutover hit
-  # this path; without the auto-mint they would get a docker-compose
+  # if it is missing (operators upgrading from an older deploy hit this
+  # path; without the auto-mint they would get a docker-compose
   # interpolation error).
   migrated="$(migrate_legacy_env || true)"
   [[ -n "$migrated" ]] && warn 'Stripped legacy API_KEYS / BROWSER_API_KEY entries from .env'
@@ -527,7 +527,7 @@ if [[ -z "$(read_env_var BACKEND_PORT)" ]]; then
 fi
 ok "HTTP_PORT=$HTTP_PORT_VALUE ($PORT_SOURCE), BACKEND_PORT=$(read_env_var BACKEND_PORT)"
 
-# --- CORS / DEBUG coherence (Phase 11) --------------------------------------
+# --- CORS / DEBUG coherence --------------------------------------------------
 # The backend's `_validate_prod_cors` guard refuses to start when DEBUG=false
 # AND CORS_ORIGINS contains a localhost / 127.0.0.1 origin (cookies served
 # over plain HTTP cannot carry the Secure flag, so a prod-mode deploy with

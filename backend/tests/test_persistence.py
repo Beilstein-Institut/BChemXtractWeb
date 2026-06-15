@@ -1,6 +1,5 @@
-"""Integration tests for persistence service (Phase 5).
+"""Integration tests for persistence service.
 
-Requirements: INFRA-05, HIST-01, HIST-02, HIST-03, HIST-04
 Run: conda run -n cheminformatics pytest tests/test_persistence.py -x -q
 """
 
@@ -101,7 +100,7 @@ async def test_save_extraction_skips_empty_inchi_key(db_session):
 
 @pytest.mark.asyncio
 async def test_delete_extraction_removes_orphaned_substances(db_session):
-    """HIST-01/D-07: deleting an extraction removes orphaned substances."""
+    """HIST-01: deleting an extraction removes orphaned substances."""
     unique_key = _KEY_C
     extraction = await save_extraction(
         db_session, _make_response("orphan.cdx", inchi_keys=[unique_key])
@@ -117,7 +116,7 @@ async def test_delete_extraction_removes_orphaned_substances(db_session):
 
 @pytest.mark.asyncio
 async def test_delete_extraction_keeps_shared_substances(db_session):
-    """D-07: shared substance (referenced by another extraction) is not deleted."""
+    """Shared substance (referenced by another extraction) is not deleted."""
     shared_key = _KEY_D
     e1 = await save_extraction(
         db_session, _make_response("file1.cdx", inchi_keys=[shared_key])
@@ -136,7 +135,7 @@ async def test_delete_extraction_keeps_shared_substances(db_session):
 
 @pytest.mark.asyncio
 async def test_enforce_cap_removes_oldest_extractions(db_session):
-    """D-10: enforce_cap deletes oldest extractions when count exceeds max_count."""
+    """enforce_cap deletes oldest extractions when count exceeds max_count."""
     for i in range(5):
         await save_extraction(
             db_session,

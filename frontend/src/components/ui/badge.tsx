@@ -7,18 +7,18 @@ import { cn } from "@/lib/utils";
 /**
  * Badge — surface tier chip for tags / counts / status.
  *
- * Variants (Phase 3 Liquid Glass rebuild, Task 3):
+ * Variants (Liquid Glass rebuild):
  *   default    — primary tint (crimson)
  *   secondary  — secondary tint (teal)
  *   outline    — transparent with border
  *   success    — success-toned (green via OKLCH mix)
  *   warning    — warning-toned (amber via OKLCH mix)
  *
- * Legacy `ghost`, `destructive`, and `link` variants from the pre-Phase-3
+ * Legacy `ghost`, `destructive`, and `link` variants from the earlier
  * Badge are intentionally dropped — no call site in this repo references
  * them (verified via grep over frontend/src before rewrite).
  *
- * `data-slot="badge"` is preserved for Task 6 glass selectors + tests.
+ * `data-slot="badge"` is preserved for glass selectors + tests.
  */
 const badgeVariants = cva(
   "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:ring-2 aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",

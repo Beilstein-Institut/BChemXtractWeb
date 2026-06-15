@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 /**
- * Button — surface tier (Phase 3 Liquid Glass rebuild, Task 20 claymorphism).
+ * Button — surface tier (Liquid Glass rebuild, claymorphism).
  *
  * Variants:
  *   primary      — crimson claymorphism fill
@@ -28,11 +28,11 @@ import { cn } from "@/lib/utils";
  * button pattern. Do not pass `icon` for icon-only sizes — the
  * button's main child already is the icon in that case.
  *
- * The legacy `link` variant is dropped per the plan — migrated to
- * `ghost` with `data-underline`.
+ * The legacy `link` variant is dropped — migrated to `ghost` with
+ * `data-underline`.
  *
- * `data-variant` is preserved on the DOM element so Task 6's glass
- * selectors and any existing CSS can target the chosen variant.
+ * `data-variant` is preserved on the DOM element so the glass selectors
+ * and any existing CSS can target the chosen variant.
  */
 const buttonVariants = cva(
   cn(

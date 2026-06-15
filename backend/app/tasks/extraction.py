@@ -5,7 +5,7 @@ no asyncio) since Celery's solo pool executes tasks synchronously.
 Results are persisted via asyncio.run(save_extraction()) using a fresh
 DB session — Celery tasks have no FastAPI request context.
 
-Per D-09: exceptions are caught and returned as error metadata so the
+Exceptions are caught and returned as error metadata so the
 batch continues processing remaining files.
 
 Import note: service imports are at module level (not deferred) so tests
@@ -44,7 +44,7 @@ def extract_file_task(
 ) -> dict:
     """Extract substances from one file and persist the result.
 
-    Phase 11 D-01: the request-time scope is serialised through the
+    The request-time scope is serialised through the
     Celery kwargs so the worker — which has no FastAPI request context
     — can stamp the same ``(session_id, api_key_hash)`` onto every row
     it inserts. ``api_key_hash`` is round-tripped as hex because asyncpg
@@ -57,14 +57,14 @@ def extract_file_task(
         file_b64: Base64-encoded CDX/CDXML file content (JSON-safe).
         filename: Original filename for metadata and ZIP provenance.
         batch_id: UUID string tagging this extraction to its batch.
-        session_id: Caller's bcx_sid UUID4 (Phase 11 D-01), or None when
+        session_id: Caller's bcx_sid UUID4, or None when
             the caller authenticated via X-API-Key.
-        api_key_hash_hex: Hex-encoded PBKDF2 lookup hash (Phase 11 D-01),
+        api_key_hash_hex: Hex-encoded PBKDF2 lookup hash,
             or None when the caller authenticated via cookie.
 
     Returns:
         dict with keys: filename, structure_count, extraction_id, error.
-        error is None on success, a string on failure (D-09 skip-and-continue).
+        error is None on success, a string on failure (skip-and-continue).
     """
     self.update_state(
         state="STARTED",
@@ -102,7 +102,7 @@ def extract_file_task(
             extraction_id=None,
         )
 
-        # D-01: decode api_key_hash hex transport → bytes for the owner
+        # Decode api_key_hash hex transport → bytes for the owner
         # column. The worker has no FastAPI request, so it stashes the
         # scope on db.info so the after_begin listener (services/db.py)
         # applies the RLS GUCs on every BEGIN — required because the

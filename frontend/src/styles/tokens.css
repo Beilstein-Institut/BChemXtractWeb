@@ -1,4 +1,4 @@
-/* Phase 3 Liquid Glass design tokens.
+/* Liquid Glass design tokens.
  *
  * This file is the single source of truth for:
  *   - Color palette (light + dark)
@@ -43,7 +43,7 @@
 
   /* ---------- Neomorphism ----------
    * Soft inset (carved) + raised stacks for the Spotlight-style command
-   * palette and inline search bars (Task 19). The shadows deliberately
+   * palette and inline search bars. The shadows deliberately
    * layer a warm dark and a cool-white highlight so the surface reads
    * as a pressed-in divot (inset) or floating pillow (raised). Alpha
    * values are tuned against the light cream `--color-background` and

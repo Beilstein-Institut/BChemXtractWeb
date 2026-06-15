@@ -1,4 +1,4 @@
-"""Deterministic small-molecule corpus for search tests (Phase 9).
+"""Deterministic small-molecule corpus for search tests.
 
 Used by test_search_substructure.py, test_search_smiles.py, and
 test_canonicalize.py. Each entry provides a known InChI key so

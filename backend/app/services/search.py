@@ -1,28 +1,28 @@
-"""Search service: dispatch by type, attribution JOIN, SMARTS iterate (Phase 9).
+"""Search service: dispatch by type, attribution JOIN, SMARTS iterate.
 
 Entry point: :func:`execute_search` — called by ``backend/app/routers/search.py``.
 
-Dispatch (per D-14 + RESEARCH.md §Pattern 9):
+Dispatch:
 
 - ``type='auto'``  → :func:`detect_search_type` classifies the query into one
   of ``{inchi_key, formula, smiles}``.
-- ``type='inchi_key'`` → indexed ``WHERE inchi_key = :key`` (SRCH-01).
-- ``type='formula'``   → indexed ``WHERE molecular_formula = :formula`` (SRCH-02).
+- ``type='inchi_key'`` → indexed ``WHERE inchi_key = :key``.
+- ``type='formula'``   → indexed ``WHERE molecular_formula = :formula``.
 - ``type='smiles'``, ``match='canonical'`` → canonicalize query via
   :func:`app.services.canonicalize.canonicalize_smiles`; match against
-  ``Substance.canonical_smiles`` (SRCH-03).
+  ``Substance.canonical_smiles``.
 - ``type='smiles'``, ``match='literal'``   → match against the raw
   ``Substance.smiles`` column (no canonicalization).
 - ``type='substructure'`` → iterate candidate substances; run CDK
   ``SmartsPattern.matches()``; collect hits + matched atom indices; skip
-  unparsable rows with a per-result warning (SRCH-04, D-09).
+  unparsable rows with a per-result warning.
 
-Post-match attribution (D-10): one additional SELECT joins
+Post-match attribution: one additional SELECT joins
 Substance → ExtractionSubstance → Extraction and aggregates "found in N
 extractions" per result (grouped in Python — fast, no N+1 risk for the
-≤ 2k-substance v1 scale bound by D-07).
+≤ 2k-substance v1 scale bound).
 
-Scope (D-20):
+Scope:
 
 - ``'global'`` — all substances.
 - ``'extraction:{id}'`` — restricts to substances linked to that extraction
@@ -33,7 +33,7 @@ JVM policy: **all** CDK calls go through
 :func:`app.services.jvm_bridge.run_in_jvm_thread`. Never call CDK directly
 from an async handler.
 
-Polymer-SMILES guard (release blocker from Plan 02 carry-over): the
+Polymer-SMILES guard: the
 substructure branch applies a hard ``LENGTH(smiles) <= MAX_SUBSTRUCT_SMILES_LEN``
 SQL prefilter before iterating, because CDK's ``SmartsPattern.matches()`` and
 Daylight aromaticity perception hang for 10+ minutes on SMILES >= 1500 chars
@@ -70,7 +70,7 @@ from app.services.jvm_bridge import run_in_jvm_thread
 
 logger = logging.getLogger(__name__)
 
-# Per RESEARCH §Pattern 9 — precedence: inchi_key > formula > smiles.
+# Precedence: inchi_key > formula > smiles.
 # Anchored to prevent ReDoS.
 #
 # The formula pattern is linear-time even on pathological CPython `re`
@@ -89,16 +89,16 @@ logger = logging.getLogger(__name__)
 _INCHI_KEY_RE = re.compile(r"\A[A-Z]{14}(?:-[A-Z]{10}(?:-[A-Z])?)?\Z")
 _FORMULA_RE = re.compile(r"\A(?:[A-Z][a-z]?\d{0,5}){1,60}\Z")
 
-# Polymer-SMILES deadlock ceiling. Same threshold Plan 02 applies inside
+# Polymer-SMILES deadlock ceiling. Same threshold applied inside
 # :func:`canonicalize._canonicalize_smiles_sync` — CDK's ``SmartsPattern``
 # matching path is *also* subject to the deadlock, so we apply the same
-# ceiling to the substructure candidate set (threat model T-09-03-03/04).
+# ceiling to the substructure candidate set.
 # Stored SMILES longer than this are silently excluded from substructure
 # iteration and counted as "skipped" in the response warnings.
 MAX_SUBSTRUCT_SMILES_LEN = 1500
 
-# Per-hit attribution list cap (threat model T-09-03-04/06: bounds response
-# size even when a single substance appears in thousands of extractions).
+# Per-hit attribution list cap: bounds response size even when a single
+# substance appears in thousands of extractions.
 _MAX_ATTRIBUTION_REFS = 20
 
 # Skipped-id logging cap (avoid log flood when many rows fail to parse).
@@ -106,11 +106,11 @@ _MAX_LOGGED_SKIPPED = 20
 
 
 def detect_search_type(raw: str) -> str:
-    """Auto-detect the search type for a raw user query (D-01).
+    """Auto-detect the search type for a raw user query.
 
     Never returns ``"substructure"`` — substructure requires an explicit
-    ``type='substructure'`` on the request (D-03: substructure is too
-    expensive to run on every keystroke / auto-dispatch).
+    ``type='substructure'`` on the request, because it is too expensive to
+    run on every keystroke / auto-dispatch.
 
     Args:
         raw: The raw query string (will be stripped).
@@ -139,7 +139,7 @@ def _parse_scope(scope: str) -> int | None:
     Previously malformed scope strings silently fell back to ``"global"``,
     which is an IDOR-adjacent footgun once multi-tenant auth lands: a user
     mistypes ``"extraction:"`` and gets results across every extraction
-    they never should have seen (SEC M-06). The guard now rejects malformed
+    they never should have seen. The guard now rejects malformed
     scope explicitly with 400 so the failure is visible to the caller.
     """
     if scope == "global":
@@ -199,7 +199,7 @@ def _base_substance_select(scope_extraction_id: int | None):
 async def _search_inchi_key(
     q: str, scope_eid: int | None, db: AsyncSession
 ) -> list[Substance]:
-    """SRCH-01: indexed exact / prefix InChI key match.
+    """Indexed exact / prefix InChI key match.
 
     The user-supplied key is stripped and uppercased before matching, so
     ``"  uhovqnzjysornb-uhffffaoysa-n  "`` collapses to the canonical
@@ -234,11 +234,11 @@ async def _search_inchi_key(
 async def _search_formula(
     q: str, scope_eid: int | None, db: AsyncSession
 ) -> list[Substance]:
-    """SRCH-02: indexed exact molecular formula match.
+    """Indexed exact molecular formula match.
 
     No canonicalization is applied — the user types ``C6H6`` and we match
-    against the stored string exactly. (Plan 02 added a B-tree index on
-    ``molecular_formula`` for this query.)
+    against the stored string exactly. (A B-tree index on
+    ``molecular_formula`` backs this query.)
     """
     stmt = _base_substance_select(scope_eid).where(
         Substance.molecular_formula == q.strip()
@@ -249,11 +249,11 @@ async def _search_formula(
 async def _search_smiles(
     q: str, match_mode: str, scope_eid: int | None, db: AsyncSession
 ) -> list[Substance]:
-    """SRCH-03: SMILES match — ``'canonical'`` (default) or ``'literal'``.
+    """SMILES match — ``'canonical'`` (default) or ``'literal'``.
 
     ``canonical`` canonicalizes the query via
     :func:`app.services.canonicalize.canonicalize_smiles` and matches against
-    the ``Substance.canonical_smiles`` column populated by Plan 02's
+    the ``Substance.canonical_smiles`` column populated by the
     write-through + Alembic backfill (the column is indexed). If the query
     can't be parsed by CDK, raise :class:`InvalidSmilesError`.
 
@@ -283,8 +283,8 @@ def _substructure_sync(
 
     JVM-thread-bound; call through :func:`run_in_jvm_thread`.
 
-    Delegates matching to :mod:`app.services.substructure` (Plan
-    2026-04-24). Produces one tuple per hit carrying:
+    Delegates matching to :mod:`app.services.substructure`. Produces one
+    tuple per hit carrying:
 
       - substance_id
       - sorted matched target-atom indices
@@ -343,9 +343,9 @@ def _substructure_sync(
     # 422 responses.
     parsed = parse_query(raw_query, match_stereo=stereo)
 
-    # Accessibility title embedded in each highlighted SVG per UI-SPEC
-    # §Accessibility. The helper HTML-escapes the title to prevent
-    # user-supplied queries from breaking SVG structure (threat T-09-04-02).
+    # Accessibility title embedded in each highlighted SVG. The helper
+    # HTML-escapes the title to prevent user-supplied queries from breaking
+    # SVG structure.
     highlight_title = f"Matches {raw_query[:80]}"
 
     hits: list[tuple[int, list[int], list[int], bool, str]] = []
@@ -359,7 +359,7 @@ def _substructure_sync(
             target = target_parser.parseSmiles(smi)
             # Apply aromaticity perception so aromatic queries (c1ccccc1)
             # match stored Kekulé SMILES after CDK's default parse — same
-            # recipe used in Plan 02's canonicalize service. Aromaticity
+            # recipe used in the canonicalize service. Aromaticity
             # can raise non-JException, so guard with a broad except.
             AtomContainerManipulator.percieveAtomTypesAndConfigureAtoms(target)
             aromaticity.apply(target)
@@ -378,7 +378,7 @@ def _substructure_sync(
         if not result.matched:
             continue
 
-        # Plan 2026-04-24: render per-hit highlight SVG in the same JVM
+        # Render per-hit highlight SVG in the same JVM
         # pass. The helper has its own two-tier fallback (highlight →
         # plain → ""), so a render failure never breaks the hit —
         # match_svg just comes back as "" which execute_search converts
@@ -415,11 +415,11 @@ async def _search_substructure(
     dict[int, str],  # svg_map
     int,  # skipped_count
 ]:
-    """SRCH-04: substructure iterate + per-hit highlight render.
+    """Substructure iterate + per-hit highlight render.
 
-    Plan 2026-04-24: delegates to :mod:`app.services.substructure` for
-    matching and returns per-hit bond indices + partial_match flag
-    alongside the existing atom / svg maps.
+    Delegates to :mod:`app.services.substructure` for matching and returns
+    per-hit bond indices + partial_match flag alongside the existing atom /
+    svg maps.
 
     Applies the ``MAX_SUBSTRUCT_SMILES_LEN`` polymer-SMILES ceiling via SQL
     prefilter so the candidate rows handed to CDK never include inputs
@@ -445,8 +445,8 @@ async def _search_substructure(
     # Separately count rows excluded by the polymer-SMILES prefilter so
     # the user sees "N substances could not be parsed and were skipped"
     # include oversize inputs in the same bucket as CDK parse failures
-    # (D-09: the UX distinction is "we tried but couldn't process this",
-    # not "why"). Scope-restricted when applicable so the count matches
+    # — the UX distinction is "we tried but couldn't process this",
+    # not "why". Scope-restricted when applicable so the count matches
     # the candidate universe.
     oversize_stmt = (
         select(func.count())
@@ -496,7 +496,7 @@ async def _search_substructure(
 async def _load_attribution(
     substance_ids: list[int], db: AsyncSession
 ) -> dict[int, list[SearchExtractionRef]]:
-    """Load extraction attribution for a set of substance IDs (D-10).
+    """Load extraction attribution for a set of substance IDs.
 
     One SELECT joins Substance → ExtractionSubstance → Extraction and
     returns the per-substance list of extractions newest-first. The caller
@@ -542,13 +542,13 @@ def _to_substance_response(s: Substance) -> SubstanceResponse:
     ``backend/app/models/chemistry.py`` lines 12-26) but **not** on the
     :class:`Substance` ORM row. They are populated during live extraction
     from the CDK ``BCXSubstance`` object and lost when the substance is
-    persisted (Phase 5 deduplication only stores identifiers + structure
+    persisted (deduplication only stores identifiers + structure
     fields). For stored-substance responses we set them explicitly to
     their Pydantic defaults — an empty string for the two text fields
     and an empty dict for ``abbreviations``.
 
     Setting these explicitly (not relying on Pydantic default-factory
-    serialization) makes the contract self-documenting and keeps Plan 07
+    serialization) makes the contract self-documenting and keeps the
     frontend test mocks (``SearchResults.test.tsx``, ``SearchResultCard``)
     stable across Pydantic minor versions.
     """
@@ -576,7 +576,7 @@ async def execute_search(payload: SearchRequest, db: AsyncSession) -> SearchResp
       2. Parse ``scope`` into ``extraction_id`` (or None for global).
       3. Dispatch to the per-type handler.
       4. Paginate the matched rows (simple in-memory slice — bounded by
-         D-07 2k scale).
+         the 2k-substance scale).
       5. Load attribution for the page's substances with a single JOIN.
       6. Assemble the :class:`SearchResponse` with warnings.
     """
@@ -590,7 +590,7 @@ async def execute_search(payload: SearchRequest, db: AsyncSession) -> SearchResp
     svg_map: dict[int, str] = {}
     skipped_count = 0
 
-    # Dispatch per D-14. Pydantic Literal validation rejects unknown
+    # Dispatch by type. Pydantic Literal validation rejects unknown
     # types before we reach this point, so the final else is purely
     # defensive against a future type addition landing without a handler.
     if effective_type == "inchi_key":
@@ -617,7 +617,7 @@ async def execute_search(payload: SearchRequest, db: AsyncSession) -> SearchResp
         )
 
     total = len(substances)
-    # Paginate (simple in-memory slice — bounded by D-07 ≤ 2k scale).
+    # Paginate (simple in-memory slice — bounded by the ≤ 2k scale).
     start = (payload.page - 1) * payload.size
     end = start + payload.size
     page_subs = substances[start:end]
@@ -625,11 +625,10 @@ async def execute_search(payload: SearchRequest, db: AsyncSession) -> SearchResp
 
     attribution = await _load_attribution(page_ids, db)
 
-    # Plan 04: ``svg_map`` is populated only on substructure hits — non-
+    # ``svg_map`` is populated only on substructure hits — non-
     # substructure branches leave it empty so ``.get()`` returns None,
-    # satisfying the SearchResult Pydantic default (UI-SPEC §Match
-    # Highlighting: "component prefers match_svg over the stored svg
-    # when present").
+    # satisfying the SearchResult Pydantic default: the frontend component
+    # prefers match_svg over the stored svg when present.
     results: list[SearchResult] = []
     for s in page_subs:
         sid = int(s.id)

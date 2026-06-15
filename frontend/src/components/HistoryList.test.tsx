@@ -1,8 +1,8 @@
 /**
- * HistoryList tests — Phase 3 Task 12 rewrite.
+ * HistoryList tests.
  *
  * Covers:
- *   - Empty state via shared <EmptyState> (D-19 preserved).
+ *   - Empty state via shared <EmptyState>.
  *   - Toolbar renders with search + export button.
  *   - Sticky column header emitted alongside rows.
  *   - Zebra striping: odd rows (index 1, 3, ...) get `bg-surface-elevated`.
@@ -48,8 +48,8 @@ const noopReloadSuccess = () => {};
 const noopDelete = async () => {};
 const alwaysReload = async () => mockReload;
 
-describe("HistoryList — Phase 3", () => {
-  it("renders shared EmptyState when there are no entries (D-19)", () => {
+describe("HistoryList", () => {
+  it("renders shared EmptyState when there are no entries", () => {
     render(
       <HistoryList
         entries={[]}

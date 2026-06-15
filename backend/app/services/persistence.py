@@ -1,4 +1,4 @@
-"""Persistence service: save extractions to PostgreSQL with deduplication (Phase 5).
+"""Persistence service: save extractions to PostgreSQL with deduplication.
 
 All three public functions accept an AsyncSession from get_db() or a test fixture.
 save_extraction() and delete_extraction_by_id() call db.commit() internally.
@@ -30,10 +30,10 @@ from app.services.canonicalize import canonicalize_smiles
 logger = logging.getLogger(__name__)
 
 MAX_EXTRACTIONS = 500
-"""Retention cap per D-10: oldest extraction auto-deleted when limit is reached."""
+"""Retention cap: oldest extraction auto-deleted when limit is reached."""
 
 CANONICAL_BATCH_SIZE = 32
-"""Per D-05 + threat model T-09-02-02: canonicalize substances in chunks of
+"""Canonicalize substances in chunks of
 ~32 via asyncio.gather so JVM-thread-pool waits overlap. Target: ≤ 1 s
 added latency per 100 substances, vs ~3 s for sequential (100 × 30 ms).
 Tune if the JVM pool size changes in jvm_bridge.py.
@@ -49,27 +49,27 @@ async def save_extraction(
 
     Steps:
       1. Insert an Extraction row.
-      2. Upsert each Substance via ON CONFLICT (inchi_key) DO NOTHING (D-02).
+      2. Upsert each Substance via ON CONFLICT (inchi_key) DO NOTHING.
       3. Fetch IDs for all substances (new + existing) by inchi_key.
       4. Insert ExtractionSubstance join rows.
       5. Commit and refresh.
-      6. Enforce 500-record cap (D-10).
+      6. Enforce 500-record cap.
 
     Args:
         db: AsyncSession from get_db() dependency.
         response: ExtractionResponse from the extraction pipeline.
-        scope: ``(session_id, api_key_hash)`` ownership pair (Phase 11 D-01).
+        scope: ``(session_id, api_key_hash)`` ownership pair.
             The router-side ``get_scoped_db`` dependency populates this via
             ``request.state.scope``; the Celery batch worker passes it
             explicitly through task kwargs. Default ``(None, None)`` is for
             internal/non-runtime callers (migration helpers, ad-hoc tests).
-            FORCE RLS is in effect after Phase 11 — rows inserted with
+            FORCE RLS is in effect — rows inserted with
             ``(None, None)`` are unreachable by any user request.
 
     Returns:
         The newly created Extraction ORM instance with id populated.
     """
-    # Phase 11 D-01: unpack owner columns for explicit write-through.
+    # Unpack owner columns for explicit write-through.
     # Defence-in-depth — the join-row inserts below set the same columns
     # rather than relying on RLS to filter join-row reads via the JOIN.
     session_id, api_key_hash = scope
@@ -111,20 +111,20 @@ async def save_extraction(
                 "svg": s.svg,
                 "svg_cdx": s.svg_cdx,
                 "mdlv3000": s.mdlv3000,
-                # D-05: placeholder — overwritten by the chunked gather below.
+                # placeholder — overwritten by the chunked gather below.
                 "canonical_smiles": None,
             }
             for s in valid_substances
         ]
 
-        # D-05: canonical-SMILES write-through via CHUNKED asyncio.gather.
+        # Canonical-SMILES write-through via CHUNKED asyncio.gather.
         # Per-substance canonicalization is I/O-bound on the JVM thread pool
         # (~30 ms each). Sequential awaits would add 30 ms × N seconds of
         # latency (15 s for 500 substances). Chunked gather overlaps the
         # waits so the total cost is ~(N / pool_size) × 30 ms (≤ 1 s per
-        # 100 substances — threat model T-09-02-02).
+        # 100 substances).
         #
-        # Best-effort, log-and-continue per the D-03 auto-persist philosophy.
+        # Best-effort, log-and-continue per the auto-persist philosophy.
         # Individual canonicalization failures must NEVER break extraction:
         # return_exceptions=True keeps the gather alive even if one raises.
         canonical_results: list[str | BaseException] = []
@@ -147,10 +147,10 @@ async def save_extraction(
                 item["canonical_smiles"] = None
                 continue
             # canonicalize_smiles returns "" on parse failure; store as NULL
-            # so unparsable rows match the backfill semantics (D-09 + fix #9).
+            # so unparsable rows match the backfill semantics.
             item["canonical_smiles"] = result or None
 
-        # ON CONFLICT DO NOTHING: first-seen metadata wins (D-02)
+        # ON CONFLICT DO NOTHING: first-seen metadata wins
         await db.execute(
             pg_insert(Substance)
             .values(substance_data)
@@ -165,7 +165,7 @@ async def save_extraction(
         substance_ids = result.scalars().all()
 
         # Step 4: Insert join rows (ignore duplicates — re-extracting same file)
-        # Phase 11 D-01: owner columns mirror the parent Extraction so RLS
+        # Owner columns mirror the parent Extraction so RLS
         # filtering on the join table works even without JOIN propagation.
         if substance_ids:
             join_data = [
@@ -187,7 +187,7 @@ async def save_extraction(
     await db.commit()
     await db.refresh(extraction)
 
-    # Step 6: Enforce retention cap (D-10) — separate transaction
+    # Step 6: Enforce retention cap — separate transaction
     await enforce_cap(db)
 
     return extraction
@@ -196,12 +196,12 @@ async def save_extraction(
 async def enforce_cap(db: AsyncSession, max_count: int = MAX_EXTRACTIONS) -> None:
     """Delete oldest extractions when count exceeds max_count, then orphan-clean.
 
-    Inline cleanup per D-10: no trigger, no scheduled task. Runs after every
+    Inline cleanup: no trigger, no scheduled task. Runs after every
     successful save_extraction(). Safe to call when count is within cap.
 
     Args:
         db: AsyncSession from get_db() dependency.
-        max_count: Maximum number of extractions to keep. Default 500 (D-10).
+        max_count: Maximum number of extractions to keep. Default 500.
     """
     total = await db.scalar(select(func.count()).select_from(Extraction))
     if total is None or total <= max_count:
@@ -237,7 +237,7 @@ async def delete_extraction_by_id(db: AsyncSession, extraction_id: int) -> bool:
 
     The CASCADE FKs on extraction_substances.extraction_id and
     extraction_reactions.extraction_id remove join rows. After deletion,
-    substances and reactions with no remaining links are removed (D-07, D-21).
+    substances and reactions with no remaining links are removed.
 
     Args:
         db: AsyncSession from get_db() dependency.
@@ -260,7 +260,7 @@ async def delete_extraction_by_id(db: AsyncSession, extraction_id: int) -> bool:
         )
     )
 
-    # Plan 10 D-21: orphan Reaction cleanup (mirror orphan-substance cleanup above).
+    # Orphan Reaction cleanup (mirror orphan-substance cleanup above).
     await db.execute(
         delete(Reaction).where(
             Reaction.id.not_in(select(ExtractionReaction.reaction_id))
@@ -301,15 +301,15 @@ async def update_substance_svgs(
 
 
 # ---------------------------------------------------------------------------
-# Plan 10: Reaction persistence (D-18 amended, D-19, D-21, D-23)
+# Reaction persistence
 # ---------------------------------------------------------------------------
 
 
 def _reaction_dedup_key(rxn: ReactionResponse) -> str:
-    """Compute the UNIQUE dedup value for a reaction row (Plan 10 D-18 amended).
+    """Compute the UNIQUE dedup value for a reaction row.
 
     Upstream BChemXtract never populates rinchi_key (verified in
-    ReactionXtractor.java:132 -- see 10-RESEARCH Critical Finding 1). We use
+    ReactionXtractor.java:132). We use
     long_rinchi_key as the primary dedup column; fall back to
     ``NO_RINCHI_{sha1(reaction_smiles)}`` when RInChI generation yielded
     nothing. ``NO_RINCHI_EMPTY`` is a last-resort sentinel for reactions that
@@ -334,20 +334,20 @@ async def get_or_create_extraction_row(
 ) -> int:
     """Find or create the Extraction row a reactions call should attach to.
 
-    Pitfall 9 mitigation: when user hits /api/reactions before /api/extract
+    When a user hits /api/reactions before /api/extract
     ever ran for this file, there's no Extraction row. Create a minimal one
     (structure_count=0, extraction_time_ms=0) so history stays consistent
-    with D-23's "{N} substances . {M} reactions" chip rule.
+    with the "{N} substances . {M} reactions" chip rule.
 
-    Idempotence (D-05): v1 uses (filename, file_size, format) tuple as the
+    Idempotence: v1 uses (filename, file_size, format) tuple as the
     fingerprint -- close-enough for common re-upload-identical-file flows.
-    Deferred Ideas in 10-CONTEXT.md captures the SHA-256-based upgrade path
-    (store a dedicated file_hash column and look up by it) -- for a
+    The SHA-256-based upgrade path (store a dedicated file_hash column and
+    look up by it) is deferred -- for a
     single-user app this is acceptable v1 scope. The ``file_hash`` parameter
     is accepted but unused in v1; it's retained in the signature so callers
     compute it once and the upgrade path is drop-in.
 
-    Phase 11 D-01: when a new row is created here it lands with the
+    When a new row is created here it lands with the
     caller's (session_id, api_key_hash) scope so RLS reads via the matching
     cookie/key return it. The lookup query runs under the RLS context set
     by ``get_scoped_db`` so cross-session collisions are structurally
@@ -360,7 +360,7 @@ async def get_or_create_extraction_row(
         file_size: raw bytes length.
         format: "cdx" or "cdxml".
         file_hash: SHA-256 of file_bytes (reserved for v2 upgrade path).
-        scope: ``(session_id, api_key_hash)`` ownership pair (Phase 11 D-01).
+        scope: ``(session_id, api_key_hash)`` ownership pair.
 
     Returns:
         extraction_id of the matched-or-created row.
@@ -405,24 +405,24 @@ async def save_reactions(
     reactions: list[ReactionResponse],
     scope: tuple[str | None, bytes | None] = (None, None),
 ) -> int:
-    """Persist reactions for an extraction (Plan 10 D-18 amended, D-19).
+    """Persist reactions for an extraction.
 
-    Mirrors save_extraction (Phase 5 pattern):
+    Mirrors the save_extraction pattern:
       1. Upsert each Reaction via ON CONFLICT (long_rinchi_key) DO NOTHING.
       2. Fetch IDs for all reactions by dedup key.
       3. Insert ExtractionReaction join rows with position.
-      4. Update Extraction.reaction_count (D-16, D-23).
+      4. Update Extraction.reaction_count.
       5. Commit.
 
     Failures are allowed to raise -- the router is responsible for catching
-    and logging (best-effort; D-19).
+    and logging (best-effort).
 
     Args:
         db: async session.
         extraction_id: parent Extraction row id (must exist).
         reactions: list of ReactionResponse; may be empty (still updates
             reaction_count to 0).
-        scope: ``(session_id, api_key_hash)`` ownership pair (Phase 11 D-01).
+        scope: ``(session_id, api_key_hash)`` ownership pair.
             Written onto the ExtractionReaction join rows so RLS filtering
             applies to direct queries against the join table.
 
@@ -458,7 +458,7 @@ async def save_reactions(
         for r in reactions
     ]
 
-    # Dedup on long_rinchi_key (D-18 amended, first-seen wins)
+    # Dedup on long_rinchi_key (first-seen wins)
     await db.execute(
         pg_insert(Reaction)
         .values(reaction_rows)
@@ -490,7 +490,7 @@ async def save_reactions(
             pg_insert(ExtractionReaction).values(join_rows).on_conflict_do_nothing()
         )
 
-    # Update reaction_count on Extraction (D-16)
+    # Update reaction_count on Extraction
     await db.execute(
         update(Extraction)
         .where(Extraction.id == extraction_id)
@@ -504,7 +504,7 @@ async def get_extraction_reactions(
     db: AsyncSession,
     extraction_id: int,
 ) -> tuple[Extraction, list[ReactionResponse]] | None:
-    """Fetch cached reactions for an extraction (Plan 10 D-23 history-hydration).
+    """Fetch cached reactions for an extraction (history-hydration).
 
     Returns ``(extraction_row, reactions)`` where reactions are the cached
     ``Reaction`` rows joined through ``ExtractionReaction`` and ordered by

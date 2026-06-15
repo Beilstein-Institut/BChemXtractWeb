@@ -1,5 +1,5 @@
 /**
- * Input — tests for the Phase 3 Liquid Glass form primitive (Task 4).
+ * Input — tests for the Liquid Glass form primitive.
  *
  * Covers: render, data-slot contract, controlled value/onChange, disabled
  * suppression, type forwarding, placeholder resolution, focus-visible ring

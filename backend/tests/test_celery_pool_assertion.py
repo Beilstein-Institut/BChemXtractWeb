@@ -1,4 +1,4 @@
-"""Regression test for the Celery pool assertion (SEC H-03).
+"""Regression test for the Celery pool assertion.
 
 Ensures that a worker started with anything other than ``--pool=solo``
 refuses to initialise. Mutates ``sys.argv`` to simulate the operator

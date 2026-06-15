@@ -4,7 +4,7 @@ import { Input as InputPrimitive } from "@base-ui/react/input";
 import { cn } from "@/lib/utils";
 
 /**
- * Input — form tier (Phase 3 Liquid Glass rebuild, Task 4).
+ * Input — form tier (Liquid Glass rebuild).
  *
  * Shares the form-input pattern with Textarea and Select trigger:
  *   bg-surface-muted / border-border / rounded-sm / focus-visible ring-ring.

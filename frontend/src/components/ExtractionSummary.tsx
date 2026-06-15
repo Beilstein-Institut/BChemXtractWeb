@@ -3,7 +3,7 @@
  * count, extraction time, an "Upload another file" button, and an optional
  * dismissible amber warning banner.
  *
- * Implements D-03 (summary bar) and D-12 (warning banner).
+ * Implements the summary bar and the warning banner.
  */
 import { useState } from "react";
 import { AlertTriangleIcon, XIcon } from "lucide-react";
@@ -38,7 +38,7 @@ function pluralize(count: number, singular: string, plural: string): string {
  *
  * Renders an amber warning Alert when `response.warnings.length > 0`. The
  * alert can be dismissed and will not reappear until the component is remounted.
- * Warning text is rendered as React text nodes (auto-escaped HTML) per T-04-05.
+ * Warning text is rendered as React text nodes (auto-escaped HTML).
  */
 export function ExtractionSummary({ response, onReset }: ExtractionSummaryProps) {
   const [warningsDismissed, setWarningsDismissed] = useState(false);

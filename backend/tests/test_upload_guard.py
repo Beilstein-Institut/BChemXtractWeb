@@ -1,4 +1,4 @@
-"""Tests for the bounded streaming upload helper (SEC H-02, M-02).
+"""Tests for the bounded streaming upload helper.
 
 Proves that :func:`app.services.upload_guard.read_upload_bounded`:
 

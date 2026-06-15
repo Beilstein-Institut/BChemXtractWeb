@@ -2,7 +2,7 @@
  * Accessibility smoke — axe-core sweep of every top-level route.
  *
  * Asserts zero serious or critical violations on each page. Runs in the
- * same Playwright pipeline as phase3-smoke so the a11y gate ships with
+ * same Playwright pipeline as the smoke suite so the a11y gate ships with
  * every build. Lower-severity findings surface in the assertion message
  * but do not fail the suite; severe violations block the commit.
  */

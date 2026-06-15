@@ -1,5 +1,5 @@
 /**
- * AboutPage tests — Phase 3 Task 13.
+ * AboutPage tests.
  *
  * Covers:
  *   - Root + every tile expose their `data-slot` hook.

@@ -1,5 +1,5 @@
 /**
- * Phase 3 smoke tests — Liquid Glass rebuild sign-off.
+ * Smoke tests — Liquid Glass rebuild sign-off.
  *
  * Six scenarios covering the core happy path on each top-level route plus
  * the new ⌘K palette and theme-switch. Scenarios 2-6 don't need the backend;
@@ -7,7 +7,7 @@
  * and skipped by default until a backend-enabled e2e pipeline is in place.
  *
  * Conventions:
- *   - All selectors use `data-slot` hooks declared in the Phase 3 pages /
+ *   - All selectors use `data-slot` hooks declared in the pages /
  *     components (BrowsePage, HistoryPage, AboutPage, CommandPalette,
  *     ChemistryThemeSwitch, StructureCard).
  *   - Each test navigates directly to the route under test and waits for
@@ -48,7 +48,7 @@ async function isBackendUp(): Promise<boolean> {
   return false;
 }
 
-test.describe("Phase 3 — Extract page", () => {
+test.describe("Extract page", () => {
   // Requires a live backend (JPype + BChemXtract). When the health probe
   // fails (frontend-only dev), skip so the rest of the smoke suite still
   // runs. TODO: wire this into the full docker-compose e2e environment
@@ -83,7 +83,7 @@ test.describe("Phase 3 — Extract page", () => {
   });
 });
 
-test.describe("Phase 3 — Browse page", () => {
+test.describe("Browse page", () => {
   test("loads bento + search filter input", async ({ page }) => {
     await page.goto("/browse");
     await expect(page.locator('[data-slot="browse-page"]')).toBeVisible();
@@ -94,7 +94,7 @@ test.describe("Phase 3 — Browse page", () => {
   });
 });
 
-test.describe("Phase 3 — History page", () => {
+test.describe("History page", () => {
   test("loads header + CSV export button (when entries exist)", async ({ page }) => {
     await page.goto("/history");
     await expect(page.locator('[data-slot="history-page"]')).toBeVisible();
@@ -117,7 +117,7 @@ test.describe("Phase 3 — History page", () => {
   });
 });
 
-test.describe("Phase 3 — About page", () => {
+test.describe("About page", () => {
   test("loads bento with mission hero + tech stack", async ({ page }) => {
     await page.goto("/about");
     await expect(page.locator('[data-slot="about-page"]')).toBeVisible();
@@ -127,7 +127,7 @@ test.describe("Phase 3 — About page", () => {
   });
 });
 
-test.describe("Phase 3 — Command palette (⌘K / Ctrl+K)", () => {
+test.describe("Command palette (⌘K / Ctrl+K)", () => {
   test("opens on ⌘K, closes on Esc, navigation works", async ({ page }) => {
     await page.goto("/");
     // Wait for the app to mount before dispatching the global keydown —
@@ -161,7 +161,7 @@ test.describe("Phase 3 — Command palette (⌘K / Ctrl+K)", () => {
   });
 });
 
-test.describe("Phase 3 — Theme switch", () => {
+test.describe("Theme switch", () => {
   test("clicking the flask toggle flips the `.dark` class on <html>", async ({ page }) => {
     await page.goto("/");
     // Seed a known light baseline so the click always transitions into dark

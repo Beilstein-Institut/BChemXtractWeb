@@ -1,8 +1,8 @@
 /**
- * Tests for ExtractionTabs container (Plan 10-05 Task 5.2).
+ * Tests for ExtractionTabs container.
  *
  * Verifies Structures (N) + Reactions [Experimental] triggers, default active
- * tab, tab-switch behavior, and — crucially — the URL-state contract (D-08):
+ * tab, tab-switch behavior, and — crucially — the URL-state contract:
  * tab switching is LOCAL STATE ONLY; never calls history.pushState/
  * replaceState and never touches window.location.search.
  */

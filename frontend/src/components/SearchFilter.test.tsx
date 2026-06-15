@@ -1,5 +1,5 @@
 /**
- * SearchFilter — composite tests (Phase 3 Task 11).
+ * SearchFilter — composite tests.
  *
  * Covers:
  *   - renders the search input + 3 filter chips
@@ -117,7 +117,7 @@ describe("SearchFilter", () => {
 
   it("syncs the local input when the parent resets value.q externally", () => {
     // Mount with a non-empty `q` so the input reflects "benzene", then
-    // simulate the parent (e.g. a Task 14 share-link clear) flipping
+    // simulate the parent (e.g. a share-link clear) flipping
     // value.q back to "" — the local input must follow without waiting
     // for another keystroke.
     const onChange = vi.fn();

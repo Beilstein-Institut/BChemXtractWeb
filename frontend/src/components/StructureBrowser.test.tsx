@@ -124,7 +124,7 @@ describe("StructureBrowser component", () => {
   it("shows error EmptyState when browseState=error (D-19)", () => {
     mockUseBrowse.mockReturnValue(makeBrowseReturn({ browseState: "error" }));
     render(<StructureBrowser extractionId={42} onReset={vi.fn()} />);
-    // Phase 9 D-19: migrated from inline block to shared <EmptyState>.
+    // Migrated from inline block to shared <EmptyState>.
     expect(screen.getByText("Couldn't load structures")).toBeInTheDocument();
     expect(screen.getByText("Check your connection and try again.")).toBeInTheDocument();
     expect(screen.getByText("Try again")).toBeInTheDocument();
@@ -140,7 +140,7 @@ describe("StructureBrowser component", () => {
     };
     mockUseBrowse.mockReturnValue(makeBrowseReturn({ browseState: "success", page: emptyPage }));
     render(<StructureBrowser extractionId={42} onReset={vi.fn()} />);
-    // Phase 9 D-19: migrated from inline FlaskConicalIcon block to shared EmptyState.
+    // Migrated from inline FlaskConicalIcon block to shared EmptyState.
     expect(screen.getByText("Nothing to browse yet")).toBeInTheDocument();
   });
 

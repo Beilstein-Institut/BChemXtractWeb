@@ -40,7 +40,7 @@
 
   /* Typography scale aliases — register with `@theme` so Tailwind generates
    * `text-caption`, `text-display-lg`, etc. as real utilities. Without this
-   * the classes silently fall back (Phase 3 Task 15 polish).
+   * the classes silently fall back.
    */
   --text-display-2xl: var(--text-display-2xl);
   --text-display-xl: var(--text-display-xl);
@@ -52,7 +52,7 @@
   --text-mono-sm: var(--text-mono-sm);
 }
 
-/* Claymorphism Button variants (Phase 3 Task 20).
+/* Claymorphism Button variants.
  * Utilities that back the CVA in components/ui/button.tsx so the CVA
  * stays terse. Palette references crimson / teal / navy via the token
  * layer's --color-primary / --color-secondary / --color-foreground and
@@ -326,7 +326,7 @@ body {
 }
 
 /* ============================================================
-   Batch progress shimmer (Phase 3 Task 22).
+   Batch progress shimmer.
    A travelling highlight on `[data-slot="progress-indicator"]::after`
    that signals an in-flight batch even between width updates. The
    component applies `after:animate-[batch-shimmer_...]` (see

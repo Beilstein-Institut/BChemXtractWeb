@@ -1,7 +1,7 @@
 /**
- * ReactionsTab — orchestrator for the Reactions tab body (Plan 10-05).
+ * ReactionsTab — orchestrator for the Reactions tab body.
  *
- * Decides between five sub-states (UI-SPEC §3):
+ * Decides between five sub-states:
  *   - idle (pre-extract): ExperimentalBanner + EmptyState + "Extract reactions" CTA
  *     (or a "Re-upload" variant when the browser doesn't still hold the File object).
  *   - loading: Spinner + "Extracting reactions from {filename}…"
@@ -9,12 +9,12 @@
  *   - success with zero reactions: "No reactions detected" EmptyState
  *   - error: "Reaction extraction didn't work" EmptyState + retry button
  *
- * D-06 timeout contract: a success response with non-empty `warnings` surfaces
+ * Timeout contract: a success response with non-empty `warnings` surfaces
  * as a sonner toast; the main body renders normally (reactions list or the
  * zero-reactions EmptyState depending on `reactions.length`). The toast is
  * shown exactly once per success cycle (guarded by `timeoutToastShown` ref).
  *
- * D-23 hydration: when `cachedReactions` is non-null (e.g., the parent loaded
+ * Hydration: when `cachedReactions` is non-null (e.g., the parent loaded
  * a historical extraction with reaction_count > 0 and fetched
  * /api/extractions/{id}/reactions), the tab bypasses the extract-trigger flow
  * entirely and renders the cached list immediately.
@@ -48,7 +48,7 @@ export interface ReactionsTabProps {
   /**
    * Pre-cached reactions from a prior /api/reactions call for this
    * extraction (populated by the parent via GET /api/extractions/{id}/reactions
-   * when the active view is historical and reaction_count > 0 — D-23).
+   * when the active view is historical and reaction_count > 0).
    * When non-null, bypasses the extract-trigger flow and renders the cached
    * list directly.
    */
@@ -81,7 +81,7 @@ export function ReactionsTab({
   const timeoutToastShown = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Surface warnings (typically D-06 timeout) as a toast exactly once per
+  // Surface warnings (typically a timeout) as a toast exactly once per
   // success cycle — resets to unshown whenever state leaves 'success'.
   useEffect(() => {
     if (state !== "success") {

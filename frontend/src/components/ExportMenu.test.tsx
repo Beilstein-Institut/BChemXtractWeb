@@ -260,7 +260,7 @@ describe("ExportMenu", () => {
   });
 
   // ==========================================================================
-  // Plan 10-05 Task 5.2 — D-22 / UI-SPEC §7: reactionsAvailable prop
+  // reactionsAvailable prop
   // ==========================================================================
 
   it("RXN item is aria-disabled when reactionsAvailable is false (default)", () => {

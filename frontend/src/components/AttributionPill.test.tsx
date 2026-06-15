@@ -105,7 +105,7 @@ describe("AttributionPill", () => {
     expect(onView).toHaveBeenCalledTimes(3);
   });
 
-  it("count === 1 with non-positive extraction_id falls back to popover (SEC MED-05)", () => {
+  it("count === 1 with non-positive extraction_id falls back to popover", () => {
     const onView = vi.fn();
     render(
       <AttributionPill
@@ -121,7 +121,7 @@ describe("AttributionPill", () => {
     expect(screen.getByRole("button", { name: /Found in 1 extractions/i })).toBeTruthy();
   });
 
-  it("popover row with non-positive extraction_id renders as plain text (SEC MED-05)", () => {
+  it("popover row with non-positive extraction_id renders as plain text", () => {
     const onView = vi.fn();
     render(
       <AttributionPill

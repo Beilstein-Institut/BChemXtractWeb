@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import type { BatchFileStatus } from "@/types/batch";
 
 /**
- * BatchSummary — Phase 3 Liquid Glass wizard Step 3 (Task 10 rewrite).
+ * BatchSummary — Liquid Glass wizard Step 3.
  *
  * Renders the post-completion stat strip + the per-file results list. The
  * surrounding bento grid of StructureCards is composed by the caller
@@ -16,7 +16,7 @@ import type { BatchFileStatus } from "@/types/batch";
  * remains scoped to the stats + file list surface.
  *
  * All user-provided strings (filenames, error messages) are rendered as
- * React text children — escaped by React automatically (T-07-11).
+ * React text children — escaped by React automatically.
  *
  * `data-slot` contract:
  *   - `data-slot="batch-summary-stats"` (4-up stat row)

@@ -1,9 +1,9 @@
 /**
- * RadioGroup — tests for the Phase 3 Liquid Glass state primitive (Task 5).
+ * RadioGroup — tests for the Liquid Glass state primitive.
  *
  * Covers: render, data-slot contract on group + item, single-select
  * behavior (only one item gets data-checked), onValueChange dispatch,
- * plan-specified styling (bg-surface-muted, border-border, rounded-full,
+ * styling (bg-surface-muted, border-border, rounded-full,
  * data-checked:border-primary), and the focus-visible ring class.
  *
  * Base UI Radio emits `data-checked` on the selected Radio.Root

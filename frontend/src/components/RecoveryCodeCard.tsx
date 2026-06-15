@@ -1,5 +1,5 @@
 /**
- * RecoveryCodeCard — Phase 11 D-06.
+ * RecoveryCodeCard.
  *
  * Renders the raw session UUID as the user's recovery code. The card explains
  * the honest security model: the code IS the credential (same trust level as

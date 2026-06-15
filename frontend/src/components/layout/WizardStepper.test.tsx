@@ -1,5 +1,5 @@
 /**
- * Tests for WizardStepper — Phase 3 Task 8.
+ * Tests for WizardStepper.
  *
  * Covers:
  *   - derived status (complete / active / pending) per step

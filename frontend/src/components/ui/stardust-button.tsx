@@ -6,7 +6,7 @@ import { FlaskConicalIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * StardustButton — Phase 3 Task 22 (deep-navy pearl CTA).
+ * StardustButton — deep-navy pearl CTA.
  *
  * A self-contained specialty button used for the Extract structures CTA
  * in the upload drop-zone. Unlike the generic claymorphism Button, the

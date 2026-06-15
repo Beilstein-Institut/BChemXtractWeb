@@ -38,11 +38,11 @@ os.environ.setdefault("ALLOW_SUPERUSER_DB", "true")
 os.environ.setdefault("DEBUG", "false")
 os.environ.setdefault("EXPOSE_OPENAPI_DOCS", "true")
 # CORS_ORIGINS in the test suite must NOT contain localhost/127.0.0.1
-# because the Plan 11-05 _validate_prod_cors guard rejects that
-# combination under DEBUG=false. Tests run in prod-mode posture
-# (DEBUG=false) to exercise the full security validator chain.
+# because the _validate_prod_cors guard rejects that combination under
+# DEBUG=false. Tests run in prod-mode posture (DEBUG=false) to exercise
+# the full security validator chain.
 os.environ.setdefault("CORS_ORIGINS", '["http://test"]')
-# SEC H-04: DATABASE_URL has no default in Settings; tests always target
+# DATABASE_URL has no default in Settings; tests always target
 # the dedicated bchemxtract_test DB.
 os.environ.setdefault(
     "DATABASE_URL",
@@ -73,8 +73,8 @@ from app.config import settings  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.orm import Base  # noqa: E402
 
-# Canonical session-cookie value for the default test client (Phase 11
-# Plan 11-05). Tests that need to probe the un-cookied surface use
+# Canonical session-cookie value for the default test client.
+# Tests that need to probe the un-cookied surface use
 # ``unauth_client``. Tests that need to assert admin behaviour use
 # ``admin_client`` (TEST_ADMIN_HEADERS). A valid UUID4 satisfies the
 # strict ``_UUID_RE`` in ``app.core.session``.
@@ -100,7 +100,7 @@ skip_under_superuser_db = pytest.mark.skipif(
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "substances"
 REACTION_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "reactions"
 
-# --- Phase 5: test database URL ---
+# --- test database URL ---
 TEST_DB_URL = "postgresql+psycopg://postgres:postgres@localhost:5432/bchemxtract_test"
 
 
@@ -108,8 +108,8 @@ TEST_DB_URL = "postgresql+psycopg://postgres:postgres@localhost:5432/bchemxtract
 async def _ensure_test_schema():
     """Create the ORM schema on the integration test DB before any test runs.
 
-    The backend lifespan used to ``alembic upgrade head`` on startup — per
-    SEC M-08 that's now the operator's job. Tests therefore can't rely on
+    The backend lifespan used to ``alembic upgrade head`` on startup — that's
+    now the operator's job. Tests therefore can't rely on
     the lifespan to initialise the schema, and any test that hits
     ``client`` without also depending on ``db_session`` would otherwise
     see "relation does not exist" from a pristine test DB.
@@ -163,7 +163,7 @@ async def _bootstrap_csrf(ac: AsyncClient) -> AsyncClient:
     """Fetch a CSRF token from ``/api/csrf-token`` and inject it as a default
     ``X-CSRF-Token`` header on the given client. Returns the same client.
 
-    Without this header the Plan 11-04 D-19 CSRF middleware returns 403
+    Without this header the CSRF middleware returns 403
     ``CSRF_INVALID`` on any state-changing cookie-auth request.
     """
     resp = await ac.get("/api/csrf-token")
@@ -242,7 +242,7 @@ async def unauth_client() -> AsyncClient:
 def cdx_file_bytes() -> bytes:
     """L-lactic-acid.cdx -- small single-substance CDX file for fast tests.
 
-    Source: BChemXtract upstream test resources (vendored locally) (D-12).
+    Source: BChemXtract upstream test resources (vendored locally).
     """
     path = FIXTURES_DIR / "integrationTests" / "L-lactic-acid.cdx"
     return path.read_bytes()
@@ -274,7 +274,7 @@ def simple_v3000_block() -> str:
 def cdxml_file_bytes() -> bytes:
     """test_fixture.cdxml -- multi-substance CDXML file.
 
-    Source: BChemXtract upstream test resources (vendored locally) (D-12).
+    Source: BChemXtract upstream test resources (vendored locally).
     """
     path = FIXTURES_DIR / "cdx" / "reader" / "test_fixture.cdxml"
     return path.read_bytes()
@@ -284,13 +284,13 @@ def cdxml_file_bytes() -> bytes:
 def cdx_multi_file_bytes() -> bytes:
     """test_fixture.cdx -- multi-substance CDX file.
 
-    Source: BChemXtract upstream test resources (vendored locally) (D-12).
+    Source: BChemXtract upstream test resources (vendored locally).
     """
     path = FIXTURES_DIR / "cdx" / "reader" / "test_fixture.cdx"
     return path.read_bytes()
 
 
-# --- Phase 10: reaction fixtures (read from LOCAL REACTION_FIXTURES_DIR) ---
+# --- reaction fixtures (read from LOCAL REACTION_FIXTURES_DIR) ---
 
 
 @pytest.fixture(scope="session")
@@ -298,7 +298,7 @@ def cdx_reaction_file_bytes() -> bytes:
     """Simple single-reaction CDX fixture.
 
     Source: copied from BChemXtract upstream integrationTests/reactions/
-    into backend/tests/fixtures/reactions/ (Phase 10 D-03).
+    into backend/tests/fixtures/reactions/.
     """
     path = REACTION_FIXTURES_DIR / "simple_reaction.cdx"
     return path.read_bytes()
@@ -332,7 +332,7 @@ def cdxml_chemotion_reaction_file_bytes() -> bytes:
     return path.read_bytes()
 
 
-# --- Phase 5: async DB session fixtures ---
+# --- async DB session fixtures ---
 
 
 @pytest_asyncio.fixture(scope="session")
