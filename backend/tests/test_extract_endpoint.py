@@ -1,6 +1,6 @@
 """Integration tests for POST /api/extract endpoint.
 
-Per D-11: these tests run against the real JVM with BChemXtract JAR.
+These tests run against the real JVM with BChemXtract JAR.
 The started_app fixture (conftest.py) triggers JVM startup via lifespan.
 """
 
@@ -8,15 +8,12 @@ from httpx import AsyncClient
 
 
 class TestUploadCDX:
-    """Tests for CDX binary file upload (UPLD-01, UPLD-03, DISP-01, DISP-02)."""
+    """Tests for CDX binary file upload."""
 
     async def test_upload_cdx(
         self, client_csrf: AsyncClient, cdx_file_bytes: bytes
     ) -> None:
-        """Upload a CDX file and verify extraction returns substances.
-
-        UPLD-01: User can upload a CDX file.
-        """
+        """Upload a CDX file and verify extraction returns substances."""
         response = await client_csrf.post(
             "/api/extract",
             files={
@@ -35,7 +32,7 @@ class TestUploadCDX:
     async def test_response_has_format_and_count(
         self, client_csrf: AsyncClient, cdx_file_bytes: bytes
     ) -> None:
-        """Response includes format type and structure count (UPLD-03)."""
+        """Response includes format type and structure count."""
         response = await client_csrf.post(
             "/api/extract",
             files={
@@ -54,7 +51,7 @@ class TestUploadCDX:
     async def test_response_has_timing(
         self, client_csrf: AsyncClient, cdx_file_bytes: bytes
     ) -> None:
-        """Response includes extraction_time_ms (UPLD-02/D-04)."""
+        """Response includes extraction_time_ms."""
         response = await client_csrf.post(
             "/api/extract",
             files={
@@ -73,7 +70,7 @@ class TestUploadCDX:
     async def test_response_has_file_metadata(
         self, client_csrf: AsyncClient, cdx_file_bytes: bytes
     ) -> None:
-        """Response includes filename and file_size (D-09)."""
+        """Response includes filename and file_size."""
         response = await client_csrf.post(
             "/api/extract",
             files={
@@ -91,7 +88,7 @@ class TestUploadCDX:
     async def test_substances_have_metadata(
         self, client_csrf: AsyncClient, cdx_file_bytes: bytes
     ) -> None:
-        """Each substance has SMILES, InChI, InChI key, formula (DISP-02)."""
+        """Each substance has SMILES, InChI, InChI key, formula."""
         response = await client_csrf.post(
             "/api/extract",
             files={
@@ -114,7 +111,7 @@ class TestUploadCDX:
             assert substance["inchi"] != ""
             assert substance["inchi_key"] != ""
             assert substance["molecular_formula"] != ""
-            # PRIV-13 / D-22: first_seen_at must not leak into the response
+            # first_seen_at must not leak into the response
             # — the column stays in the DB but the API hides it to avoid
             # leaking cross-session dedup-presence information.
             assert "first_seen_at" not in substance, (
@@ -124,7 +121,7 @@ class TestUploadCDX:
     async def test_substances_have_svg(
         self, client_csrf: AsyncClient, cdx_file_bytes: bytes
     ) -> None:
-        """Each substance has an SVG depiction string (DISP-01)."""
+        """Each substance has an SVG depiction string."""
         response = await client_csrf.post(
             "/api/extract",
             files={
@@ -141,7 +138,7 @@ class TestUploadCDX:
             # SVG should contain valid SVG markup (non-empty for real
             # substances)
             svg = substance["svg"]
-            # D-03: may be empty if CDK fails, but for L-lactic-acid
+            # may be empty if CDK fails, but for L-lactic-acid
             # it should work
             if svg:
                 assert "<svg" in svg
@@ -211,13 +208,13 @@ class TestUploadCDXML:
 
 
 class TestFileSizeValidation:
-    """Tests for file size limit (UPLD-04, D-05)."""
+    """Tests for file size limit."""
 
     async def test_oversize_file_rejected(
         self,
         client_csrf: AsyncClient,
     ) -> None:
-        """File exceeding 50 MB is rejected with HTTP 413 (UPLD-04)."""
+        """File exceeding 50 MB is rejected with HTTP 413."""
         # Create a file just over the limit (50 MB + 1 byte)
         oversized = b"VjCD" + b"\x00" * (50 * 1024 * 1024 - 3)
         response = await client_csrf.post(
@@ -232,7 +229,7 @@ class TestFileSizeValidation:
         )
         assert response.status_code == 413
         data = response.json()
-        # D-17: unified ErrorResponse shape — ``detail`` + ``code``.
+        # Unified ErrorResponse shape — ``detail`` + ``code``.
         assert "detail" in data
         assert data.get("code") == "FILE_TOO_LARGE"
         assert "50 MB" in data["detail"] or "size limit" in data["detail"].lower()
@@ -258,13 +255,13 @@ class TestFormatRejection:
         )
         assert response.status_code == 415
         data = response.json()
-        # D-17: unified ErrorResponse shape — ``detail`` + ``code``.
+        # Unified ErrorResponse shape — ``detail`` + ``code``.
         assert "detail" in data
         assert data.get("code") == "UNSUPPORTED_FORMAT"
 
 
 class TestExtensionMismatch:
-    """Tests for extension mismatch warnings (D-07)."""
+    """Tests for extension mismatch warnings."""
 
     async def test_extension_mismatch_warning(
         self, client_csrf: AsyncClient, cdxml_file_bytes: bytes
@@ -305,12 +302,12 @@ class TestExtensionMismatch:
 
 
 class TestResponseShape:
-    """Tests for the D-10 response shape contract."""
+    """Tests for the response shape contract."""
 
     async def test_full_response_shape(
         self, client_csrf: AsyncClient, cdx_file_bytes: bytes
     ) -> None:
-        """Response matches the D-10 shape exactly."""
+        """Response matches the expected shape exactly."""
         response = await client_csrf.post(
             "/api/extract",
             files={

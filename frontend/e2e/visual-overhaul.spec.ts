@@ -3,11 +3,11 @@ import { test, expect } from "@playwright/test";
 // ─────────────────────────────────────────────────────
 // Visual overhaul — E2E tests
 //
-// Originally authored for the Phase 7.1 single-page layout; surviving
-// assertions were retargeted to the Phase 3 Liquid Glass rebuild.
+// Originally authored for the earlier single-page layout; surviving
+// assertions were retargeted to the Liquid Glass rebuild.
 // Tests of the old scroll-anchor nav / "BChemXtractWeb" hero / pill
 // primary button / body-level smooth-scroll have been removed because
-// those were design choices that Phase 3 deliberately reversed.
+// those were design choices the Liquid Glass rebuild deliberately reversed.
 // ─────────────────────────────────────────────────────
 
 test.describe("AppHeader", () => {

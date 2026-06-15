@@ -1,13 +1,13 @@
-"""Tests for EXPO-08: MDLRXNWriter-backed RXN/RDF export (Plan 10 D-22 amended).
+"""Tests for EXPO-08: MDLRXNWriter-backed RXN/RDF export.
 
 Covers:
 - _generate_rxn_sync single-reaction output contains $RXN header
 - _generate_rxn_sync multi-reaction output uses MDLRXNWriter native multi-record
 - _generate_rxn_sync([]) returns b"" without crashing
-- unparseable reaction_smiles are skipped (Pitfall 3)
+- unparseable reaction_smiles (no ">") are skipped
 - POST /api/export format=rxn routes through _fetch_reactions +
   generate_reactions_export (not the substance path)
-- T-10-04 IDOR: stranger reaction_ids scoped by extraction_id -> 404
+- IDOR: stranger reaction_ids scoped by extraction_id -> 404
 """
 
 from httpx import AsyncClient
@@ -29,7 +29,7 @@ async def test_single_reaction_rxn_export(started_app):
 
 
 async def test_multi_reaction_rxn_export(started_app):
-    """D-22 amended: MDLRXNWriter.write(IReactionSet) emits multiple $RXN records."""
+    """MDLRXNWriter.write(IReactionSet) emits multiple $RXN records."""
     rxns = [
         {"reaction_smiles": "CC>>CCO", "id": 1, "long_rinchi_key": "K1"},
         {"reaction_smiles": "CCC>>CCCO", "id": 2, "long_rinchi_key": "K2"},
@@ -47,7 +47,11 @@ async def test_empty_reaction_set_returns_empty_bytes(started_app):
 
 
 async def test_unparseable_reaction_smiles_skipped(started_app):
-    """Reactions with invalid reaction_smiles (no ">") are skipped (Pitfall 3)."""
+    """Reactions with invalid reaction_smiles (no ">") are skipped.
+
+    CDK's reaction-SMILES parser requires a ">" separator; inputs without one
+    cannot be parsed and are dropped rather than aborting the whole export.
+    """
     rxns = [{"reaction_smiles": "no-arrow-here", "id": 1, "long_rinchi_key": "K1"}]
     content = await run_in_jvm_thread(_generate_rxn_sync, rxns)
     assert content == b""  # all skipped
@@ -108,7 +112,7 @@ async def test_export_endpoint_rxn_dispatch(
 async def test_export_endpoint_rxn_idor_protection(
     client_csrf: AsyncClient, cdx_reaction_file_bytes: bytes
 ) -> None:
-    """T-10-04: reaction_ids scoped to extraction_id -- stranger IDs -> 404."""
+    """reaction_ids scoped to extraction_id -- stranger IDs -> 404."""
     ext_resp = await client_csrf.post(
         "/api/reactions",
         files={

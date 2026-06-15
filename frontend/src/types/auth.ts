@@ -1,5 +1,5 @@
 /**
- * Wire types for the Phase 11 auth surface — mirrors the Pydantic shapes
+ * Wire types for the auth surface — mirrors the Pydantic shapes
  * in backend/app/models/auth.py (snake_case preserved at the boundary
  * per project convention).
  */

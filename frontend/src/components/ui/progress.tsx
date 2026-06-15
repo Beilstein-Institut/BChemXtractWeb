@@ -5,9 +5,9 @@ import { Progress as ProgressPrimitive } from "@base-ui/react/progress";
 import { cn } from "@/lib/utils";
 
 /**
- * Progress — state tier (Phase 3 Liquid Glass rebuild, Task 5; Task 22
- * thickens the track, adds a ring border, and layers a shimmer on the
- * indicator so an in-flight batch is always legible).
+ * Progress — state tier (Liquid Glass rebuild). The track is thickened,
+ * gains a ring border, and layers a shimmer on the indicator so an
+ * in-flight batch is always legible.
  *
  * Wraps Base UI's Progress.Root + Track + Indicator. The Root is a
  * flex layout so `ProgressLabel` + `ProgressValue` (when passed as

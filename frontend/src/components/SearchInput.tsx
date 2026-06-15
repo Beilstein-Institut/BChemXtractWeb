@@ -1,17 +1,17 @@
 /**
- * SearchInput — inline global search box for AppHeader (D-01, D-02, D-03, D-18).
+ * SearchInput — inline global search box for AppHeader.
  *
  * Features:
- *  - `/` keyboard shortcut focuses (outside other text inputs) — D-18
+ *  - `/` keyboard shortcut focuses (outside other text inputs)
  *  - `Esc` clears + blurs
  *  - Type-detection badge appears once input ≥ 2 chars; click opens
- *    override Popover with radio items (D-01)
+ *    override Popover with radio items
  *  - Mobile (< md): icon-only trigger; tap opens Sheet side="top" with the
  *    full input
  *  - Publishes its underlying <input> element to `@/lib/searchFocus`
- *    (searchInputRef.current) on mount so Plan 07's BrowseToolbar
+ *    (searchInputRef.current) on mount so the BrowseToolbar
  *    "Search within" can focus it without DOM-querying by aria-label.
- *  - SVG rendering of results lives in Plan 07's SearchResults — this file
+ *  - SVG rendering of results lives in SearchResults — this file
  *    only drives the useSearch hook
  */
 import { useEffect, useRef, useState } from "react";
@@ -51,7 +51,7 @@ function detectHint(raw: string): Exclude<SearchType, "auto"> {
 interface RenderInputArgs {
   /** Pass `true` for the header-inlined input so the shared searchInputRef
    *  is published on mount. The mobile Sheet copy passes `false` — it does
-   *  NOT need ref sharing since Plan 07's "Search within" always focuses
+   *  NOT need ref sharing since "Search within" always focuses
    *  the header (not a sheet instance). */
   isHeader: boolean;
 }
@@ -114,8 +114,8 @@ export function SearchInput({ className }: { className?: string }) {
   const [focused, setFocused] = useState(false);
 
   // Publish the HEADER <input> element to the shared searchInputRef on
-  // mount so Plan 07's BrowseToolbar "Search within" can focus without DOM
-  // queries (fix #8). Clean up on unmount. Only the header instance
+  // mount so the BrowseToolbar "Search within" can focus without DOM
+  // queries. Clean up on unmount. Only the header instance
   // publishes — the mobile Sheet input is ephemeral and shouldn't be a
   // focus target across component boundaries.
   useEffect(() => {

@@ -1,5 +1,5 @@
 /**
- * StructureCard — Phase 3 Liquid Glass tile (Task 9 rewrite).
+ * StructureCard — Liquid Glass tile.
  *
  * Flat surface card:
  *   - White sub-surface (rounded 12 px, min-h 160 px) holds the SVG depiction.
@@ -20,12 +20,12 @@
  * Behaviour preserved from the pre-rewrite version (downstream call sites
  * depend on this contract):
  *   - onOpen(itemIndex)   — sheet mode used by StructureBrowser.
- *   - isChecked / onSelect — selection checkbox overlay (D-16 batch flow).
+ *   - isChecked / onSelect — selection checkbox overlay (batch flow).
  *   - default mode        — opens internal StructureDetail Dialog via Base UI.
  *   - ExportMenu overlay  — per-card export dropdown (top-right).
- *   - SVG rendered as Blob URL in <img src> (T-04-04 XSS mitigation).
+ *   - SVG rendered as Blob URL in <img src> (XSS mitigation).
  *
- * All new slots follow the Phase 3 `data-slot` contract:
+ * All new slots follow the `data-slot` contract:
  *   data-slot="structure-card"            (root)
  *   data-slot="structure-card-image"      (white PNG surface)
  *   data-slot="structure-card-name"       (Inter semibold title)
@@ -65,10 +65,10 @@ export interface StructureCardProps {
   /**
    * When provided, clicking the card calls onOpen(itemIndex) instead of
    * opening the internal Dialog. Internal Dialog is suppressed.
-   * Used in StructureBrowser sheet mode (D-07, D-10).
+   * Used in StructureBrowser sheet mode.
    */
   onOpen?: (index: number) => void;
-  /** Whether this card is currently selected (checkbox checked state, D-16). */
+  /** Whether this card is currently selected (checkbox checked state). */
   isChecked?: boolean;
   /** Called when the checkbox is toggled. Receives substance.id. */
   onSelect?: (id: number) => void;
@@ -113,12 +113,11 @@ function renderFormulaWithSubscripts(formula: string | null | undefined): React.
 /**
  * StructureCard — molecule grid tile.
  *
- * Implements D-07 (thumbnail card), D-08 (molecular formula + SMILES), D-09
- * (dialog trigger), DISP-04 (copy SMILES to clipboard), and D-16 (batch
- * selection). The Phase-3 rewrite flattens the surface and introduces the
- * white PNG sub-surface, Inter / Geist Mono typography, and chemistry
- * subscripts — existing behaviour (sheet mode, export menu, detail dialog,
- * XSS-safe Blob-URL SVG) is preserved.
+ * Implements the thumbnail card, molecular formula + SMILES, dialog trigger,
+ * copy SMILES to clipboard, and batch selection. The rewrite flattens the
+ * surface and introduces the white PNG sub-surface, Inter / Geist Mono
+ * typography, and chemistry subscripts — existing behaviour (sheet mode,
+ * export menu, detail dialog, XSS-safe Blob-URL SVG) is preserved.
  */
 export function StructureCard({
   substance,
@@ -145,7 +144,7 @@ export function StructureCard({
     "Unnamed structure";
 
   async function handleExport(format: ExportFormat): Promise<void> {
-    // IN-02: guard against sending substance_ids:[0] when id is falsy (Pydantic
+    // Guard against sending substance_ids:[0] when id is falsy (Pydantic
     // default of 0 on SubstanceResponse.id). Backend returns 404 for id=0 which
     // shows a confusing "No substances found" error to the user.
     if (!substance.id) {
@@ -168,7 +167,7 @@ export function StructureCard({
     }
   }
 
-  // Delegate to useShareLink (Task 14) — the hook owns URL-building,
+  // Delegate to useShareLink — the hook owns URL-building,
   // clipboard write, the transient "shared" flag, and the 2 s reset-timer
   // cleanup that was previously inlined here. We still stopPropagation on
   // the click event so the wrapping card's onClick/keyboard handlers don't
@@ -277,7 +276,7 @@ export function StructureCard({
     </div>
   );
 
-  // Checkbox overlay — shown on hover when onOpen is provided, always visible when checked (D-16)
+  // Checkbox overlay — shown on hover when onOpen is provided, always visible when checked
   const checkboxOverlay = (onOpen !== undefined || isChecked) && (
     <div
       className={cn(
@@ -299,8 +298,8 @@ export function StructureCard({
     return (
       <div className="relative group">
         {checkboxOverlay}
-        {/* Per-card export icon overlay (D-04) — top-2 right-2, mirrors checkbox at top-2 left-2 */}
-        {/* WR-04: stopPropagation on wrapper div covers trigger button, its span wrapper,
+        {/* Per-card export icon overlay — top-2 right-2, mirrors checkbox at top-2 left-2 */}
+        {/* stopPropagation on wrapper div covers trigger button, its span wrapper,
             and the icon itself — prevents card onClick firing when export area is clicked. */}
         <div className="absolute top-2 right-2 z-10" onClick={(e) => e.stopPropagation()}>
           <ExportMenu onExport={handleExport} triggerVariant="icon" align="start" />

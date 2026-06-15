@@ -1,5 +1,5 @@
 /**
- * Tests for ExtractPage — Phase 3 wizard shell.
+ * Tests for ExtractPage — wizard shell.
  *
  * Focuses on the step derivation and wizard scaffolding. The inner
  * composites (FileUpload / BatchProgress / BatchSummary) have their own

@@ -27,7 +27,7 @@ const MOBILE_LINKS = [
 ] as const;
 
 /**
- * Logo — inline wordmark for the Liquid Glass AppHeader (Task 7).
+ * Logo — inline wordmark for the Liquid Glass AppHeader.
  *
  * Uses the Fraunces display family via `font-display` (Satoshi was not
  * available on npm; Fraunces is the project-wide fallback). A small
@@ -53,12 +53,12 @@ function Logo() {
 }
 
 /**
- * AppHeader — Phase 3 Liquid Glass chrome top bar.
+ * AppHeader — Liquid Glass chrome top bar.
  *
  * Renders the sticky glass-tinted top bar with token-driven
  * backdrop-filter, wordmark logo, the 4-route NavLinks, global
  * SearchInput, ChemistryThemeSwitch, and a mobile hamburger that opens the
- * Base UI Sheet (Task 6 glass-tinted drawer).
+ * Base UI Sheet (glass-tinted drawer).
  */
 export function AppHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);

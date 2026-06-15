@@ -19,7 +19,7 @@
  * `matchMedia`.
  *
  * `data-slot="theme-switch"` on the root label keeps AppHeader,
- * phase3-smoke.spec, and visual-overhaul.spec resolving via
+ * smoke.spec, and visual-overhaul.spec resolving via
  * `[data-slot="theme-switch"]`.
  */
 import { useEffect, useState } from "react";

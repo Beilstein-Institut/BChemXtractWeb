@@ -1,5 +1,5 @@
 /**
- * RestoreSessionForm — unit tests for Phase 11 D-09.
+ * RestoreSessionForm — unit tests.
  *
  * Verifies:
  *   - The form rejects malformed UUID4 codes client-side (no fetch).
@@ -26,7 +26,7 @@ function mock204() {
   } as Response);
 }
 
-describe("RestoreSessionForm (Phase 11 D-09)", () => {
+describe("RestoreSessionForm", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     csrfTokenCache.value = "fake-token.123.sig";

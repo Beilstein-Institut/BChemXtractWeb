@@ -1,5 +1,5 @@
 /**
- * Dialog — tests for the Phase 3 Liquid Glass floating primitive (Task 6).
+ * Dialog — tests for the Liquid Glass floating primitive.
  *
  * Covers: data-slot contract on overlay + content, presence of the glass
  * surface class cluster, token-driven overlay, and open/close animation

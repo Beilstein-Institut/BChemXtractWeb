@@ -1,4 +1,4 @@
-"""Bounded, streaming reads for multipart upload bodies (SEC H-02 / M-02).
+"""Bounded, streaming reads for multipart upload bodies.
 
 The naive ``await file.read()`` on ``fastapi.UploadFile`` buffers the
 *entire* request body into memory before any size check fires. Combined

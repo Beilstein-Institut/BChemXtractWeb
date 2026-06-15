@@ -1,4 +1,4 @@
-# SEC H-04 / H-05: every secret-bearing env var in this file is
+# Every secret-bearing env var in this file is
 # explicitly sourced from the shell environment with a mandatory-marker
 # (``${VAR:?message}``) so ``docker compose up`` will FAIL FAST with a
 # clear message if the operator hasn't provisioned the value. No
@@ -9,8 +9,8 @@
 # alongside this compose file:
 #
 #   POSTGRES_PASSWORD=<32+ random chars>
-#   SECRET_KEY=<32+ random chars>      # PBKDF2 salt + CSRF HMAC (D-10/D-19)
-#   ADMIN_SECRET=<32+ random chars>    # X-Admin-Secret gate (D-11)
+#   SECRET_KEY=<32+ random chars>      # PBKDF2 salt + CSRF HMAC
+#   ADMIN_SECRET=<32+ random chars>    # X-Admin-Secret gate
 #
 # Or export them in the shell before ``docker compose up``. ``deploy.sh``
 # mints all three on first run via ``secrets.token_urlsafe(32)``.
@@ -38,7 +38,7 @@ x-logging: &default_logging
     max-size: "10m"
     max-file: "3"
 
-# Phase 11 secrets + posture (CORS / DEBUG) required by app.config.Settings
+# Auth secrets + posture (CORS / DEBUG) required by app.config.Settings
 # on import. Identical in every Python service (backend, celery-worker,
 # celery-beat, migrate).
 x-phase11-env: &phase11_env
@@ -71,7 +71,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-bchemxtract}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    # SEC H-04: Postgres is only reachable on the internal Docker network.
+    # Postgres is only reachable on the internal Docker network.
     # Port 5432 is NOT bound to the host — backend + celery connect via
     # the service name. Remove the line below only in development when a
     # local psql client needs direct access, and never in a deployment.
@@ -84,7 +84,7 @@ services:
       retries: 5
       start_period: 30s
 
-  # SEC M-08: one-shot schema-migration container. Runs `alembic upgrade
+  # One-shot schema-migration container. Runs `alembic upgrade
   # head` once and exits. The backend depends on it via
   # `condition: service_completed_successfully` so a failed migration
   # aborts deployment cleanly instead of crash-looping the backend.
@@ -138,12 +138,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      # SEC M-08: backend refuses to start until migrations complete.
+      # Backend refuses to start until migrations complete.
       migrate:
         condition: service_completed_successfully
     environment:
       # Backend connects as bchemxtract_app (NOSUPERUSER NOBYPASSRLS) so
-      # RLS policies enforce on every query. Phase 11 cookie posture
+      # RLS policies enforce on every query. The cookie posture
       # (DEBUG=false → Secure flag + _validate_prod_cors guard rejecting
       # localhost CORS) comes from the *phase11_env anchor; flip DEBUG=true
       # in .env for local plain-HTTP testing.
@@ -197,7 +197,7 @@ services:
       # The :-3000 default keeps the stack runnable even on a hand-rolled .env.
       - "${HTTP_PORT:-3000}:80"
     volumes:
-      # Phase 11 (Plan 11-05) removed the last envsubst variable from
+      # The last envsubst variable was removed from
       # nginx.conf.template, so no substitution step is needed. Mount the
       # template file directly as the final config: nginx loads everything in
       # /etc/nginx/conf.d/*.conf at startup.
@@ -227,7 +227,7 @@ services:
         BCHEMXTRACT_REF: ${BCHEMXTRACT_VERSION:-}
     restart: unless-stopped
     logging: *default_logging
-    # SEC H-03: --pool=solo is mandatory — extraction tasks use
+    # --pool=solo is mandatory — extraction tasks use
     # asyncio.run() internally and will error on prefork/thread pools.
     # The Celery app also asserts solo pool at worker_process_init.
     command: celery -A app.celery_app worker --pool=solo --concurrency=1 -l info
@@ -254,7 +254,7 @@ services:
       retries: 3
       start_period: 60s
 
-  # Phase 11 D-17 (Plan 11-08): single-replica Celery beat scheduler. Fires
+  # Single-replica Celery beat scheduler. Fires
   # the daily `audit_log.prune_old_entries` task at 03:00 UTC to enforce the
   # 12-month audit-log retention window. The task is idempotent (a re-run
   # with no stale rows removes zero), so an accidental double-beat would

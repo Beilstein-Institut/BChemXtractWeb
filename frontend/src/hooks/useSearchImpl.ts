@@ -1,6 +1,6 @@
 /**
  * useSearchImpl — URL state + debounced fetch + parse-validation, unified
- * across all consumers via SearchContext (Plan 2026-04-24).
+ * across all consumers via SearchContext.
  *
  * Changes vs the previous useSearch:
  *   - Substructure short-circuit removed. All types flow through the
@@ -184,7 +184,7 @@ export function useSearchImpl(): UseSearchReturn {
   useEffect(() => {
     if (type !== "substructure" || !query) {
       // Defer the state reset so the rule at react-hooks/set-state-in-effect
-      // doesn't flag this synchronous setState. Matches the 10-05 pattern.
+      // doesn't flag this synchronous setState.
       Promise.resolve().then(() => setQueryValidity({ state: "unknown" }));
       return;
     }
@@ -246,7 +246,7 @@ export function useSearchImpl(): UseSearchReturn {
 
   useEffect(() => {
     if (!query) {
-      // Defer state resets per the 10-05 react-hooks/set-state-in-effect pattern.
+      // Defer state resets to satisfy the react-hooks/set-state-in-effect rule.
       Promise.resolve().then(() => {
         setSearchState("idle");
         setResponse(null);

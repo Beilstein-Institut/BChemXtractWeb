@@ -47,8 +47,8 @@ function hasSearchQuery(): boolean {
 }
 
 function App() {
-  // Phase 11 D-19 / D-23: bootstrap session + CSRF token BEFORE any other
-  // API call. Both hooks fire-and-forget at the root — their return values
+  // Bootstrap session + CSRF token BEFORE any other API call. Both hooks
+  // fire-and-forget at the root — their return values
   // are intentionally unused here. Components that need session_id
   // (e.g. SettingsPage) call useAuth() again at their own level. Order
   // matters: useAuth() issues PUT /api/auth/me which mints the cookie,
@@ -289,7 +289,7 @@ function App() {
             <Suspense fallback={<PageSuspenseFallback />}>{renderRoute()}</Suspense>
           </main>
           <SiteFooter />
-          {/* Task 14: globally mounted so ⌘K works from any route.
+          {/* Globally mounted so ⌘K works from any route.
            *  Lazy-loaded on first ⌘K to keep motion/react out of the
            *  initial bundle — see DeferredCommandPalette.
            */}

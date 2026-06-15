@@ -4,8 +4,8 @@ Revision ID: c3d4e5f6a7b8
 Revises: 850c00d963f1
 Create Date: 2026-04-17 12:30:00.000000+00:00
 
-Per D-05 + SEC M-09: CDK canonical SMILES are required for SRCH-03
-exact-match queries. This migration is **pure DDL** — it adds the column
+CDK canonical SMILES are required for exact-match SMILES search
+queries. This migration is **pure DDL** — it adds the column
 and the two supporting indexes, then returns. The JVM-backed data
 backfill has been extracted into a standalone management command
 (``python -m scripts.backfill_canonical_smiles``) so schema migrations
@@ -41,7 +41,7 @@ def upgrade() -> None:
         "substances",
         sa.Column("canonical_smiles", sa.Text(), nullable=True),
     )
-    # 2. B-tree indexes for search (SRCH-02 formula + SRCH-03 canonical SMILES).
+    # 2. B-tree indexes for search (molecular formula + canonical SMILES).
     op.create_index(
         "ix_substances_canonical_smiles",
         "substances",
@@ -53,7 +53,7 @@ def upgrade() -> None:
         ["molecular_formula"],
     )
     # Data backfill is NOT run here — run scripts/backfill_canonical_smiles.py
-    # after upgrading. See module docstring for the rationale (SEC M-09).
+    # after upgrading. See module docstring for the rationale.
 
 
 def downgrade() -> None:

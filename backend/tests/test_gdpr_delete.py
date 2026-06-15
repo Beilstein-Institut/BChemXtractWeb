@@ -1,9 +1,9 @@
-"""PRIV-07 GDPR Article 17 delete tests (Phase 11 Wave 0 RED → green on Plan 11-04).
+"""GDPR Article 17 delete tests.
 
-Covers D-14/D-15:
 - DELETE /api/me/data cascades extractions → join tables → orphan-sweep
   substances/reactions referenced only by the deleted extractions.
-- `data.deleted` audit row is inserted in the SAME transaction (Pitfall #6).
+- `data.deleted` audit row is inserted in the SAME transaction, so the
+  deletion and its audit record succeed or fail atomically.
 - Response sets `bcx_sid=; Max-Age=0; Path=/`.
 - Other sessions' extractions are untouched.
 """
@@ -104,7 +104,7 @@ async def test_gdpr_delete_cascades_orphan_sweep(started_app):
         result = await db.execute(
             select(func.count(Substance.id)).where(Substance.id == sid_del)
         )
-        assert result.scalar_one() == 0, f"orphan substance {sid_del} not swept (D-15)"
+        assert result.scalar_one() == 0, f"orphan substance {sid_del} not swept"
 
         result = await db.execute(
             select(func.count(Extraction.id)).where(Extraction.id == eid_keep)
@@ -118,7 +118,7 @@ async def test_gdpr_delete_cascades_orphan_sweep(started_app):
 
 async def test_gdpr_delete_audit_in_transaction(started_app, monkeypatch):
     """If the in-transaction audit insert fails, the whole DELETE rolls back
-    atomically (Pitfall #6).
+    atomically.
     """
     eid, _ = await _seed_extraction_with_substance(SID_DELETE, "CN")
 
@@ -151,7 +151,7 @@ async def test_gdpr_delete_audit_in_transaction(started_app, monkeypatch):
         )
         assert result.scalar_one() == 1, (
             "data.deleted audit failed but extraction was still deleted — "
-            "Pitfall #6 violated (audit + delete must be atomic)"
+            "audit + delete must be atomic"
         )
 
 

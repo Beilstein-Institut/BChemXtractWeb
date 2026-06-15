@@ -55,7 +55,7 @@ export interface PagedSubstancesResponse {
 
 /**
  * One component of a reaction (reactant, product, or agent).
- * Mirrors backend ReactionComponentResponse (Plan 10-01 D-04).
+ * Mirrors backend ReactionComponentResponse.
  */
 export interface ReactionComponentResponse {
   inchi: string;
@@ -67,8 +67,8 @@ export interface ReactionComponentResponse {
 }
 
 /**
- * One extracted reaction — mirrors backend ReactionResponse (Plan 10-01).
- * svg is the CDK-rendered depiction ("" when rendering failed — see D-13/D-15).
+ * One extracted reaction — mirrors backend ReactionResponse.
+ * svg is the CDK-rendered depiction ("" when rendering failed for this reaction).
  */
 export interface ReactionResponse {
   rinchi: string;
@@ -86,9 +86,9 @@ export interface ReactionResponse {
 
 /**
  * Response envelope for POST /api/reactions and GET /api/extractions/{id}/reactions.
- * Mirrors backend ReactionExtractionResponse (Plan 10-01 D-04).
+ * Mirrors backend ReactionExtractionResponse.
  *
- * D-06 timeout contract: a 200 with `reactions: []` and non-empty `warnings`
+ * Timeout contract: a 200 with `reactions: []` and non-empty `warnings`
  * indicates the extraction exceeded the configured timeout and was aborted.
  */
 export interface ReactionExtractionResponse {

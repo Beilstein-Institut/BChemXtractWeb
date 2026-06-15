@@ -15,7 +15,7 @@ export interface BrandNameProps extends HTMLAttributes<HTMLSpanElement> {
  *
  * Rendered in Clan Pro Medium with "BC" and "X" bolded, and "X" tinted the
  * crimson brand primary (oklch equivalent of #C71354). Falls back to the
- * Phase 3 display font stack when Clan Pro is unavailable.
+ * display font stack when Clan Pro is unavailable.
  *
  * The four fragments stay inside one <span> so `element.textContent`
  * round-trips cleanly — Testing Library's text-matcher + screen-readers

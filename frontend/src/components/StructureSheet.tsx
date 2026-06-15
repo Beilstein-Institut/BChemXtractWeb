@@ -1,16 +1,16 @@
 /**
  * StructureSheet — side-panel detail view using shadcn Sheet.
  *
- * Replaces the Dialog-based StructureDetail for the browsing context (D-08).
- * Sheet stays open while browsing (D-10): only the substance prop changes,
+ * Replaces the Dialog-based StructureDetail for the browsing context.
+ * Sheet stays open while browsing: only the substance prop changes,
  * not the open state.
  *
- * Keyboard shortcuts (D-18): ArrowLeft/Right scoped to when sheet is open.
- * SVG rendered via Blob URL (T-04-04 — never as innerHTML).
+ * Keyboard shortcuts: ArrowLeft/Right scoped to when sheet is open.
+ * SVG rendered via Blob URL — never as innerHTML.
  *
- * STRIDE mitigations:
- * - T-06-09: SVG rendered via a Blob URL in <img src>, never innerHTML
- * - T-06-10: keydown listener added only when open===true, cleaned up on effect return
+ * Security mitigations:
+ * - SVG rendered via a Blob URL in <img src>, never innerHTML
+ * - keydown listener added only when open===true, cleaned up on effect return
  */
 import { useEffect, useState } from "react";
 import {
@@ -74,7 +74,7 @@ function MetadataRow({ label, value }: { label: string; value: string }) {
  * StructureSheet — sheet-based full metadata panel for the browsing context.
  *
  * Keyboard ArrowLeft/Right navigation is scoped to when the sheet is open
- * (T-06-10 mitigation — listener cleaned up when sheet closes).
+ * (listener cleaned up when sheet closes).
  */
 export function StructureSheet({
   open,
@@ -141,7 +141,7 @@ export function StructureSheet({
     }
   }
 
-  // Keyboard navigation scoped to when sheet is open (D-18, T-06-10)
+  // Keyboard navigation scoped to when sheet is open
   useEffect(() => {
     if (!open) return;
     function handleKeyDown(e: KeyboardEvent) {
@@ -173,11 +173,11 @@ export function StructureSheet({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, onPrev, onNext]);
 
-  // Render SVG via a Blob URL — never set innerHTML (T-06-09)
+  // Render SVG via a Blob URL — never set innerHTML
   const activeSvg = useCdxCoords && substance?.svg_cdx ? substance.svg_cdx : substance?.svg;
   const svgSrc = useSvgObjectUrl(activeSvg);
 
-  // WR-05: guard against "1 of 0" when totalSubstances is momentarily 0
+  // Guard against "1 of 0" when totalSubstances is momentarily 0
   // during a page transition (new page substances array is briefly empty).
   const positionLabel = totalSubstances > 0 ? `${substanceIndex + 1} of ${totalSubstances}` : "";
   const isPrevDisabled = substanceIndex === 0;
@@ -218,7 +218,7 @@ export function StructureSheet({
             </Button>
           </div>
 
-          {/* Single-structure export (D-02) */}
+          {/* Single-structure export */}
           {substance && (
             <div className="flex justify-end mb-2">
               <ExportMenu

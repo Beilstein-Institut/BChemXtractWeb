@@ -1,5 +1,5 @@
 /**
- * HistoryList — Phase 3 Liquid Glass rebuild (Task 12).
+ * HistoryList — Liquid Glass rebuild.
  *
  * Re-skinned table-style list with:
  *   - Sticky glass toolbar: heading, debounced search box, CSV export.
@@ -11,7 +11,7 @@
  *   - CSV export uses {@link useCSVExport} and respects the active
  *     filtered slice, so "Export CSV" emits exactly what the user sees.
  *
- * The list preserves the Phase 2 data contract — parent owns the fetch
+ * The list preserves the existing data contract — parent owns the fetch
  * via `useHistory` and passes `entries`, `total`, `loading`, plus the
  * reload / delete / show-all callbacks. Row navigation still flows
  * through `onReload` + `onReloadSuccess` (parent pushes the result into
@@ -87,7 +87,7 @@ function matchesQuery(entry: HistoryListItem, q: string): boolean {
  * Row-level delete controller. Kept inline so the parent row can
  * animate the opacity out while the delete request is in flight.
  * Row click is the single reload/open affordance — no per-row reload
- * button. See commit history (I-1) for the drop rationale.
+ * button.
  */
 function HistoryRow({
   entry,
@@ -210,7 +210,7 @@ function HistoryRow({
   );
 }
 
-/** Phase 3 rewrite — bento glass list. See module comment. */
+/** Bento glass list. See module comment. */
 export function HistoryList({
   entries,
   total,
@@ -275,7 +275,7 @@ export function HistoryList({
     );
   }
 
-  // D-19 empty state: no extractions and not loading → shared EmptyState.
+  // Empty state: no extractions and not loading → shared EmptyState.
   if (!loading && entries.length === 0 && total === 0) {
     return (
       <EmptyState

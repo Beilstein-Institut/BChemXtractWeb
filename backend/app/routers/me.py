@@ -1,14 +1,13 @@
-"""GDPR Article 17 hard-delete endpoint (Phase 11 D-14 / D-15).
+"""GDPR Article 17 hard-delete endpoint.
 
 ``DELETE /api/me/data`` drops the caller's extractions, cascades to the
 join tables (FK CASCADE), inline orphan-sweeps substances + reactions,
 inserts an audit_log entry, clears the cookie, returns 204. All in one
 transaction — no soft-delete, no retention window.
 
-The atomic-audit (in-transaction, not background) is the RESEARCH
-Pitfall #6 resolution: ``data.deleted`` must land or the deletion must
-roll back. Routine audit events use background tasks via
-``audit_log_insert``.
+The audit insert is in-transaction (not background): ``data.deleted``
+must land or the deletion must roll back. Routine audit events use
+background tasks via ``audit_log_insert``.
 """
 
 from __future__ import annotations
@@ -54,9 +53,7 @@ DbDep = Annotated[AsyncSession, Depends(get_scoped_db)]
         204: {"description": "Erased."},
         500: {
             "model": ErrorResponse,
-            "description": (
-                "Internal error — transaction rolled back atomically (Pitfall #6)."
-            ),
+            "description": ("Internal error — transaction rolled back atomically."),
         },
     },
     tags=["me"],
@@ -71,21 +68,21 @@ async def delete_my_data(
     Order of operations:
       1. DELETE FROM extractions WHERE session_id = :sid OR api_key_hash = :akh
          (cascades to extraction_substances + extraction_reactions).
-      2. Orphan-sweep substances + reactions (D-15).
-      3. In-transaction ``data.deleted`` audit insert (Pitfall #6 — if
-         this fails, the deletion rolls back atomically).
+      2. Orphan-sweep substances + reactions.
+      3. In-transaction ``data.deleted`` audit insert (if this fails,
+         the deletion rolls back atomically).
       4. Commit.
       5. Clear ``bcx_sid`` on the response.
     """
     # request.state.scope was set by get_scoped_db in main.py's global
-    # protected dep list. me.router is in that list (Task 4.4 below).
+    # protected dep list. me.router is in that list.
     session_id, api_key_hash = (
         request.state.scope if hasattr(request.state, "scope") else (None, None)
     )
 
     # 1. Delete extractions owned by the caller. RLS already filters reads
     #    to the caller's rows; the explicit OR predicate is defence in depth
-    #    and mirrors D-02 policy semantics.
+    #    and mirrors the RLS policy semantics.
     await db.execute(
         delete(Extraction).where(
             (Extraction.session_id == session_id)
@@ -94,7 +91,7 @@ async def delete_my_data(
     )
     await db.flush()
 
-    # 2. Inline orphan sweep (D-15) — same pattern as
+    # 2. Inline orphan sweep — same pattern as
     #    services/persistence.delete_extraction_by_id.
     await db.execute(
         delete(Substance).where(
@@ -107,9 +104,9 @@ async def delete_my_data(
         )
     )
 
-    # 3. Audit log — IN-TRANSACTION (Pitfall #6: data.deleted must be
-    #    atomic with the deletion; if the audit insert fails, the
-    #    deletion rolls back).
+    # 3. Audit log — IN-TRANSACTION (data.deleted must be atomic with
+    #    the deletion; if the audit insert fails, the deletion rolls
+    #    back).
     await audit_log_insert_in_session(
         db,
         event="data.deleted",
@@ -127,8 +124,7 @@ async def delete_my_data(
     #    Set-Cookie when a handler returns a fresh Response(204), so we
     #    use the same hand-off pattern as routers/auth.post_auth_restore:
     #    set the cookie on the FastAPI-injected ``response`` argument,
-    #    then copy the header onto a new Response(204) (Plan 11-03
-    #    Deviation #1).
+    #    then copy the header onto a new Response(204).
     response.set_cookie(
         key=SESSION_COOKIE,
         value="",

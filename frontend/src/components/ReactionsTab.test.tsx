@@ -1,9 +1,9 @@
 /**
- * Tests for ReactionsTab orchestrator (Plan 10-05 Task 5.1).
+ * Tests for ReactionsTab orchestrator.
  *
  * Verifies the five-state state machine (idle/loading/success/zero/error) plus
  * the file-re-upload idle variant and the cached-reactions bypass used when
- * loading a historical extraction (D-23).
+ * loading a historical extraction.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
@@ -235,7 +235,7 @@ describe("ReactionsTab", () => {
     expect(screen.getByTestId("reaction-sheet")).toBeInTheDocument();
   });
 
-  it("cachedReactions prop bypasses extract-trigger and renders list directly (D-23)", () => {
+  it("cachedReactions prop bypasses extract-trigger and renders list directly", () => {
     useReactionsSpy.mockReturnValue(mkHookReturn());
     render(
       <ReactionsTab

@@ -8,14 +8,14 @@ import { glassSurfaceClasses } from "@/lib/glass";
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react";
 
 /**
- * Select — form tier (Phase 3 Liquid Glass rebuild, Task 4 + Task 6).
+ * Select — form tier (Liquid Glass rebuild).
  *
  * Base UI-backed. The trigger wears the shared form-tier styling
  * (bg-surface-muted / border-border / rounded-sm / ring-ring focus) so it
  * sits next to <Input /> and <Textarea /> without visual drift.
  *
- * Task 6 upgrade: the popup now uses the shared Liquid Glass surface
- * helper (`glassSurfaceClasses`) so the dropdown panel blurs what sits
+ * The popup uses the shared Liquid Glass surface helper
+ * (`glassSurfaceClasses`) so the dropdown panel blurs what sits
  * behind it, matching Dialog / Popover / DropdownMenu. The scroll arrows
  * inherit a transparent tint so they float over the same glass tile.
  *

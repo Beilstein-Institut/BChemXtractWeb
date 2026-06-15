@@ -2,8 +2,8 @@
  * StructureGrid — responsive 3/2/1 column grid of StructureCards, with an
  * empty state for when no structures were extracted.
  *
- * Implements D-05 (structure grid), D-06 (all structures at once — pagination
- * deferred to Phase 6), and D-11 (empty state).
+ * Renders the structure grid, shows all structures at once (pagination is
+ * handled elsewhere), and provides an empty state.
  */
 import { FlaskConicalIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,11 +20,11 @@ export interface StructureGridProps {
 /**
  * StructureGrid — renders all extracted substances in a responsive CSS grid.
  *
- * Empty state (D-11): shown when `response.structure_count === 0`. Displays a
+ * Empty state: shown when `response.structure_count === 0`. Displays a
  * FlaskConical icon, a descriptive message, and an "Upload another file" button.
  *
- * Grid state: 1 column on mobile, 2 on md, 3 on lg. No pagination in v1 —
- * deferred to Phase 6 per D-06 acceptance.
+ * Grid state: 1 column on mobile, 2 on md, 3 on lg. No pagination in this
+ * view — all extracted substances are rendered at once.
  */
 export function StructureGrid({ response, onReset }: StructureGridProps) {
   if (response.structure_count === 0) {

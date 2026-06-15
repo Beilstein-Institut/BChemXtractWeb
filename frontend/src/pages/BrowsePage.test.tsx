@@ -1,5 +1,5 @@
 /**
- * BrowsePage — bento landing integration tests (Phase 3 Task 11).
+ * BrowsePage — bento landing integration tests.
  *
  * Covers:
  *   - empty-state render when no extraction is active

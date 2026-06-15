@@ -4,14 +4,14 @@ import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group";
 import { cn } from "@/lib/utils";
 
 /**
- * RadioGroup — state tier (Phase 3 Liquid Glass rebuild, Task 5).
+ * RadioGroup — state tier (Liquid Glass rebuild).
  *
  * Group lays children out in a vertical stack by default. Item is a
  * round `size-4` button with `border-border bg-surface-muted` that
  * flips its border to `border-primary` when selected (Base UI
  * `data-checked`). Indicator is an inner `size-2` dot in
- * `bg-primary-foreground`. `data-slot` hooks are preserved for Task 6
- * glass selectors.
+ * `bg-primary-foreground`. `data-slot` hooks are preserved for glass
+ * selectors.
  */
 function RadioGroup({ className, ...props }: RadioGroupPrimitive.Props) {
   return (

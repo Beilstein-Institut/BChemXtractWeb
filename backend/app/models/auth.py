@@ -1,4 +1,4 @@
-"""Pydantic models for Phase 11 auth/session/admin/csrf surfaces.
+"""Pydantic models for auth/session/admin/csrf surfaces.
 
 All fields default to safe values (no None in response shapes) — same
 discipline as backend/app/models/chemistry.py.
@@ -14,14 +14,14 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class SessionInfoResponse(BaseModel):
-    """Response shape of PUT /api/auth/me (D-23)."""
+    """Response shape of PUT /api/auth/me."""
 
     session_id: str = ""
     has_history: bool = False
 
 
 class RestoreRequest(BaseModel):
-    """Body of POST /api/auth/restore (D-09).
+    """Body of POST /api/auth/restore.
 
     `code` must be a canonical lowercase UUID4. Validation runs at the
     Pydantic boundary so the router can rely on a clean value.
@@ -46,7 +46,7 @@ class RestoreRequest(BaseModel):
 
 
 class ApiKeyCreate(BaseModel):
-    """Body of POST /api/admin/api-keys (D-10, D-11, D-13)."""
+    """Body of POST /api/admin/api-keys."""
 
     name: str = Field(..., min_length=1, max_length=255)
     description: str = ""
@@ -54,7 +54,7 @@ class ApiKeyCreate(BaseModel):
 
 
 class ApiKeyCreatedResponse(BaseModel):
-    """Returned ONCE on key creation; full plaintext only here (D-11)."""
+    """Returned ONCE on key creation; full plaintext only here."""
 
     key: str = ""  # bcx_<base64url(32)>
     key_id: int = 0
@@ -65,7 +65,7 @@ class ApiKeyCreatedResponse(BaseModel):
 
 
 class ApiKeyInfo(BaseModel):
-    """List-view shape — NEVER includes plaintext (D-11)."""
+    """List-view shape — NEVER includes plaintext."""
 
     id: int = 0
     name: str = ""
@@ -83,6 +83,6 @@ class ApiKeyInfo(BaseModel):
 
 
 class CsrfTokenResponse(BaseModel):
-    """Response shape of GET /api/csrf-token (D-19)."""
+    """Response shape of GET /api/csrf-token."""
 
     csrf_token: str = ""

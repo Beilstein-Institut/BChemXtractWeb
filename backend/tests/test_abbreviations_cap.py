@@ -1,4 +1,4 @@
-"""Tests for the abbreviations-size cap (SEC L-06).
+"""Tests for the abbreviations-size cap.
 
 A malicious ChemDraw file can declare thousands of abbreviations or
 very long abbreviation strings. The coercion layer in

@@ -1,5 +1,5 @@
 /**
- * AppHeader — tests for the Phase 3 Liquid Glass chrome top bar (Task 7).
+ * AppHeader — tests for the Liquid Glass chrome top bar.
  *
  * Mocks @base-ui/react/menu + SearchInput + ChemistryThemeSwitch to
  * isolate the header shell. Asserts the sticky + glass token class

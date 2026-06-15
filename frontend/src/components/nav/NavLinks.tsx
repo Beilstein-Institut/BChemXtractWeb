@@ -1,11 +1,11 @@
 /**
- * NavLinks — primary nav for AppHeader (Phase 3 Liquid Glass, Task 7).
+ * NavLinks — primary nav for AppHeader (Liquid Glass).
  *
  * Five routes: Extract, Browse, History, Settings, About. The active route
  * gets an accent-tinted pill treatment driven by the `data-active` attribute
  * so CSS consumers (and Playwright assertions) can target it without
- * reaching for the string in className. Settings was added in Phase 11
- * (D-07) for the recovery code + restore + delete-my-data surface.
+ * reaching for the string in className. Settings provides the recovery
+ * code + restore + delete-my-data surface.
  */
 import { Link } from "@/lib/Link";
 import { useRoute } from "@/lib/router";

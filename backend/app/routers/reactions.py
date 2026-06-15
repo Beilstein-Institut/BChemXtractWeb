@@ -1,18 +1,18 @@
-"""Experimental reaction-extraction endpoint (Plan 10).
+"""Experimental reaction-extraction endpoint.
 
 POST /api/reactions accepts a CDX/CDXML file via multipart/form-data,
 extracts reactions + renders SVGs via CDK's DepictionGenerator, and
 returns ReactionExtractionResponse JSON.
 
 GET /api/extractions/{extraction_id}/reactions returns cached reactions
-for the given extraction (D-23 history-hydration path -- lets the
+for the given extraction (history-hydration path -- lets the
 frontend ReactionsTab pre-populate when loading a history entry with
 reaction_count > 0, skipping the re-extract CTA).
 
-Per D-06: timeouts return HTTP 200 with reactions=[] + warning (NOT 408/503).
-Per D-07: structural isolation from /api/extract -- no shared try/except.
-Per D-19: auto-persist best-effort -- DB failures logged, never re-raised.
-Per D-25: ErrorResponse shapes for 413/415/422/500.
+Timeouts return HTTP 200 with reactions=[] + warning (NOT 408/503).
+Structural isolation from /api/extract -- no shared try/except.
+Auto-persist is best-effort -- DB failures logged, never re-raised.
+ErrorResponse shapes for 413/415/422/500.
 """
 
 import asyncio
@@ -50,7 +50,7 @@ DbDep = Annotated[AsyncSession, Depends(get_scoped_db)]
     operation_id="extractReactions",
     summary="Extract reactions from a CDX/CDXML file (experimental)",
     description=(
-        "Opt-in reaction extraction (Plan 10, experimental). Detects the "
+        "Opt-in reaction extraction (experimental). Detects the "
         "file format from its content (magic bytes `VjCD` for binary CDX "
         "vs. XML CDXML), routes through BChemXtract's ReactionXtractor, "
         "and renders each reaction as a combined CDK SVG via "
@@ -99,13 +99,14 @@ DbDep = Annotated[AsyncSession, Depends(get_scoped_db)]
 async def extract_reactions_endpoint(
     request: Request, file: UploadFile, db: DbDep
 ) -> ReactionExtractionResponse:
-    """Extract reactions from a CDX/CDXML file upload (experimental, Plan 10).
+    """Extract reactions from a CDX/CDXML file upload (experimental).
 
-    Per D-06: timeouts return HTTP 200 + warning (not 408/503).
-    Per D-19: auto-persists; DB failures logged but never raised.
-    Per Pitfall 9: creates a minimal Extraction row when /api/extract never ran.
+    Timeouts return HTTP 200 + warning (not 408/503).
+    Auto-persists; DB failures logged but never raised.
+    Creates a minimal Extraction row when /api/extract never ran, so the
+    history view stays consistent for reactions-only first uploads.
     """
-    # SEC M-02: bounded streaming read — mirrors extract.py.
+    # Bounded streaming read — mirrors extract.py.
     file_bytes = await read_upload_bounded(file, settings.max_upload_size)
 
     start = time.perf_counter()
@@ -116,7 +117,7 @@ async def extract_reactions_endpoint(
     if file.filename:
         warnings.extend(check_extension_mismatch(file.filename, format_type))
 
-    # D-06: timeout becomes warning, NOT 503.
+    # Timeout becomes a warning, NOT 503.
     try:
         reactions, extractor_warnings = await extract_reactions_with_svg(
             file_bytes,
@@ -148,17 +149,17 @@ async def extract_reactions_endpoint(
         warnings=warnings,
     )
 
-    # D-19: auto-persist best-effort. Pitfall 9: create a minimal
-    # Extraction row when the file has never been substance-extracted
-    # first. Re-raise CancelledError so graceful shutdown / client
-    # disconnects still abort the coroutine cleanly (SEC M-05).
+    # Auto-persist is best-effort. Create a minimal Extraction row when
+    # the file has never been substance-extracted first, so the history
+    # view stays consistent. Re-raise CancelledError so graceful shutdown
+    # / client disconnects still abort the coroutine cleanly.
     # Filename truncated + repr-quoted in the log message to prevent
     # log-injection via crafted filenames.
     try:
-        # Phase 11 D-01: same scope-threading discipline as
-        # routers/extract.py — both the get-or-create and save-reactions
-        # calls receive the request's (session_id, api_key_hash) tuple so
-        # parent + join rows carry matching owner columns for RLS.
+        # Same scope-threading discipline as routers/extract.py — both the
+        # get-or-create and save-reactions calls receive the request's
+        # (session_id, api_key_hash) tuple so parent + join rows carry
+        # matching owner columns for RLS.
         scope = request.state.scope if hasattr(request.state, "scope") else (None, None)
         file_hash = hashlib.sha256(file_bytes).hexdigest()
         extraction_id = await get_or_create_extraction_row(
@@ -182,7 +183,7 @@ async def extract_reactions_endpoint(
     return response
 
 
-# D-23: history-hydration endpoint -- frontend ReactionsTab reads cached
+# History-hydration endpoint -- frontend ReactionsTab reads cached
 # reactions when a user loads an extraction from History and reaction_count > 0.
 @router.get(
     "/extractions/{extraction_id}/reactions",
@@ -192,7 +193,7 @@ async def extract_reactions_endpoint(
     description=(
         "Returns the reactions stored for a given extraction_id. Used by "
         "the frontend Reactions tab to pre-hydrate the list when loading "
-        "an extraction from History (D-23). Returns an empty reactions list "
+        "an extraction from History. Returns an empty reactions list "
         "with 200 status when the extraction exists but has never had "
         "reaction extraction run (`reaction_count == 0`)."
     ),
@@ -207,7 +208,7 @@ async def extract_reactions_endpoint(
 async def get_extraction_reactions_endpoint(
     extraction_id: int, db: DbDep
 ) -> ReactionExtractionResponse:
-    """Return cached reactions for an extraction (D-23 history hydration).
+    """Return cached reactions for an extraction (history hydration).
 
     Returns 404 when the extraction_id doesn't exist. Returns 200 + empty
     reactions list when the extraction exists but reaction_count == 0.

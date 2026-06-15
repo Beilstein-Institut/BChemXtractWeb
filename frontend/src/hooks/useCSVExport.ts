@@ -1,5 +1,5 @@
 /**
- * useCSVExport — client-side CSV serialisation + download (Phase 3 Task 12).
+ * useCSVExport — client-side CSV serialisation + download.
  *
  * Produces a stable `(items, options) => void` callback that serialises an
  * array of rows to RFC 4180 CSV and triggers a browser download. The hook

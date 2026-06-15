@@ -6,12 +6,12 @@ import { CheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Checkbox — state tier (Phase 3 Liquid Glass rebuild, Task 5).
+ * Checkbox — state tier (Liquid Glass rebuild).
  *
  * Square box: `size-4 rounded-sm border border-border bg-surface-muted`
  * off; fills with `bg-primary` + `border-primary` when checked
  * (Base UI `data-checked`). Indicator is a lucide CheckIcon revealed when
- * checked. `data-slot` hooks are preserved for Task 6 glass selectors.
+ * checked. `data-slot` hooks are preserved for glass selectors.
  */
 function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
   return (

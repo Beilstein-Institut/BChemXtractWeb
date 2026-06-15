@@ -39,7 +39,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
 
-    # SEC H-04: database_url has no default — every deployment (dev, test,
+    # database_url has no default — every deployment (dev, test,
     # prod, CI) MUST supply it explicitly. Previously the default carried a
     # well-known ``postgres:postgres`` credential pair that is also the
     # fallback used by a naive ``docker-compose up`` so a misconfigured
@@ -56,14 +56,16 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
     debug: bool = False
 
-    # --- Phase 11: cookie + API key + admin auth secrets ---
+    # --- Cookie + API key + admin auth secrets ---
     secret_key: str = Field(
         default="",
         description=(
             "Server-side secret used as the PBKDF2 salt for API-key lookup "
-            "hashes (Phase 11 D-10) AND as the HMAC key for CSRF tokens "
-            "(D-19). >= 32 chars required in production (DEBUG=false). "
-            "Single key (RESEARCH Open Q #3 RESOLVED) — rotating invalidates "
+            "hashes AND as the HMAC key for CSRF tokens. "
+            ">= 32 chars required in production (DEBUG=false). "
+            "A single key serves both purposes — domain separation comes "
+            "from the distinct input shapes, not from splitting keys — so "
+            "rotating it invalidates "
             "every stored API-key hash AND every outstanding CSRF token. "
             "Generate via: python -c "
             "'import secrets; print(secrets.token_urlsafe(32))'"
@@ -72,24 +74,24 @@ class Settings(BaseSettings):
     admin_secret: str = Field(
         default="",
         description=(
-            "Admin-endpoint gate (Phase 11 D-11). Compared constant-time "
+            "Admin-endpoint gate. Compared constant-time "
             "against the inbound X-Admin-Secret header. >= 32 chars "
             "required in production. Safe to rotate via "
-            "`./deploy.sh --rotate-keys` (Plan 11-08)."
+            "`./deploy.sh --rotate-keys`."
         ),
     )
     api_key_default_expiry_days: int = 90
-    """Default expiry for new API keys (Phase 11 D-13). Override per-key
+    """Default expiry for new API keys. Override per-key
     via the POST /api/admin/api-keys body."""
 
     api_key_max_expiry_days: int = 365
-    """Hard cap on per-key expiry (Phase 11 D-13). Values above are clamped."""
+    """Hard cap on per-key expiry. Values above are clamped."""
 
     audit_log_retention_days: int = 365
-    """Audit log retention (Phase 11 D-17 — ~12 months). The Celery beat
+    """Audit log retention (~12 months). The Celery beat
     task deletes rows older than this daily at 03:00 UTC."""
 
-    # --- Rate limiting (Phase SEC-1, slowapi-backed) ---
+    # --- Rate limiting (slowapi-backed) ---
     rate_limit_default: str = "120/minute"
     rate_limit_upload: str = "10/minute"
     rate_limit_batch: str = "3/minute"
@@ -97,27 +99,27 @@ class Settings(BaseSettings):
     rate_limit_export: str = "30/minute"
     rate_limit_storage_uri: str = "memory://"
 
-    # --- OpenAPI documentation surface gating (Phase SEC-1) ---
+    # --- OpenAPI documentation surface gating ---
     expose_openapi_docs: bool | None = None
     """When None, resolves to ``debug`` at startup. Explicitly set to a bool
     to override (e.g. allow docs in prod behind the API-key gate for an
     internal staging environment)."""
 
-    # JVM settings (Phase 2)
+    # JVM settings
     jvm_max_heap: str = "512m"
-    """Max JVM heap size (D-01/D-03). Configurable via JVM_MAX_HEAP env var."""
+    """Max JVM heap size. Configurable via JVM_MAX_HEAP env var."""
 
     jpype_workers: int = 4
-    """Thread pool size for JPype calls (D-04). Configurable via JPYPE_WORKERS."""
+    """Thread pool size for JPype calls. Configurable via JPYPE_WORKERS."""
 
     jvm_opts: str | None = None
     """Optional extra JVM flags (e.g. '-XX:+UseG1GC'). Configurable via JVM_OPTS."""
 
     max_upload_size: int = 50 * 1024 * 1024
-    """Max upload file size in bytes (D-05). Default 50 MB."""
+    """Max upload file size in bytes. Default 50 MB."""
 
     reaction_timeout_secs: float = 30.0
-    """Hard timeout for POST /api/reactions JVM call (Plan 10 D-06).
+    """Hard timeout for POST /api/reactions JVM call.
 
     On timeout, the endpoint returns HTTP 200 with reactions=[] and a
     warning — NOT 408/503. Configurable via REACTION_TIMEOUT_SECS env var.
@@ -139,14 +141,13 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _validate_phase11_secrets(self) -> "Settings":
-        """Refuse to start in production without Phase 11 secrets.
+        """Refuse to start in production without the auth secrets.
 
-        The Phase 11 cutover (Plan 11-05) replaced the legacy Bearer
-        ``API_KEYS`` env-list with two server-side secrets:
-        ``SECRET_KEY`` (PBKDF2 salt for API-key lookup hashes + CSRF
-        HMAC; Open Q #3 RESOLVED — single key) and ``ADMIN_SECRET``
-        (admin-endpoint gate). In DEBUG=true (dev/test) short or empty
-        values are allowed.
+        The auth model uses two server-side secrets in place of a legacy
+        Bearer ``API_KEYS`` env-list: ``SECRET_KEY`` (a single key acting
+        as both the PBKDF2 salt for API-key lookup hashes and the CSRF
+        HMAC key) and ``ADMIN_SECRET`` (admin-endpoint gate). In
+        DEBUG=true (dev/test) short or empty values are allowed.
         """
         if not self.debug:
             if len(self.secret_key) < 32:
@@ -166,7 +167,7 @@ class Settings(BaseSettings):
     def _validate_prod_cors(self) -> "Settings":
         """Refuse to start in production with a dev origin in CORS_ORIGINS.
 
-        Phase 11 RESEARCH Pitfall #4: the bcx_sid cookie sets Secure
+        The bcx_sid cookie sets Secure
         based on whether localhost / 127.0.0.1 appears in
         ``cors_origins`` (see ``app.core.session._is_dev_origin_set``).
         A production deploy that forgets to swap localhost out drops

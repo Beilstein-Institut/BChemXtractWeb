@@ -6,8 +6,7 @@
  * the card-click does not fire.
  *
  * SVG is rendered via a Blob URL in `<img src>` — never as raw innerHTML —
- * to prevent XSS injection from backend-supplied SVG (T-10-05 mirrors
- * Phase 4 T-04-04).
+ * to prevent XSS injection from backend-supplied SVG.
  */
 import { ArrowRightLeftIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -32,8 +31,8 @@ export interface ReactionCardProps {
 /**
  * ReactionCard — full-width horizontal reaction tile for the Reactions tab.
  *
- * Implements UI-SPEC §4 (anatomy + responsive heights) and Plan 10 D-10
- * (card + side-sheet detail).
+ * Full-width horizontal layout (anatomy + responsive heights) with a
+ * card + side-sheet detail interaction.
  */
 export function ReactionCard({
   reaction,
@@ -41,10 +40,10 @@ export function ReactionCard({
   onOpen,
   isActive = false,
 }: ReactionCardProps) {
-  // T-10-05: SVG rendered via a Blob URL — never innerHTML.
+  // SVG rendered via a Blob URL — never innerHTML.
   const svgSrc = useSvgObjectUrl(reaction.svg);
 
-  // D-10 component summary chip — "2 reactants · 1 products" with optional
+  // Component summary chip — "2 reactants · 1 products" with optional
   // "· N agent(s)" segment when agents.length > 0.
   const summarySegments: string[] = [
     `${reaction.reactants.length} reactants`,
@@ -79,7 +78,7 @@ export function ReactionCard({
         }
       }}
     >
-      {/* SVG container — responsive height per UI-SPEC §4.
+      {/* SVG container — responsive height.
        * bg-white in both themes because CDK depicts chemistry with
        * hard black strokes that are unreadable on any dark surface.
        * The white "paper" + border creates a scientific-publication

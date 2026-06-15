@@ -1,5 +1,5 @@
 /**
- * Client-side string hardening helpers (SEC MED-03 / MED-04 / LOW-07).
+ * Client-side string hardening helpers.
  *
  * All four exports are thin slug/sanitise utilities that take untrusted
  * backend strings (filenames, InChI prefixes, clipboard values, URL

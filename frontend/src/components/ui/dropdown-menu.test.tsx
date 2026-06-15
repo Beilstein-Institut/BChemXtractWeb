@@ -1,6 +1,6 @@
 /**
- * DropdownMenu — tests for the Phase 3 Liquid Glass floating primitive
- * (Task 6). Base UI-backed menu with data-open / data-closed idioms.
+ * DropdownMenu — tests for the Liquid Glass floating primitive.
+ * Base UI-backed menu with data-open / data-closed idioms.
  * Portals to document.body.
  */
 import { describe, it, expect } from "vitest";

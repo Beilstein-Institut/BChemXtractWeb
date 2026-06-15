@@ -1,5 +1,5 @@
 /**
- * CommandPalette — Spotlight-style neomorphic modal (Phase 3 Task 19).
+ * CommandPalette — Spotlight-style neomorphic modal.
  *
  * Apple-Spotlight inspired command palette: a centered fixed-position
  * card with a large search input at the top, a 4-column grid of
@@ -23,13 +23,13 @@
  * opacity crossfade for the backdrop. `useReducedMotion` short-
  * circuits to a no-op transition when the user asks for less motion.
  *
- * Stable data-slot hooks (relied on by phase3-smoke e2e + unit tests):
+ * Stable data-slot hooks (relied on by e2e + unit tests):
  *   - data-slot="command-palette"            (overlay root)
  *   - data-slot="command-palette-input"      (search input)
  *   - data-slot="command-palette-shortcuts"  (tile grid)
  *   - data-slot="command-palette-results"    (results list)
  *   - data-slot="command-item"               (each clickable item; also
- *       carries data-value so phase3-smoke can select nav-browse)
+ *       carries data-value so tests can select nav-browse)
  */
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -194,7 +194,7 @@ interface CommandPaletteProps {
    * that lazy-loads this chunk also opens the palette — otherwise the
    * user would need to press ⌘K twice to see it (once to trigger the
    * chunk download, once to open). Default false preserves the
-   * original Task-14 behavior when mounted eagerly.
+   * original behavior when mounted eagerly.
    */
   initiallyOpen?: boolean;
 }

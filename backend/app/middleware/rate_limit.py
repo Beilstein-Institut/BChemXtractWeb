@@ -1,7 +1,7 @@
-"""Per-session rate limiting via slowapi (Phase 11 D-21).
+"""Per-session rate limiting via slowapi.
 
 The slowapi ``key_func`` resolves the limit bucket from the incoming
-request. After Plan 11-05 the resolution order is
+request. The resolution order is
 
     session_id (bcx_sid cookie, UUID4-validated)
         > api_key_hash (X-API-Key header, truncated PBKDF2 hash prefix)
@@ -21,13 +21,14 @@ explicitly — none currently do, so the existing per-route limits in
 ``export.py``, and ``admin_api_keys.py`` partition by the new precedence
 automatically. Admin endpoints carry no cookie and may carry no
 X-API-Key, so ``rate_limit_key`` falls through to the per-IP bucket —
-preserving D-11's "5/minute per IP" rate ceiling for admin without any
+preserving the "5/minute per IP" rate ceiling for admin without any
 per-route override.
 
-Storage defaults to ``memory://`` for single-replica deployments. Scaling
+Storage defaults to ``memory://`` for single-replica deployments. With
+``memory://`` each replica keeps its own in-process counters, so scaling
 horizontally requires flipping ``RATE_LIMIT_STORAGE_URI`` to a
-``redis://`` URL so all workers share the counters (see Pitfall #7 in
-the phase RESEARCH.md). No code changes are required for that switch.
+``redis://`` URL so all workers share the counters. No code changes are
+required for that switch.
 
 The ``429`` error response is normalised through the unified
 ``ErrorResponse`` shape via ``app.errors.rate_limit_exceeded_handler``.
@@ -50,7 +51,7 @@ _UUID_RE = re.compile(
 
 
 def rate_limit_key(request: Request) -> str:
-    """slowapi key_func — MUST be synchronous (RESEARCH §3).
+    """slowapi key_func — MUST be synchronous.
 
     Precedence:
       1. ``bcx_sid`` cookie, validated as a UUID4 → ``sid:<uuid>``.
@@ -63,7 +64,7 @@ def rate_limit_key(request: Request) -> str:
          is opaque to clients.
       3. Fallback → ``ip:<client ip>`` (slowapi default). Same numerical
          ceiling as the cookie/akh buckets, so a client that clears the
-         cookie cannot escape rate limiting (D-21 / T-11-10).
+         cookie cannot escape rate limiting.
     """
     sid = request.cookies.get("bcx_sid")
     if sid and _UUID_RE.match(sid):

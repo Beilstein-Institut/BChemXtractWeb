@@ -4,7 +4,7 @@ Revision ID: a1b2c3d4e5f6
 Revises: f1a2b3c4d5e6
 Create Date: 2026-05-16 17:00:00.000000+00:00
 
-Phase 11 follow-up. The bootstrap POSTGRES_USER has SUPERUSER + BYPASSRLS,
+The bootstrap POSTGRES_USER has SUPERUSER + BYPASSRLS,
 which silently disables RLS even with FORCE ROW LEVEL SECURITY. This
 migration creates ``bchemxtract_app`` (NOSUPERUSER NOBYPASSRLS) for the
 runtime backend / celery services; the migrate service stays on the

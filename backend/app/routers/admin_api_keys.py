@@ -1,8 +1,9 @@
-"""Admin CRUD over api_keys table (Phase 11 D-10, D-11).
+"""Admin CRUD over api_keys table.
 
 X-Admin-Secret gate via require_admin_auth. Rate-limited 5/minute per IP
-(admin requests carry no cookie, so the global key_func falls back to
-get_remote_address — see Plan 11-05 rate_limit_key swap).
+(admin requests carry no cookie, so the global key_func — which prefers
+session id, then API-key hash, then IP — falls back to
+get_remote_address).
 """
 
 from __future__ import annotations
@@ -45,7 +46,7 @@ DbDep = Annotated[AsyncSession, Depends(get_db)]
     operation_id="adminCreateApiKey",
     summary="Mint a new API key (admin)",
     description=(
-        "Generates a `bcx_<base64url(32)>` key (Phase 11 D-12), stores its PBKDF2 "
+        "Generates a `bcx_<base64url(32)>` key, stores its PBKDF2 "
         "lookup hash, and returns the plaintext key ONCE. Subsequent list/revoke "
         "endpoints never expose the plaintext. Default expiry 90 days "
         "(`expiry_days = 0` → no expiry)."

@@ -9,7 +9,7 @@ export interface UseCsrfTokenReturn {
 }
 
 /**
- * Boot-time CSRF token bootstrap (Phase 11 D-19).
+ * Boot-time CSRF token bootstrap.
  *
  * Writes the freshly-fetched token into the module-level `csrfTokenCache`
  * so `apiClient.apiFetch` picks it up on every state-changing request.

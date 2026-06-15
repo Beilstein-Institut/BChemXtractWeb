@@ -1,7 +1,7 @@
 /**
- * SearchResults — main content area when a search query is active (D-11).
+ * SearchResults — main content area when a search query is active.
  *
- * Layout per UI-SPEC §2:
+ * Layout:
  *   - metadata row: "{N} results for `{query}` · {type} · {scope}"
  *     with "Clear search" ghost button on the right
  *   - 4-col responsive grid of SearchResultCard (or 6-skeleton grid while loading)
@@ -9,10 +9,10 @@
  *   - EmptyState with retry on network error
  *   - Pagination below grid
  *
- * Backend warnings (D-09) surface as a sonner toast, deduplicated via
+ * Backend warnings surface as a sonner toast, deduplicated via
  * a ref so a single warning doesn't fire twice if `response` re-renders.
  *
- * Consumes the `useSearch` hook (Plan 06). Plan 07 does NOT modify
+ * Consumes the `useSearch` hook and does NOT modify
  * useSearch.ts — this component is a pure reader.
  */
 import { useEffect, useRef } from "react";
@@ -83,7 +83,7 @@ export function SearchResults({ onViewExtraction }: SearchResultsProps = {}) {
     submit,
   } = useSearch();
 
-  // Surface backend warnings as a sonner toast (D-09). Dedup by the first
+  // Surface backend warnings as a sonner toast. Dedup by the first
   // warning string so a single warning doesn't re-fire on re-renders.
   const lastToastRef = useRef<string | null>(null);
   useEffect(() => {

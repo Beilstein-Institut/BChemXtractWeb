@@ -1,17 +1,17 @@
 /**
- * StructureBrowser — paginated structure browsing UI orchestrator (Phase 6).
+ * StructureBrowser — paginated structure browsing UI orchestrator.
  *
  * Combines: useBrowse hook, BrowseToolbar, StructureCard grid or StructureTable,
  * shadcn Pagination, and StructureSheet detail panel.
  *
- * Sheet is controlled at this level (D-10): one Sheet instance, sheetIndex
+ * Sheet is controlled at this level: one Sheet instance, sheetIndex
  * updates without toggling open state — no close/reopen animation when clicking
  * a different card while the sheet is open.
  *
- * STRIDE mitigations applied via child components:
- * - T-06-09: SVG rendered via Blob URL (useSvgObjectUrl) in StructureSheet and StructureCard
- * - T-06-10: Keyboard listener scoped to open state in StructureSheet
- * - T-06-11: onPrev/onNext clamped with Math.max/Math.min to [0, substances.length-1]
+ * Security mitigations applied via child components:
+ * - SVG rendered via Blob URL (useSvgObjectUrl) in StructureSheet and StructureCard
+ * - Keyboard listener scoped to open state in StructureSheet
+ * - onPrev/onNext clamped with Math.max/Math.min to [0, substances.length-1]
  */
 import { useMemo, useState } from "react";
 import { AlertCircleIcon, LayoutGridIcon } from "lucide-react";
@@ -47,21 +47,21 @@ export interface StructureBrowserProps {
    */
   onReset?: () => void;
   /**
-   * Callback fired when the BrowseToolbar "Search within" button is clicked
-   * (D-20). Forwarded to BrowseToolbar. When undefined, the button is hidden.
+   * Callback fired when the BrowseToolbar "Search within" button is clicked.
+   * Forwarded to BrowseToolbar. When undefined, the button is hidden.
    * Parent (App.tsx) writes `?q=&scope=extraction:{id}` to the URL and
    * focuses the header SearchInput via `searchInputRef`.
    */
   onSearchWithin?: () => void;
   /**
-   * When true, the toolbar's ExportMenu enables the RXN/RDfile entry
-   * (Plan 10 D-22 / EXPO-08). True when reactions exist for the active
-   * extraction — either freshly extracted in the Reactions tab or
-   * hydrated from the D-23 cached path. Defaults to false.
+   * When true, the toolbar's ExportMenu enables the RXN/RDfile entry.
+   * True when reactions exist for the active extraction — either freshly
+   * extracted in the Reactions tab or hydrated from the cached
+   * reactions path. Defaults to false.
    */
   reactionsAvailable?: boolean;
   /**
-   * Optional `BrowseFilters` surfaced by the Phase 3 Task 11 `SearchFilter`
+   * Optional `BrowseFilters` surfaced by the `SearchFilter`
    * composite. When provided, the current-page substance slice is filtered
    * client-side using `filterSubstances` so the grid/table views honour
    * the same chip + query state as the bento landing. Server pagination
@@ -79,7 +79,7 @@ export interface StructureBrowserProps {
 
 /**
  * Build page number array with ellipsis. Max 5 page number buttons visible.
- * T-06-11: sheetIndex is clamped externally; this helper is pure pagination math.
+ * sheetIndex is clamped externally; this helper is pure pagination math.
  */
 function buildPageNumbers(current: number, total: number): (number | "...")[] {
   if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
@@ -122,7 +122,7 @@ export function StructureBrowser({
     clearSelection,
   } = useBrowse(extractionId);
 
-  // Sheet controlled state (D-10): update index without toggling open
+  // Sheet controlled state: update index without toggling open
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetIndex, setSheetIndex] = useState(0);
 
@@ -131,7 +131,7 @@ export function StructureBrowser({
     setSheetOpen(true);
   }
 
-  // Task 11: narrow the current server page to the browse filters. Server
+  // Narrow the current server page to the browse filters. Server
   // pagination / sort still drive which slice we see — filters only hide
   // non-matches within that slice. Pulling `page?.items` inside the useMemo
   // keeps the dep array stable across renders (outside the memo the fallback
@@ -147,7 +147,7 @@ export function StructureBrowser({
 
   return (
     <div data-slot="structure-browser">
-      {/* Toolbar — disabled during initial load (D-14) */}
+      {/* Toolbar — disabled during initial load */}
       <BrowseToolbar
         view={view}
         onViewChange={setView}
@@ -167,7 +167,7 @@ export function StructureBrowser({
         onDepictionChange={onDepictionChange}
       />
 
-      {/* Loading state — skeleton cards/rows (D-13) */}
+      {/* Loading state — skeleton cards/rows */}
       {browseState === "loading" &&
         page === null &&
         (view === "grid" ? (
@@ -184,7 +184,7 @@ export function StructureBrowser({
           </div>
         ))}
 
-      {/* Error state (D-19) */}
+      {/* Error state */}
       {browseState === "error" && (
         <EmptyState
           icon={AlertCircleIcon}
@@ -199,7 +199,7 @@ export function StructureBrowser({
         />
       )}
 
-      {/* Empty state (D-19). When filters are active but the current page
+      {/* Empty state. When filters are active but the current page
           happens to contain zero matches, the copy switches from the
           default "nothing to browse" to a filter-aware prompt so the user
           understands why the grid is blank. */}
@@ -216,7 +216,7 @@ export function StructureBrowser({
         />
       )}
 
-      {/* Grid view (D-05) */}
+      {/* Grid view */}
       {browseState === "success" && substances.length > 0 && view === "grid" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
           {substances.map((substance, index) => (
@@ -235,7 +235,7 @@ export function StructureBrowser({
         </div>
       )}
 
-      {/* Table view (D-06) */}
+      {/* Table view */}
       {browseState === "success" && substances.length > 0 && view === "table" && (
         <div className="mt-6">
           <StructureTable
@@ -250,7 +250,7 @@ export function StructureBrowser({
         </div>
       )}
 
-      {/* Pagination (D-03) — hidden during loading */}
+      {/* Pagination — hidden during loading */}
       {browseState === "success" && totalPages > 1 && (
         <div className="mt-6 flex justify-center">
           <Pagination>
@@ -293,7 +293,7 @@ export function StructureBrowser({
         </div>
       )}
 
-      {/* Sheet — single instance, controlled open state (D-10) */}
+      {/* Sheet — single instance, controlled open state */}
       <StructureSheet
         open={sheetOpen}
         onOpenChange={setSheetOpen}

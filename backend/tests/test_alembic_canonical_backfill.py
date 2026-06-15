@@ -1,4 +1,4 @@
-"""D-05 + SEC M-09: alembic schema + standalone canonical-smiles backfill.
+"""Alembic schema + standalone canonical-smiles backfill.
 
 After splitting schema migration from data backfill the two concerns are
 tested independently:

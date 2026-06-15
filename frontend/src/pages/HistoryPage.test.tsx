@@ -1,5 +1,5 @@
 /**
- * HistoryPage tests — Phase 3 Task 12.
+ * HistoryPage tests.
  *
  * Covers:
  *   - Page exposes the `history-page` data-slot.

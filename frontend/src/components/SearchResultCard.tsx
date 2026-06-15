@@ -1,10 +1,10 @@
 /**
- * SearchResultCard — wraps StructureCard with attribution + highlight (D-10, D-11, D-13).
+ * SearchResultCard — wraps StructureCard with attribution + highlight.
  *
  * For substructure hits, swaps in match_svg so the scaffold render highlights
  * the matched fragment instead of the stored substance.svg. Both SVGs flow
  * through StructureCard's Blob-URL `<img src>` path — never
- * dangerouslySetInnerHTML (T-04-04, T-09-07-01).
+ * dangerouslySetInnerHTML.
  */
 import { Badge } from "@/components/ui/badge";
 import { AttributionPill } from "@/components/AttributionPill";

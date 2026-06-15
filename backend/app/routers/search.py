@@ -1,16 +1,16 @@
-"""POST /api/search — unified search endpoint (D-14).
+"""POST /api/search — unified search endpoint.
 
 Body: :class:`app.models.chemistry.SearchRequest`
       (``{query, type, scope, match, page, size}``).
 Response: :class:`app.models.chemistry.SearchResponse`
       (``{results, total, page, size, warnings}``).
 
-Per D-16: ``operation_id``, ``summary``, ``description``, ``responses``, and
+``operation_id``, ``summary``, ``description``, ``responses``, and
 ``tags`` are populated at definition time so ``/docs`` and ``/redoc`` render
 a curated spec.
 
 All error paths flow through the unified exception handlers registered in
-``main.py`` (Plan 05). Pydantic 422 validation fires automatically for bad
+``main.py``. Pydantic 422 validation fires automatically for bad
 request bodies (out-of-range ``page``, empty ``query``, unknown ``type``).
 """
 

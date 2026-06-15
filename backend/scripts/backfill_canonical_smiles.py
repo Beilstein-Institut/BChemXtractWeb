@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""CLI wrapper around :mod:`app.services.canonicalize_backfill` (SEC M-09).
+"""CLI wrapper around :mod:`app.services.canonicalize_backfill`.
 
 Extracted from the ``c3d4e5f6a7b8`` alembic migration so the schema
 migration can complete without waiting on a JVM-backed data migration.

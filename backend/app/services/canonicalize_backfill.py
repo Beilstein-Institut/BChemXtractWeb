@@ -4,7 +4,7 @@ Populates the ``canonical_smiles`` column for every row where it is
 currently ``NULL`` and the original ``smiles`` is parseable by CDK.
 
 Extracted from the ``c3d4e5f6a7b8`` Alembic migration so schema and data
-migrations stay disjoint (SEC M-09). Called by:
+migrations stay disjoint. Called by:
 
   * :mod:`scripts.backfill_canonical_smiles` — operational CLI run
     after ``alembic upgrade head`` on a new deployment, or manually to

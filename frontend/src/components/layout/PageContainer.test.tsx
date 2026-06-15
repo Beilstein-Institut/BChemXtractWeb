@@ -1,5 +1,5 @@
 /**
- * Tests for PageContainer — Phase 3 Task 8.
+ * Tests for PageContainer.
  * Vitest globals enabled; describe/it/expect implicit.
  */
 import { render, screen } from "@testing-library/react";

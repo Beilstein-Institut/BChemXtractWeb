@@ -1,5 +1,5 @@
 /**
- * DeleteMyDataButton — unit tests for Phase 11 D-14 (GDPR Article 17).
+ * DeleteMyDataButton — unit tests for GDPR Article 17.
  *
  * Verifies:
  *   - Renders the destructive trigger button.
@@ -27,7 +27,7 @@ function mockDelete204() {
   } as Response);
 }
 
-describe("DeleteMyDataButton (Phase 11 D-14)", () => {
+describe("DeleteMyDataButton", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     csrfTokenCache.value = "fake-token.123.sig";

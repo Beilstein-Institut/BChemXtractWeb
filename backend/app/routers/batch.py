@@ -33,7 +33,7 @@ from app.services.upload_guard import read_upload_bounded
 from app.tasks.extraction import extract_file_task
 
 # Hard cap on concurrent files accepted per batch request. A malicious
-# client can still submit many separate batches; rate limiting (SEC C-02)
+# client can still submit many separate batches; rate limiting
 # bounds the per-IP per-minute ceiling.
 _BATCH_FILE_LIMIT = 20
 _SSE_POLL_SECONDS = 0.5
@@ -141,7 +141,7 @@ async def start_batch(request: Request, files: UploadFiles) -> BatchStartRespons
             detail=f"Batch exceeds the {_BATCH_FILE_LIMIT}-file limit",
         )
 
-    # SEC H-02 preflight: fail fast using the Content-Length-derived
+    # Preflight: fail fast using the Content-Length-derived
     # ``UploadFile.size`` BEFORE reading any bytes, so oversize
     # submissions don't drain RAM. The bounded streaming read below is
     # still the authoritative gate for clients that omit Content-Length.
@@ -153,7 +153,7 @@ async def start_batch(request: Request, files: UploadFiles) -> BatchStartRespons
                 detail=f"{f.filename or 'unnamed'} exceeds the {max_mb} MB limit",
             )
 
-    # Phase 11 D-01: forward the request's resolved scope to the Celery
+    # Forward the request's resolved scope to the Celery
     # worker through task kwargs. session_id is the UUID4 string;
     # api_key_hash is serialised as hex so it round-trips through Redis
     # JSON. The worker re-decodes to bytes before persistence. The
@@ -226,8 +226,8 @@ async def batch_progress(group_id: str, request: Request) -> EventSourceResponse
 
     Emits one ``file_complete`` event per completed task, then
     ``batch_complete`` when all are terminal. Disconnects cleanly when
-    the client closes the connection. Polls every 0.5 s (D-14:
-    non-blocking SSE polling pattern).
+    the client closes the connection. Polls every 0.5 s
+    (non-blocking SSE polling pattern).
     """
 
     async def event_generator():
@@ -275,7 +275,7 @@ async def batch_progress(group_id: str, request: Request) -> EventSourceResponse
     summary="Cancel pending batch tasks",
     description=(
         "Revoke all pending tasks in the batch. The currently running "
-        "task (if any) finishes normally per D-10 — `terminate=False` "
+        "task (if any) finishes normally — `terminate=False` "
         "so no in-flight file is interrupted. `group_id` is the Celery "
         "GroupResult.id returned by `POST /api/batch`."
     ),
@@ -294,7 +294,7 @@ async def cancel_batch(group_id: str) -> None:
 
     group_id is the Celery GroupResult.id (NOT the custom batch_id used
     for DB/ZIP lookups). The currently-executing task finishes normally
-    because ``terminate=False`` (D-10: cancel after current).
+    because ``terminate=False`` (cancel after the current file).
 
     Raises:
         HTTPException 404: Batch not found.
@@ -317,7 +317,7 @@ async def cancel_batch(group_id: str) -> None:
         "Build and stream a ZIP containing one JSON export per completed "
         "extraction in the batch. Each entry is named "
         "`{extraction.filename}.json`. Entry filenames are sanitized to "
-        "prevent zip-slip (T-07-07). `batch_id` is the UUID assigned at "
+        "prevent zip-slip. `batch_id` is the UUID assigned at "
         "batch start (NOT the Celery group_id)."
     ),
     responses={
@@ -334,7 +334,7 @@ async def download_batch_zip(batch_id: str, db: DbDep) -> StreamingResponse:
     """Stream a ZIP of per-file JSON exports for all completed batch files.
 
     Each ZIP entry is named ``{extraction.filename}.json`` (sanitised to
-    prevent zip-slip, T-07-07). The archive filename is
+    prevent zip-slip). The archive filename is
     ``batch_{batch_id[:8]}.zip`` (short UUID prefix for readability).
 
     Raises:
@@ -373,7 +373,7 @@ async def download_batch_zip(batch_id: str, db: DbDep) -> StreamingResponse:
                 "extraction_id": extraction.id,
                 "substances": [_substance_to_dict(s) for s in substances],
             }
-            # SEC M-03: centralised allowlist-based sanitisation covers
+            # Centralised allowlist-based sanitisation covers
             # path traversal, control chars, null bytes, and unprintables.
             safe_name = safe_filename(extraction.filename)
             zf.writestr(f"{safe_name}.json", json.dumps(response_dict, indent=2))

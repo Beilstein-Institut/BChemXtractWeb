@@ -1,5 +1,5 @@
 /**
- * TypeScript types for batch processing (Phase 7).
+ * TypeScript types for batch processing.
  * Maps to POST /api/batch and GET /api/batch/{id}/progress SSE events.
  */
 

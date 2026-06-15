@@ -3,12 +3,12 @@
 These cover the :class:`app.config.Settings` startup validators that refuse
 misconfigured deployments before the app even starts.
 
-Phase 11 (Plan 11-05) removed the ``api_keys`` field and its validator —
-admin-minted API keys live in the ``api_keys`` Postgres table now, gated
-by ``X-Admin-Secret``. The remaining startup-time validators are
-``_validate_phase11_secrets`` (≥32-char ``SECRET_KEY`` / ``ADMIN_SECRET`` /
-``APP_DB_PASSWORD`` in production) and ``_validate_prod_cors`` (refuses a
-``localhost`` origin under ``DEBUG=false``).
+The ``api_keys`` field and its validator were removed — admin-minted API
+keys live in the ``api_keys`` Postgres table now, gated by ``X-Admin-Secret``.
+The remaining startup-time validators are ``_validate_phase11_secrets``
+(≥32-char ``SECRET_KEY`` / ``ADMIN_SECRET`` / ``APP_DB_PASSWORD`` in
+production) and ``_validate_prod_cors`` (refuses a ``localhost`` origin
+under ``DEBUG=false``).
 """
 
 from __future__ import annotations

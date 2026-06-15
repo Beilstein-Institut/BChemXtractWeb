@@ -4,17 +4,17 @@ Revision ID: f1a2b3c4d5e6
 Revises: e7f8a9b0c1d2
 Create Date: 2026-05-15 00:00:00.000000+00:00
 
-Phase 11 D-01, D-02, D-04, D-10, D-13, D-16, D-17.
-
 Adds per-row ownership columns (session_id + api_key_hash) to extractions
 + extraction_substances + extraction_reactions. Creates api_keys
-(admin-issued credentials, D-10) and audit_log (append-only event trail,
-D-16). Wipes legacy unscoped rows BEFORE enabling RLS (D-04 — order
-matters; see RESEARCH.md Pitfall #1 [T-11-14]). Then ENABLE + FORCE RLS
-+ one OR-semantics policy per target table.
+(admin-issued credentials) and audit_log (append-only event trail).
+Wipes legacy unscoped rows BEFORE enabling RLS — order matters: if RLS
+were enabled first, the DELETE would run with app.session_id unset, the
+policy would evaluate NULL = NULL → false, and the legacy rows would be
+orphaned-but-invisible instead of removed. Then ENABLE + FORCE RLS + one
+OR-semantics policy per target table.
 
 Downgrade reverses every change in inverse order. NOTE: rows deleted by
-the D-04 wipe are NOT restored on downgrade — this is a documented,
+the legacy wipe are NOT restored on downgrade — this is a documented,
 accepted cost (pre-RLS data had no owner and could not be safely
 re-isolated).
 """
@@ -52,7 +52,7 @@ def upgrade() -> None:
         op.create_index(f"ix_{table}_session_id", table, ["session_id"])
         op.create_index(f"ix_{table}_api_key_hash", table, ["api_key_hash"])
 
-    # 2. New table: api_keys (D-10).
+    # 2. New table: api_keys.
     op.create_table(
         "api_keys",
         sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
@@ -78,7 +78,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("key_hash", name="uq_api_keys_key_hash"),
     )
 
-    # 3. New table: audit_log (D-16).
+    # 3. New table: audit_log.
     op.create_table(
         "audit_log",
         sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
@@ -105,12 +105,11 @@ def upgrade() -> None:
     op.create_index("ix_audit_log_event_at", "audit_log", ["event", sa.text("at DESC")])
     op.create_index("ix_audit_log_at", "audit_log", ["at"])
 
-    # 4. D-04 — wipe legacy unscoped rows BEFORE enabling RLS.
-    #    Ordering note (RESEARCH.md Pitfall #1 — T-11-14): if we ENABLE
-    #    first, the DELETE runs with app.session_id unset → policy
-    #    evaluates NULL = NULL → false → DELETE removes zero rows → app
-    #    starts up with legacy data invisible to all sessions. Order:
-    #    DELETE → ENABLE → FORCE → POLICY.
+    # 4. Wipe legacy unscoped rows BEFORE enabling RLS.
+    #    Ordering note: if we ENABLE first, the DELETE runs with
+    #    app.session_id unset → policy evaluates NULL = NULL → false →
+    #    DELETE removes zero rows → app starts up with legacy data
+    #    invisible to all sessions. Order: DELETE → ENABLE → FORCE → POLICY.
     #
     #    The DELETE on extractions cascades to both join tables via the
     #    existing CASCADE FKs (orm.py:124-132, 194-202). The join-table
@@ -127,7 +126,7 @@ def upgrade() -> None:
         "WHERE session_id IS NULL AND api_key_hash IS NULL"
     )
 
-    # 5. Enable + FORCE RLS + policy per target table (D-01, D-02).
+    # 5. Enable + FORCE RLS + policy per target table.
     for table in _TARGETS:
         op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
         op.execute(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY")
@@ -145,7 +144,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Inverse order: drop policies → disable RLS → drop new tables → drop
-    # indexes → drop columns. The data wipe is NOT reversed (rows are
+    # indexes → drop columns. The legacy-row wipe is NOT reversed (rows are
     # gone — see docstring).
     for table in _TARGETS:
         op.execute(f"DROP POLICY IF EXISTS {table}_isolation ON {table}")

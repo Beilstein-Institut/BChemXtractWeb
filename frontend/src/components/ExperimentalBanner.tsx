@@ -1,10 +1,11 @@
 /**
  * ExperimentalBanner — dismissible amber disclaimer at the top of the
- * Reactions tab (Plan 10 D-09 / UI-SPEC §2).
+ * Reactions tab.
  *
- * Session-scoped dismissal (Pitfall 7): uses sessionStorage exclusively.
- * Closing the tab / browser / refreshing resets the dismissal; the banner
- * reappears on next session.
+ * Session-scoped dismissal: uses sessionStorage exclusively (never
+ * localStorage, which would keep the banner dismissed forever across all
+ * future sessions). Closing the tab / browser / refreshing resets the
+ * dismissal; the banner reappears on next session.
  *
  * Accessibility: container has role="note" (not role="alert" — this is a
  * static disclaimer, not a live error announcement). Dismiss button has an

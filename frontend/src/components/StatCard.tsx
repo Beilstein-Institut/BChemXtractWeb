@@ -1,9 +1,9 @@
 /**
- * StatCard — bento stat tile for the Phase 3 Liquid Glass rebuild (Task 12).
+ * StatCard — bento stat tile for the Liquid Glass rebuild.
  *
  * A single metric tile with:
- *   - Fraunces display numeral (Satoshi in the source plan — resolved to
- *     Fraunces because Satoshi is unavailable on npm; `font-display`).
+ *   - Fraunces display numeral (resolved to Fraunces because Satoshi is
+ *     unavailable on npm; `font-display`).
  *   - Inter caption label rendered above the numeral.
  *   - Optional trend indicator (`↑ +12%`, `↓ 3%`).
  *   - Optional icon in the top-right, tinted to match the tone.
@@ -12,13 +12,12 @@
  *   - Format hints: `count` (`toLocaleString`), `duration`
  *     (ms → `1.2s` / `2m 30s`), `percent`.
  *
- * Still supports the Phase 2 use case: passing a pre-formatted string
- * value (e.g. `"C6H12O6"`). String values skip the formatter entirely.
- * An empty-string / null / undefined value renders an em-dash so the
- * tile height stays consistent.
+ * Also supports passing a pre-formatted string value (e.g. `"C6H12O6"`).
+ * String values skip the formatter entirely. An empty-string / null /
+ * undefined value renders an em-dash so the tile height stays consistent.
  *
- * `loading` renders a Skeleton at the tile height; preserved from the
- * Phase 2 API because HistoryPage passes it while stats are in-flight.
+ * `loading` renders a Skeleton at the tile height because HistoryPage
+ * passes it while stats are in-flight.
  *
  * Data hooks: `data-slot="stat-card"`, `data-tone`, `data-slot="stat-card-value"`.
  */
@@ -71,8 +70,8 @@ export interface StatCardProps {
 }
 
 /**
- * Bento stat tile. Supports both the Phase 3 tone/trend API and the
- * legacy `string` value path from Phase 2.
+ * Bento stat tile. Supports both the tone/trend API and the legacy
+ * `string` value path.
  */
 export function StatCard({
   label,

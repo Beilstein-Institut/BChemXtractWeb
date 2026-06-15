@@ -1,7 +1,7 @@
 /**
- * DidYouMean — suggestion chips inside the search empty state (D-12, D-19).
+ * DidYouMean — suggestion chips inside the search empty state.
  *
- * Renders up to 2 accent-outlined Button chips per UI-SPEC §5. Each chip
+ * Renders up to 2 accent-outlined Button chips. Each chip
  * either rewrites the query+type or is explanatory only (no onSuggest
  * callback fired). Parent `SearchResults` plugs this into `EmptyState`'s
  * `action` slot.

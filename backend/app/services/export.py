@@ -9,10 +9,10 @@ All six export formats are implemented here:
     when no stored SVG exists (JVM thread required for the fallback only)
   - SVG: served from the stored SVG of the requested depiction
   - V3000: CDK MDLV3000Writer (JVM thread required)
-  - RXN: empty RDF stub (D-11, Phase 10 will populate)
+  - RXN: empty RDF stub (reaction data populated separately)
 
-Per D-08: single unified generate_export() function dispatches to per-format helpers.
-Per D-09: CDK/Java handles SDF, V3000. Python handles JSON, CSV, SVG, PNG.
+A single unified generate_export() function dispatches to per-format helpers.
+CDK/Java handles SDF, V3000. Python handles JSON, CSV, SVG, PNG.
 
 Depiction contract (image formats): exports must match what the UI
 displays. ``depiction="cdk"`` selects the stored ``svg`` column (fresh
@@ -20,15 +20,15 @@ CDK layout); ``depiction="cdx"`` selects ``svg_cdx`` (original ChemDraw
 coordinates). When the requested layout is missing for a structure the
 other stored layout is used — the same fallback the frontend applies
 when rendering — so the exported image always equals the displayed one.
-PNG rasterizes that exact stored SVG (supersedes the original D-10
+PNG rasterizes that exact stored SVG (supersedes the original
 SMILES-reparse pipeline, which could expand abbreviations and re-layout
 differently from the on-screen depiction); the SMILES pipeline remains
 as the per-structure fallback when no stored SVG exists at all.
 
 Security:
-  T-08-03: CDK SmilesParser exceptions caught per-molecule — never crash full export.
-  T-08-04: ZIP entry filenames sanitized in _build_zip() against path traversal.
-  T-08-05: PNG export hard-limited to 200 structures.
+  CDK SmilesParser exceptions caught per-molecule — never crash full export.
+  ZIP entry filenames sanitized in _build_zip() against path traversal.
+  PNG export hard-limited to 200 structures.
 """
 
 import asyncio
@@ -67,7 +67,7 @@ def _pick_depiction_svg(substance: dict, depiction: str) -> str:
     return substance.get(preferred) or substance.get(other) or ""
 
 
-# IN-01: date is generated at call time in _generate_rxn_stub() — not hardcoded here.
+# Date is generated at call time in _generate_rxn_stub() — not hardcoded here.
 
 
 # ---------------------------------------------------------------------------
@@ -94,7 +94,7 @@ def _single_filename(substance: dict, fmt: str) -> str:
 def _zip_filename(fmt: str) -> str:
     """Multi-structure ZIP filename: bchemxtract_export_{fmt}_{YYYYMMDD}.zip.
 
-    SEC L-01: use UTC rather than ``date.today()`` (container-local tz)
+    Use UTC rather than ``date.today()`` (container-local tz)
     so filename dates are deterministic across host timezones.
     """
     today_utc = datetime.now(UTC).date().strftime("%Y%m%d")
@@ -112,7 +112,7 @@ def _build_zip(entries: list[tuple[str, bytes]]) -> bytes:
     Sanitises every entry name through :func:`safe_filename` (allowlist
     ``[A-Za-z0-9._-]`` + 128-char cap) so no entry can carry path
     separators, null bytes, CR/LF, or other unprintables that might
-    surprise a ZIP consumer (SEC M-03, T-08-04).
+    surprise a ZIP consumer, guarding against ZIP-slip path traversal.
     """
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
@@ -130,8 +130,10 @@ def _build_zip(entries: list[tuple[str, bytes]]) -> bytes:
 def _generate_sdf_sync(substances: list[dict]) -> bytes:
     """Generate multi-record SDF bytes. Must run inside run_in_jvm_thread.
 
-    Uses StructureDiagramGenerator for 2D layout (avoids all-zero coordinates
-    — Pitfall 2 from RESEARCH.md). Skips substances with empty SMILES (Pitfall 5).
+    Uses StructureDiagramGenerator for 2D layout: SmilesParser produces
+    molecules with no coordinates, and SDFWriter would otherwise write
+    every atom at (0,0,0). Skips substances with empty SMILES, which
+    would make SmilesParser.parseSmiles("") throw.
 
     Args:
         substances: List of substance dicts with at minimum a ``smiles`` key.
@@ -165,13 +167,13 @@ def _generate_sdf_sync(substances: list[dict]) -> bytes:
                 sdg.generateCoordinates()
                 writer.write(sdg.getMolecule())
             except Exception:  # noqa: BLE001
-                # T-08-03: Skip unparseable SMILES — never crash the whole export
+                # Skip unparseable SMILES — never crash the whole export
                 _logger.debug(
                     "Skipping substance id=%s during SDF export: unparseable SMILES",
                     s.get("id"),
                 )
     finally:
-        # CR-02: always close the JVM-side SDFWriter/StringWriter, even if an
+        # Always close the JVM-side SDFWriter/StringWriter, even if an
         # unexpected exception (e.g. Java OutOfMemoryError) escapes the inner
         # per-molecule try/except above.
         writer.close()
@@ -183,8 +185,8 @@ def _generate_png_sync(smiles: str, width: int = 1000, height: int = 1000) -> by
 
     Must run inside run_in_jvm_thread. Returns b'' on failure.
 
-    D-10 compliance: uses CDK DepictionGenerator (same pipeline as stored `svg`
-    field), not cairosvg or svglib (not in conda env). Consistent visual output.
+    Uses CDK DepictionGenerator (same pipeline as the stored `svg`
+    field), not cairosvg or svglib, for consistent visual output.
 
     Args:
         smiles: SMILES string for the molecule.
@@ -251,12 +253,12 @@ def _rasterize_svg_sync(svg_markup: str, size: int = _PNG_SIZE) -> bytes:
     displays, so the PNG pixel-matches the chosen depiction. CDK emits
     glyphs as vector paths (no ``<text>`` elements), so rasterization is
     font-independent. The stored SVGs have their CDK white-backdrop rect
-    stripped at storage time (SEC L-05), so an explicit white background
+    stripped at storage time, so an explicit white background
     is applied here to match the legacy CDK ``toImg()`` output.
 
     Pure Python / no JVM. Returns b'' on any failure so the caller can
-    fall back to the SMILES-based CDK pipeline (T-08-03 spirit: one bad
-    structure never crashes the whole export).
+    fall back to the SMILES-based CDK pipeline — one bad structure never
+    crashes the whole export.
     """
     if not svg_markup:
         return b""
@@ -276,7 +278,8 @@ def _generate_v3000_sync(smiles: str) -> bytes:
     """Generate MDL V3000 .mol bytes from SMILES. Must run inside run_in_jvm_thread.
 
     Uses MDLV3000Writer (verified in JAR). Runs StructureDiagramGenerator first
-    to generate valid 2D coordinates (Pitfall 2 from RESEARCH.md).
+    to generate valid 2D coordinates — without it, MDLV3000Writer would
+    write every atom at (0,0,0) since SmilesParser produces no coordinates.
 
     Args:
         smiles: SMILES string for the molecule.
@@ -309,7 +312,7 @@ def _generate_v3000_sync(smiles: str) -> bytes:
         try:
             writer.write(sdg.getMolecule())
         finally:
-            # CR-02: always close the JVM-side MDLV3000Writer/StringWriter,
+            # Always close the JVM-side MDLV3000Writer/StringWriter,
             # even if an unexpected exception escapes writer.write().
             writer.close()
         return str(sw.toString()).encode("utf-8")
@@ -320,12 +323,14 @@ def _generate_v3000_sync(smiles: str) -> bytes:
         return b""
 
 
-# Plan 10 Pitfall 6: same polymer-SMILES guard as extractor.py
+# Same polymer-SMILES guard as extractor.py: reaction SMILES longer than
+# this can drive CDK's aromaticity/layout into an exponential branch that
+# blocks the JVM indefinitely, so they are skipped.
 _MAX_EXPORT_REACTION_SMILES_LEN = 1500
 
 
 def _generate_rxn_sync(reactions: list[dict]) -> bytes:
-    """Generate RXN/multi-reaction bytes via CDK MDLRXNWriter (Plan 10 D-22 amended).
+    """Generate RXN/multi-reaction bytes via CDK MDLRXNWriter.
 
     MUST run inside run_in_jvm_thread -- JPype calls are JVM-thread-attached.
 
@@ -333,11 +338,13 @@ def _generate_rxn_sync(reactions: list[dict]) -> bytes:
       - 1 reaction  -> single $RXN record
       - N reactions -> N records with $$$$ separator between them
     This is the CDK-native multi-reaction container. MDLRDFWriter does
-    NOT exist in CDK 2.12 (verified via `unzip -l` -- see RESEARCH).
+    NOT exist in CDK 2.12 (verified via `unzip -l` on the fat JAR), so
+    MDLRXNWriter is used for both single and multi-reaction cases.
 
     Filters: reactions with empty reaction_smiles, no ">" separator, or
     reaction_smiles longer than _MAX_EXPORT_REACTION_SMILES_LEN (1500)
-    are skipped (Pitfalls 3 and 6). Unparseable SMILES are caught
+    are skipped -- CDK's parseReactionSmiles requires a ">" and oversized
+    SMILES can hang the JVM. Unparseable SMILES are caught
     per-reaction and logged at DEBUG, not raised.
 
     Args:
@@ -520,13 +527,13 @@ def _svg_entries(
 def _generate_rxn_stub() -> bytes:
     """RXN/RDfile stub. Returns minimal valid RDF header with current date.
 
-    Reaction data will be populated in Phase 10 (D-11). Returns only the
-    RDfile header so the response has valid Content-Type: chemical/x-mdl-rdfile.
+    Returns only the RDfile header so the response has a valid
+    Content-Type: chemical/x-mdl-rdfile.
 
-    IN-01: $DATM is generated at call time so exported files are stamped with
-    the actual download date rather than the hardcoded development date.
+    $DATM is generated at call time so exported files are stamped with
+    the actual download date rather than a hardcoded date.
 
-    SEC L-01: use UTC so RDfile stamps are deterministic across host tz.
+    Use UTC so RDfile stamps are deterministic across host tz.
 
     Returns:
         Minimal RDF header bytes.
@@ -638,16 +645,16 @@ async def generate_export(
             return v3000_entries[0][1], "chemical/x-mdl-molfile", v3000_entries[0][0]
         return _build_zip(v3000_entries), "application/zip", multi_name
 
-    # Plan 10 EXPO-08: "rxn" is handled by generate_reactions_export. The
-    # router intercepts rxn before generate_export is called; reaching here
-    # with fmt=="rxn" is a contract violation handled via the 422 path.
+    # "rxn" is handled by generate_reactions_export. The router intercepts
+    # rxn before generate_export is called; reaching here with fmt=="rxn"
+    # is a contract violation handled via the 422 path.
     raise HTTPException(status_code=422, detail=f"Unknown export format: {fmt}")
 
 
 async def generate_reactions_export(
     reactions: list[dict], fmt: str
 ) -> tuple[bytes, str, str]:
-    """Generate export content for reaction formats (Plan 10 EXPO-08).
+    """Generate export content for reaction formats.
 
     Sibling to ``generate_export`` (which handles substance formats only).
     The router dispatches to one or the other based on ``payload.format``;
@@ -657,8 +664,9 @@ async def generate_reactions_export(
     a single eligible entry, the filename is ``reaction.rxn`` and the media
     type is ``chemical/x-mdl-rxnfile``; multiple reactions produce
     ``reactions.rdf`` with ``chemical/x-mdl-rdfile`` (the CDK-native multi
-    -record container -- MDLRDFWriter is absent from the bundled JAR per
-    D-22 amended). Empty or entirely-unparseable reaction lists fall back
+    -record container -- MDLRDFWriter is absent from the bundled JAR, so
+    MDLRXNWriter handles both single and multi-record output). Empty or
+    entirely-unparseable reaction lists fall back
     to ``_generate_rxn_stub`` so clients always get a valid RDfile header.
     """
     if fmt == "rxn":

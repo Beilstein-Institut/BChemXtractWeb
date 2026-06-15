@@ -17,14 +17,14 @@ import { cn } from "@/lib/utils";
 import type { BatchFileStatus } from "@/types/batch";
 
 /**
- * BatchProgress — Phase 3 Liquid Glass wizard Step 2 (Task 10 rewrite).
+ * BatchProgress — Liquid Glass wizard Step 2.
  *
  * Overall crimson progress bar + per-file status list with Geist Mono file
  * names. A compact 3-up stat strip above the bar surfaces total / completed
  * / failed counts. Cancel is moved into an icon-adjacent secondary action
  * that opens the existing AlertDialog confirmation.
  *
- * `data-slot` additions follow Phase 3's contract:
+ * `data-slot` additions follow the Liquid Glass contract:
  *   - `data-slot="process-step"`       (root)
  *   - `data-slot="batch-stats"`        (3-up stat row)
  *   - `data-slot="file-progress-list"` (per-file row list)

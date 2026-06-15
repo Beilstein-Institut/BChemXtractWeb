@@ -1,16 +1,16 @@
 /**
  * ExportMenu — reusable format picker dropdown for chemical export.
  *
- * Used at all four export entry points (D-01 through D-04, D-05, D-06):
+ * Used at all four export entry points:
  *   - Toolbar selected: triggerVariant="label", triggerLabel="Export N selected"
  *   - Toolbar Export all: triggerVariant="label", triggerLabel="Export all"
  *   - StructureSheet: triggerVariant="label", triggerLabel="Export"
  *   - Per-card icon: triggerVariant="icon"
  *
  * One click on a format item triggers the download via onExport callback.
- * No modal, no confirmation (D-05).
+ * No modal, no confirmation.
  *
- * STRIDE: T-08-08: RXN item is aria-disabled to prevent accidental action.
+ * The RXN item is aria-disabled to prevent accidental action.
  */
 import {
   DownloadIcon,
@@ -63,9 +63,9 @@ export interface ExportMenuProps {
    */
   onTriggerClick?: (e: React.MouseEvent) => void;
   /**
-   * Plan 10 D-22 / UI-SPEC §7: when true, the RXN/RDfile item is enabled and
+   * When true, the RXN/RDfile item is enabled and
    * its "Available after reaction extraction" tooltip is suppressed. Clicking
-   * the item fires onExport("rxn"). Default false — preserves Phase 8
+   * the item fires onExport("rxn"). Default false — preserves substance-only
    * behavior for all existing call sites (StructureCard, StructureSheet,
    * BrowseToolbar, StructureBrowser).
    */
@@ -83,14 +83,14 @@ const FORMAT_ICONS: Record<ExportFormat, React.ReactNode> = {
   rxn: <ArrowRightLeftIcon className="size-4" />,
 };
 
-/** Ordered format list as shown in dropdown (D-05, UI-SPEC format list order). */
+/** Ordered format list as shown in dropdown. */
 const FORMAT_ORDER: ExportFormat[] = ["sdf", "json", "csv", "png", "svg", "v3000"];
 
 /**
  * ExportMenu — the shared format picker dropdown.
  *
  * RXN/RDfile item is always rendered but disabled with a tooltip explaining
- * it becomes available after Phase 10 reaction extraction (D-11).
+ * it becomes available after reaction extraction.
  */
 export function ExportMenu({
   onExport,
@@ -146,9 +146,10 @@ export function ExportMenu({
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
-          {/* RXN/RDfile — enabled when reactionsAvailable=true (Plan 10 D-22),
-              otherwise rendered disabled with the pre-Phase-10 tooltip so
-              existing substance-only call sites retain their behavior. */}
+          {/* RXN/RDfile — enabled when reactionsAvailable=true,
+              otherwise rendered disabled with the "available after reaction
+              extraction" tooltip so existing substance-only call sites retain
+              their behavior. */}
           {reactionsAvailable ? (
             <DropdownMenuItem
               className="px-3 py-2 gap-2 text-caption cursor-pointer"
@@ -168,9 +169,7 @@ export function ExportMenu({
                   {FORMAT_LABELS["rxn"]}
                 </DropdownMenuItem>
               </TooltipTrigger>
-              <TooltipContent side="left">
-                Available after reaction extraction (Phase 10)
-              </TooltipContent>
+              <TooltipContent side="left">Available after reaction extraction</TooltipContent>
             </Tooltip>
           )}
         </DropdownMenuGroup>

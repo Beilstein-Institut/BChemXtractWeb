@@ -14,7 +14,7 @@ Key constraints:
     - ``jpype.startJVM()`` can only be called once per process (irreversible).
     - Each thread in the pool must call ``jpype.java.lang.Thread.detach()``
       after completing a Java call to release JVM thread resources.
-    - If JVM fails to start, the app exits fatally (D-02).
+    - If JVM fails to start, the app exits fatally.
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ def initialize_jvm(settings: Settings) -> None:
     """Start the JVM with the BChemXtract fat JAR on the classpath.
 
     This function is idempotent: if the JVM is already started, it logs a
-    warning and returns without error (singleton guard per D-01).
+    warning and returns without error (singleton guard).
 
     After starting the JVM, it creates a bounded ``ThreadPoolExecutor``
     with ``settings.jpype_workers`` threads for routing JPype calls.
@@ -98,7 +98,7 @@ def initialize_jvm(settings: Settings) -> None:
         settings.jvm_max_heap,
     )
 
-    # Create bounded thread pool for JPype calls (D-04)
+    # Create bounded thread pool for JPype calls
     _pool_size = settings.jpype_workers
     _executor = ThreadPoolExecutor(
         max_workers=settings.jpype_workers,
@@ -168,8 +168,8 @@ async def run_in_jvm_thread(
     """Execute a blocking JPype call in the thread pool with timeout.
 
     Wraps ``fn(*args, **kwargs)`` in a pool thread that detaches from the
-    JVM in a ``finally`` block (preventing resource leaks per D-04). The
-    call is guarded by ``asyncio.wait_for`` with the given timeout (D-05).
+    JVM in a ``finally`` block (preventing resource leaks). The call is
+    guarded by ``asyncio.wait_for`` with the given timeout.
 
     Args:
         fn: The blocking callable to execute (typically a JPype Java call).

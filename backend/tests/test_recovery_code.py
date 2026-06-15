@@ -1,6 +1,6 @@
-"""PRIV-02 recovery-code restore tests (Wave 0 RED → green on 11-03).
+"""Recovery-code restore tests.
 
-Covers D-09 semantics:
+Covers the restore semantics:
 - Valid UUID4 swaps the cookie to the pasted value (Set-Cookie no-merge).
 - Invalid UUID4 format returns 422 (Pydantic field_validator rejects it).
 - Restore is no-merge: the browser's PRIOR anonymous session_id's data

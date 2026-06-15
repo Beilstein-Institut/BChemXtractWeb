@@ -1,14 +1,14 @@
-"""Async database engine, session factory, and FastAPI dependency (Phase 5).
+"""Async database engine, session factory, and FastAPI dependency.
 
 Single source of truth for DB connectivity. The engine is module-level;
 the session factory is reused for every request via get_db().
 
-Phase 11 adds ``get_scoped_db``: a sibling dependency that opens a fresh
+``get_scoped_db`` is a sibling dependency that opens a fresh
 ``AsyncSession``, resolves the request's (session_id, api_key_hash) scope,
 auto-issues the ``bcx_sid`` cookie when neither is present, sets the
 Postgres RLS context variables via ``set_config``, and stashes the
 resolved scope onto ``request.state.scope`` so router handlers can thread
-it into persistence writes (D-01/D-03). ``get_db`` is left untouched so
+it into persistence writes. ``get_db`` is left untouched so
 migration helpers, ORM unit tests, and the Celery worker — which run
 without a FastAPI request context — keep their un-scoped session source.
 
@@ -164,16 +164,15 @@ async def get_scoped_db(
 ) -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency: get_db + X-API-Key validation + RLS context + cookie.
 
-    Order of operations (Phase 11 D-03 + Plan 11-05 cutover):
+    Order of operations:
       1. Open AsyncSession.
       2. If ``X-API-Key`` header is present: validate against the
          ``api_keys`` table via ``validate_api_key``. Unknown / revoked
-         / expired key → raise 401 (post-Plan-11-05 the cookie middleware
-         is the only validator left for X-API-Key; an unvalidated path
-         would let callers tag writes with a hash that has no api_keys
-         row, breaking auditability + revocation). On match, emit
-         ``auth.api_key.used.first`` once per key (D-16). Use the
-         validated key's hash for RLS scope.
+         / expired key → raise 401 (this is the only validator left for
+         X-API-Key; an unvalidated path would let callers tag writes
+         with a hash that has no api_keys row, breaking auditability +
+         revocation). On match, emit ``auth.api_key.used.first`` once
+         per key. Use the validated key's hash for RLS scope.
       3. Else if a valid ``bcx_sid`` cookie is present: scope by it.
       4. Else (anonymous): mint a fresh cookie AND scope to it.
       5. Issue ``set_config('app.session_id', ...)`` and
@@ -186,9 +185,9 @@ async def get_scoped_db(
          ``get_or_create_extraction_row``.
       7. Yield the session for the route handler.
 
-    Plan 11-04 added CSRF verification ahead of this dependency (separate
-    middleware). Plan 11-05 deleted the legacy Bearer-token surface and
-    folded X-API-Key validation in here.
+    CSRF verification runs ahead of this dependency (separate
+    middleware), and X-API-Key validation is folded in here (there is no
+    separate Bearer-token surface).
     """
     # Local import to avoid the import-time circular dep with app.core.session
     # which imports app.core.security which imports app.models.orm.ApiKey

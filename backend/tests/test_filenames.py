@@ -1,6 +1,4 @@
-"""Tests for the centralised filename + Content-Disposition helpers
-(SEC M-03 / M-04).
-"""
+"""Tests for the centralised filename + Content-Disposition helpers."""
 
 from __future__ import annotations
 

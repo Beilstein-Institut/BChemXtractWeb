@@ -1,4 +1,4 @@
-"""SRCH-01: exact InChI-key match (Plan 09-03 wave 3)."""
+"""SRCH-01: exact InChI-key match."""
 
 from __future__ import annotations
 

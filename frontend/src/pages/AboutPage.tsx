@@ -1,5 +1,5 @@
 /**
- * AboutPage — Phase 3 Liquid Glass rebuild (Task 13).
+ * AboutPage — Liquid Glass rebuild.
  *
  * Bento editorial layout (route: `/about`). Three columns at `lg:`,
  * five tiles in total:

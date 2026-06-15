@@ -1,5 +1,5 @@
 /**
- * BrowseBento — bento-grid landing for the Browse page (Phase 3 Task 11).
+ * BrowseBento — bento-grid landing for the Browse page.
  *
  * Composition — one band at `lg:` (6 columns, 2 rows):
  *   ┌──────────────────────────────┬───────┬───────┐

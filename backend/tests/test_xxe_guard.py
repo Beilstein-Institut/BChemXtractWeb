@@ -1,4 +1,4 @@
-"""Regression tests for the defensive XML / XXE guard (SEC C-01).
+"""Regression tests for the defensive XML / XXE guard.
 
 The upstream Java CDXMLReader is not hardened against XXE, SSRF, or
 billion-laughs DoS. The Python-side guard in

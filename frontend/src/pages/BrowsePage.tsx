@@ -1,9 +1,9 @@
 /**
  * BrowsePage — bento landing + extraction tabs (route: `/browse`).
  *
- * Phase 3 Task 11 rewrite. The page is still scoped to whichever
- * extraction is "active" (set by App.tsx after a successful upload
- * or via `handleViewExtraction`). Landing layout, top-down:
+ * The page is scoped to whichever extraction is "active" (set by
+ * App.tsx after a successful upload or via `handleViewExtraction`).
+ * Landing layout, top-down:
  *
  *   1. Page header (display title + sub-copy).
  *   2. `SearchFilter` composite (debounced 250 ms query + 3 chips).
@@ -15,7 +15,7 @@
  *
  * The bento consumes the full `activeResult.substances` list filtered
  * locally; the StructureBrowser below keeps its paginated server-driven
- * contract (Phase 6 `useBrowse` unchanged). Filters also reach the
+ * contract (`useBrowse` unchanged). Filters also reach the
  * browser via a `filters` prop so the paginated grid honours the same
  * chip + query state on the current page slice (client-side predicate —
  * server pagination is unmodified).
