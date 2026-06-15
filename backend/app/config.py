@@ -140,7 +140,7 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
-    def _validate_phase11_secrets(self) -> "Settings":
+    def _validate_auth_secrets(self) -> "Settings":
         """Refuse to start in production without the auth secrets.
 
         The auth model uses two server-side secrets in place of a legacy

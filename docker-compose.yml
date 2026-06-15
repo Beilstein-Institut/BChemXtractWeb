@@ -41,7 +41,7 @@ x-logging: &default_logging
 # Auth secrets + posture (CORS / DEBUG) required by app.config.Settings
 # on import. Identical in every Python service (backend, celery-worker,
 # celery-beat, migrate).
-x-phase11-env: &phase11_env
+x-app-env: &app_env
   SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set (32+ chars)}
   ADMIN_SECRET: ${ADMIN_SECRET:?ADMIN_SECRET must be set (32+ chars)}
   CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:${HTTP_PORT:-3000}"]'}
@@ -113,7 +113,7 @@ services:
       JAR_PATH: /app/jars
       # app.config.Settings is imported during alembic env.py bootstrap;
       # mirror the backend posture so Settings instantiates identically.
-      <<: *phase11_env
+      <<: *app_env
       # The 2026_05_16_create_app_role migration reads APP_DB_PASSWORD
       # from the environment and CREATE / ALTER ROLEs bchemxtract_app
       # with it. Runtime services connect as that role afterwards.
@@ -145,9 +145,9 @@ services:
       # Backend connects as bchemxtract_app (NOSUPERUSER NOBYPASSRLS) so
       # RLS policies enforce on every query. The cookie posture
       # (DEBUG=false → Secure flag + _validate_prod_cors guard rejecting
-      # localhost CORS) comes from the *phase11_env anchor; flip DEBUG=true
+      # localhost CORS) comes from the *app_env anchor; flip DEBUG=true
       # in .env for local plain-HTTP testing.
-      <<: [*runtime_db_url, *phase11_env, *celery_env]
+      <<: [*runtime_db_url, *app_env, *celery_env]
       JAR_PATH: /app/jars
     ports:
       # Loopback bind: the backend FastAPI is reachable only from the deploy
@@ -239,7 +239,7 @@ services:
     environment:
       # celery-worker runs extraction tasks that read/write user data —
       # connect as bchemxtract_app so RLS policies enforce ownership.
-      <<: [*runtime_db_url, *phase11_env, *celery_env]
+      <<: [*runtime_db_url, *app_env, *celery_env]
       JAR_PATH: /app/jars
       JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
     # Override the Dockerfile's baked-in HEALTHCHECK, which curls :8000 — that
@@ -284,7 +284,7 @@ services:
       # NOBYPASSRLS app role — the prune target is the global audit_log
       # table which has no per-row RLS policy, so the app role's CRUD
       # grant from the 2026_05_16_create_app_role migration is sufficient.
-      <<: [*runtime_db_url, *phase11_env, *celery_env]
+      <<: [*runtime_db_url, *app_env, *celery_env]
       JAR_PATH: /app/jars
       JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
 
