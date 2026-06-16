@@ -368,7 +368,7 @@ export function StructureSheet({
               {substance.mdlv3000 && <MetadataRow label="MDL V3000" value={substance.mdlv3000} />}
               {pubchem.state !== "idle" && (
                 <div className="border-t border-border pt-3">
-                  <PubChemPanel state={pubchem} />
+                  <PubChemPanel state={pubchem} smiles={substance.smiles} />
                 </div>
               )}
             </div>
