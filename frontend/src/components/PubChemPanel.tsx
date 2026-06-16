@@ -10,7 +10,15 @@ const heading = <h4 className="text-caption font-semibold text-muted-foreground"
  * loading shows a skeleton; error renders a quiet retriable notice; success
  * shows title, linked CID, MW, capped synonyms, and an attributed description.
  */
-export function PubChemPanel({ state }: { state: PubChemCardState }) {
+export function PubChemPanel({
+  state,
+  smiles,
+}: {
+  state: PubChemCardState;
+  /** The extracted structure's own SMILES — used to offer a PubChem
+   *  structure/similarity search when the compound isn't in PubChem. */
+  smiles?: string;
+}) {
   if (state.state === "idle") return null;
 
   if (state.state === "loading") {
@@ -43,7 +51,21 @@ export function PubChemPanel({ state }: { state: PubChemCardState }) {
     return (
       <section data-slot="pubchem-panel" className="space-y-1">
         {heading}
-        <Badge variant="outline">Not in PubChem</Badge>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Badge variant="outline">Not in PubChem</Badge>
+          {smiles && (
+            <a
+              data-slot="pubchem-similar-link"
+              href={`https://pubchem.ncbi.nlm.nih.gov/#query=${encodeURIComponent(smiles)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-caption text-primary hover:underline"
+            >
+              Find similar on PubChem
+              <ExternalLinkIcon className="size-3" aria-hidden="true" />
+            </a>
+          )}
+        </div>
       </section>
     );
   }

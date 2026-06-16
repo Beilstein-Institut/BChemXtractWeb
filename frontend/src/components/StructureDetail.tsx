@@ -102,7 +102,7 @@ export function StructureDetail({
 
       {pubchem.state !== "idle" && (
         <div className="mt-4 border-t border-border pt-4">
-          <PubChemPanel state={pubchem} />
+          <PubChemPanel state={pubchem} smiles={substance.smiles} />
         </div>
       )}
 

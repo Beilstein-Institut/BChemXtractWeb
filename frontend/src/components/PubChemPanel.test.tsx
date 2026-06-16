@@ -50,4 +50,20 @@ describe("PubChemPanel", () => {
     expect(screen.getByText(/not in pubchem/i)).toBeInTheDocument();
     expect(screen.queryByRole("link")).toBeNull();
   });
+
+  it("offers a PubChem structure-search link for an absent compound", () => {
+    render(
+      <PubChemPanel
+        state={{
+          state: "success",
+          data: { ...base, status: "absent", cid: null, pubchem_url: null, title: null },
+        }}
+        smiles="c1ccccc1"
+      />,
+    );
+    const link = screen.getByRole("link", { name: /find similar on pubchem/i });
+    expect(link).toHaveAttribute("href", "https://pubchem.ncbi.nlm.nih.gov/#query=c1ccccc1");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
+  });
 });
