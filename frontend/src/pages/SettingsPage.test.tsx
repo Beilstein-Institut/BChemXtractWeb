@@ -15,6 +15,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
+import { PubChemPreferencesProvider } from "@/context/PubChemPreferencesContext";
 import { csrfTokenCache } from "@/lib/csrfTokenCache";
 
 import { SettingsPage } from "./SettingsPage";
@@ -132,5 +133,44 @@ describe("SettingsPage", () => {
 
     // Reload fires after the successful 204.
     await waitFor(() => expect(reloadStub).toHaveBeenCalled());
+  });
+});
+
+describe("SettingsPage PubChem toggle", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    csrfTokenCache.value = "fake-token.123.sig";
+  });
+
+  afterEach(() => {
+    csrfTokenCache.value = null;
+    localStorage.clear();
+  });
+
+  it("renders the opt-in toggle, default off, and persists when enabled", async () => {
+    mockAuthMe();
+    render(
+      <PubChemPreferencesProvider>
+        <SettingsPage />
+      </PubChemPreferencesProvider>,
+    );
+    await screen.findByText(SESSION_ID);
+
+    const toggle = screen.getByRole("switch", { name: /pubchem/i });
+    // Base UI Switch reflects state via data-checked (absent when off).
+    expect(toggle.getAttribute("data-checked")).toBeNull();
+    fireEvent.click(toggle);
+    expect(localStorage.getItem("bchemxtract-pubchem-enabled")).toBe("true");
+  });
+
+  it("shows the privacy disclosure", async () => {
+    mockAuthMe();
+    render(
+      <PubChemPreferencesProvider>
+        <SettingsPage />
+      </PubChemPreferencesProvider>,
+    );
+    await screen.findByText(SESSION_ID);
+    expect(screen.getByText(/sends.*inchikeys.*pubchem/i)).toBeInTheDocument();
   });
 });

@@ -18,10 +18,13 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { RecoveryCodeCard } from "@/components/RecoveryCodeCard";
 import { RestoreSessionForm } from "@/components/RestoreSessionForm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
+import { usePubChemPreferences } from "@/hooks/usePubChemPreferences";
 
 export function SettingsPage() {
   const { sessionId, isLoading, error } = useAuth();
+  const { enabled: pubchemEnabled, setEnabled: setPubchemEnabled } = usePubChemPreferences();
 
   return (
     <PageContainer data-slot="settings-page">
@@ -43,6 +46,29 @@ export function SettingsPage() {
       <section className="mt-8 grid gap-6" data-slot="settings-sections">
         <RecoveryCodeCard sessionId={sessionId} isLoading={isLoading} />
         <RestoreSessionForm />
+        <Card data-slot="pubchem-settings-card">
+          <CardHeader>
+            <CardTitle>PubChem enrichment</CardTitle>
+            <CardDescription>
+              Look up extracted structures in PubChem to show compound names, a known/scaffold
+              badge, and a link to the PubChem record.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <label className="flex items-start gap-3">
+              <Switch
+                aria-label="Enable PubChem enrichment"
+                checked={pubchemEnabled}
+                onCheckedChange={setPubchemEnabled}
+              />
+              <span className="text-sm text-foreground-muted">
+                When enabled, this sends the InChIKeys (and connectivity SMILES for scaffold
+                matching) of your extracted structures to the U.S. NIH PubChem service. Leave off
+                for unpublished or proprietary structures.
+              </span>
+            </label>
+          </CardContent>
+        </Card>
         <Card data-slot="delete-my-data-card">
           <CardHeader>
             <CardTitle>Delete all my data</CardTitle>
