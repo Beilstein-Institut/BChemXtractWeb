@@ -8,6 +8,7 @@
 import { FlaskConicalIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StructureCard } from "@/components/StructureCard";
+import { usePubChemEnrichment } from "@/hooks/usePubChemEnrichment";
 import type { ExtractionResponse } from "@/types/chemistry";
 
 export interface StructureGridProps {
@@ -27,6 +28,10 @@ export interface StructureGridProps {
  * view — all extracted substances are rendered at once.
  */
 export function StructureGrid({ response, onReset }: StructureGridProps) {
+  // Batched PubChem enrichment for the visible structures. No-op (empty Map)
+  // until the user opts in, so cards render no PubChem chrome by default.
+  const pubchem = usePubChemEnrichment(response.substances);
+
   if (response.structure_count === 0) {
     return (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
@@ -48,6 +53,7 @@ export function StructureGrid({ response, onReset }: StructureGridProps) {
         <StructureCard
           key={`${substance.inchi_key || substance.smiles || "unknown"}-${index}`}
           substance={substance}
+          pubchem={pubchem.get(substance.inchi_key)}
         />
       ))}
     </div>
