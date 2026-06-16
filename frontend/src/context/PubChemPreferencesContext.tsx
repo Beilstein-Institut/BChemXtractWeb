@@ -1,8 +1,17 @@
-import { createContext, useState } from "react";
+import { createContext, useEffect, useState } from "react";
+import { getPubChemStatus } from "@/lib/apiClient";
 
 export interface PubChemPreferencesState {
+  /** The user's opt-in (persisted to localStorage). */
   enabled: boolean;
   setEnabled: (enabled: boolean) => void;
+  /**
+   * Whether the SERVER has PubChem enrichment enabled (PUBCHEM_ENABLED). When
+   * false the feature is hidden and no lookups are fired — so the UI never
+   * calls an endpoint that would 503. Defaults false until the status fetch
+   * resolves (fail-closed).
+   */
+  available: boolean;
 }
 
 const STORAGE_KEY = "bchemxtract-pubchem-enabled";
@@ -14,12 +23,30 @@ const STORAGE_KEY = "bchemxtract-pubchem-enabled";
 export const PubChemPreferencesContext = createContext<PubChemPreferencesState>({
   enabled: false,
   setEnabled: () => null,
+  available: false,
 });
 
 export function PubChemPreferencesProvider({ children }: { children: React.ReactNode }) {
   const [enabled, setEnabledState] = useState<boolean>(
     () => localStorage.getItem(STORAGE_KEY) === "true",
   );
+  const [available, setAvailable] = useState<boolean>(false);
+
+  // Ask the server once whether the feature flag is on. Fail-closed: any error
+  // leaves `available` false, so the feature stays hidden and no lookups fire.
+  useEffect(() => {
+    let cancelled = false;
+    getPubChemStatus()
+      .then((s) => {
+        if (!cancelled) setAvailable(s.enabled);
+      })
+      .catch(() => {
+        if (!cancelled) setAvailable(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const value: PubChemPreferencesState = {
     enabled,
@@ -27,6 +54,7 @@ export function PubChemPreferencesProvider({ children }: { children: React.React
       localStorage.setItem(STORAGE_KEY, String(next));
       setEnabledState(next);
     },
+    available,
   };
 
   return (

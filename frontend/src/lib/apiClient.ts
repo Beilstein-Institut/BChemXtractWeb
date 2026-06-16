@@ -562,6 +562,22 @@ export interface PubChemEnrichResponse {
   results: Record<string, PubChemEnrichment>;
 }
 
+export interface PubChemStatusResponse {
+  enabled: boolean;
+}
+
+/**
+ * GET /api/pubchem/status — reports whether the server has PubChem enrichment
+ * enabled. Always answers (never 503), so the UI can decide up front whether
+ * to offer the opt-in / fire lookups at all.
+ */
+export async function getPubChemStatus(): Promise<PubChemStatusResponse> {
+  const response = await apiFetch("/api/pubchem/status", {
+    errorPrefix: "PubChem status failed",
+  });
+  return response.json() as Promise<PubChemStatusResponse>;
+}
+
 /**
  * POST /api/pubchem/enrich — tier-1 batch enrichment (badge/card data).
  * Only call this when the user has opted in (privacy: sends InChIKeys to NCBI).

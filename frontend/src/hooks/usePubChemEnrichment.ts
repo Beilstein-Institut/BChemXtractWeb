@@ -15,7 +15,8 @@ const BATCH_MAX = 50;
 export function usePubChemEnrichment(
   substances: SubstanceResponse[],
 ): Map<string, PubChemCardState> {
-  const { enabled } = usePubChemPreferences();
+  const { enabled, available } = usePubChemPreferences();
+  const active = enabled && available;
   const [states, setStates] = useState<Map<string, PubChemCardState>>(new Map());
   const requested = useRef<Set<string>>(new Set());
 
@@ -27,7 +28,7 @@ export function usePubChemEnrichment(
     .join(",");
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!active) return;
     // Capture the stable ref Set once. It is never reassigned (only mutated),
     // so this local points to the same Set in the cleanup — satisfying the
     // exhaustive-deps ref-in-cleanup guard while staying correct.
@@ -86,7 +87,7 @@ export function usePubChemEnrichment(
       });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, keys]);
+  }, [active, keys]);
 
   return states;
 }
@@ -96,13 +97,13 @@ export function usePubChemEnrichment(
  * used by the StructureDetail panel on open.
  */
 export function usePubChemCompound(inchiKey: string | undefined): PubChemCardState {
-  const { enabled } = usePubChemPreferences();
+  const { enabled, available } = usePubChemPreferences();
   const [fetchState, setFetchState] = useState<PubChemCardState>({
     state: "idle",
     data: null,
   });
 
-  const active = enabled && !!inchiKey;
+  const active = enabled && available && !!inchiKey;
 
   useEffect(() => {
     if (!active || !inchiKey) return;

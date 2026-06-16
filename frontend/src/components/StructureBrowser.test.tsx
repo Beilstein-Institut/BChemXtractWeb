@@ -254,7 +254,9 @@ describe("StructureBrowser PubChem enrichment wiring", () => {
       .mockResolvedValue({ results: { [KEY]: enrichment } });
 
     render(
-      <PubChemPreferencesContext.Provider value={{ enabled: true, setEnabled: () => null }}>
+      <PubChemPreferencesContext.Provider
+        value={{ enabled: true, setEnabled: () => null, available: true }}
+      >
         <StructureBrowser extractionId={42} onReset={vi.fn()} />
       </PubChemPreferencesContext.Provider>,
     );

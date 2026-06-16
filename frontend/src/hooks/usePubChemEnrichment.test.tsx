@@ -21,9 +21,9 @@ function makeSubstance(key: string): SubstanceResponse {
   };
 }
 
-function enabledWrapper(enabled: boolean) {
+function enabledWrapper(enabled: boolean, available = true) {
   return ({ children }: { children: React.ReactNode }) => (
-    <PubChemPreferencesContext.Provider value={{ enabled, setEnabled: () => null }}>
+    <PubChemPreferencesContext.Provider value={{ enabled, setEnabled: () => null, available }}>
       {children}
     </PubChemPreferencesContext.Provider>
   );
@@ -36,6 +36,14 @@ describe("usePubChemEnrichment", () => {
     const spy = vi.spyOn(api, "postPubChemEnrich");
     renderHook(() => usePubChemEnrichment([makeSubstance("KEY1XXXXXXXXXX-AAAAAAAAAA-N")]), {
       wrapper: enabledWrapper(false),
+    });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("does not fetch when the server feature is unavailable", () => {
+    const spy = vi.spyOn(api, "postPubChemEnrich");
+    renderHook(() => usePubChemEnrichment([makeSubstance("KEY1XXXXXXXXXX-AAAAAAAAAA-N")]), {
+      wrapper: enabledWrapper(true, false),
     });
     expect(spy).not.toHaveBeenCalled();
   });

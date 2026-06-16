@@ -15,6 +15,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
+import * as api from "@/lib/apiClient";
 import { PubChemPreferencesProvider } from "@/context/PubChemPreferencesContext";
 import { csrfTokenCache } from "@/lib/csrfTokenCache";
 
@@ -140,6 +141,8 @@ describe("SettingsPage PubChem toggle", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     csrfTokenCache.value = "fake-token.123.sig";
+    // Server reports the feature ON so the toggle is offered.
+    vi.spyOn(api, "getPubChemStatus").mockResolvedValue({ enabled: true });
   });
 
   afterEach(() => {
@@ -156,7 +159,8 @@ describe("SettingsPage PubChem toggle", () => {
     );
     await screen.findByText(SESSION_ID);
 
-    const toggle = screen.getByRole("switch", { name: /pubchem/i });
+    // Toggle appears once the server status resolves to enabled.
+    const toggle = await screen.findByRole("switch", { name: /pubchem/i });
     // Base UI Switch reflects state via data-checked (absent when off).
     expect(toggle.getAttribute("data-checked")).toBeNull();
     fireEvent.click(toggle);
@@ -170,7 +174,19 @@ describe("SettingsPage PubChem toggle", () => {
         <SettingsPage />
       </PubChemPreferencesProvider>,
     );
-    await screen.findByText(SESSION_ID);
+    await screen.findByRole("switch", { name: /pubchem/i });
     expect(screen.getByText(/sends.*inchikeys.*pubchem/i)).toBeInTheDocument();
+  });
+
+  it("hides the toggle when the server has PubChem disabled", async () => {
+    vi.spyOn(api, "getPubChemStatus").mockResolvedValue({ enabled: false });
+    mockAuthMe();
+    render(
+      <PubChemPreferencesProvider>
+        <SettingsPage />
+      </PubChemPreferencesProvider>,
+    );
+    await screen.findByText(SESSION_ID);
+    expect(screen.queryByRole("switch", { name: /pubchem/i })).toBeNull();
   });
 });

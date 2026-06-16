@@ -42,6 +42,7 @@ APPROVED_OPERATION_IDS = {
     # pubchem enrichment (opt-in)
     "enrichPubChem",
     "getPubChemCompound",
+    "getPubChemStatus",
 }
 
 

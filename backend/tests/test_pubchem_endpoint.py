@@ -8,6 +8,20 @@ from app.routers import pubchem as pubchem_router
 
 
 @pytest.mark.asyncio
+async def test_status_reports_enabled_flag(client_csrf, monkeypatch):
+    """status answers truthfully regardless of the flag (never 503)."""
+    monkeypatch.setattr(pubchem_router.settings, "pubchem_enabled", False)
+    r = await client_csrf.get("/api/pubchem/status")
+    assert r.status_code == 200
+    assert r.json() == {"enabled": False}
+
+    monkeypatch.setattr(pubchem_router.settings, "pubchem_enabled", True)
+    r = await client_csrf.get("/api/pubchem/status")
+    assert r.status_code == 200
+    assert r.json() == {"enabled": True}
+
+
+@pytest.mark.asyncio
 async def test_enrich_disabled_returns_503(client_csrf, monkeypatch):
     monkeypatch.setattr(pubchem_router.settings, "pubchem_enabled", False)
     r = await client_csrf.post(

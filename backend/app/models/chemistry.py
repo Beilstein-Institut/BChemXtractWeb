@@ -347,3 +347,14 @@ class PubChemEnrichResponse(BaseModel):
     """POST /api/pubchem/enrich response — keyed by InChIKey."""
 
     results: dict[str, PubChemEnrichment] = Field(default_factory=dict)
+
+
+class PubChemStatusResponse(BaseModel):
+    """GET /api/pubchem/status response.
+
+    Lets the frontend learn whether the server feature flag is on WITHOUT
+    firing an enrichment request that would 503. When ``enabled`` is False the
+    UI hides the opt-in and never calls the enrich/compound endpoints.
+    """
+
+    enabled: bool

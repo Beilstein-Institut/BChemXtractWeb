@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as api from "@/lib/apiClient";
 import { PubChemPreferencesProvider } from "@/context/PubChemPreferencesContext";
 import { usePubChemPreferences } from "@/hooks/usePubChemPreferences";
 
@@ -7,7 +8,16 @@ function wrapper({ children }: { children: React.ReactNode }) {
   return <PubChemPreferencesProvider>{children}</PubChemPreferencesProvider>;
 }
 
-afterEach(() => localStorage.clear());
+beforeEach(() => {
+  // The provider fetches server status on mount; a pending promise keeps these
+  // opt-in/localStorage assertions free of an unrelated async state update.
+  vi.spyOn(api, "getPubChemStatus").mockReturnValue(new Promise(() => {}));
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  localStorage.clear();
+});
 
 describe("usePubChemPreferences", () => {
   it("defaults to disabled", () => {

@@ -35,6 +35,8 @@ vi.mock("./hooks/useHistory", () => ({
 }));
 vi.mock("./lib/apiClient", () => ({
   getExtractionReactions: vi.fn().mockResolvedValue({ reactions: [] }),
+  // PubChemPreferencesProvider (mounted in App) probes server status on mount.
+  getPubChemStatus: vi.fn().mockResolvedValue({ enabled: false }),
 }));
 vi.mock("./components/FileUpload", () => ({
   FileUpload: ({ isLoading }: { isLoading: boolean }) => (

@@ -399,7 +399,9 @@ describe("StructureSheet PubChem panel", () => {
       description_source: "NCIt",
     });
     render(
-      <PubChemPreferencesContext.Provider value={{ enabled: true, setEnabled: () => null }}>
+      <PubChemPreferencesContext.Provider
+        value={{ enabled: true, setEnabled: () => null, available: true }}
+      >
         <StructureSheet
           open={true}
           onOpenChange={vi.fn()}
@@ -417,7 +419,9 @@ describe("StructureSheet PubChem panel", () => {
   it("does not fetch when opted out", () => {
     const spy = vi.spyOn(api, "getPubChemCompound");
     render(
-      <PubChemPreferencesContext.Provider value={{ enabled: false, setEnabled: () => null }}>
+      <PubChemPreferencesContext.Provider
+        value={{ enabled: false, setEnabled: () => null, available: true }}
+      >
         <StructureSheet
           open={true}
           onOpenChange={vi.fn()}

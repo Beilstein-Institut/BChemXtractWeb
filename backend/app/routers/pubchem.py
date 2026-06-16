@@ -22,6 +22,7 @@ from app.models.chemistry import (
     PubChemEnrichment,
     PubChemEnrichRequest,
     PubChemEnrichResponse,
+    PubChemStatusResponse,
 )
 from app.services import pubchem_enrich
 from app.services.audit import audit_log_insert
@@ -39,6 +40,19 @@ _INCHI_KEY_MAXLEN = 27
 def _require_enabled() -> None:
     if not settings.pubchem_enabled:
         raise PubChemDisabledError("PubChem enrichment is disabled on this server.")
+
+
+@router.get(
+    "/pubchem/status",
+    response_model=PubChemStatusResponse,
+    operation_id="getPubChemStatus",
+    summary="Report whether PubChem enrichment is enabled on this server",
+)
+async def get_status() -> PubChemStatusResponse:
+    # Deliberately NOT gated by _require_enabled — the frontend calls this to
+    # decide whether to show the opt-in / fire lookups at all. It must answer
+    # truthfully even (especially) when the feature is off.
+    return PubChemStatusResponse(enabled=settings.pubchem_enabled)
 
 
 @router.post(
