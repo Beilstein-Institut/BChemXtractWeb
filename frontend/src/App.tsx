@@ -5,6 +5,7 @@ import { DeferredCommandPalette } from "@/components/DeferredCommandPalette";
 import { PageSuspenseFallback } from "@/components/PageSuspenseFallback";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ThemeProvider } from "@/components/theme-provider";
+import { PubChemPreferencesProvider } from "@/context/PubChemPreferencesContext";
 import { SearchProvider } from "@/context/SearchContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useBatch } from "@/hooks/useBatch";
@@ -282,21 +283,23 @@ function App() {
 
   return (
     <ThemeProvider defaultTheme="system" storageKey="bchemxtract-theme">
-      <SearchProvider>
-        <div className="flex min-h-screen flex-col bg-background text-foreground">
-          <AppHeader />
-          <main className="mx-auto w-full max-w-7xl flex-1 px-6 pt-24 pb-12">
-            <Suspense fallback={<PageSuspenseFallback />}>{renderRoute()}</Suspense>
-          </main>
-          <SiteFooter />
-          {/* Globally mounted so ⌘K works from any route.
-           *  Lazy-loaded on first ⌘K to keep motion/react out of the
-           *  initial bundle — see DeferredCommandPalette.
-           */}
-          <DeferredCommandPalette />
-        </div>
-        <Toaster richColors />
-      </SearchProvider>
+      <PubChemPreferencesProvider>
+        <SearchProvider>
+          <div className="flex min-h-screen flex-col bg-background text-foreground">
+            <AppHeader />
+            <main className="mx-auto w-full max-w-7xl flex-1 px-6 pt-24 pb-12">
+              <Suspense fallback={<PageSuspenseFallback />}>{renderRoute()}</Suspense>
+            </main>
+            <SiteFooter />
+            {/* Globally mounted so ⌘K works from any route.
+             *  Lazy-loaded on first ⌘K to keep motion/react out of the
+             *  initial bundle — see DeferredCommandPalette.
+             */}
+            <DeferredCommandPalette />
+          </div>
+          <Toaster richColors />
+        </SearchProvider>
+      </PubChemPreferencesProvider>
     </ThemeProvider>
   );
 }

@@ -46,6 +46,9 @@ x-app-env: &app_env
   ADMIN_SECRET: ${ADMIN_SECRET:?ADMIN_SECRET must be set (32+ chars)}
   CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:${HTTP_PORT:-3000}"]'}
   DEBUG: ${DEBUG:-false}
+  # PubChem enrichment (opt-in; default off). Toggle with `./deploy.sh --pubchem on|off`.
+  PUBCHEM_ENABLED: ${PUBCHEM_ENABLED:-false}
+  PUBCHEM_CONTACT_EMAIL: ${PUBCHEM_CONTACT_EMAIL:-}
 
 # Celery broker + result backend (Redis). Used by backend (publisher) and
 # both Celery containers (worker, beat).

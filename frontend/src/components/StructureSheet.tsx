@@ -32,6 +32,8 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CopyButton } from "@/components/internal/CopyButton";
 import { ExportMenu } from "@/components/ExportMenu";
+import { PubChemPanel } from "@/components/PubChemPanel";
+import { usePubChemCompound } from "@/hooks/usePubChemEnrichment";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { postExport } from "@/lib/apiClient";
 import { DEFAULT_DEPICTION } from "@/lib/depiction";
@@ -88,6 +90,9 @@ export function StructureSheet({
 }: StructureSheetProps) {
   const [zoom, setZoom] = useState(1);
   const [useCdxCoords, setUseCdxCoords] = useState(depiction === "cdx");
+  // Tier-2 PubChem detail for the open structure. No-op (idle) until the user
+  // opts in; null substance -> no fetch.
+  const pubchem = usePubChemCompound(substance?.inchi_key);
 
   // Reset zoom and pick initial layout when substance changes. Follow the
   // page-level depiction preference (ChemDraw by default); fall back to
@@ -361,6 +366,11 @@ export function StructureSheet({
                 <MetadataRow label="Formula" value={substance.molecular_formula} />
               )}
               {substance.mdlv3000 && <MetadataRow label="MDL V3000" value={substance.mdlv3000} />}
+              {pubchem.state !== "idle" && (
+                <div className="border-t border-border pt-3">
+                  <PubChemPanel state={pubchem} />
+                </div>
+              )}
             </div>
           </>
         ) : (

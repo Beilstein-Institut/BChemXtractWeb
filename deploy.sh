@@ -5,6 +5,8 @@
 #   ./deploy.sh                  # full deploy: secrets + JAR + docker compose up
 #   ./deploy.sh --port N         # set public HTTP port (host) — default 3000
 #   ./deploy.sh --change-port    # re-prompt for the public HTTP port
+#   ./deploy.sh --pubchem on|off # enable/disable PubChem enrichment, then
+#                                # recreate the backend (no image rebuild)
 #   ./deploy.sh --rotate-keys    # regenerate ADMIN_SECRET in existing .env
 #                                # (POSTGRES_PASSWORD + SECRET_KEY untouched)
 #   ./deploy.sh --rotate-app-db  # regenerate APP_DB_PASSWORD + ALTER ROLE
@@ -35,7 +37,7 @@ warn() { printf '%s ! %s %s\n' "$C_YELLOW" "$C_RESET" "$*"; }
 die()  { printf '%s ✗ %s %s\n' "$C_RED"    "$C_RESET" "$*" >&2; exit 1; }
 
 usage() {
-  sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 }
 
@@ -45,6 +47,7 @@ ROTATE_APP_DB=false
 ROTATE_POSTGRES_PASSWORD=false
 CHANGE_PORT=false
 PORT_FLAG=""
+PUBCHEM_TOGGLE=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --rotate-keys)              ROTATE_KEYS=true; shift ;;
@@ -53,6 +56,8 @@ while [[ $# -gt 0 ]]; do
     --change-port)              CHANGE_PORT=true; shift ;;
     --port)                     [[ $# -ge 2 ]] || die "--port requires a value"; PORT_FLAG="$2"; shift 2 ;;
     --port=*)                   PORT_FLAG="${1#*=}"; shift ;;
+    --pubchem)                  [[ $# -ge 2 ]] || die "--pubchem requires on|off"; PUBCHEM_TOGGLE="$2"; shift 2 ;;
+    --pubchem=*)                PUBCHEM_TOGGLE="${1#*=}"; shift ;;
     -h|--help)                  usage ;;
     *)                          die "unknown flag: $1 (try --help)" ;;
   esac
@@ -74,6 +79,17 @@ n_rot=0
 (( n_rot <= 1 )) || die "only one --rotate-* flag may be used at a time"
 if [[ -n "$PORT_FLAG" && "$CHANGE_PORT" == true ]]; then
   die "--port and --change-port are mutually exclusive"
+fi
+if [[ -n "$PUBCHEM_TOGGLE" ]]; then
+  case "$PUBCHEM_TOGGLE" in
+    on|off) ;;
+    *) die "--pubchem requires 'on' or 'off' (got: $PUBCHEM_TOGGLE)" ;;
+  esac
+  if [[ "$ROTATE_KEYS" == true || "$ROTATE_APP_DB" == true \
+        || "$ROTATE_POSTGRES_PASSWORD" == true || "$CHANGE_PORT" == true \
+        || -n "$PORT_FLAG" ]]; then
+    die "--pubchem cannot be combined with other action flags"
+  fi
 fi
 
 # --- preflight --------------------------------------------------------------
@@ -158,6 +174,40 @@ select_http_port() {
   done
 }
 
+select_pubchem_enabled() {
+  # Outputs "true"/"false" on stdout; prompt + privacy note go to stderr.
+  # Args: $1 = current value ("true"/"false") used as the default.
+  local current="$1" ans hint
+  if [[ "$current" == "true" ]]; then hint="Y/n"; else hint="y/N"; fi
+
+  # Non-TTY (CI, piped input) → keep the current value, no prompt.
+  if ! [[ -t 0 ]]; then
+    printf '%s' "$current"
+    return 0
+  fi
+
+  {
+    printf '\n%s==>%s PubChem enrichment (optional)\n\n' "$C_BLUE" "$C_RESET"
+    printf '  Resolve extracted structures against the public NIH PubChem\n'
+    printf '  service (compound names, a known/scaffold badge, and a link),\n'
+    printf '  joined on InChIKey. Each user still opts in individually in Settings.\n\n'
+    printf '  %sPRIVACY%s: enabling sends the InChIKeys (and, for scaffold\n' "$C_YELLOW" "$C_RESET"
+    printf '  matching, connectivity SMILES) of extracted structures to PubChem.\n'
+    printf '  Leave OFF for unpublished or proprietary structures.\n\n'
+  } >&2
+
+  printf '  Enable PubChem enrichment? [%s]: ' "$hint" >&2
+  if ! read -r ans; then
+    printf '%s' "$current"
+    return 0
+  fi
+  case "$ans" in
+    [Yy]|[Yy][Ee][Ss]) printf 'true' ;;
+    [Nn]|[Nn][Oo])     printf 'false' ;;
+    *)                 printf '%s' "$current" ;;
+  esac
+}
+
 update_env_var() {
   # Idempotently set $1=$2 in .env. Adds the line if absent, replaces if present.
   # Generic .env upserter — used for HTTP_PORT, BACKEND_PORT, BCHEMXTRACT_VERSION.
@@ -191,6 +241,26 @@ m = re.search(rf'^{re.escape(key)}=(.*)$', p.read_text(), flags=re.M)
 print(m.group(1) if m else '')
 PYEOF
 }
+
+# --- PubChem feature toggle (quick standalone action) -----------------------
+# `./deploy.sh --pubchem on|off` flips PUBCHEM_ENABLED in .env and recreates
+# the backend so it takes effect. Does NOT rebuild images or build the JAR —
+# run a full `./deploy.sh` to ship code changes.
+if [[ -n "$PUBCHEM_TOGGLE" ]]; then
+  [[ -f .env ]] || die ".env not found — run ./deploy.sh first"
+  if [[ "$PUBCHEM_TOGGLE" == on ]]; then pubchem_val=true; else pubchem_val=false; fi
+  info "Setting PUBCHEM_ENABLED=$pubchem_val in .env"
+  update_env_var PUBCHEM_ENABLED "$pubchem_val"
+  if [[ "$pubchem_val" == true && -z "$(read_env_var PUBCHEM_CONTACT_EMAIL)" ]]; then
+    warn 'PUBCHEM_CONTACT_EMAIL is unset — NCBI recommends a contact email when'
+    warn 'enabling PubChem. Set PUBCHEM_CONTACT_EMAIL in .env and re-run if desired.'
+  fi
+  info 'Recreating backend to apply the new setting'
+  docker compose up -d backend \
+    || die 'docker compose up -d backend failed — is the stack deployed? (run ./deploy.sh)'
+  [[ "$pubchem_val" == true ]] && ok 'PubChem enrichment enabled.' || ok 'PubChem enrichment disabled.'
+  exit 0
+fi
 
 # --- BChemXtract version resolution ----------------------------------------
 # Mirrors backend/Dockerfile and backend/scripts/build_jar.sh exactly so the
@@ -550,6 +620,20 @@ else
     warn 'Then re-run deploy.sh.'
     die 'aborting before compose up — fix .env first'
   fi
+fi
+
+# --- PubChem enrichment (interactive on normal deploys) ---------------------
+# Prompts to enable/disable PubChem enrichment, defaulting to the current .env
+# value so a re-deploy preserves the operator's choice unless they change it.
+# Skipped for targeted rotate / change-port runs; the --pubchem quick action
+# exits earlier and never reaches here. Non-TTY runs keep the current value.
+if [[ "$ROTATE_KEYS" == false && "$ROTATE_APP_DB" == false \
+      && "$ROTATE_POSTGRES_PASSWORD" == false && "$CHANGE_PORT" == false ]]; then
+  current_pubchem="$(read_env_var PUBCHEM_ENABLED)"
+  [[ "$current_pubchem" == "true" ]] || current_pubchem="false"
+  PUBCHEM_VALUE="$(select_pubchem_enabled "$current_pubchem")"
+  update_env_var PUBCHEM_ENABLED "$PUBCHEM_VALUE"
+  ok "PUBCHEM_ENABLED=$PUBCHEM_VALUE"
 fi
 
 # --- BChemXtract version --------------------------------------------------

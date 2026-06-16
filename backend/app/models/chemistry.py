@@ -292,3 +292,76 @@ class ErrorResponse(BaseModel):
     detail: str
     code: str
     fields: dict[str, list[str]] | None = None
+
+
+# ============================================================================
+# PubChem enrichment — request/response models (kept SEPARATE from
+# SubstanceResponse so PubChem-derived data never overwrites BChemXtract
+# fields; provenance stays unambiguous).
+# ============================================================================
+
+PubChemStatus = Literal["exact", "scaffold", "absent"]
+
+# InChIKey grammar: 14-char connectivity block, optional 10-char block,
+# optional final char — uppercase letters + hyphens only. Anchored so a
+# request body cannot smuggle path separators / query chars (``/`` ``..``
+# ``?`` ``#``) into the outbound PubChem URL path (see app.services.pubchem).
+# Mirrors ``app.services.search._INCHI_KEY_RE``.
+INCHI_KEY_PATTERN = r"^[A-Z]{14}(?:-[A-Z]{10}(?:-[A-Z])?)?$"
+
+
+class PubChemEnrichItem(BaseModel):
+    """One structure to enrich. ``smiles`` is required for the scaffold
+    (same_connectivity) fallback when the exact InChIKey misses."""
+
+    inchi_key: str = Field(..., max_length=27, pattern=INCHI_KEY_PATTERN)
+    smiles: str = Field("", max_length=4000)
+
+
+class PubChemEnrichRequest(BaseModel):
+    """POST /api/pubchem/enrich body. Batch capped to bound external fan-out."""
+
+    items: list[PubChemEnrichItem] = Field(..., min_length=1, max_length=50)
+
+
+class PubChemEnrichment(BaseModel):
+    """Per-structure PubChem result.
+
+    Tier-1 (card/badge) fields are populated by POST /api/pubchem/enrich.
+    Tier-2 (detail) fields — title, synonyms, description, description_source
+    — stay empty/None until GET /api/pubchem/compound/{inchi_key} fills them.
+    """
+
+    inchi_key: str
+    status: PubChemStatus
+    cid: int | None = None
+    iupac_name: str | None = None
+    molecular_formula: str | None = None
+    molecular_weight: float | None = None
+    canonical_smiles: str | None = None
+    isomeric_smiles: str | None = None
+    xlogp: float | None = None
+    pubchem_url: str | None = None
+    connectivity_cid_count: int = 0
+    # Tier-2 (detail) fields.
+    title: str | None = None
+    synonyms: list[str] = Field(default_factory=list)
+    description: str | None = None
+    description_source: str | None = None
+
+
+class PubChemEnrichResponse(BaseModel):
+    """POST /api/pubchem/enrich response — keyed by InChIKey."""
+
+    results: dict[str, PubChemEnrichment] = Field(default_factory=dict)
+
+
+class PubChemStatusResponse(BaseModel):
+    """GET /api/pubchem/status response.
+
+    Lets the frontend learn whether the server feature flag is on WITHOUT
+    firing an enrichment request that would 503. When ``enabled`` is False the
+    UI hides the opt-in and never calls the enrich/compound endpoints.
+    """
+
+    enabled: bool

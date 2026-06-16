@@ -101,3 +101,38 @@ export interface ReactionExtractionResponse {
   warnings: string[];
   extraction_id?: number;
 }
+
+/**
+ * PubChem match outcome for an extracted structure.
+ *   "exact"    — full InChIKey matched a PubChem record
+ *   "scaffold" — only the connectivity (same_connectivity) matched
+ *   "absent"   — not found in PubChem
+ * Mirrors the backend PubChemStatus literal.
+ */
+export type PubChemStatus = "exact" | "scaffold" | "absent";
+
+/** Mirrors backend PubChemEnrichment (snake_case wire shape). */
+export interface PubChemEnrichment {
+  inchi_key: string;
+  status: PubChemStatus;
+  cid: number | null;
+  iupac_name: string | null;
+  molecular_formula: string | null;
+  molecular_weight: number | null;
+  canonical_smiles: string | null;
+  isomeric_smiles: string | null;
+  xlogp: number | null;
+  pubchem_url: string | null;
+  connectivity_cid_count: number;
+  // Tier-2 (detail) fields — empty/null until the detail fetch.
+  title: string | null;
+  synonyms: string[];
+  description: string | null;
+  description_source: string | null;
+}
+
+/** Per-card async state for a single structure's enrichment. */
+export interface PubChemCardState {
+  state: "idle" | "loading" | "success" | "error";
+  data: PubChemEnrichment | null;
+}

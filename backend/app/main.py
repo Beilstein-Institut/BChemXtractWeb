@@ -35,6 +35,7 @@ from app.routers import (
     health,
     history,
     me,
+    pubchem,
     reactions,
     search,
 )
@@ -118,6 +119,13 @@ _TAGS_METADATA = [
         "name": "batch",
         "description": (
             "Queue multi-file extractions with Server-Sent Event progress streams."
+        ),
+    },
+    {
+        "name": "pubchem",
+        "description": (
+            "Opt-in PubChem enrichment of extracted structures, joined on "
+            "InChIKey. Disabled by default; sends InChIKeys to NCBI when on."
         ),
     },
     {
@@ -310,7 +318,7 @@ def create_app() -> FastAPI:
     #     filtered structurally even if a router forgets the WHERE clause
     # CSRF protection runs in the middleware ahead of these dependencies.
     protected = [Depends(get_scoped_db)]
-    for router in (extract, history, batch, export, reactions, search, me):
+    for router in (extract, history, batch, export, reactions, search, me, pubchem):
         application.include_router(router.router, prefix="/api", dependencies=protected)
 
     # Redoc is served only when OpenAPI docs are exposed. It requires

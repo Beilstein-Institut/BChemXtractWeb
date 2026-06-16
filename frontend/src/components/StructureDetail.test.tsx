@@ -81,6 +81,8 @@ const mockSubstanceNoMdl: SubstanceResponse = {
 };
 
 import { StructureDetail } from "./StructureDetail";
+import * as api from "@/lib/apiClient";
+import { PubChemPreferencesContext } from "@/context/PubChemPreferencesContext";
 
 describe("StructureDetail component", () => {
   beforeEach(() => {
@@ -145,5 +147,51 @@ describe("StructureDetail component", () => {
       screen.getByRole("button", { name: "Copy Molecular Formula to clipboard" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy MDL V3000 to clipboard" })).toBeInTheDocument();
+  });
+});
+
+describe("StructureDetail PubChem panel", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("fetches and renders PubChem detail when opted in", async () => {
+    vi.spyOn(api, "getPubChemCompound").mockResolvedValue({
+      inchi_key: mockSubstance.inchi_key,
+      status: "exact",
+      cid: 241,
+      iupac_name: "benzene",
+      molecular_formula: "C6H6",
+      molecular_weight: 78.11,
+      canonical_smiles: "C1=CC=CC=C1",
+      isomeric_smiles: "C1=CC=CC=C1",
+      xlogp: 2.1,
+      pubchem_url: "https://pubchem.ncbi.nlm.nih.gov/compound/241",
+      connectivity_cid_count: 0,
+      title: "Benzene",
+      synonyms: ["benzene"],
+      description: "An aromatic hydrocarbon.",
+      description_source: "NCIt",
+    });
+    render(
+      <PubChemPreferencesContext.Provider
+        value={{ enabled: true, setEnabled: () => null, available: true }}
+      >
+        <StructureDetail substance={mockSubstance} />
+      </PubChemPreferencesContext.Provider>,
+    );
+    expect(await screen.findByText("Benzene")).toBeInTheDocument();
+  });
+
+  it("does not fetch when opted out", () => {
+    const spy = vi.spyOn(api, "getPubChemCompound");
+    render(
+      <PubChemPreferencesContext.Provider
+        value={{ enabled: false, setEnabled: () => null, available: true }}
+      >
+        <StructureDetail substance={mockSubstance} />
+      </PubChemPreferencesContext.Provider>,
+    );
+    expect(spy).not.toHaveBeenCalled();
   });
 });

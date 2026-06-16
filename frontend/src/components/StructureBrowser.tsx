@@ -28,6 +28,7 @@ import {
   PaginationEllipsis,
 } from "@/components/ui/pagination";
 import { useBrowse } from "@/hooks/useBrowse";
+import { usePubChemEnrichment } from "@/hooks/usePubChemEnrichment";
 import { BrowseToolbar } from "@/components/BrowseToolbar";
 import { StructureCard } from "@/components/StructureCard";
 import { StructureTable } from "@/components/StructureTable";
@@ -141,6 +142,9 @@ export function StructureBrowser({
     return filters ? filterSubstances(items, filters) : items;
   }, [page, filters]);
   const activeSubstance = substances[sheetIndex] ?? null;
+  // Batched PubChem enrichment for the visible page. No-op (empty Map) until
+  // the user opts in, so cards render no PubChem chrome by default.
+  const pubchem = usePubChemEnrichment(substances);
   const allSelected = substances.length > 0 && substances.every((s) => selectedIds.has(s.id));
   const totalPages = page?.pages ?? 0;
   const filtersActive = filters ? hasActiveFilters(filters) : false;
@@ -230,6 +234,7 @@ export function StructureBrowser({
               isChecked={selectedIds.has(substance.id)}
               onSelect={toggleSelect}
               depiction={depiction}
+              pubchem={pubchem.get(substance.inchi_key)}
             />
           ))}
         </div>
