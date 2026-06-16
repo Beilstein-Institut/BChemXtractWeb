@@ -53,3 +53,27 @@ def test_export_request_accepts_reaction_ids():
     assert req.reaction_ids == [1, 2, 3]
     req2 = ExportRequest(format="sdf")  # default = []
     assert req2.reaction_ids == []
+
+
+def test_pubchem_enrich_request_caps_items():
+    """The batch endpoint rejects more than 50 items (bounds external fan-out)."""
+    import pytest
+    from pydantic import ValidationError
+
+    from app.models.chemistry import PubChemEnrichItem, PubChemEnrichRequest
+
+    items = [PubChemEnrichItem(inchi_key="A" * 14, smiles="C") for _ in range(51)]
+    with pytest.raises(ValidationError):
+        PubChemEnrichRequest(items=items)
+
+
+def test_pubchem_enrichment_defaults():
+    """An absent result carries no CID/url and empty tier-2 fields."""
+    from app.models.chemistry import PubChemEnrichment
+
+    e = PubChemEnrichment(inchi_key="UHOVQNZJYSORNB-UHFFFAOYSA-N", status="absent")
+    assert e.cid is None
+    assert e.pubchem_url is None
+    assert e.synonyms == []
+    assert e.connectivity_cid_count == 0
+    assert e.status == "absent"
