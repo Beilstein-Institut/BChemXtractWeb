@@ -58,6 +58,7 @@ class TokenBucket:
 
 PUBCHEM_COMPOUND_PAGE = "https://pubchem.ncbi.nlm.nih.gov/compound"
 PUBCHEM_MAX_RETRIES = 2
+_MAX_BACKOFF_SECS = 5.0
 _CORE_PROPERTIES = (
     "MolecularFormula,MolecularWeight,CanonicalSMILES,IsomericSMILES,IUPACName,XLogP"
 )
@@ -70,6 +71,23 @@ _shared_client: httpx.AsyncClient | None = None
 
 class PubChemError(Exception):
     """Raised when PubChem is unreachable, times out, or stays 503."""
+
+
+def _backoff_delay(resp: httpx.Response, attempt: int) -> float:
+    """Seconds to wait before retrying a 5xx/503.
+
+    Honors a numeric ``Retry-After`` header (capped so a hostile/huge value
+    can't hang the request), else falls back to exponential backoff. An
+    HTTP-date ``Retry-After`` is uncommon for throttling and falls through
+    to the exponential path.
+    """
+    retry_after = resp.headers.get("Retry-After")
+    if retry_after:
+        try:
+            return min(float(retry_after), _MAX_BACKOFF_SECS)
+        except ValueError:
+            pass
+    return 0.5 * (2**attempt)
 
 
 def _user_agent() -> str:
@@ -115,7 +133,7 @@ async def _request(
             return None
         if resp.status_code == 503 or resp.status_code >= 500:
             if attempt < PUBCHEM_MAX_RETRIES:
-                await asyncio.sleep(0.5 * (2**attempt))
+                await asyncio.sleep(_backoff_delay(resp, attempt))
                 continue
             raise PubChemError(f"PubChem {resp.status_code} after retries")
         resp.raise_for_status()

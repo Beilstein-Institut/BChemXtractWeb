@@ -117,7 +117,6 @@ def test_pubchem_settings_defaults(debug_env) -> None:
     assert s.pubchem_cache_ttl_days == 180
     assert s.pubchem_negative_ttl_days == 14
     assert s.pubchem_synonyms_cap == 12
-    assert s.pubchem_enrich_batch_max == 50
     assert s.rate_limit_pubchem == "60/minute"
 
 

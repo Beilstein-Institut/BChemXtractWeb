@@ -136,15 +136,19 @@ async def enrich_batch(
             await db.commit()
             out[item.inchi_key] = dto
         except pubchem.PubChemError:
+            # Build the fallback DTO BEFORE rollback. rollback() expires the
+            # ORM instance regardless of expire_on_commit, so reading its
+            # attributes afterwards triggers sync IO outside the async
+            # greenlet (MissingGreenlet -> 500). Serve stale data if we have
+            # it; otherwise a transient 'absent' that is NOT cached (so a
+            # later call retries).
+            fallback = (
+                _row_to_dto(row)
+                if row is not None
+                else PubChemEnrichment(inchi_key=item.inchi_key, status="absent")
+            )
             await db.rollback()
-            # Serve stale data if we have it; otherwise a transient 'absent'
-            # that is NOT cached (so a later call retries).
-            if row is not None:
-                out[item.inchi_key] = _row_to_dto(row)
-            else:
-                out[item.inchi_key] = PubChemEnrichment(
-                    inchi_key=item.inchi_key, status="absent"
-                )
+            out[item.inchi_key] = fallback
     return out
 
 
@@ -183,5 +187,9 @@ async def enrich_detail(db: AsyncSession, inchi_key: str) -> PubChemEnrichment:
             await db.commit()
             return dto
         except pubchem.PubChemError:
+            # Tier-2 fetch failed — serve the tier-1 row unchanged. Build the
+            # DTO BEFORE rollback (rollback expires the instance -> sync IO).
+            dto = _row_to_dto(row)
             await db.rollback()
+            return dto
     return _row_to_dto(row)

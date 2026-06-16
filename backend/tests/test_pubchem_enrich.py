@@ -155,3 +155,61 @@ async def test_enrich_detail_fills_tier2(db_session, monkeypatch):
     assert detail.title == "Benzene"
     assert detail.synonyms == ["benzene", "benzol"]
     assert detail.description_source == "NCIt"
+
+
+@pytest.mark.asyncio
+async def test_enrich_batch_serves_stale_row_on_pubchem_error(db_session, monkeypatch):
+    """A stale cache row + PubChem error must degrade to the stale data, not
+    crash. Regression for the rollback-then-read MissingGreenlet bug."""
+    from datetime import UTC, datetime
+
+    key = "STALEKEY12345X-AAAAAAAAAA-N"
+    db_session.add(
+        PubChemCompound(
+            inchi_key=key,
+            status="exact",
+            cid=241,
+            molecular_formula="C6H6",
+            fetched_at=datetime(2000, 1, 1, tzinfo=UTC),  # well past any TTL
+        )
+    )
+    await db_session.commit()
+
+    async def boom_exact(inchi_key, client=None):
+        raise pubchem_enrich.pubchem.PubChemError("down")
+
+    monkeypatch.setattr(pubchem_enrich.pubchem, "resolve_exact_cids", boom_exact)
+    out = await pubchem_enrich.enrich_batch(
+        db_session, [PubChemEnrichItem(inchi_key=key, smiles="c1ccccc1")]
+    )
+    e = out[key]
+    assert e.status == "exact"
+    assert e.cid == 241  # stale data served, no crash
+
+
+@pytest.mark.asyncio
+async def test_enrich_detail_serves_tier1_on_pubchem_error(db_session, monkeypatch):
+    """A tier-2 fetch failure must serve the existing tier-1 row, not crash.
+    Regression for the rollback-then-read MissingGreenlet bug."""
+    from datetime import UTC, datetime
+
+    key = "DETAILKEY1234X-AAAAAAAAAA-N"
+    db_session.add(
+        PubChemCompound(
+            inchi_key=key,
+            status="exact",
+            cid=241,
+            molecular_formula="C6H6",
+            fetched_at=datetime.now(UTC),  # tier-1 fresh; detail not yet fetched
+        )
+    )
+    await db_session.commit()
+
+    async def boom(*a, **k):
+        raise pubchem_enrich.pubchem.PubChemError("down")
+
+    monkeypatch.setattr(pubchem_enrich.pubchem, "fetch_synonyms", boom)
+    monkeypatch.setattr(pubchem_enrich.pubchem, "fetch_description", boom)
+    detail = await pubchem_enrich.enrich_detail(db_session, key)
+    assert detail.cid == 241  # tier-1 served, no crash
+    assert detail.title is None

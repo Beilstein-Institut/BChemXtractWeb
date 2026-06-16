@@ -158,7 +158,6 @@ class Settings(BaseSettings):
     because PubChem grows over time."""
 
     pubchem_synonyms_cap: int = 12
-    pubchem_enrich_batch_max: int = 50
     rate_limit_pubchem: str = "60/minute"
 
     @model_validator(mode="after")
