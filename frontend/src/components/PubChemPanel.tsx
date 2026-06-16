@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PubChemCardState } from "@/types/chemistry";
 
+const heading = <h4 className="text-caption font-semibold text-muted-foreground">PubChem</h4>;
+
 /**
  * Rich PubChem detail panel for the structure dialog/sheet. Purely additive:
  * loading shows a skeleton; error renders a quiet retriable notice; success
@@ -14,7 +16,7 @@ export function PubChemPanel({ state }: { state: PubChemCardState }) {
   if (state.state === "loading") {
     return (
       <section data-slot="pubchem-panel" className="space-y-2">
-        <h4 className="text-caption font-semibold text-muted-foreground">PubChem</h4>
+        {heading}
         <div data-testid="pubchem-panel-loading" className="space-y-2">
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-4 w-full" />
@@ -26,7 +28,7 @@ export function PubChemPanel({ state }: { state: PubChemCardState }) {
   if (state.state === "error") {
     return (
       <section data-slot="pubchem-panel" className="space-y-1">
-        <h4 className="text-caption font-semibold text-muted-foreground">PubChem</h4>
+        {heading}
         <p className="text-caption text-muted-foreground">
           PubChem is unavailable right now. Reopen this structure to retry.
         </p>
@@ -40,7 +42,7 @@ export function PubChemPanel({ state }: { state: PubChemCardState }) {
   if (d.status === "absent") {
     return (
       <section data-slot="pubchem-panel" className="space-y-1">
-        <h4 className="text-caption font-semibold text-muted-foreground">PubChem</h4>
+        {heading}
         <Badge variant="outline">Not in PubChem</Badge>
       </section>
     );
@@ -49,7 +51,7 @@ export function PubChemPanel({ state }: { state: PubChemCardState }) {
   return (
     <section data-slot="pubchem-panel" className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <h4 className="text-caption font-semibold text-muted-foreground">PubChem</h4>
+        {heading}
         <Badge variant={d.status === "exact" ? "success" : "secondary"}>
           {d.status === "exact" ? "In PubChem" : "Known scaffold"}
         </Badge>

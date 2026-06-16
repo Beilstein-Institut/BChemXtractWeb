@@ -131,7 +131,7 @@ async def _request(
             raise PubChemError(f"PubChem request failed: {exc}") from exc
         if resp.status_code == 404:
             return None
-        if resp.status_code == 503 or resp.status_code >= 500:
+        if resp.status_code >= 500:
             if attempt < PUBCHEM_MAX_RETRIES:
                 await asyncio.sleep(_backoff_delay(resp, attempt))
                 continue
