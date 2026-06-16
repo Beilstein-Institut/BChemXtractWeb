@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as api from "@/lib/apiClient";
 import { PubChemPreferencesContext } from "@/context/PubChemPreferencesContext";
@@ -70,5 +70,34 @@ describe("usePubChemEnrichment", () => {
       expect(result.current.get("KEY1XXXXXXXXXX-AAAAAAAAAA-N")?.state).toBe("success"),
     );
     expect(result.current.get("KEY1XXXXXXXXXX-AAAAAAAAAA-N")?.data?.cid).toBe(241);
+  });
+
+  it("re-requests a key whose first fetch was cancelled by a list change", async () => {
+    const A = "AAAAAAAAAAAAAA-AAAAAAAAAA-N";
+    const B = "BBBBBBBBBBBBBB-AAAAAAAAAA-N";
+    // First call never resolves (simulates a request still in flight when the
+    // substance list changes); subsequent calls resolve empty.
+    const spy = vi
+      .spyOn(api, "postPubChemEnrich")
+      .mockReturnValueOnce(new Promise(() => {}))
+      .mockResolvedValue({ results: {} });
+
+    const { rerender } = renderHook(({ subs }) => usePubChemEnrichment(subs), {
+      wrapper: enabledWrapper(true),
+      initialProps: { subs: [makeSubstance(A)] },
+    });
+    // First effect fired one in-flight request for A.
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1));
+
+    // List grows -> keys change -> first effect is cancelled, new effect runs.
+    await act(async () => {
+      rerender({ subs: [makeSubstance(A), makeSubstance(B)] });
+    });
+
+    // The second request must include A (it was cancelled before settling, so
+    // it must be re-requested — not left stuck on the loading skeleton).
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(2));
+    const secondCallKeys = spy.mock.calls[1][0].map((i) => i.inchi_key);
+    expect(secondCallKeys).toContain(A);
   });
 });

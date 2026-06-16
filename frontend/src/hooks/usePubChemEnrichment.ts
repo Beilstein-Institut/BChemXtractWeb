@@ -28,10 +28,14 @@ export function usePubChemEnrichment(
 
   useEffect(() => {
     if (!enabled) return;
-    const pending = substances.filter((s) => s.inchi_key && !requested.current.has(s.inchi_key));
+    // Capture the stable ref Set once. It is never reassigned (only mutated),
+    // so this local points to the same Set in the cleanup — satisfying the
+    // exhaustive-deps ref-in-cleanup guard while staying correct.
+    const req = requested.current;
+    const pending = substances.filter((s) => s.inchi_key && !req.has(s.inchi_key));
     if (pending.length === 0) return;
 
-    pending.forEach((s) => requested.current.add(s.inchi_key));
+    pending.forEach((s) => req.add(s.inchi_key));
     setStates((prev) => {
       const next = new Map(prev);
       pending.forEach((s) => next.set(s.inchi_key, { state: "loading", data: null }));
@@ -39,6 +43,7 @@ export function usePubChemEnrichment(
     });
 
     let cancelled = false;
+    const settled = new Set<string>();
     (async () => {
       for (let i = 0; i < pending.length; i += BATCH_MAX) {
         const chunk = pending.slice(i, i + BATCH_MAX);
@@ -47,6 +52,7 @@ export function usePubChemEnrichment(
             chunk.map((s) => ({ inchi_key: s.inchi_key, smiles: s.smiles })),
           );
           if (cancelled) return;
+          chunk.forEach((s) => settled.add(s.inchi_key));
           setStates((prev) => {
             const next = new Map(prev);
             chunk.forEach((s) => {
@@ -57,19 +63,27 @@ export function usePubChemEnrichment(
           });
         } catch {
           if (cancelled) return;
+          chunk.forEach((s) => settled.add(s.inchi_key));
           setStates((prev) => {
             const next = new Map(prev);
             chunk.forEach((s) => next.set(s.inchi_key, { state: "error", data: null }));
             return next;
           });
           // Allow a later retry for this chunk.
-          chunk.forEach((s) => requested.current.delete(s.inchi_key));
+          chunk.forEach((s) => req.delete(s.inchi_key));
         }
       }
     })();
 
     return () => {
       cancelled = true;
+      // Keys that never settled (request cancelled mid-flight by a list
+      // change) are still marked "loading". Drop them from the dedup set so a
+      // later run re-requests them — otherwise they stay on the loading
+      // skeleton forever.
+      pending.forEach((s) => {
+        if (!settled.has(s.inchi_key)) req.delete(s.inchi_key);
+      });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, keys]);
