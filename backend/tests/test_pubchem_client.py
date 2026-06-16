@@ -22,9 +22,7 @@ async def test_resolve_exact_cids_returns_sorted_cids():
         return httpx.Response(200, json={"IdentifierList": {"CID": [241, 7]}})
 
     async with _client(handler) as c:
-        cids = await pubchem.resolve_exact_cids(
-            "UHOVQNZJYSORNB-UHFFFAOYSA-N", client=c
-        )
+        cids = await pubchem.resolve_exact_cids("UHOVQNZJYSORNB-UHFFFAOYSA-N", client=c)
     assert cids == [7, 241]
 
 
