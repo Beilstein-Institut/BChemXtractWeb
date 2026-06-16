@@ -82,3 +82,32 @@ async def test_compound_detail(client_csrf, monkeypatch):
     r = await client_csrf.get("/api/pubchem/compound/UHOVQNZJYSORNB-UHFFFAOYSA-N")
     assert r.status_code == 200
     assert r.json()["title"] == "Benzene"
+
+
+@pytest.mark.asyncio
+async def test_enrich_rejects_path_injection_inchi_key(client_csrf, monkeypatch):
+    """A crafted inchi_key carrying path/query chars is rejected at the request
+    boundary (422) — it must never reach the outbound PubChem URL builder."""
+    monkeypatch.setattr(pubchem_router.settings, "pubchem_enabled", True)
+    for bad in [
+        "../cid/2244/property",
+        "X?cid=2244",
+        "AAAA/BBBB",
+        "..",
+        "lowercasekey00",
+    ]:
+        r = await client_csrf.post(
+            "/api/pubchem/enrich",
+            json={"items": [{"inchi_key": bad, "smiles": ""}]},
+        )
+        assert r.status_code == 422, f"expected 422 for {bad!r}, got {r.status_code}"
+
+
+@pytest.mark.asyncio
+async def test_compound_rejects_malformed_key(client_csrf, monkeypatch):
+    """The GET path param has no Pydantic model, so the handler validates the
+    InChIKey grammar itself before any outbound call."""
+    monkeypatch.setattr(pubchem_router.settings, "pubchem_enabled", True)
+    r = await client_csrf.get("/api/pubchem/compound/notavalidkey")
+    assert r.status_code == 422
+    assert r.json()["code"] == "INVALID_INCHI_KEY"

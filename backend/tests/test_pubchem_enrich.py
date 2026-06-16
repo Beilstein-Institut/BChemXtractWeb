@@ -95,10 +95,10 @@ async def test_enrich_batch_scaffold_fallback(db_session, monkeypatch):
     monkeypatch.setattr(pubchem_enrich.pubchem, "fetch_core_properties", fake_props)
 
     items = [
-        PubChemEnrichItem(inchi_key="SCAFFOLDKEY1XX-AAAAAAAAAA-N", smiles="c1ccccc1")
+        PubChemEnrichItem(inchi_key="SCAFFOLDKEYXXX-AAAAAAAAAA-N", smiles="c1ccccc1")
     ]
     out = await pubchem_enrich.enrich_batch(db_session, items)
-    e = out["SCAFFOLDKEY1XX-AAAAAAAAAA-N"]
+    e = out["SCAFFOLDKEYXXX-AAAAAAAAAA-N"]
     assert e.status == "scaffold"
     assert e.cid == 12
     assert e.connectivity_cid_count == 2
@@ -112,9 +112,9 @@ async def test_enrich_batch_absent(db_session, monkeypatch):
     monkeypatch.setattr(pubchem_enrich.pubchem, "resolve_exact_cids", empty)
     monkeypatch.setattr(pubchem_enrich.pubchem, "resolve_connectivity_cids", empty)
 
-    items = [PubChemEnrichItem(inchi_key="ABSENTKEY12345-AAAAAAAAAA-N", smiles="C")]
+    items = [PubChemEnrichItem(inchi_key="ABSENTKEYXXXXX-AAAAAAAAAA-N", smiles="C")]
     out = await pubchem_enrich.enrich_batch(db_session, items)
-    e = out["ABSENTKEY12345-AAAAAAAAAA-N"]
+    e = out["ABSENTKEYXXXXX-AAAAAAAAAA-N"]
     assert e.status == "absent"
     assert e.cid is None
     assert e.pubchem_url is None
@@ -163,7 +163,7 @@ async def test_enrich_batch_serves_stale_row_on_pubchem_error(db_session, monkey
     crash. Regression for the rollback-then-read MissingGreenlet bug."""
     from datetime import UTC, datetime
 
-    key = "STALEKEY12345X-AAAAAAAAAA-N"
+    key = "STALEKEYXXXXXX-AAAAAAAAAA-N"
     db_session.add(
         PubChemCompound(
             inchi_key=key,
@@ -193,7 +193,7 @@ async def test_enrich_detail_serves_tier1_on_pubchem_error(db_session, monkeypat
     Regression for the rollback-then-read MissingGreenlet bug."""
     from datetime import UTC, datetime
 
-    key = "DETAILKEY1234X-AAAAAAAAAA-N"
+    key = "DETAILKEYXXXXX-AAAAAAAAAA-N"
     db_session.add(
         PubChemCompound(
             inchi_key=key,

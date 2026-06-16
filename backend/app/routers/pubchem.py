@@ -9,6 +9,7 @@ frontend only calls them when the user has opted in.
 """
 
 import logging
+import re
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
@@ -18,6 +19,7 @@ from app.config import settings
 from app.errors import InvalidInchiKeyError, PubChemDisabledError
 from app.middleware.rate_limit import limiter
 from app.models.chemistry import (
+    INCHI_KEY_PATTERN,
     ErrorResponse,
     PubChemEnrichment,
     PubChemEnrichRequest,
@@ -34,7 +36,9 @@ router = APIRouter(tags=["pubchem"])
 
 DbDep = Annotated[AsyncSession, Depends(get_scoped_db)]
 
-_INCHI_KEY_MAXLEN = 27
+# Same grammar the enrich request body enforces — applied here because a path
+# param has no Pydantic model to validate it.
+_INCHI_KEY_RE = re.compile(INCHI_KEY_PATTERN)
 
 
 def _require_enabled() -> None:
@@ -104,6 +108,6 @@ async def get_compound(
 ) -> PubChemEnrichment:
     _require_enabled()
     key = inchi_key.strip().upper()
-    if not key or len(key) > _INCHI_KEY_MAXLEN:
+    if not _INCHI_KEY_RE.match(key):
         raise InvalidInchiKeyError("Malformed InChIKey.")
     return await pubchem_enrich.enrich_detail(db, key)

@@ -302,12 +302,19 @@ class ErrorResponse(BaseModel):
 
 PubChemStatus = Literal["exact", "scaffold", "absent"]
 
+# InChIKey grammar: 14-char connectivity block, optional 10-char block,
+# optional final char — uppercase letters + hyphens only. Anchored so a
+# request body cannot smuggle path separators / query chars (``/`` ``..``
+# ``?`` ``#``) into the outbound PubChem URL path (see app.services.pubchem).
+# Mirrors ``app.services.search._INCHI_KEY_RE``.
+INCHI_KEY_PATTERN = r"^[A-Z]{14}(?:-[A-Z]{10}(?:-[A-Z])?)?$"
+
 
 class PubChemEnrichItem(BaseModel):
     """One structure to enrich. ``smiles`` is required for the scaffold
     (same_connectivity) fallback when the exact InChIKey misses."""
 
-    inchi_key: str = Field(..., min_length=1, max_length=27)
+    inchi_key: str = Field(..., max_length=27, pattern=INCHI_KEY_PATTERN)
     smiles: str = Field("", max_length=4000)
 
 

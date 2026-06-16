@@ -12,6 +12,7 @@ import asyncio
 import logging
 import time
 from collections.abc import Awaitable, Callable
+from urllib.parse import quote
 
 import httpx
 
@@ -59,6 +60,7 @@ class TokenBucket:
 PUBCHEM_COMPOUND_PAGE = "https://pubchem.ncbi.nlm.nih.gov/compound"
 PUBCHEM_MAX_RETRIES = 2
 _MAX_BACKOFF_SECS = 5.0
+_MAX_DESCRIPTION_CHARS = 2000
 _CORE_PROPERTIES = (
     "MolecularFormula,MolecularWeight,CanonicalSMILES,IsomericSMILES,IUPACName,XLogP"
 )
@@ -92,8 +94,11 @@ def _backoff_delay(resp: httpx.Response, attempt: int) -> float:
 
 def _user_agent() -> str:
     base = "BChemXtractWeb/0.1 (+https://github.com/Beilstein-Institut)"
-    if settings.pubchem_contact_email:
-        return f"{base}; mailto:{settings.pubchem_contact_email}"
+    # Strip CRLF defensively — the value is operator config, but a stray
+    # newline would otherwise produce an invalid (or injected) header.
+    email = settings.pubchem_contact_email.replace("\r", "").replace("\n", "").strip()
+    if email:
+        return f"{base}; mailto:{email}"
     return base
 
 
@@ -145,7 +150,15 @@ def _cids_from(resp: httpx.Response | None) -> list[int]:
     if resp is None:
         return []
     cids = resp.json().get("IdentifierList", {}).get("CID", [])
-    return sorted(int(c) for c in cids)
+    out: list[int] = []
+    for c in cids:
+        try:
+            out.append(int(c))
+        except (TypeError, ValueError):
+            # A non-integer CID (MITM / PubChem schema change) is dropped
+            # rather than crashing the request with an uncaught ValueError.
+            continue
+    return sorted(out)
 
 
 async def resolve_exact_cids(
@@ -153,7 +166,11 @@ async def resolve_exact_cids(
 ) -> list[int]:
     """Full-InChIKey -> sorted CIDs (empty when PubChem has no record)."""
     c = client or _get_shared_client()
-    resp = await _request("GET", f"/compound/inchikey/{inchi_key}/cids/JSON", c)
+    # URL-encode the key before path interpolation — defense-in-depth against
+    # path/query smuggling. A valid InChIKey ([A-Z]/hyphen) encodes to itself.
+    resp = await _request(
+        "GET", f"/compound/inchikey/{quote(inchi_key, safe='')}/cids/JSON", c
+    )
     return _cids_from(resp)
 
 
@@ -224,8 +241,11 @@ async def fetch_description(cid: int, client: httpx.AsyncClient | None = None) -
     entries = resp.json().get("InformationList", {}).get("Information", [])
     title = next((e["Title"] for e in entries if e.get("Title")), None)
     desc = next((e for e in entries if e.get("Description")), {})
+    description = desc.get("Description")
+    if isinstance(description, str) and len(description) > _MAX_DESCRIPTION_CHARS:
+        description = description[:_MAX_DESCRIPTION_CHARS]
     return {
         "title": title,
-        "description": desc.get("Description"),
+        "description": description,
         "description_source": desc.get("DescriptionSourceName"),
     }
