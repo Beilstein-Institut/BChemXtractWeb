@@ -103,3 +103,27 @@ def test_settings_expose_docs_explicit_override(prod_env) -> None:
     """Explicit EXPOSE_OPENAPI_DOCS=true overrides the DEBUG-derived default."""
     prod_env.setenv("EXPOSE_OPENAPI_DOCS", "true")
     assert Settings().expose_openapi_docs is True  # type: ignore[call-arg]
+
+
+def test_pubchem_settings_defaults(debug_env) -> None:
+    """PubChem enrichment ships disabled with conservative defaults."""
+    s = Settings()  # type: ignore[call-arg]
+    assert s.pubchem_enabled is False
+    assert s.pubchem_base_url == "https://pubchem.ncbi.nlm.nih.gov/rest/pug"
+    assert s.pubchem_timeout_secs == 10.0
+    assert s.pubchem_rate_per_sec == 4.0
+    assert s.pubchem_max_concurrency == 4
+    assert s.pubchem_contact_email == ""
+    assert s.pubchem_cache_ttl_days == 180
+    assert s.pubchem_negative_ttl_days == 14
+    assert s.pubchem_synonyms_cap == 12
+    assert s.pubchem_enrich_batch_max == 50
+    assert s.rate_limit_pubchem == "60/minute"
+
+
+def test_pubchem_rate_per_sec_capped_below_pubchem_limit(debug_env) -> None:
+    """Reject a configured rate that would exceed PubChem's 5 req/s policy."""
+    debug_env.setenv("PUBCHEM_RATE_PER_SEC", "9")
+    with pytest.raises(Exception) as exc_info:
+        Settings()  # type: ignore[call-arg]
+    assert "PUBCHEM_RATE_PER_SEC" in str(exc_info.value)
