@@ -71,10 +71,10 @@ export function BrowsePage({
 
   const [filters, setFilters] = useState<BrowseFilters>({ ...EMPTY_FILTERS });
   const [activeSubstance, setActiveSubstance] = useState<SubstanceResponse | null>(null);
-  // Page-wide 2D layout: ChemDraw (original drawing) by default, CDK via
+  // Page-wide 2D layout: CDK (canonical layout) by default, ChemDraw via
   // the toolbar toggle. Drives every structure render on this page plus
   // the depiction sent with image exports. Deliberately NOT persisted —
-  // the product default is ChemDraw on every visit.
+  // the product default is CDK on every visit.
   const [depiction, setDepiction] = useState<Depiction>(DEFAULT_DEPICTION);
 
   const browserRef = useRef<HTMLDivElement | null>(null);

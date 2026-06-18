@@ -9,8 +9,8 @@ const CDK = "<svg>cdk-layout</svg>";
 const CDX = "<svg>cdx-layout</svg>";
 
 describe("DEFAULT_DEPICTION", () => {
-  it("is ChemDraw — the product default on every visit", () => {
-    expect(DEFAULT_DEPICTION).toBe("cdx");
+  it("is CDK — the product default on every visit", () => {
+    expect(DEFAULT_DEPICTION).toBe("cdk");
   });
 });
 
@@ -23,8 +23,8 @@ describe("pickSvg", () => {
     expect(pickSvg({ svg: CDK, svg_cdx: CDX }, "cdk")).toBe(CDK);
   });
 
-  it("defaults to the ChemDraw depiction when none is given", () => {
-    expect(pickSvg({ svg: CDK, svg_cdx: CDX })).toBe(CDX);
+  it("defaults to the CDK depiction when none is given", () => {
+    expect(pickSvg({ svg: CDK, svg_cdx: CDX })).toBe(CDK);
   });
 
   it("falls back to svg when svg_cdx is missing (cdx requested)", () => {

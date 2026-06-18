@@ -320,8 +320,8 @@ describe("StructureSheet component", () => {
     expect(img.src).toMatch(/^blob:/);
   });
 
-  it("defaults to the ChemDraw layout when both renders are stored", () => {
-    // Product default: depiction prop omitted -> ChemDraw ("cdx").
+  it("defaults to the CDK layout when both renders are stored", () => {
+    // Product default: depiction prop omitted -> CDK ("cdk").
     render(
       <StructureSheet
         open={true}
@@ -333,11 +333,11 @@ describe("StructureSheet component", () => {
         onNext={vi.fn()}
       />,
     );
+    expect(screen.getByRole("button", { name: /^CDK$/i })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: /^ChemDraw$/i })).toHaveAttribute(
       "aria-pressed",
-      "true",
+      "false",
     );
-    expect(screen.getByRole("button", { name: /^CDK$/i })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("initializes from the page-level depiction prop (cdk)", () => {

@@ -151,7 +151,7 @@ describe("BrowsePage", () => {
     expect(browser.getAttribute("data-filter-has-name")).toBe("true");
   });
 
-  it("defaults the page depiction to ChemDraw (cdx)", () => {
+  it("defaults the page depiction to CDK (cdk)", () => {
     render(
       <BrowsePage
         {...makeProps({
@@ -160,7 +160,7 @@ describe("BrowsePage", () => {
         })}
       />,
     );
-    expect(screen.getByTestId("structure-browser").getAttribute("data-depiction")).toBe("cdx");
+    expect(screen.getByTestId("structure-browser").getAttribute("data-depiction")).toBe("cdk");
   });
 
   it("flips the depiction page-wide when the toolbar toggle fires", () => {
