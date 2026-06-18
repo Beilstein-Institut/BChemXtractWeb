@@ -4,13 +4,14 @@
  * export payloads, so what gets displayed and what gets exported can
  * never drift apart.
  *
- * The product default is the original ChemDraw layout ("cdx"): it shows
- * the structures exactly as drawn in the uploaded file. The CDK layout
- * ("cdk") is the opt-in alternative via the Browse toolbar toggle.
+ * The product default is the CDK layout ("cdk"): a fresh canonical 2D
+ * layout. The original ChemDraw layout ("cdx"), which shows structures
+ * exactly as drawn in the uploaded file, is the opt-in alternative via
+ * the Browse toolbar toggle.
  */
 import type { Depiction, SubstanceResponse } from "@/types/chemistry";
 
-export const DEFAULT_DEPICTION: Depiction = "cdx";
+export const DEFAULT_DEPICTION: Depiction = "cdk";
 
 /**
  * Return the stored SVG markup for `depiction`, falling back to the

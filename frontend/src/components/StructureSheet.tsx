@@ -95,7 +95,7 @@ export function StructureSheet({
   const pubchem = usePubChemCompound(substance?.inchi_key);
 
   // Reset zoom and pick initial layout when substance changes. Follow the
-  // page-level depiction preference (ChemDraw by default); fall back to
+  // page-level depiction preference (CDK by default); fall back to
   // the other layout when the preferred one isn't stored for this
   // structure. Computed once per substance change so there's only a
   // single commit (no cascading effects).

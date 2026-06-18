@@ -31,7 +31,7 @@ export interface StructureDetailProps {
   attribution?: StructureCardAttribution;
   /** Fired when the user clicks the chip / picks an extraction in the popover. */
   onViewExtraction?: (extractionId: number) => void;
-  /** Active 2D layout (ChemDraw "cdx" default / CDK "cdk"). */
+  /** Active 2D layout (CDK "cdk" default / ChemDraw "cdx"). */
   depiction?: Depiction;
 }
 

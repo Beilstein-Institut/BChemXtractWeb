@@ -21,6 +21,7 @@ fragment path and adds a warning to the response.
 
 import contextlib
 import logging
+from collections import Counter
 
 import jpype
 
@@ -141,11 +142,112 @@ def _coerce_reaction_component(java_comp) -> dict:
     }
 
 
+def _reaction_smiles_roles(reaction_smiles: str) -> dict[str, list[str]] | None:
+    """Split a reaction SMILES into its per-role component fragments.
+
+    Reaction SMILES are ``reactants>agents>products`` with ``.`` separating
+    fragments within each role (``A>>B`` means no agents). Returns None when
+    the string doesn't have exactly three ``>``-delimited sections, so the
+    caller falls back to the Java component lists untouched.
+    """
+    parts = reaction_smiles.split(">")
+    if len(parts) != 3:
+        return None
+    return {
+        "reactants": [f for f in parts[0].split(".") if f],
+        "agents": [f for f in parts[1].split(".") if f],
+        "products": [f for f in parts[2].split(".") if f],
+    }
+
+
+def _cdk_inchi_tools():
+    """Return (SmilesParser, InChIGeneratorFactory) or None if CDK is absent.
+
+    Used to recompute a component's InChI/InChIKey from its SMILES fragment.
+    Must be called on a JVM-attached thread (inside run_in_jvm_thread).
+    """
+    try:
+        builder = jpype.JClass(
+            "org.openscience.cdk.silent.SilentChemObjectBuilder"
+        ).getInstance()
+        parser = jpype.JClass("org.openscience.cdk.smiles.SmilesParser")(builder)
+        igf = jpype.JClass(
+            "org.openscience.cdk.inchi.InChIGeneratorFactory"
+        ).getInstance()
+        return parser, igf
+    except Exception:  # noqa: BLE001 — CDK/InChI unavailable: skip recovery
+        return None
+
+
+def _inchi_from_smiles(smiles: str, parser, igf) -> tuple[str, str]:
+    """Compute (inchi, inchi_key) for a single SMILES fragment via CDK.
+
+    Returns ("", "") on any parse/InChI failure so the caller can detect an
+    unresolved fragment and decline to fabricate a component.
+    """
+    try:
+        mol = parser.parseSmiles(smiles)
+        gen = igf.getInChIGenerator(mol)
+        return str(gen.getInchi() or ""), str(gen.getInchiKey() or "")
+    except Exception:  # noqa: BLE001 — bad fragment: treated as unresolved
+        return "", ""
+
+
+def _coerce_role(java_list, role_frags: list[str] | None, cdk) -> list[dict]:
+    """Coerce one reaction role (reactants/products/agents) to component dicts.
+
+    BChemXtract sometimes leaves a ``null`` in a role's component list even
+    though the reaction SMILES contains that component (its per-component InChI
+    build failed). Dropping the null undercounts the role. When that happens,
+    recover the missing component(s) from the reaction SMILES: the fragment
+    whose recomputed InChIKey isn't already covered by a populated component is
+    the dropped one. Recovered components carry InChI + InChIKey but zero
+    coordinates (upstream gave us none).
+
+    Recovery only runs when a null is present AND the fragments reconcile
+    cleanly against the populated components; otherwise the populated list is
+    returned unchanged, so the common (null-free) path is untouched.
+    """
+    raw = list(java_list or [])
+    coerced = [_coerce_reaction_component(c) for c in raw if c is not None]
+    null_count = len(raw) - len(coerced)
+    if null_count == 0 or not role_frags or cdk is None:
+        return coerced
+
+    parser, igf = cdk
+    resolved = [_inchi_from_smiles(f, parser, igf) for f in role_frags]
+    if any(not key for _inchi, key in resolved):
+        return coerced  # a fragment didn't resolve — don't risk a wrong count
+
+    # Match each fragment to a populated component by InChIKey; the leftovers
+    # are the dropped nulls.
+    populated = Counter(c["inchi_key"] for c in coerced)
+    recovered: list[dict] = []
+    for inchi, key in resolved:
+        if populated[key] > 0:
+            populated[key] -= 1
+        else:
+            recovered.append(
+                {
+                    "inchi": inchi,
+                    "inchi_key": key,
+                    "cdx_top": 0.0,
+                    "cdx_left": 0.0,
+                    "cdx_bottom": 0.0,
+                    "cdx_right": 0.0,
+                }
+            )
+    if len(recovered) != null_count:
+        return coerced  # didn't reconcile (e.g. salt/normalization) — leave as-is
+    return coerced + recovered
+
+
 def _coerce_reaction(java_rxn) -> dict:
     """Convert a BCXReaction Java object to a dict with no nulls.
 
-    All nullable String fields are coerced to empty string.
-    Collection fields (reactants, products, agents) are coerced per component.
+    All nullable String fields are coerced to empty string. Collection fields
+    (reactants, products, agents) are coerced per component, with dropped-null
+    components recovered from the reaction SMILES (see ``_coerce_role``).
 
     Args:
         java_rxn: A Java BCXReaction instance.
@@ -153,32 +255,36 @@ def _coerce_reaction(java_rxn) -> dict:
     Returns:
         Dict ready for ReactionResponse(**d) construction.
     """
-    # The Java lists themselves may be null (handled by `or []`) AND may
-    # contain null entries (handled by `if c is not None`) — v1.1 inserts
-    # nulls into the agents list for certain reaction shapes.
+    reaction_smiles = str(java_rxn.getReactionSmiles() or "")
+    roles = _reaction_smiles_roles(reaction_smiles)
+
+    # Only stand up CDK InChI tools when a role actually has a dropped null to
+    # recover — the null-free path pays nothing.
+    has_null = roles is not None and any(
+        lst is not None and any(c is None for c in lst)
+        for lst in (
+            java_rxn.getReactants(),
+            java_rxn.getProducts(),
+            java_rxn.getAgents(),
+        )
+    )
+    cdk = _cdk_inchi_tools() if has_null else None
+
     return {
         "rinchi": str(java_rxn.getRinchi() or ""),
         "rinchi_key": str(java_rxn.getRinchiKey() or ""),
         "short_rinchi_key": str(java_rxn.getShortRinchiKey() or ""),
         "long_rinchi_key": str(java_rxn.getLongRinchiKey() or ""),
         "web_rinchi_key": str(java_rxn.getWebRinchiKey() or ""),
-        "reaction_smiles": str(java_rxn.getReactionSmiles() or ""),
+        "reaction_smiles": reaction_smiles,
         "aux_info": str(java_rxn.getAuxInfo() or ""),
-        "reactants": [
-            _coerce_reaction_component(c)
-            for c in (java_rxn.getReactants() or [])
-            if c is not None
-        ],
-        "products": [
-            _coerce_reaction_component(c)
-            for c in (java_rxn.getProducts() or [])
-            if c is not None
-        ],
-        "agents": [
-            _coerce_reaction_component(c)
-            for c in (java_rxn.getAgents() or [])
-            if c is not None
-        ],
+        "reactants": _coerce_role(
+            java_rxn.getReactants(), roles and roles["reactants"], cdk
+        ),
+        "products": _coerce_role(
+            java_rxn.getProducts(), roles and roles["products"], cdk
+        ),
+        "agents": _coerce_role(java_rxn.getAgents(), roles and roles["agents"], cdk),
     }
 
 

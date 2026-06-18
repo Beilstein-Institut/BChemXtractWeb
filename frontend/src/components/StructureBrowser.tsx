@@ -71,7 +71,7 @@ export interface StructureBrowserProps {
   filters?: BrowseFilters;
   /**
    * Active 2D layout for all structure renders (cards, table, sheet) and
-   * for image exports. Defaults to ChemDraw ("cdx").
+   * for image exports. Defaults to CDK ("cdk").
    */
   depiction?: Depiction;
   /** Forwarded to BrowseToolbar's ChemDraw/CDK toggle. */

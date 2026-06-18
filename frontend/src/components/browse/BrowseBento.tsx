@@ -48,7 +48,7 @@ export interface BrowseBentoProps {
   onBrowseAll: () => void;
   /** Called when a preview thumbnail is clicked. */
   onOpenSubstance?: (index: number) => void;
-  /** Active 2D layout for thumbnails (ChemDraw "cdx" default / CDK "cdk"). */
+  /** Active 2D layout for thumbnails (CDK "cdk" default / ChemDraw "cdx"). */
   depiction?: Depiction;
   className?: string;
 }

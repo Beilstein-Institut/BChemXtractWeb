@@ -86,8 +86,8 @@ export interface StructureCardProps {
   /** Fired when the user picks an extraction from the in-dialog AttributionPill. */
   onViewExtraction?: (extractionId: number) => void;
   /**
-   * Active 2D layout: ChemDraw original coordinates ("cdx", default) or
-   * fresh CDK layout ("cdk"). Drives both the rendered thumbnail and the
+   * Active 2D layout: fresh CDK layout ("cdk", default) or ChemDraw
+   * original coordinates ("cdx"). Drives both the rendered thumbnail and the
    * image export payload so the download matches the display.
    */
   depiction?: Depiction;
