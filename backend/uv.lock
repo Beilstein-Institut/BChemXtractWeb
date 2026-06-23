@@ -89,6 +89,7 @@ dependencies = [
     { name = "cairosvg" },
     { name = "celery", extra = ["redis"] },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "jpype1" },
     { name = "lxml" },
     { name = "psycopg", extra = ["binary"] },
@@ -103,7 +104,6 @@ dependencies = [
 [package.optional-dependencies]
 dev = [
     { name = "asgi-lifespan" },
-    { name = "httpx" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
@@ -121,7 +121,7 @@ requires-dist = [
     { name = "cairosvg", specifier = ">=2.7.0" },
     { name = "celery", extras = ["redis"], specifier = ">=5.4.0" },
     { name = "fastapi", specifier = ">=0.135.0" },
-    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.0" },
+    { name = "httpx", specifier = ">=0.28.0" },
     { name = "jpype1", specifier = ">=1.6.0" },
     { name = "lxml", specifier = ">=5.3.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.0" },

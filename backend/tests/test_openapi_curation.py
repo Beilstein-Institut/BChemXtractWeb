@@ -39,6 +39,10 @@ APPROVED_OPERATION_IDS = {
     "adminCreateApiKey",
     "adminListApiKeys",
     "adminRevokeApiKey",
+    # pubchem enrichment (opt-in)
+    "enrichPubChem",
+    "getPubChemCompound",
+    "getPubChemStatus",
 }
 
 

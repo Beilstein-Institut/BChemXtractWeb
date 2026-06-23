@@ -131,6 +131,35 @@ class Settings(BaseSettings):
     celery_result_backend: str = "redis://redis:6379/1"
     """Celery result backend URL. Configurable via CELERY_RESULT_BACKEND env var."""
 
+    # --- PubChem enrichment (opt-in; default OFF) ---
+    pubchem_enabled: bool = False
+    """Server kill-switch for PubChem enrichment. When False the
+    /api/pubchem/* endpoints return PUBCHEM_DISABLED and the frontend hides
+    the feature. Privacy: enabling sends extracted InChIKeys (and connectivity
+    SMILES for scaffold matching) to the U.S. NIH PubChem service."""
+
+    pubchem_base_url: str = "https://pubchem.ncbi.nlm.nih.gov/rest/pug"
+    pubchem_timeout_secs: float = 10.0
+    pubchem_rate_per_sec: float = 4.0
+    """In-process token-bucket rate. Must stay <= 5 (PubChem policy).
+    Sufficient as a single value because the backend is one uvicorn process
+    (JVM-per-process constraint)."""
+
+    pubchem_max_concurrency: int = 4
+    pubchem_contact_email: str = ""
+    """Sent in the descriptive User-Agent per NCBI etiquette. Set to an ops
+    address in deployed config."""
+
+    pubchem_cache_ttl_days: int = 180
+    """Freshness window for 'exact' cache rows (stable mapping)."""
+
+    pubchem_negative_ttl_days: int = 14
+    """Freshness window for 'scaffold' / 'absent' rows — re-checked sooner
+    because PubChem grows over time."""
+
+    pubchem_synonyms_cap: int = 12
+    rate_limit_pubchem: str = "60/minute"
+
     @model_validator(mode="after")
     def _validate_jar_path(self) -> "Settings":
         """Reject path traversal in jar_path and resolve to absolute."""
@@ -190,6 +219,17 @@ class Settings(BaseSettings):
         """Default ``expose_openapi_docs`` to ``debug`` when unset."""
         if self.expose_openapi_docs is None:
             self.expose_openapi_docs = self.debug
+        return self
+
+    @model_validator(mode="after")
+    def _validate_pubchem_rate(self) -> "Settings":
+        """PubChem policy is <= 5 requests/second per IP. Refuse a config
+        that would knowingly violate it."""
+        if self.pubchem_rate_per_sec > 5:
+            raise ValueError(
+                "PUBCHEM_RATE_PER_SEC must be <= 5 (PubChem usage policy). "
+                f"Got {self.pubchem_rate_per_sec}."
+            )
         return self
 
 

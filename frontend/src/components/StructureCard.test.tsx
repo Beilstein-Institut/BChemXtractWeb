@@ -339,3 +339,53 @@ describe("StructureCard component", () => {
     expect(handleParentClick).not.toHaveBeenCalled();
   });
 });
+
+describe("StructureCard PubChem badge", () => {
+  const substance: SubstanceResponse = {
+    id: 1,
+    inchi: "",
+    inchi_key: "UHOVQNZJYSORNB-UHFFFAOYSA-N",
+    smiles: "c1ccccc1",
+    extended_smiles: "",
+    iupac_name: "benzene",
+    molecular_formula: "C6H6",
+    aux_info: "",
+    mdlv3000: "",
+    abbreviations: {},
+    svg: "",
+  };
+
+  it("renders the PubChem badge when enrichment is provided", () => {
+    render(
+      <StructureCard
+        substance={substance}
+        pubchem={{
+          state: "success",
+          data: {
+            inchi_key: substance.inchi_key,
+            status: "exact",
+            cid: 241,
+            iupac_name: null,
+            molecular_formula: null,
+            molecular_weight: null,
+            canonical_smiles: null,
+            isomeric_smiles: null,
+            xlogp: null,
+            pubchem_url: "https://pubchem.ncbi.nlm.nih.gov/compound/241",
+            connectivity_cid_count: 0,
+            title: null,
+            synonyms: [],
+            description: null,
+            description_source: null,
+          },
+        }}
+      />,
+    );
+    expect(screen.getByText(/in pubchem/i)).toBeInTheDocument();
+  });
+
+  it("renders no badge when enrichment is absent (opt-in off)", () => {
+    render(<StructureCard substance={substance} />);
+    expect(screen.queryByText(/in pubchem/i)).toBeNull();
+  });
+});

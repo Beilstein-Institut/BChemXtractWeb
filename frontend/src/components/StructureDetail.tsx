@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import { CopyButton } from "@/components/internal/CopyButton";
 import { AttributionPill } from "@/components/AttributionPill";
+import { PubChemPanel } from "@/components/PubChemPanel";
+import { usePubChemCompound } from "@/hooks/usePubChemEnrichment";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { DEFAULT_DEPICTION, pickSvg } from "@/lib/depiction";
 import type { Depiction, SubstanceResponse } from "@/types/chemistry";
@@ -29,7 +31,7 @@ export interface StructureDetailProps {
   attribution?: StructureCardAttribution;
   /** Fired when the user clicks the chip / picks an extraction in the popover. */
   onViewExtraction?: (extractionId: number) => void;
-  /** Active 2D layout (ChemDraw "cdx" default / CDK "cdk"). */
+  /** Active 2D layout (CDK "cdk" default / ChemDraw "cdx"). */
   depiction?: Depiction;
 }
 
@@ -52,6 +54,7 @@ export function StructureDetail({
   depiction = DEFAULT_DEPICTION,
 }: StructureDetailProps) {
   const svgSrc = useSvgObjectUrl(pickSvg(substance, depiction));
+  const pubchem = usePubChemCompound(substance.inchi_key);
 
   return (
     <DialogContent className="sm:max-w-2xl w-full" showCloseButton={true}>
@@ -96,6 +99,12 @@ export function StructureDetail({
         {/* MDL V3000 row is conditional — only render when non-empty */}
         {substance.mdlv3000 && <MetadataRow label="MDL V3000" value={substance.mdlv3000} />}
       </div>
+
+      {pubchem.state !== "idle" && (
+        <div className="mt-4 border-t border-border pt-4">
+          <PubChemPanel state={pubchem} smiles={substance.smiles} />
+        </div>
+      )}
 
       <DialogFooter showCloseButton={true} />
     </DialogContent>

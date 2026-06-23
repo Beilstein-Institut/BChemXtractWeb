@@ -372,7 +372,7 @@ body {
    =========================================================== */
 
 .theme-switch {
-  --toggle-size: 18px; /* header-compact; tune freely */
+  --toggle-size: 12px; /* single size knob for the whole toggle (pill + flask) */
   --container-width: 5.625em;
   --container-height: 2.5em;
   --container-radius: 6.25em;
@@ -413,6 +413,15 @@ body {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+/* font-size: inherit on DESCENDANTS ONLY. Including the root `.theme-switch`
+   here clobbered its own `font-size: var(--toggle-size)` (same specificity,
+   later rule wins), pinning the whole toggle to the inherited 16px and making
+   --toggle-size a no-op. Descendants still inherit from the root, so every em
+   resolves off --toggle-size as intended. */
+.theme-switch *,
+.theme-switch *::before,
+.theme-switch *::after {
   font-size: inherit;
 }
 
@@ -487,11 +496,12 @@ body {
    ========================== */
 
 .theme-switch .flask {
-  /* Re-anchor font-size so every em in the original flask CSS resolves
-     to the same pixel sizes the original toggle had (at --toggle-size:
-     5.25px). Without this, a larger parent font-size scales the neck/
-     body/bubbles disproportionately. */
-  font-size: 5.25px;
+  /* Re-anchor font-size off --toggle-size (not the inherited parent size, so
+     the header's font-size can't scale the flask disproportionately), at the
+     flask's established on-screen proportion (5.25px when the pill basis was
+     16px). Driving it from --toggle-size keeps the flask in proportion when
+     the whole toggle is resized via that one knob. */
+  font-size: calc(var(--toggle-size) * 5.25 / 16);
   display: flex;
   flex-direction: column;
   align-items: center;

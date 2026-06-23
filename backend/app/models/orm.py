@@ -15,6 +15,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     LargeBinary,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -305,4 +306,45 @@ class AuditLog(Base):
     )
     meta: Mapped[dict] = mapped_column(
         JSONB, nullable=False, default=dict, server_default="{}"
+    )
+
+
+class PubChemCompound(Base):
+    """Durable cache of PubChem reference data, keyed by full InChIKey.
+
+    Public reference data only — maps InChIKey -> PubChem facts. It records
+    NOTHING about who requested a lookup, so it carries no per-session
+    ownership columns and no RLS. ``status`` is the match outcome:
+      - ``exact``    — full InChIKey matched a PubChem record
+      - ``scaffold`` — only the connectivity (same_connectivity) matched
+      - ``absent``   — neither matched
+    Detail-tier columns (title, synonyms, description) stay NULL until a
+    user opens the structure detail and the tier-2 fetch fills them.
+    """
+
+    __tablename__ = "pubchem_compounds"
+
+    inchi_key: Mapped[str] = mapped_column(String(27), primary_key=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    cid: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    iupac_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    molecular_formula: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    molecular_weight: Mapped[float | None] = mapped_column(
+        Numeric(12, 4), nullable=True
+    )
+    canonical_smiles: Mapped[str | None] = mapped_column(Text, nullable=True)
+    isomeric_smiles: Mapped[str | None] = mapped_column(Text, nullable=True)
+    xlogp: Mapped[float | None] = mapped_column(Float, nullable=True)
+    synonyms: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description_source: Mapped[str | None] = mapped_column(Text, nullable=True)
+    connectivity_cid_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    detail_fetched_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )

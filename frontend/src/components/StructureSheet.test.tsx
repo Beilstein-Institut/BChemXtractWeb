@@ -8,6 +8,8 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { vi, beforeEach } from "vitest";
 import * as React from "react";
+import * as api from "@/lib/apiClient";
+import { PubChemPreferencesContext } from "@/context/PubChemPreferencesContext";
 import type { SubstanceResponse } from "@/types/chemistry";
 
 // Mock @base-ui/react/dialog to avoid portal/animation complexity in jsdom.
@@ -318,8 +320,8 @@ describe("StructureSheet component", () => {
     expect(img.src).toMatch(/^blob:/);
   });
 
-  it("defaults to the ChemDraw layout when both renders are stored", () => {
-    // Product default: depiction prop omitted -> ChemDraw ("cdx").
+  it("defaults to the CDK layout when both renders are stored", () => {
+    // Product default: depiction prop omitted -> CDK ("cdk").
     render(
       <StructureSheet
         open={true}
@@ -331,11 +333,11 @@ describe("StructureSheet component", () => {
         onNext={vi.fn()}
       />,
     );
+    expect(screen.getByRole("button", { name: /^CDK$/i })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: /^ChemDraw$/i })).toHaveAttribute(
       "aria-pressed",
-      "true",
+      "false",
     );
-    expect(screen.getByRole("button", { name: /^CDK$/i })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("initializes from the page-level depiction prop (cdk)", () => {
@@ -370,5 +372,67 @@ describe("StructureSheet component", () => {
     // ChemDraw layout not stored -> the sheet shows the CDK render.
     expect(screen.getByRole("button", { name: /^CDK$/i })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: /^ChemDraw$/i })).toBeDisabled();
+  });
+});
+
+describe("StructureSheet PubChem panel", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("fetches and renders the PubChem panel when opted in", async () => {
+    vi.spyOn(api, "getPubChemCompound").mockResolvedValue({
+      inchi_key: mockSubstance.inchi_key,
+      status: "exact",
+      cid: 241,
+      iupac_name: "benzene",
+      molecular_formula: "C6H6",
+      molecular_weight: 78.11,
+      canonical_smiles: "C1=CC=CC=C1",
+      isomeric_smiles: "C1=CC=CC=C1",
+      xlogp: 2.1,
+      pubchem_url: "https://pubchem.ncbi.nlm.nih.gov/compound/241",
+      connectivity_cid_count: 0,
+      title: "Benzene",
+      synonyms: ["benzene"],
+      description: "An aromatic hydrocarbon.",
+      description_source: "NCIt",
+    });
+    render(
+      <PubChemPreferencesContext.Provider
+        value={{ enabled: true, setEnabled: () => null, available: true }}
+      >
+        <StructureSheet
+          open={true}
+          onOpenChange={vi.fn()}
+          substance={mockSubstance}
+          substanceIndex={0}
+          totalSubstances={1}
+          onPrev={vi.fn()}
+          onNext={vi.fn()}
+        />
+      </PubChemPreferencesContext.Provider>,
+    );
+    expect(await screen.findByText("Benzene")).toBeInTheDocument();
+  });
+
+  it("does not fetch when opted out", () => {
+    const spy = vi.spyOn(api, "getPubChemCompound");
+    render(
+      <PubChemPreferencesContext.Provider
+        value={{ enabled: false, setEnabled: () => null, available: true }}
+      >
+        <StructureSheet
+          open={true}
+          onOpenChange={vi.fn()}
+          substance={mockSubstance}
+          substanceIndex={0}
+          totalSubstances={1}
+          onPrev={vi.fn()}
+          onNext={vi.fn()}
+        />
+      </PubChemPreferencesContext.Provider>,
+    );
+    expect(spy).not.toHaveBeenCalled();
   });
 });

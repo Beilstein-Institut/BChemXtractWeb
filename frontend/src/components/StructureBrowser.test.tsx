@@ -4,10 +4,12 @@
  *
  * useBrowse and all child components are mocked for isolation.
  */
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { vi, beforeEach } from "vitest";
+import * as api from "@/lib/apiClient";
+import { PubChemPreferencesContext } from "@/context/PubChemPreferencesContext";
 import type { UseBrowseReturn, BrowseView, BrowseSort } from "@/hooks/useBrowse";
-import type { PagedSubstancesResponse } from "@/types/chemistry";
+import type { PagedSubstancesResponse, PubChemEnrichment } from "@/types/chemistry";
 
 // Mock useBrowse hook
 const mockUseBrowse = vi.fn();
@@ -23,8 +25,16 @@ vi.mock("@/components/BrowseToolbar", () => ({
 }));
 
 vi.mock("@/components/StructureCard", () => ({
-  StructureCard: ({ substance }: { substance: { molecular_formula: string } }) => (
-    <div data-testid="structure-card">{substance.molecular_formula}</div>
+  StructureCard: ({
+    substance,
+    pubchem,
+  }: {
+    substance: { molecular_formula: string };
+    pubchem?: { data?: { cid?: number | null } };
+  }) => (
+    <div data-testid="structure-card" data-pubchem-cid={pubchem?.data?.cid ?? ""}>
+      {substance.molecular_formula}
+    </div>
   ),
 }));
 
@@ -189,5 +199,79 @@ describe("StructureBrowser component", () => {
     render(<StructureBrowser extractionId={42} onReset={vi.fn()} />);
     const toolbar = screen.getByTestId("browse-toolbar");
     expect(toolbar.getAttribute("data-disabled")).toBe("true");
+  });
+});
+
+describe("StructureBrowser PubChem enrichment wiring", () => {
+  const KEY = "UHOVQNZJYSORNB-UHFFFAOYSA-N";
+  const onePage: PagedSubstancesResponse = {
+    items: [
+      {
+        id: 1,
+        inchi: "",
+        inchi_key: KEY,
+        smiles: "c1ccccc1",
+        extended_smiles: "",
+        iupac_name: "",
+        molecular_formula: "C6H6",
+        aux_info: "",
+        mdlv3000: "",
+        abbreviations: {},
+        svg: "",
+      },
+    ],
+    total: 1,
+    page: 1,
+    size: 12,
+    pages: 1,
+  };
+  const enrichment: PubChemEnrichment = {
+    inchi_key: KEY,
+    status: "exact",
+    cid: 241,
+    iupac_name: null,
+    molecular_formula: "C6H6",
+    molecular_weight: null,
+    canonical_smiles: null,
+    isomeric_smiles: null,
+    xlogp: null,
+    pubchem_url: "https://pubchem.ncbi.nlm.nih.gov/compound/241",
+    connectivity_cid_count: 0,
+    title: null,
+    synonyms: [],
+    description: null,
+    description_source: null,
+  };
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("fires tier-1 enrichment for visible cards on the live browse surface when opted in", async () => {
+    mockUseBrowse.mockReturnValue(makeBrowseReturn({ browseState: "success", page: onePage }));
+    const spy = vi
+      .spyOn(api, "postPubChemEnrich")
+      .mockResolvedValue({ results: { [KEY]: enrichment } });
+
+    render(
+      <PubChemPreferencesContext.Provider
+        value={{ enabled: true, setEnabled: () => null, available: true }}
+      >
+        <StructureBrowser extractionId={42} onReset={vi.fn()} />
+      </PubChemPreferencesContext.Provider>,
+    );
+
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    // The card actually receives the enrichment (hook -> prop threading).
+    await waitFor(() =>
+      expect(screen.getByTestId("structure-card").getAttribute("data-pubchem-cid")).toBe("241"),
+    );
+  });
+
+  it("does not fire enrichment when opted out (default)", () => {
+    mockUseBrowse.mockReturnValue(makeBrowseReturn({ browseState: "success", page: onePage }));
+    const spy = vi.spyOn(api, "postPubChemEnrich");
+    render(<StructureBrowser extractionId={42} onReset={vi.fn()} />);
+    expect(spy).not.toHaveBeenCalled();
   });
 });

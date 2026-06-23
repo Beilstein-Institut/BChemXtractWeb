@@ -42,6 +42,7 @@ import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/internal/CopyButton";
 import { ExportMenu } from "@/components/ExportMenu";
+import { PubChemBadge } from "@/components/PubChemBadge";
 import { StructureDetail } from "@/components/StructureDetail";
 import { useShareLink } from "@/hooks/useShareLink";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
@@ -49,7 +50,7 @@ import { postExport } from "@/lib/apiClient";
 import { safeDownloadSlug } from "@/lib/safeStrings";
 import { cn } from "@/lib/utils";
 import { DEFAULT_DEPICTION, pickSvg } from "@/lib/depiction";
-import type { Depiction, SubstanceResponse } from "@/types/chemistry";
+import type { Depiction, PubChemCardState, SubstanceResponse } from "@/types/chemistry";
 import type { ExportFormat } from "@/types/export";
 import type { SearchResult } from "@/types/search";
 import { FORMAT_EXT } from "@/types/export";
@@ -85,11 +86,17 @@ export interface StructureCardProps {
   /** Fired when the user picks an extraction from the in-dialog AttributionPill. */
   onViewExtraction?: (extractionId: number) => void;
   /**
-   * Active 2D layout: ChemDraw original coordinates ("cdx", default) or
-   * fresh CDK layout ("cdk"). Drives both the rendered thumbnail and the
+   * Active 2D layout: fresh CDK layout ("cdk", default) or ChemDraw
+   * original coordinates ("cdx"). Drives both the rendered thumbnail and the
    * image export payload so the download matches the display.
    */
   depiction?: Depiction;
+  /**
+   * Optional PubChem enrichment state for this structure. Supplied by the
+   * parent grid (which batches lookups). Undefined when the user has not
+   * opted in — the card then renders no PubChem chrome.
+   */
+  pubchem?: PubChemCardState;
 }
 
 /**
@@ -129,6 +136,7 @@ export function StructureCard({
   attribution,
   onViewExtraction,
   depiction = DEFAULT_DEPICTION,
+  pubchem,
 }: StructureCardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { shared, share } = useShareLink();
@@ -225,6 +233,12 @@ export function StructureCard({
         >
           {displayName}
         </h3>
+
+        {pubchem && (
+          <div data-slot="structure-card-pubchem">
+            <PubChemBadge state={pubchem} />
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           <span

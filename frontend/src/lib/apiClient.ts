@@ -2,6 +2,7 @@ import { csrfTokenCache, needsCsrf } from "@/lib/csrfTokenCache";
 import type {
   ExtractionResponse,
   PagedSubstancesResponse,
+  PubChemEnrichment,
   ReactionExtractionResponse,
 } from "@/types/chemistry";
 import type { HistoryListResponse, StatsResponse } from "@/types/history";
@@ -550,4 +551,55 @@ export async function deleteMyData(): Promise<void> {
     method: "DELETE",
     errorPrefix: "Delete-my-data failed",
   });
+}
+
+export interface PubChemEnrichItem {
+  inchi_key: string;
+  smiles: string;
+}
+
+export interface PubChemEnrichResponse {
+  results: Record<string, PubChemEnrichment>;
+}
+
+export interface PubChemStatusResponse {
+  enabled: boolean;
+}
+
+/**
+ * GET /api/pubchem/status — reports whether the server has PubChem enrichment
+ * enabled. Always answers (never 503), so the UI can decide up front whether
+ * to offer the opt-in / fire lookups at all.
+ */
+export async function getPubChemStatus(): Promise<PubChemStatusResponse> {
+  const response = await apiFetch("/api/pubchem/status", {
+    errorPrefix: "PubChem status failed",
+  });
+  return response.json() as Promise<PubChemStatusResponse>;
+}
+
+/**
+ * POST /api/pubchem/enrich — tier-1 batch enrichment (badge/card data).
+ * Only call this when the user has opted in (privacy: sends InChIKeys to NCBI).
+ */
+export async function postPubChemEnrich(
+  items: PubChemEnrichItem[],
+): Promise<PubChemEnrichResponse> {
+  const response = await apiFetch("/api/pubchem/enrich", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+    errorPrefix: "PubChem lookup failed",
+  });
+  return response.json() as Promise<PubChemEnrichResponse>;
+}
+
+/**
+ * GET /api/pubchem/compound/{inchiKey} — tier-2 full detail for the panel.
+ */
+export async function getPubChemCompound(inchiKey: string): Promise<PubChemEnrichment> {
+  const response = await apiFetch(`/api/pubchem/compound/${encodeURIComponent(inchiKey)}`, {
+    errorPrefix: "PubChem detail failed",
+  });
+  return response.json() as Promise<PubChemEnrichment>;
 }

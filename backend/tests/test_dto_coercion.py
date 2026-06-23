@@ -7,11 +7,14 @@ No JVM needed -- pure Python unit tests.
 
 from unittest.mock import MagicMock
 
+from app.services import extractor
 from app.services.extractor import (
     _coerce_reaction,
     _coerce_reaction_component,
+    _coerce_role,
     _coerce_substance,
     _coerce_substance_info,
+    _reaction_smiles_roles,
 )
 
 
@@ -257,3 +260,143 @@ class TestCoerceSubstanceInfo:
         assert result["no_fragments"] == 0
         assert result["no_inchis"] == 0
         assert result["no_substances"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Dropped-null component recovery (BChemXtract leaves a `null` in a role's
+# component list even though the reaction SMILES contains that component).
+# Fakes stand in for CDK so these run without a JVM.
+# ---------------------------------------------------------------------------
+
+
+# Method names mirror the CDK Java API the extractor calls, so they keep the
+# Java camelCase (noqa: N802) rather than PEP8 snake_case.
+class _FakeGen:
+    def __init__(self, inchi, key):
+        self._inchi, self._key = inchi, key
+
+    def getInchi(self):  # noqa: N802
+        return self._inchi
+
+    def getInchiKey(self):  # noqa: N802
+        return self._key
+
+
+class _FakeIGF:
+    """Maps a SMILES fragment to (inchi, inchi_key); KeyError == unparseable."""
+
+    def __init__(self, mapping):
+        self._mapping = mapping
+
+    def getInChIGenerator(self, mol):  # noqa: N802
+        return _FakeGen(*self._mapping[mol])
+
+
+class _FakeParser:
+    def parseSmiles(self, smiles):  # noqa: N802
+        return smiles  # identity: the "mol" is the SMILES string itself
+
+
+def _fake_cdk(mapping):
+    return _FakeParser(), _FakeIGF(mapping)
+
+
+class TestReactionSmilesRoles:
+    """_reaction_smiles_roles — split a reaction SMILES into role fragments."""
+
+    def test_three_roles_with_multiple_fragments(self):
+        roles = _reaction_smiles_roles("A.B>C>D.E")
+        assert roles == {
+            "reactants": ["A", "B"],
+            "agents": ["C"],
+            "products": ["D", "E"],
+        }
+
+    def test_empty_agents(self):
+        roles = _reaction_smiles_roles("A>>B")
+        assert roles == {"reactants": ["A"], "agents": [], "products": ["B"]}
+
+    def test_malformed_returns_none(self):
+        assert _reaction_smiles_roles("A>B") is None
+        assert _reaction_smiles_roles("") is None
+
+
+class TestCoerceRoleRecovery:
+    """_coerce_role — recover dropped-null components from the reaction SMILES."""
+
+    def test_recovers_dropped_agent(self):
+        """The fragment whose key isn't already populated becomes a component."""
+        benzene = _make_mock_reaction_component(
+            inchi="InChI=benzene", inchiKey="BENZENE-KEY", cdxTop=78.6
+        )
+        # Java list mirrors the bug: one populated, one dropped null.
+        java_list = [None, benzene]
+        cdk = _fake_cdk(
+            {
+                "c1ccccc1": ("InChI=benzene", "BENZENE-KEY"),
+                "C1CCOC1": ("InChI=thf", "THF-KEY"),
+            }
+        )
+        result = _coerce_role(java_list, ["c1ccccc1", "C1CCOC1"], cdk)
+
+        assert len(result) == 2
+        keys = {c["inchi_key"] for c in result}
+        assert keys == {"BENZENE-KEY", "THF-KEY"}
+        thf = next(c for c in result if c["inchi_key"] == "THF-KEY")
+        assert thf["inchi"] == "InChI=thf"
+        assert thf["cdx_top"] == 0.0  # recovered components have no coordinates
+
+    def test_no_null_path_is_untouched(self):
+        """A null-free role never invokes recovery and returns as-is."""
+        comp = _make_mock_reaction_component(inchiKey="X", cdxTop=5.0)
+        result = _coerce_role([comp], ["whatever"], _fake_cdk({}))
+        assert len(result) == 1
+        assert result[0]["inchi_key"] == "X"
+
+    def test_cdk_unavailable_falls_back_to_dropping(self):
+        """cdk=None (no JVM) keeps the legacy drop-the-null behavior."""
+        comp = _make_mock_reaction_component(inchiKey="X")
+        result = _coerce_role([comp, None], ["a", "b"], None)
+        assert len(result) == 1  # null dropped, nothing recovered
+
+    def test_unresolvable_fragment_aborts_recovery(self):
+        """If any fragment can't be keyed, don't risk a wrong count."""
+        comp = _make_mock_reaction_component(inchiKey="BENZENE-KEY")
+        cdk = _fake_cdk(
+            {"c1ccccc1": ("InChI=benzene", "BENZENE-KEY")}
+        )  # 2nd frag missing
+        result = _coerce_role([None, comp], ["c1ccccc1", "??bad??"], cdk)
+        assert len(result) == 1  # reconciliation failed -> legacy behavior
+
+    def test_count_mismatch_aborts_recovery(self):
+        """Leftover fragments != null slots (e.g. salt) -> leave unchanged."""
+        comp = _make_mock_reaction_component(inchiKey="A-KEY")
+        # One null slot, but two unmatched fragments -> can't reconcile.
+        cdk = _fake_cdk({"a": ("i", "A-KEY"), "b": ("i", "B-KEY"), "c": ("i", "C-KEY")})
+        result = _coerce_role([None, comp], ["a", "b", "c"], cdk)
+        assert len(result) == 1
+
+
+class TestCoerceReactionRecovery:
+    """End-to-end _coerce_reaction with a dropped agent, CDK faked out."""
+
+    def test_dropped_agent_recovered(self, monkeypatch):
+        monkeypatch.setattr(
+            extractor,
+            "_cdk_inchi_tools",
+            lambda: _fake_cdk(
+                {
+                    "c1ccccc1": ("InChI=benzene", "BENZENE-KEY"),
+                    "C1CCOC1": ("InChI=thf", "THF-KEY"),
+                }
+            ),
+        )
+        benzene = _make_mock_reaction_component(inchiKey="BENZENE-KEY", cdxTop=78.6)
+        mock = _make_mock_reaction(
+            reactionSmiles="CC>c1ccccc1.C1CCOC1>CCO",
+            agents=[None, benzene],
+        )
+        result = _coerce_reaction(mock)
+
+        assert len(result["agents"]) == 2
+        assert {c["inchi_key"] for c in result["agents"]} == {"BENZENE-KEY", "THF-KEY"}

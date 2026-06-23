@@ -37,7 +37,7 @@ export interface StructureTableProps {
   allSelected: boolean;
   onOpen: (index: number) => void;
   loading?: boolean;
-  /** Active 2D layout for thumbnails (ChemDraw "cdx" default / CDK "cdk"). */
+  /** Active 2D layout for thumbnails (CDK "cdk" default / ChemDraw "cdx"). */
   depiction?: Depiction;
 }
 

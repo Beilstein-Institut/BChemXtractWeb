@@ -6,9 +6,99 @@
     <link rel="alternate icon" type="image/png" href="/bchemxtract-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BChemXtract — Extract chemistry from ChemDraw files</title>
+    <!-- Resolve the theme before first paint so the boot splash (and the app)
+         pick the right light/dark colors with no flash. Mirrors theme-provider:
+         storageKey "bchemxtract-theme", "system" default resolved via media query. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("bchemxtract-theme") || "system";
+          var dark =
+            t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.classList.add(dark ? "dark" : "light");
+        } catch (e) {
+          /* localStorage blocked (private mode) — fall through to light. */
+        }
+      })();
+    </script>
+    <!-- Boot splash: painted instantly from index.html (before the JS bundle
+         loads) and removed by main.tsx the moment React mounts. The fade-IN is
+         delayed, so fast/cached loads never see it — only loads slow enough to
+         need it ever show it. No minimum display time, so it never adds delay. -->
+    <style>
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.5rem;
+        background: oklch(0.985 0.003 75);
+        opacity: 0;
+        animation: boot-splash-in 0.35s ease 0.15s forwards;
+        transition: opacity 0.3s ease;
+      }
+      html.dark #boot-splash {
+        background: oklch(0.18 0.06 274);
+      }
+      /* The logo itself is the loading animation — a slow, calm breathe. */
+      #boot-splash img {
+        width: 104px;
+        height: 104px;
+        animation: boot-logo-pulse 1.6s ease-in-out infinite;
+        transform-origin: center;
+      }
+      /* The logo's navy strokes were drawn for light backgrounds and nearly
+         vanish on the dark splash. A soft light glow behind it (shown through
+         the logo's transparent areas) lifts those edges back into contrast. */
+      html.dark #boot-splash img {
+        border-radius: 30%;
+        background: radial-gradient(
+          circle at center,
+          color-mix(in oklch, oklch(0.96 0.01 75) 18%, transparent) 0%,
+          transparent 68%
+        );
+      }
+      /* main.tsx adds this on React mount → fade out, then the node is removed. */
+      #boot-splash.is-hiding {
+        opacity: 0;
+        pointer-events: none;
+        animation: none;
+      }
+      @keyframes boot-splash-in {
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes boot-logo-pulse {
+        0%,
+        100% {
+          transform: scale(0.94);
+          opacity: 0.85;
+        }
+        50% {
+          transform: scale(1.08);
+          opacity: 1;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot-splash {
+          animation: none;
+          opacity: 1;
+        }
+        #boot-splash img {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <div id="boot-splash" aria-hidden="true">
+      <img src="/bchemxtract-logo.svg" alt="" />
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

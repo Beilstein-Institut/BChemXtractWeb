@@ -137,6 +137,11 @@ class ApiKeyRevokedError(BridgeError):
     """Valid API key passed but revoked_at IS NOT NULL (401 / API_KEY_REVOKED)."""
 
 
+class PubChemDisabledError(BridgeError):
+    """PubChem endpoints called while the server feature flag is off
+    (503 / PUBCHEM_DISABLED)."""
+
+
 # ----------------------------------------------------------------------------
 # Unified ErrorResponse handlers.
 # ----------------------------------------------------------------------------
@@ -181,6 +186,7 @@ _BRIDGE_ERROR_MAP: list[tuple[type[BridgeError], int, str]] = [
     (InvalidAdminSecretError, 401, "INVALID_ADMIN_SECRET"),
     (ApiKeyExpiredError, 401, "API_KEY_EXPIRED"),
     (ApiKeyRevokedError, 401, "API_KEY_REVOKED"),
+    (PubChemDisabledError, 503, "PUBCHEM_DISABLED"),
 ]
 
 
