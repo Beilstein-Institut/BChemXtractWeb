@@ -186,8 +186,10 @@ export function ReactionSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full overflow-y-auto"
-        style={{ maxWidth: "50vw", width: "50vw" }}
+        // Full-width on phones (minus a backdrop sliver), tapering to a
+        // half-screen panel on desktop. Uses the data-[side=right]: prefix so
+        // tailwind-merge overrides SheetContent's default w-3/4 / sm:max-w-sm.
+        className="overflow-y-auto data-[side=right]:w-full data-[side=right]:max-w-[calc(100vw-2rem)] data-[side=right]:sm:max-w-[90vw] data-[side=right]:md:max-w-[80vw] data-[side=right]:lg:max-w-[50vw]"
         aria-label="Reaction detail"
         showCloseButton={true}
       >
