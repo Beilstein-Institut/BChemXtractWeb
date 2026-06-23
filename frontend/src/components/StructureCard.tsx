@@ -208,7 +208,7 @@ export function StructureCard({
           regardless of theme (chemistry convention). */}
       <div
         data-slot="structure-card-image"
-        className="flex min-h-[160px] items-center justify-center rounded-md bg-white p-4"
+        className="flex min-h-[140px] items-center justify-center rounded-md bg-white p-3 sm:min-h-[160px] sm:p-4"
       >
         {svgSrc ? (
           // key={depiction}: fade in the swapped layout (motion-reduce: none).
@@ -226,7 +226,7 @@ export function StructureCard({
       </div>
 
       {/* Metadata block on the card surface. */}
-      <div className="space-y-2 px-5 py-4">
+      <div className="space-y-2 px-4 py-3 sm:px-5 sm:py-4">
         <h3
           data-slot="structure-card-name"
           className="font-sans text-base font-semibold leading-tight text-foreground line-clamp-2"

@@ -101,7 +101,7 @@ function renderPaletteBody({
 }: PaletteBodyArgs) {
   if (!normalisedQuery) {
     return (
-      <div data-slot="command-palette-shortcuts" className="grid grid-cols-4 gap-3 p-6">
+      <div data-slot="command-palette-shortcuts" className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 sm:p-6">
         {shortcuts.map((s) => (
           <button
             key={s.id}
@@ -149,7 +149,7 @@ function renderPaletteBody({
       role="listbox"
       aria-label="Matching commands"
       data-slot="command-palette-results"
-      className="max-h-[50vh] overflow-y-auto p-2"
+      className="max-h-[60vh] overflow-y-auto p-2 sm:max-h-[50vh]"
     >
       {filteredCommands.map((cmd, i) => (
         <motion.button

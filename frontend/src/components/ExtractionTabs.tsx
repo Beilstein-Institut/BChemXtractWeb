@@ -44,7 +44,7 @@ export function ExtractionTabs({
       onValueChange={(v) => setValue(v as "substances" | "reactions")}
       className="mt-6"
     >
-      <TabsList className="h-9 w-full sm:w-fit">
+      <TabsList className="h-9 w-full overflow-x-auto sm:w-fit">
         <TabsTrigger value="substances">
           <span className="flex items-center gap-2">
             Structures

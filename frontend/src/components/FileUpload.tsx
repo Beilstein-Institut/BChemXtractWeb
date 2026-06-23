@@ -243,12 +243,12 @@ export function FileUpload({
         // Legacy attribute retained for any consumer or test still keying on it.
         data-drag-over={isDragOver ? "true" : undefined}
         className={cn(
-          "group/zone relative flex w-full flex-col items-center justify-center gap-4 overflow-hidden p-8",
+          "group/zone relative flex w-full flex-col items-center justify-center gap-4 overflow-hidden p-6 sm:p-8",
           "rounded-xl border-2 border-dashed",
           // Min-height varies by queue state. Layout-driving property → no transition.
-          // Empty zone collapses to 280px on narrow viewports per the brief's
-          // mobile guidance.
-          "data-[queue=empty]:min-h-[280px] data-[queue=empty]:sm:min-h-[400px]",
+          // Empty zone is compact on phones (200px) so the CTA + help text stay
+          // above the fold, expanding to 400px at sm+.
+          "data-[queue=empty]:min-h-[200px] data-[queue=empty]:sm:min-h-[400px]",
           "data-[queue=building]:min-h-[240px] data-[queue=full]:min-h-[240px]",
           // Idle: recessed surface, default border.
           "bg-surface-elevated border-border shadow-[var(--shadow-neu-inset)]",

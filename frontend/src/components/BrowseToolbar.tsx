@@ -150,7 +150,7 @@ export function BrowseToolbar({
   return (
     <div
       className={cn(
-        "flex items-center gap-4 px-6 py-3 h-12 border-b border-border",
+        "flex items-center gap-2 px-3 py-3 h-12 border-b border-border sm:gap-4 sm:px-6",
         disabled && "opacity-50 pointer-events-none",
       )}
     >
@@ -249,7 +249,11 @@ export function BrowseToolbar({
       {/* ChemDraw/CDK depiction toggle — immediately left of Export all so
           the layout choice and the image export it governs sit together.
           CDK (canonical layout) is the default. */}
-      {onDepictionChange && <DepictionToggle depiction={depiction} onChange={onDepictionChange} />}
+      {onDepictionChange && (
+        <div className="hidden sm:block">
+          <DepictionToggle depiction={depiction} onChange={onDepictionChange} />
+        </div>
+      )}
 
       {/* Export all — always visible when extraction is active and has substances */}
       {extractionId !== null && total > 0 && (

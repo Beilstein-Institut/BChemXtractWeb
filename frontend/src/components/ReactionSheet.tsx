@@ -235,7 +235,7 @@ export function ReactionSheet({
          * hard black and need a light canvas for legibility; in dark
          * mode this reads as a paper tile. CDK's white backdrop rect
          * is stripped server-side so it doesn't double-paint. */}
-        <div className="relative flex-none h-[420px] md:h-[520px] bg-white rounded-xl border border-border mx-4 overflow-hidden">
+        <div className="relative flex-none h-[280px] sm:h-[420px] md:h-[520px] bg-white rounded-xl border border-border mx-4 overflow-hidden">
           {svgSrc ? (
             <div className="w-full h-full overflow-auto flex items-center justify-center">
               <img

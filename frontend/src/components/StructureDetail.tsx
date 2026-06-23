@@ -74,7 +74,7 @@ export function StructureDetail({
       )}
 
       {/* SVG container: 400px fixed height */}
-      <div className="h-[400px] bg-background rounded-lg p-6 flex items-center justify-center">
+      <div className="h-[280px] sm:h-[400px] bg-background rounded-lg p-4 sm:p-6 flex items-center justify-center">
         {svgSrc ? (
           // key={depiction}: fade in the swapped layout (motion-reduce: none).
           <img

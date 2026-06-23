@@ -81,7 +81,7 @@ export function Footer({
       <h2 id="site-footer-heading" className="sr-only">
         Site footer
       </h2>
-      <div className="px-4 lg:px-8">
+      <div className="px-3 sm:px-4 lg:px-8">
         <div
           className={cn(
             "md:flex md:items-start",

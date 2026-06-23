@@ -116,7 +116,7 @@ export function BatchSummary({
         </div>
       </div>
 
-      <dl data-slot="batch-summary-stats" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <dl data-slot="batch-summary-stats" className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
         <StatItem label="Files" value={totalFiles} />
         <StatItem label="Structures" value={totalStructures} />
         <StatItem label="Succeeded" value={succeededCount} tone="secondary" />
