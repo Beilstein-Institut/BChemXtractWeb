@@ -17,9 +17,10 @@ describe("EmptyState", () => {
     expect(screen.getByText("Nothing here.")).toBeInTheDocument();
   });
 
-  it("renders large variant min-h-320", () => {
+  it("renders large variant compact on mobile, min-h-320 at sm+", () => {
     const { container } = render(<EmptyState title="t" message="m" size="large" />);
-    expect(container.firstChild).toHaveClass("min-h-[320px]");
+    expect(container.firstChild).toHaveClass("min-h-[250px]");
+    expect(container.firstChild).toHaveClass("sm:min-h-[320px]");
   });
 
   it("renders compact variant py-8", () => {

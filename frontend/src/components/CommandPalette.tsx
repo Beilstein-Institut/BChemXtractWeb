@@ -101,7 +101,10 @@ function renderPaletteBody({
 }: PaletteBodyArgs) {
   if (!normalisedQuery) {
     return (
-      <div data-slot="command-palette-shortcuts" className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 sm:p-6">
+      <div
+        data-slot="command-palette-shortcuts"
+        className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 sm:p-6"
+      >
         {shortcuts.map((s) => (
           <button
             key={s.id}

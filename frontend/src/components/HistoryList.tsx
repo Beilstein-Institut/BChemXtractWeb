@@ -159,7 +159,9 @@ function HistoryRow({
           <span className="min-w-0 truncate font-mono text-foreground" title={entry.filename}>
             {entry.filename}
           </span>
-          <span className="hidden whitespace-nowrap text-foreground-muted sm:block">{dateLabel}</span>
+          <span className="hidden whitespace-nowrap text-foreground-muted sm:block">
+            {dateLabel}
+          </span>
           <span className="w-16 text-right tabular-nums text-foreground">
             {entry.structure_count}
           </span>

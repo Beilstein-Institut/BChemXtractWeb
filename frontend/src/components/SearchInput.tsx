@@ -73,12 +73,7 @@ function renderTrailingAffordance(args: {
   }
   if (hasContent) {
     return (
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label="Clear search"
-        onClick={() => clear()}
-      >
+      <Button variant="ghost" size="icon-sm" aria-label="Clear search" onClick={() => clear()}>
         <XIcon className="size-3.5" />
       </Button>
     );
