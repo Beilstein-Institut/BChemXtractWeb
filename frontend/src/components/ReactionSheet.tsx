@@ -198,7 +198,7 @@ export function ReactionSheet({
           <div className="flex items-center gap-2 mb-2">
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               aria-label="Previous reaction"
               disabled={isPrevDisabled}
               onClick={onPrev}
@@ -211,7 +211,7 @@ export function ReactionSheet({
             </span>
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               aria-label="Next reaction"
               disabled={isNextDisabled}
               onClick={onNext}

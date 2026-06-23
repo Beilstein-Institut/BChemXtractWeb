@@ -112,7 +112,7 @@ export function Footer({
                   rel="noopener noreferrer"
                   aria-label={link.label}
                   className={cn(
-                    "inline-flex h-10 w-10 items-center justify-center rounded-full",
+                    "inline-flex h-11 w-11 items-center justify-center rounded-full",
                     "border border-border bg-surface-elevated text-foreground-muted",
                     "transition-colors duration-200",
                     "hover:bg-accent hover:text-primary hover:border-primary/40",

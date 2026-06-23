@@ -180,7 +180,7 @@ function HistoryRow({
                 render={
                   <Button
                     variant="ghost"
-                    size="icon-sm"
+                    size="icon"
                     onClick={(e: React.MouseEvent) => {
                       e.stopPropagation();
                       setShowConfirm(true);

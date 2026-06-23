@@ -75,8 +75,7 @@ function renderTrailingAffordance(args: {
     return (
       <Button
         variant="ghost"
-        size="icon"
-        className="size-5"
+        size="icon-sm"
         aria-label="Clear search"
         onClick={() => clear()}
       >

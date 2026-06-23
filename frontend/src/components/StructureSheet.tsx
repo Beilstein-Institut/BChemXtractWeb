@@ -204,7 +204,7 @@ export function StructureSheet({
           <div className="flex items-center gap-2 mb-2">
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               aria-label="Previous structure"
               onClick={onPrev}
               disabled={isPrevDisabled}
@@ -215,7 +215,7 @@ export function StructureSheet({
             <span className="text-caption text-muted-foreground tabular-nums">{positionLabel}</span>
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               aria-label="Next structure"
               onClick={onNext}
               disabled={isNextDisabled}

@@ -47,7 +47,12 @@ function Logo() {
       )}
     >
       <img src="/bchemxtract-logo.svg" alt="" aria-hidden="true" className="h-8 w-8 shrink-0" />
-      <BrandName />
+      {/* Icon-only below 400px so the right-cluster controls (search + theme +
+          hamburger, all 44px tap targets) never get squeezed off-screen on
+          narrow phones. The home link stays accessible via its aria-label. */}
+      <span className="max-[400px]:hidden">
+        <BrandName />
+      </span>
     </Link>
   );
 }
@@ -100,7 +105,7 @@ export function AppHeader() {
           CTA slot, though we keep it as a tight flex row rather than a
           wrapping pill so the chem flask toggle can breathe.
         */}
-        <div data-slot="header-right-cluster" className="flex min-w-0 items-center gap-3">
+        <div data-slot="header-right-cluster" className="flex min-w-0 items-center gap-1 sm:gap-3">
           <SearchInput />
           <ChemistryThemeSwitch />
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
