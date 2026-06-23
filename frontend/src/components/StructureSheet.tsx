@@ -62,7 +62,7 @@ export interface StructureSheetProps {
 /** Labeled metadata field + CopyButton, rendered inside the side-sheet. */
 function MetadataRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-2">
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
       <span className="text-micro font-semibold text-muted-foreground uppercase tracking-widest min-w-[120px] shrink-0">
         {label}
       </span>

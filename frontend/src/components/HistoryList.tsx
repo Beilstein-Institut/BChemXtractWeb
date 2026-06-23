@@ -126,8 +126,8 @@ function HistoryRow({
         data-slot="history-row"
         data-even={isEven ? "true" : undefined}
         className={cn(
-          "group grid items-center gap-4 px-0 py-0 text-sm transition-colors",
-          "grid-cols-[1fr_auto_auto_auto_auto]",
+          "group grid items-center gap-2 px-0 py-0 text-sm transition-colors sm:gap-4",
+          "grid-cols-[1fr_auto_auto_auto] sm:grid-cols-[1fr_auto_auto_auto_auto]",
           "hover:bg-accent/40",
           !isEven && "bg-surface-elevated",
           fading && "opacity-0 transition-opacity duration-200",
@@ -149,8 +149,8 @@ function HistoryRow({
           }}
           aria-label={`Open extraction ${entry.filename}`}
           className={cn(
-            "col-span-4 grid cursor-pointer items-center gap-4 px-5 py-3 text-left",
-            "grid-cols-[1fr_auto_auto_auto] bg-transparent border-0 m-0",
+            "col-span-3 grid cursor-pointer items-center gap-2 px-3 py-3 text-left sm:col-span-4 sm:gap-4 sm:px-5",
+            "grid-cols-[1fr_auto_auto] bg-transparent border-0 m-0 sm:grid-cols-[1fr_auto_auto_auto]",
             "hover:bg-transparent",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
             "disabled:cursor-default",
@@ -159,7 +159,7 @@ function HistoryRow({
           <span className="min-w-0 truncate font-mono text-foreground" title={entry.filename}>
             {entry.filename}
           </span>
-          <span className="whitespace-nowrap text-foreground-muted">{dateLabel}</span>
+          <span className="hidden whitespace-nowrap text-foreground-muted sm:block">{dateLabel}</span>
           <span className="w-16 text-right tabular-nums text-foreground">
             {entry.structure_count}
           </span>
@@ -168,7 +168,7 @@ function HistoryRow({
           </span>
         </button>
         <div
-          className="flex items-center gap-1 pr-5"
+          className="flex items-center gap-1 pr-3 sm:pr-5"
           // Swallow activation on the actions column so clicking an action
           // button doesn't also reload the row.
           onClick={(e) => e.stopPropagation()}
@@ -406,7 +406,7 @@ function Header() {
     <div
       data-slot="history-header"
       className={cn(
-        "grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-4 border-b border-border px-5 py-2",
+        "grid grid-cols-[1fr_auto_auto_auto] items-center gap-2 border-b border-border px-3 py-2 sm:grid-cols-[1fr_auto_auto_auto_auto] sm:gap-4 sm:px-5",
         "bg-[var(--glass-tint-light)] dark:bg-[var(--glass-tint-dark)]",
         "backdrop-blur-[var(--glass-blur)] backdrop-saturate-[var(--glass-saturate)]",
       )}
@@ -414,7 +414,7 @@ function Header() {
       <span className="text-caption font-semibold uppercase tracking-wide text-foreground-muted">
         File
       </span>
-      <span className="whitespace-nowrap text-caption font-semibold uppercase tracking-wide text-foreground-muted">
+      <span className="hidden whitespace-nowrap text-caption font-semibold uppercase tracking-wide text-foreground-muted sm:block">
         Date
       </span>
       <span className="w-16 text-right text-caption font-semibold uppercase tracking-wide text-foreground-muted">

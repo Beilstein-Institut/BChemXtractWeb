@@ -67,7 +67,7 @@ export function StructureTable({
             <TableHead className="w-10" />
             <TableHead className="w-14">Thumbnail</TableHead>
             <TableHead>Formula</TableHead>
-            <TableHead>SMILES</TableHead>
+            <TableHead className="hidden sm:table-cell">SMILES</TableHead>
             <TableHead className="hidden md:table-cell">InChI Key</TableHead>
             <TableHead className="w-10" />
           </TableRow>
@@ -84,7 +84,7 @@ export function StructureTable({
               <TableCell>
                 <Skeleton className="h-4 w-20 rounded" />
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden sm:table-cell">
                 <Skeleton className="h-4 w-40 rounded" />
               </TableCell>
               <TableCell className="hidden md:table-cell">
@@ -113,7 +113,7 @@ export function StructureTable({
           </TableHead>
           <TableHead className="w-14">Thumbnail</TableHead>
           <TableHead>Formula</TableHead>
-          <TableHead>SMILES</TableHead>
+          <TableHead className="hidden sm:table-cell">SMILES</TableHead>
           <TableHead className="hidden md:table-cell">InChI Key</TableHead>
           <TableHead className="w-10" />
         </TableRow>
@@ -202,8 +202,8 @@ function StructureTableRow({
         <span className="text-xs font-semibold">{substance.molecular_formula}</span>
       </TableCell>
 
-      {/* SMILES — truncated at 40 chars with Tooltip */}
-      <TableCell>
+      {/* SMILES — truncated with Tooltip; hidden on phones (full value in detail sheet) */}
+      <TableCell className="hidden sm:table-cell">
         <Tooltip>
           <TooltipTrigger
             render={<span className="block max-w-[200px] truncate text-xs text-muted-foreground" />}

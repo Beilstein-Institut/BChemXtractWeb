@@ -36,7 +36,7 @@ import type { ReactionComponentResponse, ReactionResponse } from "@/types/chemis
 function MetadataRow({ label, value }: { label: string; value: string }) {
   if (!value) return null;
   return (
-    <div className="flex items-start justify-between gap-2 px-4 py-2">
+    <div className="flex flex-col gap-1 px-4 py-2 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
       <span className="text-micro font-semibold text-muted-foreground uppercase tracking-widest min-w-[120px] shrink-0">
         {label}
       </span>

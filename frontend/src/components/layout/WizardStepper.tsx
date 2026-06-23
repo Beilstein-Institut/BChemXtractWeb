@@ -151,7 +151,7 @@ export function WizardStepper({
                   }
                 }}
                 className={cn(
-                  "group inline-flex items-center gap-3 rounded-full px-3 py-1.5",
+                  "group inline-flex items-center gap-2 rounded-full px-2 py-1.5 sm:gap-3 sm:px-3",
                   "outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   "transition-colors",
                 )}
@@ -166,7 +166,15 @@ export function WizardStepper({
                 >
                   {step.icon ?? index + 1}
                 </span>
-                <span className={cn("text-sm transition-colors", LABEL_STATUS_CLASSES[status])}>
+                {/* Hide non-active labels on phones so the row never overflows;
+                    the active step keeps its label for context. All show at sm+. */}
+                <span
+                  className={cn(
+                    "text-sm transition-colors",
+                    LABEL_STATUS_CLASSES[status],
+                    status !== "active" && "hidden sm:inline",
+                  )}
+                >
                   {step.label}
                 </span>
               </button>
