@@ -102,7 +102,7 @@ function SelectContent({
           data-align-trigger={alignItemWithTrigger}
           className={cn(
             glassSurfaceClasses,
-            "relative isolate z-50 max-h-[var(--available-height)] w-[var(--anchor-width)] min-w-36 origin-[var(--transform-origin)] overflow-x-hidden overflow-y-auto rounded-md text-foreground duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            "relative isolate z-50 max-h-[var(--available-height)] w-[var(--anchor-width)] min-w-36 max-w-[calc(100vw-1rem)] origin-[var(--transform-origin)] overflow-x-hidden overflow-y-auto rounded-md text-foreground duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
             className,
           )}
           {...props}
