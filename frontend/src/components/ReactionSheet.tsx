@@ -195,7 +195,7 @@ export function ReactionSheet({
         // Full-width on phones (minus a backdrop sliver), tapering to a
         // half-screen panel on desktop. Uses the data-[side=right]: prefix so
         // tailwind-merge overrides SheetContent's default w-3/4 / sm:max-w-sm.
-        className="overflow-y-auto data-[side=right]:w-full data-[side=right]:max-w-[calc(100vw-2rem)] data-[side=right]:sm:max-w-[90vw] data-[side=right]:md:max-w-[80vw] data-[side=right]:lg:max-w-[50vw]"
+        className="overflow-y-auto data-[side=right]:w-full data-[side=right]:max-w-none data-[side=right]:sm:max-w-none data-[side=right]:md:max-w-[80vw] data-[side=right]:lg:max-w-[50vw]"
         aria-label="Reaction detail"
         showCloseButton={true}
       >
@@ -263,10 +263,11 @@ export function ReactionSheet({
           )}
 
           {svgSrc && (
-            <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-card/90 backdrop-blur-sm rounded-full px-2 py-1 ring-1 ring-foreground/10">
+            <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-white/85 backdrop-blur-sm rounded-full px-2 py-1 ring-1 ring-black/10 shadow-sm">
               <Button
                 variant="ghost"
                 size="icon-sm"
+                className="text-neutral-600 hover:text-neutral-900"
                 aria-label="Zoom out"
                 onClick={zoomOut}
                 disabled={zoom <= 0.25}
@@ -274,7 +275,7 @@ export function ReactionSheet({
                 <ZoomOutIcon className="size-4" aria-hidden="true" />
               </Button>
               <button
-                className="text-micro text-muted-foreground tabular-nums min-w-[40px] text-center hover:text-foreground transition-colors"
+                className="text-micro text-neutral-600 tabular-nums min-w-[40px] text-center hover:text-neutral-900 transition-colors"
                 onClick={zoomReset}
                 aria-label="Reset zoom"
               >
@@ -283,6 +284,7 @@ export function ReactionSheet({
               <Button
                 variant="ghost"
                 size="icon-sm"
+                className="text-neutral-600 hover:text-neutral-900"
                 aria-label="Zoom in"
                 onClick={zoomIn}
                 disabled={zoom >= 5}

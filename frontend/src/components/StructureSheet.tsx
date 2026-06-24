@@ -201,7 +201,7 @@ export function StructureSheet({
         // Full-width on phones (minus a backdrop sliver), tapering to a
         // half-screen panel on desktop. Uses the data-[side=right]: prefix so
         // tailwind-merge overrides SheetContent's default w-3/4 / sm:max-w-sm.
-        className="overflow-y-auto data-[side=right]:w-full data-[side=right]:max-w-[calc(100vw-2rem)] data-[side=right]:sm:max-w-[90vw] data-[side=right]:md:max-w-[80vw] data-[side=right]:lg:max-w-[50vw]"
+        className="overflow-y-auto data-[side=right]:w-full data-[side=right]:max-w-none data-[side=right]:sm:max-w-none data-[side=right]:md:max-w-[80vw] data-[side=right]:lg:max-w-[50vw]"
         aria-label="Structure detail"
         showCloseButton={true}
       >
@@ -256,7 +256,7 @@ export function StructureSheet({
                 box (whose content sets no min-height) collapses to ~0 to make
                 room for the long metadata below, hiding the depiction and
                 breaking the sheet's scroll. Mirrors ReactionSheet's flex-none. */}
-            <div className="relative h-[42vh] sm:h-[50vh] shrink-0 bg-background rounded-xl border border-border mx-4 overflow-hidden">
+            <div className="relative h-[42vh] sm:h-[50vh] shrink-0 bg-white rounded-xl border border-border mx-4 overflow-hidden">
               {svgSrc ? (
                 <div className="w-full h-full overflow-auto flex items-center justify-center">
                   {/* key: fade in the swapped layout when CDK/ChemDraw flips. */}
@@ -286,7 +286,7 @@ export function StructureSheet({
                   missing layout. */}
               <TooltipProvider>
                 <div className="absolute inset-x-3 bottom-3 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 bg-card/90 backdrop-blur-sm rounded-full px-2.5 py-1 ring-1 ring-foreground/10">
+                  <div className="flex items-center gap-1.5 bg-white/85 backdrop-blur-sm rounded-full px-2.5 py-1 ring-1 ring-black/10 shadow-sm">
                     <Tooltip>
                       <TooltipTrigger
                         render={
@@ -298,8 +298,8 @@ export function StructureSheet({
                             className={`text-micro px-2.5 py-1 rounded-full transition-colors ${
                               !useCdxCoords && substance?.svg
                                 ? "bg-primary text-white"
-                                : "text-muted-foreground hover:text-foreground"
-                            } disabled:opacity-50 disabled:hover:text-muted-foreground disabled:cursor-not-allowed`}
+                                : "text-neutral-600 hover:text-neutral-900"
+                            } disabled:opacity-50 disabled:hover:text-neutral-600 disabled:cursor-not-allowed`}
                           >
                             CDK
                           </button>
@@ -323,8 +323,8 @@ export function StructureSheet({
                             className={`text-micro px-2.5 py-1 rounded-full transition-colors ${
                               useCdxCoords && substance?.svg_cdx
                                 ? "bg-primary text-white"
-                                : "text-muted-foreground hover:text-foreground"
-                            } disabled:opacity-50 disabled:hover:text-muted-foreground disabled:cursor-not-allowed`}
+                                : "text-neutral-600 hover:text-neutral-900"
+                            } disabled:opacity-50 disabled:hover:text-neutral-600 disabled:cursor-not-allowed`}
                           >
                             ChemDraw
                           </button>
@@ -340,10 +340,11 @@ export function StructureSheet({
 
                   {/* Zoom controls — only meaningful when we have something to zoom. */}
                   {svgSrc && (
-                    <div className="flex items-center gap-1.5 bg-card/90 backdrop-blur-sm rounded-full px-2.5 py-1 ring-1 ring-foreground/10">
+                    <div className="flex items-center gap-1.5 bg-white/85 backdrop-blur-sm rounded-full px-2.5 py-1 ring-1 ring-black/10 shadow-sm">
                       <Button
                         variant="ghost"
                         size="icon-sm"
+                        className="text-neutral-600 hover:text-neutral-900"
                         aria-label="Zoom out"
                         onClick={zoomOut}
                         disabled={zoom <= 0.25}
@@ -351,7 +352,7 @@ export function StructureSheet({
                         <ZoomOutIcon className="size-4" />
                       </Button>
                       <button
-                        className="text-micro text-muted-foreground tabular-nums min-w-[40px] text-center hover:text-foreground transition-colors"
+                        className="text-micro text-neutral-600 tabular-nums min-w-[40px] text-center hover:text-neutral-900 transition-colors"
                         onClick={zoomReset}
                         aria-label="Reset zoom"
                       >
@@ -360,6 +361,7 @@ export function StructureSheet({
                       <Button
                         variant="ghost"
                         size="icon-sm"
+                        className="text-neutral-600 hover:text-neutral-900"
                         aria-label="Zoom in"
                         onClick={zoomIn}
                         disabled={zoom >= 5}
