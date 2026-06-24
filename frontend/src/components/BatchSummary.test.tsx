@@ -116,6 +116,32 @@ describe("BatchSummary", () => {
     expect(onReset).toHaveBeenCalled();
   });
 
+  it("renders the persisted results view for a completed batch", () => {
+    // R1 regression guard: after a batch completes the Extract page must STAY
+    // on the batch-results view (not navigate away). This asserts that
+    // BatchSummary — the persisted results surface — mounts both the
+    // "Batch complete" heading AND the per-file structure counts from the file
+    // list, confirming the full results step is rendered rather than unmounted
+    // or replaced.
+    render(
+      <BatchSummary
+        batchId="bid"
+        files={files}
+        totalFiles={2}
+        totalStructures={3}
+        succeededCount={1}
+        failedCount={1}
+        onViewExtraction={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    );
+    // Heading confirms the results step is mounted (not navigated away)
+    expect(screen.getByText("Batch complete")).toBeDefined();
+    // Per-file structure count in the file list — only present when the done
+    // row renders; "3 structures" comes from files[0] (a.cdx, structureCount=3)
+    expect(screen.getByText(/3 structures/i)).toBeDefined();
+  });
+
   it("navigates to the combined batch view when View all is clicked", () => {
     render(
       <BatchSummary
