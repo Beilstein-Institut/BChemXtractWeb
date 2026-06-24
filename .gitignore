@@ -103,6 +103,9 @@ backend/.bchemxtract-build/
 # Docker
 # -----------------------------------------------------------------------------
 .docker/
+# Compose override is local-only dev config (e.g. exposing Postgres 5432 on the
+# host for local pytest). Per Docker convention it is never committed.
+docker-compose.override.yml
 
 # -----------------------------------------------------------------------------
 # IDE / Editor
