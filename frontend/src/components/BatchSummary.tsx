@@ -1,5 +1,6 @@
 import { CheckCircle2Icon, DownloadIcon, PlusIcon, XCircleIcon } from "lucide-react";
 import { toast } from "sonner";
+import { BatchFilePreview } from "@/components/BatchFilePreview";
 import { Button } from "@/components/ui/button";
 import { downloadBatchZip } from "@/lib/apiClient";
 import { navigate } from "@/lib/router";
@@ -142,44 +143,70 @@ export function BatchSummary({
         data-slot="batch-summary-list"
         className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface"
       >
-        {files.map((f) => (
-          <li
-            key={f.filename}
-            data-slot="batch-summary-row"
-            data-state={f.state}
-            className="flex min-h-[48px] items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted/40"
-          >
-            <span className="sr-only">{f.state === "done" ? "Succeeded" : "Failed"}</span>
-            {f.state === "done" ? (
-              <CheckCircle2Icon className="size-4 shrink-0 text-secondary" aria-hidden="true" />
-            ) : (
-              <XCircleIcon className="size-4 shrink-0 text-destructive" aria-hidden="true" />
-            )}
-            <span className="min-w-0 flex-1 truncate font-mono text-sm text-foreground">
-              {f.filename}
-            </span>
-            {f.state === "done" && (
-              <span className="shrink-0 text-xs tabular-nums text-foreground-muted">
-                {f.structureCount} structures
+        {files.map((f) => {
+          const rowInner = (
+            <>
+              <span className="sr-only">{f.state === "done" ? "Succeeded" : "Failed"}</span>
+              {f.state === "done" ? (
+                <CheckCircle2Icon className="size-4 shrink-0 text-secondary" aria-hidden="true" />
+              ) : (
+                <XCircleIcon className="size-4 shrink-0 text-destructive" aria-hidden="true" />
+              )}
+              <span className="min-w-0 flex-1 truncate font-mono text-sm text-foreground">
+                {f.filename}
               </span>
-            )}
-            {f.state === "failed" && (
-              <span className="max-w-[240px] shrink-0 truncate text-xs text-destructive">
-                {f.error}
-              </span>
-            )}
-            {f.state === "done" && f.extractionId != null && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="shrink-0"
-                onClick={() => onViewExtraction(f.extractionId!)}
+              {f.state === "done" && (
+                <span className="shrink-0 text-xs tabular-nums text-foreground-muted">
+                  {f.structureCount} structures
+                </span>
+              )}
+              {f.state === "failed" && (
+                <span className="max-w-[240px] shrink-0 truncate text-xs text-destructive">
+                  {f.error}
+                </span>
+              )}
+              {f.state === "done" && f.extractionId != null && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => onViewExtraction(f.extractionId!)}
+                >
+                  View
+                </Button>
+              )}
+            </>
+          );
+
+          const liProps = {
+            "data-slot": "batch-summary-row" as const,
+            "data-state": f.state,
+            className:
+              "flex min-h-[48px] items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted/40",
+          };
+
+          // Desktop hover preview — wraps done rows that have a known
+          // extraction. Failed rows (and touch users via "View") are unaffected.
+          if (f.state === "done" && f.extractionId != null) {
+            return (
+              <BatchFilePreview
+                key={f.filename}
+                extractionId={f.extractionId}
+                filename={f.filename}
+                structureCount={f.structureCount ?? 0}
+                onViewExtraction={onViewExtraction}
               >
-                View
-              </Button>
-            )}
-          </li>
-        ))}
+                <li {...liProps}>{rowInner}</li>
+              </BatchFilePreview>
+            );
+          }
+
+          return (
+            <li key={f.filename} {...liProps}>
+              {rowInner}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
