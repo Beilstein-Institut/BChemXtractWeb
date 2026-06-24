@@ -366,7 +366,7 @@ function Toolbar({
       <div className="flex flex-1 items-center gap-2 sm:flex-none sm:justify-end">
         <div
           className={cn(
-            "relative flex w-full items-center gap-2 sm:w-64",
+            "relative flex min-w-0 flex-1 items-center gap-2 sm:w-64 sm:flex-none",
             "h-10 rounded-full bg-surface px-4",
             "shadow-[var(--shadow-neu-inset)]",
             "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0",
@@ -394,8 +394,11 @@ function Toolbar({
           data-slot="history-export-csv"
           aria-label="Export history to CSV"
           icon={<DownloadIcon />}
+          className="shrink-0"
         >
-          Export CSV
+          {/* Icon-only on phones (the icon prop draws the download glyph); the
+              label returns at sm+ so the search field keeps room. */}
+          <span className="hidden sm:inline">Export CSV</span>
         </Button>
       </div>
     </div>
@@ -420,10 +423,12 @@ function Header() {
         Date
       </span>
       <span className="w-16 text-right text-caption font-semibold uppercase tracking-wide text-foreground-muted">
-        Structures
+        <span className="sm:hidden">Struct</span>
+        <span className="hidden sm:inline">Structures</span>
       </span>
       <span className="w-16 text-right text-caption font-semibold uppercase tracking-wide text-foreground-muted">
-        Reactions
+        <span className="sm:hidden">Rxns</span>
+        <span className="hidden sm:inline">Reactions</span>
       </span>
       <span className="w-[72px] text-right text-caption font-semibold uppercase tracking-wide text-foreground-muted">
         Actions
