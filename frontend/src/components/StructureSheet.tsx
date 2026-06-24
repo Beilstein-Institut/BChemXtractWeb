@@ -273,11 +273,14 @@ export function StructureSheet({
                 </div>
               )}
 
-              {/* Layout toggle — always visible so users see disabled
-                  states and tooltips explaining when a layout is missing. */}
-              <div className="absolute bottom-3 left-3">
-                <TooltipProvider>
-                  <div className="flex items-center gap-1 bg-card/90 backdrop-blur-sm rounded-full px-2 py-1 ring-1 ring-foreground/10">
+              {/* Overlay controls — layout toggle + zoom share one bottom bar
+                  so they keep proper spacing (justify-between) and wrap instead
+                  of overlapping on narrow sheets. The toggle stays visible even
+                  without an SVG so disabled states + tooltips can explain a
+                  missing layout. */}
+              <TooltipProvider>
+                <div className="absolute inset-x-3 bottom-3 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 bg-card/90 backdrop-blur-sm rounded-full px-2.5 py-1 ring-1 ring-foreground/10">
                     <Tooltip>
                       <TooltipTrigger
                         render={
@@ -286,7 +289,7 @@ export function StructureSheet({
                             onClick={() => substance?.svg && setUseCdxCoords(false)}
                             disabled={!substance?.svg}
                             aria-pressed={!useCdxCoords}
-                            className={`text-micro px-2 py-0.5 rounded-full transition-colors ${
+                            className={`text-micro px-2.5 py-1 rounded-full transition-colors ${
                               !useCdxCoords && substance?.svg
                                 ? "bg-primary text-white"
                                 : "text-muted-foreground hover:text-foreground"
@@ -311,7 +314,7 @@ export function StructureSheet({
                             onClick={() => substance?.svg_cdx && setUseCdxCoords(true)}
                             disabled={!substance?.svg_cdx}
                             aria-pressed={useCdxCoords}
-                            className={`text-micro px-2 py-0.5 rounded-full transition-colors ${
+                            className={`text-micro px-2.5 py-1 rounded-full transition-colors ${
                               useCdxCoords && substance?.svg_cdx
                                 ? "bg-primary text-white"
                                 : "text-muted-foreground hover:text-foreground"
@@ -328,39 +331,39 @@ export function StructureSheet({
                       </TooltipContent>
                     </Tooltip>
                   </div>
-                </TooltipProvider>
-              </div>
 
-              {/* Zoom controls — only meaningful when we have something to zoom. */}
-              {svgSrc && (
-                <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-card/90 backdrop-blur-sm rounded-full px-2 py-1 ring-1 ring-foreground/10">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Zoom out"
-                    onClick={zoomOut}
-                    disabled={zoom <= 0.25}
-                  >
-                    <ZoomOutIcon className="size-4" />
-                  </Button>
-                  <button
-                    className="text-micro text-muted-foreground tabular-nums min-w-[40px] text-center hover:text-foreground transition-colors"
-                    onClick={zoomReset}
-                    aria-label="Reset zoom"
-                  >
-                    {Math.round(zoom * 100)}%
-                  </button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Zoom in"
-                    onClick={zoomIn}
-                    disabled={zoom >= 5}
-                  >
-                    <ZoomInIcon className="size-4" />
-                  </Button>
+                  {/* Zoom controls — only meaningful when we have something to zoom. */}
+                  {svgSrc && (
+                    <div className="flex items-center gap-1.5 bg-card/90 backdrop-blur-sm rounded-full px-2.5 py-1 ring-1 ring-foreground/10">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Zoom out"
+                        onClick={zoomOut}
+                        disabled={zoom <= 0.25}
+                      >
+                        <ZoomOutIcon className="size-4" />
+                      </Button>
+                      <button
+                        className="text-micro text-muted-foreground tabular-nums min-w-[40px] text-center hover:text-foreground transition-colors"
+                        onClick={zoomReset}
+                        aria-label="Reset zoom"
+                      >
+                        {Math.round(zoom * 100)}%
+                      </button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Zoom in"
+                        onClick={zoomIn}
+                        disabled={zoom >= 5}
+                      >
+                        <ZoomInIcon className="size-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              )}
+              </TooltipProvider>
             </div>
 
             {/* Metadata rows */}
