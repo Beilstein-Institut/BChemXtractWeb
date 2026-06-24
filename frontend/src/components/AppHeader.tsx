@@ -141,7 +141,10 @@ export function AppHeader() {
                           data-slot="nav-link"
                           data-active={active ? "true" : undefined}
                           className={cn(
-                            "py-3 text-base font-medium border-b transition-colors",
+                            // px-4 aligns the label's left edge with the
+                            // SheetHeader logo (also p-4) so the text isn't
+                            // flush against the drawer edge.
+                            "px-4 py-3 text-base font-medium border-b transition-colors",
                             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                             active
                               ? "text-primary border-primary/30 font-semibold"
