@@ -137,7 +137,7 @@ export function Footer({
             {copyright.license && <div className="whitespace-nowrap">{copyright.license}</div>}
           </div>
           <nav aria-label="Footer navigation" className="mt-6 lg:col-[9/13] lg:row-[1/2] lg:mt-0">
-            <ul className="-my-1 -mx-2 flex list-none flex-wrap lg:justify-end">
+            <ul className="-my-1 -mx-2 flex list-none flex-wrap justify-end">
               {mainLinks.map((link) => (
                 <li key={link.href} className="my-1 mx-2 shrink-0">
                   {renderLink(
@@ -148,8 +148,8 @@ export function Footer({
               ))}
             </ul>
           </nav>
-          <div className="mt-6 lg:col-[9/13] lg:row-[2/3] lg:mt-0">
-            <ul className="-my-1 -mx-3 flex list-none flex-wrap lg:justify-end">
+          <div className="mt-1 lg:col-[9/13] lg:row-[2/3] lg:mt-0">
+            <ul className="-my-1 -mx-3 flex list-none flex-wrap justify-end">
               {legalLinks.map((link) => (
                 <li key={link.href} className="my-1 mx-3 shrink-0">
                   {renderLink(
