@@ -164,6 +164,26 @@ class BatchStartResponse(BaseModel):
     file_count: int
 
 
+class BatchExtractionItem(BaseModel):
+    """One extraction in a batch — summary fields for the combined view."""
+
+    extraction_id: int
+    filename: str
+    structure_count: int
+
+
+class BatchExtractionsResponse(BaseModel):
+    """Response from GET /api/batch/{batch_id}.
+
+    Lists the extractions belonging to a batch (RLS-scoped to the caller),
+    in upload order. Substances are NOT included — the combined view fetches
+    each extraction's full detail via GET /api/history/{id}.
+    """
+
+    batch_id: str
+    files: list[BatchExtractionItem]
+
+
 ExportFormatLiteral = Literal["sdf", "json", "csv", "png", "svg", "v3000", "rxn"]
 
 # Which 2D layout the image formats (png/svg) use:
