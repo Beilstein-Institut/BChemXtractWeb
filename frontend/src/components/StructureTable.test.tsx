@@ -332,4 +332,15 @@ describe("StructureTable", () => {
     fireEvent.click(copyBtn);
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith("C1");
   });
+
+  it("omits the checkbox column when no selection handler is given", () => {
+    render(
+      <StructureTable
+        substances={[{ ...makeSubstance(1), id: 1, molecular_formula: "C6H6" }]}
+        onOpen={() => {}}
+      />,
+    );
+    // No checkboxes rendered in display-only mode.
+    expect(screen.queryByRole("checkbox")).toBeNull();
+  });
 });
