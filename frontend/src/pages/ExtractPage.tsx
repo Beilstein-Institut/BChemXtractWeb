@@ -134,8 +134,8 @@ export function ExtractPage({
           ChemDraw, read back.
         </h1>
         <p className="max-w-[60ch] text-base text-foreground-muted">
-          Drop a CDX or CDXML file. Get structures, reactions, and descriptors — SMILES, InChI,
-          RInChI, molecular formula.
+          Drop a CDX or CDXML file. Get structures, reactions, and string representations — SMILES,
+          InChI, RInChI, molecular formula.
         </p>
       </header>
 
