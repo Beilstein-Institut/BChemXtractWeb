@@ -15,7 +15,7 @@ import uuid
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
+from sqlalchemy import delete, text
 
 from app.models.orm import Extraction
 from app.services.db import AsyncSessionLocal
@@ -42,6 +42,9 @@ async def seeded_batch() -> SeededBatch:
     Files: "simple.cdx" (3 structs), "mid.cdx" (2), "big.cdx" (12).
     Rows are inserted in order; IDs are monotonically increasing, so
     ORDER BY id in the endpoint returns them in insertion order.
+
+    Teardown deletes all inserted rows keyed by batch_id so repeated local
+    pytest runs against a persistent Postgres don't accumulate stale rows.
     """
     batch_id = str(uuid.uuid4())
     files = [
@@ -72,7 +75,16 @@ async def seeded_batch() -> SeededBatch:
             await db.flush()
             ids.append(row.id)
         await db.commit()
-    return SeededBatch(batch_id=batch_id, extraction_ids=ids)
+
+    yield SeededBatch(batch_id=batch_id, extraction_ids=ids)
+
+    async with AsyncSessionLocal() as db:
+        await db.execute(
+            text("SELECT set_config('app.session_id', :sid, true)"),
+            {"sid": TEST_SESSION_COOKIE},
+        )
+        await db.execute(delete(Extraction).where(Extraction.batch_id == batch_id))
+        await db.commit()
 
 
 @pytest_asyncio.fixture
