@@ -5,7 +5,7 @@
  * Mocks base-ui primitives used by shadcn wrappers to avoid portal/animation
  * complexity in jsdom.
  */
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { vi } from "vitest";
 import { BrowseToolbar } from "./BrowseToolbar";
 
@@ -242,31 +242,45 @@ describe("BrowseToolbar", () => {
       onDepictionChange: vi.fn(),
     };
 
+    // The toggle is rendered in two breakpoint-gated places (inline on
+    // desktop, inside the mobile Options popover); the mocked Popover mounts
+    // its content unconditionally, so both appear in jsdom. Scope behavioral
+    // assertions to the first instance — they share `depiction`/`onChange` and
+    // stay in sync.
+    const firstToggle = (container: HTMLElement) =>
+      within(container.querySelectorAll('[data-slot="depiction-toggle"]')[0] as HTMLElement);
+
     it("renders ChemDraw and CDK options when onDepictionChange is provided", () => {
-      render(<BrowseToolbar {...depictionProps} />);
-      expect(screen.getByLabelText(/ChemDraw depiction/)).toBeTruthy();
-      expect(screen.getByLabelText(/CDK depiction/)).toBeTruthy();
+      const { container } = render(<BrowseToolbar {...depictionProps} />);
+      const toggle = firstToggle(container);
+      expect(toggle.getByLabelText(/ChemDraw depiction/)).toBeTruthy();
+      expect(toggle.getByLabelText(/CDK depiction/)).toBeTruthy();
     });
 
     it("marks ChemDraw as pressed by default", () => {
       const { container } = render(<BrowseToolbar {...depictionProps} />);
       const group = container.querySelector('[data-slot="depiction-toggle"]');
       expect(group?.getAttribute("data-depiction")).toBe("cdx");
-      expect(screen.getByLabelText(/ChemDraw depiction/).getAttribute("aria-pressed")).toBe("true");
-      expect(screen.getByLabelText(/CDK depiction/).getAttribute("aria-pressed")).toBe("false");
+      const toggle = firstToggle(container);
+      expect(toggle.getByLabelText(/ChemDraw depiction/).getAttribute("aria-pressed")).toBe("true");
+      expect(toggle.getByLabelText(/CDK depiction/).getAttribute("aria-pressed")).toBe("false");
     });
 
     it("fires onDepictionChange('cdk') when the CDK segment is clicked", () => {
       const onDepictionChange = vi.fn();
-      render(<BrowseToolbar {...depictionProps} onDepictionChange={onDepictionChange} />);
-      fireEvent.click(screen.getByLabelText(/CDK depiction/));
+      const { container } = render(
+        <BrowseToolbar {...depictionProps} onDepictionChange={onDepictionChange} />,
+      );
+      fireEvent.click(firstToggle(container).getByLabelText(/CDK depiction/));
       expect(onDepictionChange).toHaveBeenCalledWith("cdk");
     });
 
     it("does not fire when the already-active segment is clicked", () => {
       const onDepictionChange = vi.fn();
-      render(<BrowseToolbar {...depictionProps} onDepictionChange={onDepictionChange} />);
-      fireEvent.click(screen.getByLabelText(/ChemDraw depiction/));
+      const { container } = render(
+        <BrowseToolbar {...depictionProps} onDepictionChange={onDepictionChange} />,
+      );
+      fireEvent.click(firstToggle(container).getByLabelText(/ChemDraw depiction/));
       expect(onDepictionChange).not.toHaveBeenCalled();
     });
 

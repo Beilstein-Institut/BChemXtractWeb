@@ -224,6 +224,15 @@ export function BrowseToolbar({
             <span className="text-xs text-muted-foreground">Per page</span>
             {renderPageSizeSelect(pageSize, onPageSizeChange, "w-full")}
           </div>
+          {/* Depiction toggle also lives here on mobile — the inline one below
+              is hidden < sm, and this is the only control that drives the
+              grid/table thumbnail layout (and the image export it governs). */}
+          {onDepictionChange && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">Depiction</span>
+              <DepictionToggle depiction={depiction} onChange={onDepictionChange} />
+            </div>
+          )}
         </PopoverContent>
       </Popover>
 

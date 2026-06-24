@@ -144,6 +144,11 @@ export function WizardStepper({
                 data-slot="wizard-step"
                 data-status={status}
                 data-step-id={step.id}
+                // Always name the button: on phones the label span is
+                // display:none and the number pill is aria-hidden, so without
+                // this the control would be an unnamed "button" to screen
+                // readers. aria-label wins over visible text when both exist.
+                aria-label={step.label}
                 aria-current={status === "active" ? "step" : undefined}
                 onClick={() => {
                   if (onStepChange && step.id !== currentStep) {
