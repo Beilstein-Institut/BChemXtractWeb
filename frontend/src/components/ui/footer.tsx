@@ -163,8 +163,11 @@ export function Footer({
           {middleSlot && (
             <div
               className={cn(
-                "mt-6 flex items-center justify-center text-sm text-foreground-muted",
-                "lg:col-[4/9] lg:row-[1/3] lg:mt-0",
+                // Left-aligned on mobile so it lines up with the stacked
+                // copyright/links above; centered only at lg where it's the
+                // middle column of the 12-col grid.
+                "mt-6 flex items-center justify-start text-sm text-foreground-muted",
+                "lg:col-[4/9] lg:row-[1/3] lg:mt-0 lg:justify-center",
               )}
             >
               {middleSlot}
