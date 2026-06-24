@@ -57,7 +57,10 @@ export function ExtractionTabs({
             <Badge
               variant="secondary"
               className={cn(
-                "h-5 px-1.5 text-micro font-semibold border-0",
+                // Hidden on phones so the two tabs fit without cropping; the
+                // experimental warning still shows prominently in the
+                // Reactions panel (ExperimentalBanner).
+                "hidden h-5 px-1.5 text-micro font-semibold border-0 sm:inline-flex",
                 "bg-amber-100 text-amber-900",
                 "dark:bg-amber-900/30 dark:text-amber-200",
               )}

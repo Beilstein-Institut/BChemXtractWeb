@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import type { ExportFormat } from "@/types/export";
 import { FORMAT_LABELS } from "@/types/export";
 
@@ -70,6 +71,12 @@ export interface ExportMenuProps {
    * BrowseToolbar, StructureBrowser).
    */
   reactionsAvailable?: boolean;
+  /**
+   * When true (label variant only), the trigger collapses to an icon-only
+   * button below the `sm` breakpoint and shows the label at sm+. Lets a
+   * crowded mobile toolbar fit without cropping while desktop keeps the text.
+   */
+  compactLabel?: boolean;
 }
 
 /** Icon for each format item. RXN gets ArrowRightLeftIcon. */
@@ -100,6 +107,7 @@ export function ExportMenu({
   align = "end",
   onTriggerClick,
   reactionsAvailable = false,
+  compactLabel = false,
 }: ExportMenuProps) {
   const trigger =
     triggerVariant === "icon" ? (
@@ -121,9 +129,15 @@ export function ExportMenu({
         <TooltipContent>Export structure</TooltipContent>
       </Tooltip>
     ) : (
-      <Button variant="outline" size="sm" disabled={disabled} onClick={onTriggerClick}>
-        <DownloadIcon className="size-4 mr-1.5" />
-        {triggerLabel}
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={disabled}
+        onClick={onTriggerClick}
+        aria-label={triggerLabel}
+      >
+        <DownloadIcon className={cn("size-4", compactLabel ? "sm:mr-1.5" : "mr-1.5")} />
+        <span className={compactLabel ? "hidden sm:inline" : undefined}>{triggerLabel}</span>
       </Button>
     );
 

@@ -150,7 +150,7 @@ export function BrowseToolbar({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 px-3 py-3 h-12 border-b border-border sm:gap-4 sm:px-6",
+        "flex items-center gap-1 px-2 py-3 h-12 border-b border-border sm:gap-4 sm:px-6",
         disabled && "opacity-50 pointer-events-none",
       )}
     >
@@ -242,6 +242,7 @@ export function BrowseToolbar({
             align="end"
             disabled={isExporting || selectedCount === 0}
             reactionsAvailable={reactionsAvailable}
+            compactLabel
           />
         </div>
       )}
@@ -264,6 +265,7 @@ export function BrowseToolbar({
           align="end"
           disabled={isExporting}
           reactionsAvailable={reactionsAvailable}
+          compactLabel
         />
       )}
 
