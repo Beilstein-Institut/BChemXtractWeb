@@ -87,6 +87,10 @@ describe("cancelBatch", () => {
 });
 
 describe("getBatchExtractions", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("GETs the batch endpoint and returns parsed files", async () => {
     const payload = {
       batch_id: "abc",

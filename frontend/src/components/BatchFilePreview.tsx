@@ -111,9 +111,10 @@ export function BatchFilePreview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [controlledOpen]);
 
-  // Controlled props forwarded to HoverCard — test-only; production omits them
-  const controlledProps =
-    controlledOpen !== undefined ? { open: controlledOpen, onOpenChange: handleOpenChange } : {};
+  // Controlled props forwarded to HoverCard — test-only; production omits them.
+  // Only `open` is included here; `onOpenChange` is already set directly on
+  // HoverCard above so it must not be duplicated in the spread.
+  const controlledProps = controlledOpen !== undefined ? { open: controlledOpen } : {};
 
   return (
     <HoverCard
@@ -131,7 +132,7 @@ export function BatchFilePreview({
       <HoverCardTrigger render={<div className="contents" />}>{children}</HoverCardTrigger>
       <HoverCardContent className="w-72" aria-label={`Preview of ${filename}`}>
         {thumbs === false ? (
-          <p className="text-xs text-foreground-muted">Preview unavailable.</p>
+          <p className="text-caption text-foreground-muted">Preview unavailable.</p>
         ) : thumbs === null ? (
           <div className="grid grid-cols-4 gap-1.5">
             {Array.from({ length: PREVIEW_COUNT }).map((_, i) => (
@@ -148,7 +149,7 @@ export function BatchFilePreview({
         <button
           type="button"
           onClick={() => onViewExtraction(extractionId)}
-          className="mt-2.5 inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-2 hover:underline"
+          className="mt-2.5 inline-flex items-center gap-1 text-caption font-medium text-primary underline-offset-2 hover:underline"
         >
           View all {structureCount} structures
           <ArrowRightIcon className="size-3.5" aria-hidden="true" />

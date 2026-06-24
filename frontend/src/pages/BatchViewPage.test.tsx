@@ -58,3 +58,28 @@ it("shows an empty state when no batch id is in the URL", () => {
   render(<BatchViewPage />);
   expect(screen.getByText(/no batch/i)).toBeTruthy();
 });
+
+it("isolates per-file failures: failed file shows inline error; other file still renders", async () => {
+  setBatchParam("b2");
+  vi.spyOn(api, "getBatchExtractions").mockResolvedValue({
+    batch_id: "b2",
+    files: [
+      { extraction_id: 10, filename: "bad.cdx", structure_count: 1 },
+      { extraction_id: 11, filename: "good.cdx", structure_count: 1 },
+    ],
+  });
+  vi.spyOn(api, "getHistoryDetail").mockImplementation(async (id: number) => {
+    if (id === 10) throw new Error("network error");
+    return detail("good.cdx", ["C6H6"]);
+  });
+
+  render(<BatchViewPage />);
+
+  // (a) failed file's section shows the inline error message
+  expect(
+    await screen.findByText("Could not load this file's structures. Refresh to retry."),
+  ).toBeTruthy();
+
+  // (b) second file's section still renders its filename header
+  expect(screen.getByText("good.cdx")).toBeTruthy();
+});
