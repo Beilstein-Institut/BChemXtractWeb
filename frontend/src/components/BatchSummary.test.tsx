@@ -7,6 +7,8 @@ vi.mock("@/lib/apiClient", () => ({
   downloadBatchZip: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@/lib/router", () => ({ navigate: vi.fn() }));
+import { navigate } from "@/lib/router";
 
 const files: BatchFileStatus[] = [
   {
@@ -112,5 +114,24 @@ describe("BatchSummary", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "New batch" }));
     expect(onReset).toHaveBeenCalled();
+  });
+
+  it("navigates to the combined batch view when View all is clicked", () => {
+    render(
+      <BatchSummary
+        {...{
+          batchId: "b42",
+          files,
+          totalFiles: 2,
+          totalStructures: 3,
+          succeededCount: 1,
+          failedCount: 1,
+          onViewExtraction: vi.fn(),
+          onReset: vi.fn(),
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /view all/i }));
+    expect(navigate).toHaveBeenCalledWith("/batch?batch=b42");
   });
 });

@@ -2,6 +2,7 @@ import { CheckCircle2Icon, DownloadIcon, PlusIcon, XCircleIcon } from "lucide-re
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { downloadBatchZip } from "@/lib/apiClient";
+import { navigate } from "@/lib/router";
 import { cn } from "@/lib/utils";
 import type { BatchFileStatus } from "@/types/batch";
 
@@ -103,6 +104,13 @@ export function BatchSummary({
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={onReset} icon={<PlusIcon />}>
             New batch
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/batch?batch=${encodeURIComponent(batchId)}`)}
+          >
+            View all
           </Button>
           <Button
             variant="primary"
