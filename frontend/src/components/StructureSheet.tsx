@@ -245,8 +245,12 @@ export function StructureSheet({
 
         {substance ? (
           <>
-            {/* SVG display area: 50vh height with zoom controls */}
-            <div className="relative h-[50vh] bg-background rounded-xl border border-border mx-4 overflow-hidden">
+            {/* SVG display area: fixed-height with zoom controls. shrink-0 is
+                load-bearing — SheetContent is a flex-col, and without it this
+                box (whose content sets no min-height) collapses to ~0 to make
+                room for the long metadata below, hiding the depiction and
+                breaking the sheet's scroll. Mirrors ReactionSheet's flex-none. */}
+            <div className="relative h-[42vh] sm:h-[50vh] shrink-0 bg-background rounded-xl border border-border mx-4 overflow-hidden">
               {svgSrc ? (
                 <div className="w-full h-full overflow-auto flex items-center justify-center">
                   {/* key: fade in the swapped layout when CDK/ChemDraw flips. */}
