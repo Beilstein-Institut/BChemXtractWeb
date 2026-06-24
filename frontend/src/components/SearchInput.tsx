@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetTrigger, SheetContent, SheetClose } from "@/components/ui/sheet";
 import { useSearch } from "@/context/SearchContext";
 import { searchInputRef } from "@/lib/searchFocus";
 import type { SearchType } from "@/types/search";
@@ -337,8 +337,27 @@ export function SearchInput({ className }: { className?: string }) {
         >
           <SearchIcon className="size-5" />
         </SheetTrigger>
-        <SheetContent side="top" className="max-h-[85vh] overflow-y-auto">
-          <div className="mt-4">{renderInput({ isHeader: false })}</div>
+        {/* Compact mobile search bar: a single padded row — the input fills
+            the width with an explicit Close beside it. No scroll container:
+            it's one row, so max-h/overflow-y would only add dead space. The
+            Sheet's default corner close is suppressed so it can't float over
+            the input. */}
+        <SheetContent side="top" showCloseButton={false} className="p-4">
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">{renderInput({ isHeader: false })}</div>
+            <SheetClose
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Close search"
+                  className="shrink-0"
+                />
+              }
+            >
+              <XIcon className="size-5" />
+            </SheetClose>
+          </div>
         </SheetContent>
       </Sheet>
     </>
