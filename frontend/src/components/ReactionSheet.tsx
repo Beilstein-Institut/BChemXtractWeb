@@ -36,12 +36,18 @@ import type { ReactionComponentResponse, ReactionResponse } from "@/types/chemis
 function MetadataRow({ label, value }: { label: string; value: string }) {
   if (!value) return null;
   return (
-    <div className="flex flex-col gap-1 px-4 py-2 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-      <span className="text-micro font-semibold text-muted-foreground uppercase tracking-widest min-w-[120px] shrink-0">
+    <div className="flex flex-wrap items-start gap-x-2 gap-y-1 px-4 py-2 sm:flex-nowrap sm:justify-between">
+      <span className="order-1 w-full text-micro font-semibold uppercase tracking-widest text-muted-foreground sm:w-auto sm:min-w-[120px] sm:shrink-0">
         {label}
       </span>
-      <span className="text-caption text-foreground font-mono break-all flex-1">{value}</span>
-      <CopyButton value={value} label={label.toLowerCase()} />
+      <CopyButton
+        value={value}
+        label={label.toLowerCase()}
+        className="order-2 shrink-0 sm:order-3"
+      />
+      <span className="order-3 min-w-0 flex-1 break-all font-mono text-caption text-foreground sm:order-2">
+        {value}
+      </span>
     </div>
   );
 }
