@@ -6,7 +6,7 @@ import type {
   ReactionExtractionResponse,
 } from "@/types/chemistry";
 import type { HistoryListResponse, StatsResponse } from "@/types/history";
-import type { BatchStartResponse } from "@/types/batch";
+import type { BatchExtractionsResponse, BatchStartResponse } from "@/types/batch";
 import type { ExportRequest } from "@/types/export";
 import type {
   SearchRequest,
@@ -368,6 +368,17 @@ export async function downloadBatchZip(batchId: string): Promise<void> {
     errorPrefix: "ZIP download failed",
   });
   triggerDownload(await response.blob(), `batch_${batchId.slice(0, 8)}.zip`);
+}
+
+/**
+ * GET /api/batch/{batchId} — list a batch's extractions (summaries) for the
+ * combined "View all" view. RLS-scoped server-side.
+ */
+export async function getBatchExtractions(batchId: string): Promise<BatchExtractionsResponse> {
+  const response = await apiFetch(`/api/batch/${encodeURIComponent(batchId)}`, {
+    errorPrefix: "Failed to load batch",
+  });
+  return response.json() as Promise<BatchExtractionsResponse>;
 }
 
 /**

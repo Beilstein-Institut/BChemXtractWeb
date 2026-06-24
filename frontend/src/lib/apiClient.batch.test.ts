@@ -3,7 +3,7 @@
  * Verifies FormData field name, URL shape, and HTTP method contracts.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { postBatchStart, getBatchSSEUrl, cancelBatch } from "./apiClient";
+import { postBatchStart, getBatchSSEUrl, cancelBatch, getBatchExtractions } from "./apiClient";
 
 describe("postBatchStart", () => {
   beforeEach(() => {
@@ -83,5 +83,27 @@ describe("cancelBatch", () => {
   it("resolves without error on 204", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 204 }));
     await expect(cancelBatch("bid")).resolves.toBeUndefined();
+  });
+});
+
+describe("getBatchExtractions", () => {
+  it("GETs the batch endpoint and returns parsed files", async () => {
+    const payload = {
+      batch_id: "abc",
+      files: [{ extraction_id: 1, filename: "a.cdx", structure_count: 3 }],
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => payload,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await getBatchExtractions("abc");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/batch/abc",
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(result.files[0].filename).toBe("a.cdx");
   });
 });
