@@ -18,6 +18,7 @@ from sqlalchemy import text
 
 from app.services.db import AsyncSessionLocal
 from app.services.search import detect_search_type
+from tests.conftest import link_substances_to_extraction
 
 # Three rows sharing block 1 "JVTAAEKCZFNVCJ"; rows 1+3 also share block 2.
 _FULL_1 = "JVTAAEKCZFNVCJ-REOHCLBHSA-N"
@@ -40,6 +41,9 @@ async def _seed_partial_corpus() -> None:
                 {"k": key},
             )
         await session.commit()
+    # Link all three to one of the caller's extractions so the RLS-scoped
+    # search join can reach them (the substances table has no RLS).
+    await link_substances_to_extraction([_FULL_1, _FULL_2, _FULL_3])
 
 
 def test_detect_partial_inchi_key_block1() -> None:

@@ -24,7 +24,9 @@ extractions" per result (grouped in Python — fast, no N+1 risk for the
 
 Scope:
 
-- ``'global'`` — all substances.
+- ``'global'`` — every substance the caller owns. Substances are read
+  through an ``ExtractionSubstance`` JOIN so Postgres RLS scopes the result
+  to the caller's session (the ``substances`` table itself has no RLS).
 - ``'extraction:{id}'`` — restricts to substances linked to that extraction
   via :class:`app.models.orm.ExtractionSubstance` (IDOR-safe; mirrors
   the ``export.py`` pattern).
@@ -175,25 +177,35 @@ def _resolve_effective_type(payload: SearchRequest) -> str:
 
 
 def _base_substance_select(scope_extraction_id: int | None):
-    """Build a ``SELECT Substance`` statement with optional IDOR-safe scope.
+    """Build a ``SELECT Substance`` that is always RLS-scoped to the caller.
 
-    When ``scope_extraction_id`` is given, JOIN through
-    :class:`ExtractionSubstance` and filter — this mirrors the ``export.py``
-    pattern (lines 62-67) proven to close the IDOR hole. The ``.distinct()``
-    call protects against duplicate substance rows when a substance appears
-    more than once inside the same extraction.
+    The ``substances`` table is a global, ``inchi_key``-deduplicated pool
+    with NO row-level security of its own — one molecule legitimately
+    belongs to many sessions, so a per-row owner column would be wrong.
+    Cross-session isolation is therefore enforced by **always** joining
+    through :class:`ExtractionSubstance`, which carries ``FORCE ROW LEVEL
+    SECURITY`` scoped to the caller's ``session_id`` / ``api_key_hash``.
+    A bare ``select(Substance)`` would bypass that and expose every
+    session's structures (CWE-639), so even the ``'global'`` scope goes
+    through the join — "global" means "everything the caller owns".
+
+    ``.distinct()`` collapses the duplicate ``Substance`` rows the join
+    produces when a molecule appears in more than one of the caller's
+    extractions. When ``scope_extraction_id`` is given, further restrict to
+    that single extraction (still RLS-scoped, so a guessed id from another
+    session yields nothing).
     """
-    if scope_extraction_id is None:
-        return select(Substance)
-    return (
+    stmt = (
         select(Substance)
         .join(
             ExtractionSubstance,
             Substance.id == ExtractionSubstance.substance_id,
         )
-        .where(ExtractionSubstance.extraction_id == scope_extraction_id)
         .distinct()
     )
+    if scope_extraction_id is not None:
+        stmt = stmt.where(ExtractionSubstance.extraction_id == scope_extraction_id)
+    return stmt
 
 
 async def _search_inchi_key(
@@ -448,16 +460,21 @@ async def _search_substructure(
     # — the UX distinction is "we tried but couldn't process this",
     # not "why". Scope-restricted when applicable so the count matches
     # the candidate universe.
+    # Count via the same RLS-protected join as the candidate select so the
+    # oversize tally never reflects substances outside the caller's scope.
     oversize_stmt = (
-        select(func.count())
+        select(func.count(func.distinct(Substance.id)))
         .select_from(Substance)
+        .join(
+            ExtractionSubstance,
+            Substance.id == ExtractionSubstance.substance_id,
+        )
         .where(func.length(Substance.smiles) > MAX_SUBSTRUCT_SMILES_LEN)
     )
     if scope_eid is not None:
-        oversize_stmt = oversize_stmt.join(
-            ExtractionSubstance,
-            Substance.id == ExtractionSubstance.substance_id,
-        ).where(ExtractionSubstance.extraction_id == scope_eid)
+        oversize_stmt = oversize_stmt.where(
+            ExtractionSubstance.extraction_id == scope_eid
+        )
     oversize_count = int((await db.execute(oversize_stmt)).scalar_one() or 0)
 
     id_smi = [(int(s.id), s.smiles or "") for s in candidate_rows]

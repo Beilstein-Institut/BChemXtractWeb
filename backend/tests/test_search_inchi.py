@@ -7,6 +7,7 @@ from httpx import AsyncClient
 from sqlalchemy import text
 
 from app.services.db import AsyncSessionLocal
+from tests.conftest import link_substances_to_extraction
 
 
 async def _seed_benzene() -> None:
@@ -28,6 +29,9 @@ async def _seed_benzene() -> None:
             {"k": "UHOVQNZJYSORNB-UHFFFAOYSA-N"},
         )
         await session.commit()
+    # Link to one of the caller's extractions so the RLS-scoped search join
+    # can reach it (the substances table itself carries no RLS).
+    await link_substances_to_extraction(["UHOVQNZJYSORNB-UHFFFAOYSA-N"])
 
 
 @pytest.mark.asyncio
