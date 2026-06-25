@@ -7,6 +7,7 @@
  * dialog closes itself before any AttributionPill navigation
  * (handled by StructureCard's wrapper callback).
  */
+import type { ReactNode } from "react";
 import { FlaskConicalIcon } from "lucide-react";
 import {
   DialogContent,
@@ -16,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CopyButton } from "@/components/internal/CopyButton";
+import { MolecularFormula } from "@/components/internal/MolecularFormula";
 import { AttributionPill } from "@/components/AttributionPill";
 import { PubChemPanel } from "@/components/PubChemPanel";
 import { usePubChemCompound } from "@/hooks/usePubChemEnrichment";
@@ -35,7 +37,16 @@ export interface StructureDetailProps {
   depiction?: Depiction;
 }
 
-function MetadataRow({ label, value }: { label: string; value: string }) {
+function MetadataRow({
+  label,
+  value,
+  display,
+}: {
+  label: string;
+  value: string;
+  /** Optional formatted display node; the raw `value` still drives copy. */
+  display?: ReactNode;
+}) {
   return (
     // Layout: label, copy button, value — the copy sits just before the value.
     // gap-2 keeps a small space between the icon and the value, pt-1.5 lines the
@@ -45,7 +56,9 @@ function MetadataRow({ label, value }: { label: string; value: string }) {
         {label}
       </span>
       <CopyButton value={value} label={label} className="shrink-0" />
-      <span className="min-w-0 flex-1 break-all pt-1.5 text-caption text-foreground">{value}</span>
+      <span className="min-w-0 flex-1 break-all pt-1.5 text-caption text-foreground">
+        {display ?? value}
+      </span>
     </div>
   );
 }
@@ -62,7 +75,9 @@ export function StructureDetail({
   return (
     <DialogContent className="sm:max-w-2xl w-full" showCloseButton={true}>
       <DialogHeader>
-        <DialogTitle>{substance.molecular_formula}</DialogTitle>
+        <DialogTitle>
+          <MolecularFormula value={substance.molecular_formula} fallback="Structure" />
+        </DialogTitle>
         <DialogDescription>Detailed structure metadata</DialogDescription>
       </DialogHeader>
 
@@ -98,7 +113,11 @@ export function StructureDetail({
         <MetadataRow label="SMILES" value={substance.smiles} />
         <MetadataRow label="InChI" value={substance.inchi} />
         <MetadataRow label="InChI Key" value={substance.inchi_key} />
-        <MetadataRow label="Molecular Formula" value={substance.molecular_formula} />
+        <MetadataRow
+          label="Molecular Formula"
+          value={substance.molecular_formula}
+          display={<MolecularFormula value={substance.molecular_formula} />}
+        />
         {/* MDL V3000 row is conditional — only render when non-empty */}
         {substance.mdlv3000 && <MetadataRow label="MDL V3000" value={substance.mdlv3000} />}
       </div>

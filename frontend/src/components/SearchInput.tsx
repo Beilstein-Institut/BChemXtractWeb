@@ -35,7 +35,7 @@ const FORMULA_RE = /^([A-Z][a-z]?\d*)+$/;
 
 const TYPE_LABEL: Record<Exclude<SearchType, "auto">, string> = {
   inchi_key: "InChI key",
-  formula: "Formula",
+  formula: "Molecular formula",
   smiles: "SMILES",
   substructure: "Substructure",
 };

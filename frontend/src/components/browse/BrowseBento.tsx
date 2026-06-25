@@ -32,6 +32,7 @@ import { BentoGrid } from "@/components/layout/BentoGrid";
 import { BentoCell } from "@/components/layout/BentoCell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { MolecularFormula } from "@/components/internal/MolecularFormula";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { cn } from "@/lib/utils";
 import { DEFAULT_DEPICTION, pickSvg } from "@/lib/depiction";
@@ -89,7 +90,7 @@ function StructureThumb({
         )}
       </div>
       <p className="mt-2 line-clamp-1 text-caption font-medium text-foreground">
-        {substance.molecular_formula || "—"}
+        <MolecularFormula value={substance.molecular_formula} />
       </p>
     </>
   );

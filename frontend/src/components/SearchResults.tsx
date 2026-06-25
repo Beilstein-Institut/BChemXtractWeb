@@ -40,7 +40,7 @@ const PAGE_SIZE = 24;
 const TYPE_LABEL: Record<SearchType, string> = {
   auto: "Auto",
   inchi_key: "InChI key",
-  formula: "Formula",
+  formula: "Molecular formula",
   smiles: "SMILES",
   substructure: "Substructure",
 };

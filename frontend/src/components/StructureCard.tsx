@@ -44,6 +44,7 @@ import { CopyButton } from "@/components/internal/CopyButton";
 import { ExportMenu } from "@/components/ExportMenu";
 import { PubChemBadge } from "@/components/PubChemBadge";
 import { StructureDetail } from "@/components/StructureDetail";
+import { MolecularFormula } from "@/components/internal/MolecularFormula";
 import { useShareLink } from "@/hooks/useShareLink";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { postExport } from "@/lib/apiClient";
@@ -97,24 +98,6 @@ export interface StructureCardProps {
    * opted in — the card then renders no PubChem chrome.
    */
   pubchem?: PubChemCardState;
-}
-
-/**
- * Render a molecular formula (e.g. "C6H12O6") with digit runs wrapped in
- * `<sub>` tags so the output reads C₆H₁₂O₆ visually. Returns "—" for empty.
- */
-function renderFormulaWithSubscripts(formula: string | null | undefined): React.ReactNode {
-  if (!formula) return "—";
-  const parts = formula.split(/(\d+)/).filter((part) => part.length > 0);
-  return parts.map((part, i) =>
-    /^\d+$/.test(part) ? (
-      <sub key={i} className="text-[0.75em] align-baseline">
-        {part}
-      </sub>
-    ) : (
-      <span key={i}>{part}</span>
-    ),
-  );
 }
 
 /**
@@ -252,7 +235,7 @@ export function StructureCard({
         </div>
 
         <div data-slot="structure-card-formula" className="font-sans text-sm text-foreground-muted">
-          {renderFormulaWithSubscripts(substance.molecular_formula)}
+          <MolecularFormula value={substance.molecular_formula} />
         </div>
 
         <div className="flex items-center justify-between border-t border-border pt-2">

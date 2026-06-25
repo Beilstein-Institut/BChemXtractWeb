@@ -123,7 +123,9 @@ describe("StructureDetail component", () => {
   it("renders Molecular Formula label and value text", () => {
     render(<StructureDetail substance={mockSubstance} />);
     expect(screen.getAllByText("Molecular Formula").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("C6H6").length).toBeGreaterThan(0);
+    // The formula is rendered with <sub> subscripts, so the text is split
+    // across elements — match on combined textContent.
+    expect(screen.getAllByText((_, el) => el?.textContent === "C6H6").length).toBeGreaterThan(0);
   });
 
   it("does NOT render MDL V3000 row when mdlv3000 is empty string", () => {

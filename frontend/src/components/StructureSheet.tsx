@@ -12,7 +12,7 @@
  * - SVG rendered via a Blob URL in <img src>, never innerHTML
  * - keydown listener added only when open===true, cleaned up on effect return
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -31,6 +31,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CopyButton } from "@/components/internal/CopyButton";
+import { MolecularFormula } from "@/components/internal/MolecularFormula";
 import { ExportMenu } from "@/components/ExportMenu";
 import { PubChemPanel } from "@/components/PubChemPanel";
 import { usePubChemCompound } from "@/hooks/usePubChemEnrichment";
@@ -60,7 +61,16 @@ export interface StructureSheetProps {
 }
 
 /** Labeled metadata field + CopyButton, rendered inside the side-sheet. */
-function MetadataRow({ label, value }: { label: string; value: string }) {
+function MetadataRow({
+  label,
+  value,
+  display,
+}: {
+  label: string;
+  value: string;
+  /** Optional formatted display node; the raw `value` still drives copy. */
+  display?: ReactNode;
+}) {
   return (
     // Layout: label, then copy button, then value. The copy button sits just
     // before the value (not before the label heading); gap-x-2 keeps a small
@@ -72,7 +82,7 @@ function MetadataRow({ label, value }: { label: string; value: string }) {
       </span>
       <CopyButton value={value} label={label} className="shrink-0" />
       <span className="min-w-0 flex-1 break-all pt-1.5 font-mono text-caption text-foreground">
-        {value}
+        {display ?? value}
       </span>
     </div>
   );
@@ -244,7 +254,7 @@ export function StructureSheet({
           )}
 
           <SheetTitle className="text-sub-heading font-semibold tracking-tight">
-            {substance?.molecular_formula ?? "Structure"}
+            <MolecularFormula value={substance?.molecular_formula} fallback="Structure" />
           </SheetTitle>
           <SheetDescription>Detailed structure metadata</SheetDescription>
         </SheetHeader>
@@ -380,7 +390,11 @@ export function StructureSheet({
               {substance.inchi && <MetadataRow label="InChI" value={substance.inchi} />}
               {substance.inchi_key && <MetadataRow label="InChI Key" value={substance.inchi_key} />}
               {substance.molecular_formula && (
-                <MetadataRow label="Formula" value={substance.molecular_formula} />
+                <MetadataRow
+                  label="Molecular Formula"
+                  value={substance.molecular_formula}
+                  display={<MolecularFormula value={substance.molecular_formula} />}
+                />
               )}
               {substance.mdlv3000 && <MetadataRow label="MDL V3000" value={substance.mdlv3000} />}
               {pubchem.state !== "idle" && (
