@@ -62,3 +62,50 @@ async def test_stage1_hang_times_out_and_frees_pool_worker(
     # The pool worker must be free for subsequent work despite the leaked
     # (still-sleeping) Stage-1 daemon thread.
     assert await run_in_jvm_thread(lambda: 7) == 7
+
+
+async def test_run_jvm_subtask_caps_concurrent_daemons(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When the in-flight slot pool is exhausted, a new subtask fails fast with
+    TimeoutError instead of spawning an unbounded daemon."""
+    import threading
+
+    # Shrink the cap to 1 with a fresh semaphore so the test is deterministic.
+    monkeypatch.setattr(extractor, "_jvm_subtask_slots", threading.BoundedSemaphore(1))
+
+    # Occupy the only slot with a still-running (abandoned) daemon.
+    with pytest.raises(TimeoutError, match="exceeded"):
+        _run_jvm_subtask(lambda: time.sleep(10), 0.2, "occupier")
+
+    # The occupier's daemon is still sleeping, holding the permit -> the next
+    # call is refused immediately (not after its own timeout).
+    t0 = time.perf_counter()
+    with pytest.raises(TimeoutError, match="busy"):
+        _run_jvm_subtask(lambda: 1, 5.0, "rejected")
+    assert time.perf_counter() - t0 < 0.5, "should refuse fast, not wait the timeout"
+
+
+async def test_enrich_inchi_does_not_mutate_input() -> None:
+    """The recovery returns copies; the input dicts are never written to (so an
+    abandoned daemon can't race the returned/persisted result)."""
+    original = [
+        {
+            "smiles": "c1ccccc1",
+            "inchi": "",
+            "inchi_key": "",
+            "molecular_formula": "C6H6",
+        }
+    ]
+    snapshot = [dict(d) for d in original]
+    result = extractor._enrich_inchi_from_smiles_sync(original)
+    # Input is untouched regardless of whether CDK is available in this env.
+    assert original == snapshot
+    assert result is not original
+    assert result[0] is not original[0]
+
+
+async def test_compute_inchi_rejects_oversized_smiles() -> None:
+    """A SMILES past the on-demand cap is refused before touching the JVM."""
+    huge = "C" * (extractor._MAX_ON_DEMAND_SMILES_LEN + 1)
+    assert await extractor.compute_inchi(huge) == ("", "")
