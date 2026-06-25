@@ -10,7 +10,7 @@
  * must not fire.
  */
 import { useEffect, useRef, useState } from "react";
-import { CheckIcon, ClipboardIcon } from "lucide-react";
+import { CheckIcon, CopyIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { safeClipboardText } from "@/lib/safeStrings";
@@ -25,7 +25,7 @@ export interface CopyButtonProps {
   stopPropagation?: boolean;
   /** Extra classes merged into the Button. */
   className?: string;
-  /** Tint the clipboard icon muted (card/row variant) vs inheriting colour. */
+  /** Tint the copy icon muted (card/row variant) vs inheriting colour. */
   mutedIcon?: boolean;
 }
 
@@ -68,7 +68,7 @@ export function CopyButton({
       {copied ? (
         <CheckIcon className="size-3.5 text-primary" aria-hidden="true" />
       ) : (
-        <ClipboardIcon
+        <CopyIcon
           className={cn("size-3.5", mutedIcon && "text-muted-foreground")}
           aria-hidden="true"
         />

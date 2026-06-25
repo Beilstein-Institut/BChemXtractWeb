@@ -62,16 +62,16 @@ export interface StructureSheetProps {
 /** Labeled metadata field + CopyButton, rendered inside the side-sheet. */
 function MetadataRow({ label, value }: { label: string; value: string }) {
   return (
-    // Mobile: label on its own line, then [copy][value] on the next line, so the
-    // copy button sits at the start of the value (right under the title) and is
-    // reachable without scrolling past a long InChI. Desktop: one row,
-    // label | value | copy (order utilities reorder copy/value per breakpoint).
-    <div className="flex flex-wrap items-start gap-x-2 gap-y-1 sm:flex-nowrap sm:justify-between">
-      <span className="order-1 w-full text-micro font-semibold uppercase tracking-widest text-muted-foreground sm:w-auto sm:min-w-[120px] sm:shrink-0">
+    // Layout: label, then copy button, then value. The copy button sits just
+    // before the value (not before the label heading); gap-x-2 keeps a small
+    // space between the icon and the value, pt-1.5 lines the text up with the
+    // icon's centre.
+    <div className="flex items-start gap-x-2">
+      <span className="min-w-[84px] shrink-0 pt-1.5 text-micro font-semibold uppercase tracking-widest text-muted-foreground sm:min-w-[120px]">
         {label}
       </span>
-      <CopyButton value={value} label={label} className="order-2 shrink-0 sm:order-3" />
-      <span className="order-3 min-w-0 flex-1 break-all font-mono text-caption text-foreground sm:order-2">
+      <CopyButton value={value} label={label} className="shrink-0" />
+      <span className="min-w-0 flex-1 break-all pt-1.5 font-mono text-caption text-foreground">
         {value}
       </span>
     </div>

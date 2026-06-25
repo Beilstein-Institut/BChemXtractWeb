@@ -36,16 +36,14 @@ import type { ReactionComponentResponse, ReactionResponse } from "@/types/chemis
 function MetadataRow({ label, value }: { label: string; value: string }) {
   if (!value) return null;
   return (
-    <div className="flex flex-wrap items-start gap-x-2 gap-y-1 px-4 py-2 sm:flex-nowrap sm:justify-between">
-      <span className="order-1 w-full text-micro font-semibold uppercase tracking-widest text-muted-foreground sm:w-auto sm:min-w-[120px] sm:shrink-0">
+    // Layout: label, copy button, value — the copy sits just before the value.
+    // See StructureSheet for the gap-x-2 / pt-1.5 alignment rationale.
+    <div className="flex items-start gap-x-2 px-4 py-2">
+      <span className="min-w-[84px] shrink-0 pt-1.5 text-micro font-semibold uppercase tracking-widest text-muted-foreground sm:min-w-[120px]">
         {label}
       </span>
-      <CopyButton
-        value={value}
-        label={label.toLowerCase()}
-        className="order-2 shrink-0 sm:order-3"
-      />
-      <span className="order-3 min-w-0 flex-1 break-all font-mono text-caption text-foreground sm:order-2">
+      <CopyButton value={value} label={label.toLowerCase()} className="shrink-0" />
+      <span className="min-w-0 flex-1 break-all pt-1.5 font-mono text-caption text-foreground">
         {value}
       </span>
     </div>
