@@ -21,6 +21,7 @@ fragment path and adds a warning to the response.
 
 import contextlib
 import logging
+import re
 import threading
 from collections import Counter
 
@@ -60,6 +61,43 @@ _FRAGMENT_FALLBACK_TIMEOUT = 90.0
 # depiction generator hang, so we bound it. Generous headroom for genuinely
 # large legitimate files while still well under the outer budget.
 _FRAGMENT_STAGE1_TIMEOUT = 60.0
+
+# Backstop timeout for recomputing InChI from the fragment SMILES when
+# xtractUnique didn't deliver it (see _enrich_inchi_from_smiles_sync). This is
+# only a safety net: JPype cannot interrupt a running InChI call, so the real
+# guard is the size cap below — we never START InChI on a molecule big enough
+# to hang.
+_INCHI_FROM_SMILES_TIMEOUT = 20.0
+
+# Skip InChI recomputation above this many heavy (non-H) atoms. InChI
+# generation blows up super-linearly on large, highly-symmetric molecules: a
+# 162-heavy-atom supramolecular cage takes ~5 min (and is what makes
+# xtractUnique time out in the first place), while normal molecules (well
+# under 100 heavy atoms) finish in well under a second. Oversized molecules
+# keep an empty InChI and a SMILES-hash surrogate key.
+_MAX_INCHI_HEAVY_ATOMS = 100
+
+# Secondary guard for when the molecular formula is missing: skip InChI for
+# very long SMILES (polymers/cages) for the same reason.
+_MAX_INCHI_SMILES_LEN = 1500
+
+_ELEMENT_COUNT_RE = re.compile(r"([A-Z][a-z]?)(\d*)")
+
+
+def _heavy_atom_count(formula: str) -> int:
+    """Sum of non-hydrogen atom counts parsed from a molecular formula string.
+
+    Returns 0 for an unparseable/empty formula (caller falls back to the
+    SMILES-length guard). Charge suffixes and brackets are ignored — only
+    ``Element[count]`` runs contribute.
+    """
+    total = 0
+    for element, count in _ELEMENT_COUNT_RE.findall(formula or ""):
+        if not element or element == "H":
+            continue
+        total += int(count) if count else 1
+    return total
+
 
 # CDK SmilesParser + DepictionGenerator can deadlock on polymer/dendrimer
 # SMILES > 1500 chars (same root cause as canonicalize.py
@@ -201,6 +239,66 @@ def _inchi_from_smiles(smiles: str, parser, igf) -> tuple[str, str]:
         return str(gen.getInchi() or ""), str(gen.getInchiKey() or "")
     except Exception:  # noqa: BLE001 — bad fragment: treated as unresolved
         return "", ""
+
+
+def _enrich_inchi_from_smiles_sync(substances: list[dict]) -> list[dict]:
+    """Fill empty inchi/inchi_key on fragment-path substances from their SMILES.
+
+    xtractUnique computes InChI for the whole document at once; when it times
+    out (one huge molecule is enough), every substance falls back to the
+    fragment path with no InChI. SMILES extraction still succeeds, so we
+    recompute InChI per molecule here via CDK — the small molecules in a file
+    that also contains a giant one then still get a real InChI + InChIKey.
+
+    Molecules above :data:`_MAX_INCHI_HEAVY_ATOMS` (or, if the formula is
+    missing, a SMILES longer than :data:`_MAX_INCHI_SMILES_LEN`) are skipped:
+    InChI generation blows up on exactly those molecules — it is what made
+    xtractUnique time out — and JPype cannot interrupt a running InChI call, so
+    the size cap (which never starts the call) is the only reliable guard.
+    Skipped molecules keep an empty InChI (and get a SMILES-hash surrogate key
+    at persistence). Mutates and returns the list. Must run on a JVM-attached
+    thread (via :func:`_run_jvm_subtask`).
+    """
+    try:
+        if not jpype.isThreadAttachedToJVM():
+            jpype.attachThreadToJVM()
+        tools = _cdk_inchi_tools()
+        if tools is None:
+            return substances
+        parser, igf = tools
+        recovered = 0
+        skipped_large = 0
+        for s in substances:
+            smiles = s.get("smiles") or ""
+            if s.get("inchi") or not smiles:
+                continue
+            heavy = _heavy_atom_count(s.get("molecular_formula") or "")
+            too_large = (
+                heavy > _MAX_INCHI_HEAVY_ATOMS
+                if heavy
+                else len(smiles) > _MAX_INCHI_SMILES_LEN
+            )
+            if too_large:
+                skipped_large += 1
+                continue
+            inchi, inchi_key = _inchi_from_smiles(smiles, parser, igf)
+            if inchi:
+                s["inchi"] = inchi
+                if inchi_key:
+                    s["inchi_key"] = inchi_key
+                recovered += 1
+        if recovered or skipped_large:
+            logger.info(
+                "Recovered InChI from SMILES for %d/%d fragment substances "
+                "(%d skipped as too large)",
+                recovered,
+                len(substances),
+                skipped_large,
+            )
+        return substances
+    finally:
+        with contextlib.suppress(Exception):
+            jpype.java.lang.Thread.detach()
 
 
 def _coerce_role(java_list, role_frags: list[str] | None, cdk) -> list[dict]:
@@ -769,7 +867,21 @@ def _extract_with_fallback_sync(
         )
         return result[0], result[1], False
 
-    # xtractUnique timed out or failed — return the fragment results.
+    # xtractUnique timed out or failed — recover InChI per molecule from the
+    # SMILES we already have, so a file with one huge molecule still yields a
+    # real InChI for its smaller molecules. Guarded by its own daemon-thread
+    # timeout; a timeout keeps whatever was recovered before it fired.
+    try:
+        fragment_results = _run_jvm_subtask(
+            lambda: _enrich_inchi_from_smiles_sync(fragment_results),
+            _INCHI_FROM_SMILES_TIMEOUT,
+            "inchi-from-smiles",
+        )
+    except TimeoutError:
+        logger.warning(
+            "InChI-from-SMILES recovery timed out — returning SMILES-only results"
+        )
+
     return fragment_results, fragment_info, True
 
 
