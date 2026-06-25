@@ -14,8 +14,7 @@ import { toast } from "sonner";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { StructureTable } from "@/components/StructureTable";
 import { StructureCard } from "@/components/StructureCard";
-import { StructureDetail } from "@/components/StructureDetail";
-import { Dialog } from "@/components/ui/dialog";
+import { StructureSheet } from "@/components/StructureSheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -44,7 +43,8 @@ export function BatchViewPage() {
   const [state, setState] = useState<LoadState>("loading");
   const [sections, setSections] = useState<FileSection[]>([]);
   const [view, setView] = useState<View>("table"); // table is the default
-  const [active, setActive] = useState<SubstanceResponse | null>(null);
+  // Index into the flattened cross-batch substance list (null = sheet closed).
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
@@ -89,6 +89,24 @@ export function BatchViewPage() {
     () => sections.reduce((n, s) => n + (s.detail?.substances.length ?? 0), 0),
     [sections],
   );
+
+  // Flatten every file's substances (in section order) into one list so the
+  // detail side-sheet can page across the whole batch with prev/next, matching
+  // the Browse experience. `sectionOffsets[i]` is where section i starts in the
+  // flat list, used to map a section-local click index to the global index.
+  const allSubstances = useMemo(
+    () => sections.flatMap((s) => s.detail?.substances ?? []),
+    [sections],
+  );
+  const sectionOffsets = useMemo(() => {
+    const offsets: number[] = [];
+    let acc = 0;
+    for (const s of sections) {
+      offsets.push(acc);
+      acc += s.detail?.substances.length ?? 0;
+    }
+    return offsets;
+  }, [sections]);
 
   const handleDownloadZip = useCallback(async () => {
     if (!batchId) return;
@@ -165,7 +183,7 @@ export function BatchViewPage() {
         </div>
       ) : (
         <div className="mt-8 space-y-10">
-          {sections.map((s) => (
+          {sections.map((s, sectionIdx) => (
             <section key={s.extractionId} data-slot="batch-view-section">
               <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
                 <h2 className="truncate font-mono text-base font-semibold text-foreground">
@@ -182,7 +200,10 @@ export function BatchViewPage() {
                 </p>
               ) : view === "table" ? (
                 <div className="mt-3">
-                  <SectionTable substances={s.detail.substances} onOpen={setActive} />
+                  <SectionTable
+                    substances={s.detail.substances}
+                    onOpen={(localIndex) => setActiveIndex(sectionOffsets[sectionIdx] + localIndex)}
+                  />
                 </div>
               ) : (
                 <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -191,10 +212,9 @@ export function BatchViewPage() {
                       key={`${sub.inchi_key || sub.smiles || "x"}-${i}`}
                       substance={sub}
                       itemIndex={i}
-                      onOpen={(index) => {
-                        const target = s.detail?.substances[index];
-                        if (target) setActive(target);
-                      }}
+                      onOpen={(localIndex) =>
+                        setActiveIndex(sectionOffsets[sectionIdx] + localIndex)
+                      }
                       depiction={DEFAULT_DEPICTION}
                     />
                   ))}
@@ -205,29 +225,30 @@ export function BatchViewPage() {
         </div>
       )}
 
-      <Dialog open={active !== null} onOpenChange={(open) => !open && setActive(null)}>
-        {active && <StructureDetail substance={active} depiction={DEFAULT_DEPICTION} />}
-      </Dialog>
+      {/* Side-sheet detail — pages across the whole batch (matches Browse). */}
+      <StructureSheet
+        open={activeIndex !== null}
+        onOpenChange={(open) => !open && setActiveIndex(null)}
+        substance={activeIndex !== null ? (allSubstances[activeIndex] ?? null) : null}
+        substanceIndex={activeIndex ?? 0}
+        totalSubstances={allSubstances.length}
+        onPrev={() => setActiveIndex((i) => (i === null ? null : Math.max(0, i - 1)))}
+        onNext={() =>
+          setActiveIndex((i) => (i === null ? null : Math.min(allSubstances.length - 1, i + 1)))
+        }
+        depiction={DEFAULT_DEPICTION}
+      />
     </PageContainer>
   );
 }
 
-/** Display-only table for one file's substances; maps row index to onOpen. */
+/** Display-only table for one file's substances; forwards the row index. */
 function SectionTable({
   substances,
   onOpen,
 }: {
   substances: SubstanceResponse[];
-  onOpen: (s: SubstanceResponse) => void;
+  onOpen: (index: number) => void;
 }) {
-  return (
-    <StructureTable
-      substances={substances}
-      onOpen={(index) => {
-        const s = substances[index];
-        if (s) onOpen(s);
-      }}
-      depiction={DEFAULT_DEPICTION}
-    />
-  );
+  return <StructureTable substances={substances} onOpen={onOpen} depiction={DEFAULT_DEPICTION} />;
 }
