@@ -29,9 +29,8 @@ paths = [
     '''(^|/)\.planning/''',
 ]
 
-# Regex-level allowlist: any match containing these exact substrings
-# (case-sensitive — chemistry identifiers are stable) is dismissed.
-# These tokens are IUPAC / IUPAC-InChI Trust identifiers, not secrets.
+# Regex-level allowlist: any matched secret containing these substrings is
+# dismissed. These are IUPAC / IUPAC-InChI Trust identifiers, not secrets.
 regexes = [
     '''RInChI key''',
     '''InChI key''',
@@ -40,4 +39,9 @@ regexes = [
     '''short_rinchi_key''',
     '''long_rinchi_key''',
     '''web_rinchi_key''',
+    # InChIKey / surrogate-InChIKey *values* (14-char block, 10-char block,
+    # 1 char — uppercase alnum). The generic-api-key entropy rule flags these
+    # hashed chemistry identifiers in test fixtures and schema examples; the
+    # label-based regexes above match the secret, not these bare hash values.
+    '''[A-Z0-9]{14}-[A-Z0-9]{10}-[A-Z]''',
 ]
