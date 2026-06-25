@@ -117,19 +117,19 @@ export function BatchFilePreview({
   const controlledProps = controlledOpen !== undefined ? { open: controlledOpen } : {};
 
   return (
-    <HoverCard
-      openDelay={150}
-      closeDelay={100}
-      onOpenChange={handleOpenChange}
-      {...controlledProps}
-    >
+    <HoverCard onOpenChange={handleOpenChange} {...controlledProps}>
       {/*
        * HoverCardTrigger renders an <a> by default. We replace it with a
        * plain <div> via `render` so the row's existing interactive buttons
        * (the "View" button) remain fully clickable — a nested <a> would
        * swallow pointer events on child buttons.
+       *
+       * Hover timing (`delay` = open, `closeDelay`) lives on the Trigger in
+       * Base UI's PreviewCard — not the Root — so it is set here.
        */}
-      <HoverCardTrigger render={<div className="contents" />}>{children}</HoverCardTrigger>
+      <HoverCardTrigger delay={150} closeDelay={100} render={<div className="contents" />}>
+        {children}
+      </HoverCardTrigger>
       <HoverCardContent className="w-72" aria-label={`Preview of ${filename}`}>
         {thumbs === false ? (
           <p className="text-caption text-foreground-muted">Preview unavailable.</p>
