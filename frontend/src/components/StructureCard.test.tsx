@@ -164,22 +164,30 @@ describe("StructureCard component", () => {
     expect(name!.textContent).toBe("C6H6");
   });
 
-  it("renders molecular formula with <sub> elements for digit runs", () => {
-    render(<StructureCard substance={mockSubstance} />);
-    const formula = document.querySelector("[data-slot='structure-card-formula']");
-    expect(formula).not.toBeNull();
-    // "C6H6" → "C", <sub>6</sub>, "H", <sub>6</sub>
-    const subs = formula!.querySelectorAll("sub");
+  it("renders the formula headline with <sub> elements for digit runs", () => {
+    // No IUPAC name → the headline IS the molecular formula, subscripted.
+    // The formula is shown only here (no separate formula row).
+    render(<StructureCard substance={mockSubstanceNoName} />);
+    const name = document.querySelector("[data-slot='structure-card-name']");
+    expect(name).not.toBeNull();
+    const subs = name!.querySelectorAll("sub");
     expect(subs.length).toBe(2);
     expect(Array.from(subs).map((s) => s.textContent)).toEqual(["6", "6"]);
     // Combined text still reads "C6H6"
-    expect(formula!.textContent).toBe("C6H6");
+    expect(name!.textContent).toBe("C6H6");
   });
 
-  it("renders em-dash in the formula slot when molecular_formula is empty", () => {
-    render(<StructureCard substance={{ ...mockSubstance, molecular_formula: "" }} />);
-    const formula = document.querySelector("[data-slot='structure-card-formula']");
-    expect(formula!.textContent).toBe("\u2014");
+  it("does not render a separate formula row (formula lives in the headline)", () => {
+    render(<StructureCard substance={mockSubstance} />);
+    expect(document.querySelector("[data-slot='structure-card-formula']")).toBeNull();
+  });
+
+  it("shows 'Unnamed structure' when both IUPAC name and formula are empty", () => {
+    render(
+      <StructureCard substance={{ ...mockSubstance, iupac_name: "", molecular_formula: "" }} />,
+    );
+    const name = document.querySelector("[data-slot='structure-card-name']");
+    expect(name!.textContent).toBe("Unnamed structure");
   });
 
   it("renders SMILES in the Geist Mono truncated slot with title attr", () => {
