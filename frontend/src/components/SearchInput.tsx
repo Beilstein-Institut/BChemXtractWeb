@@ -27,10 +27,8 @@ import { useSearch } from "@/context/SearchContext";
 import { searchInputRef } from "@/lib/searchFocus";
 import type { SearchType } from "@/types/search";
 import { cn } from "@/lib/utils";
+import { isRealInchiKey } from "@/lib/inchi";
 
-// Accepts full <14>-<10>-<1> as well as PubChem-style partial prefixes:
-// just <14> (any stereo/isotope/protonation) or <14>-<10> (any protonation).
-const INCHI_KEY_RE = /^[A-Z]{14}(?:-[A-Z]{10}(?:-[A-Z])?)?$/;
 const FORMULA_RE = /^([A-Z][a-z]?\d*)+$/;
 
 const TYPE_LABEL: Record<Exclude<SearchType, "auto">, string> = {
@@ -40,10 +38,11 @@ const TYPE_LABEL: Record<Exclude<SearchType, "auto">, string> = {
   substructure: "Substructure",
 };
 
-/** Front-end pre-classification hint — authoritative detection is server-side. */
+/** Front-end pre-classification hint — authoritative detection is server-side.
+ *  Accepts a full <14>-<10>-<1> InChIKey or a PubChem-style partial prefix. */
 function detectHint(raw: string): Exclude<SearchType, "auto"> {
   const s = raw.trim();
-  if (INCHI_KEY_RE.test(s.toUpperCase())) return "inchi_key";
+  if (isRealInchiKey(s.toUpperCase())) return "inchi_key";
   if (FORMULA_RE.test(s)) return "formula";
   return "smiles";
 }

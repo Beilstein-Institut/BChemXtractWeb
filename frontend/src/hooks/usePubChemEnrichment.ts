@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getPubChemCompound, postPubChemEnrich } from "@/lib/apiClient";
+import { isRealInchiKey } from "@/lib/inchi";
 import { usePubChemPreferences } from "@/hooks/usePubChemPreferences";
 import type { PubChemCardState, SubstanceResponse } from "@/types/chemistry";
 
@@ -20,11 +21,13 @@ export function usePubChemEnrichment(
   const [states, setStates] = useState<Map<string, PubChemCardState>>(new Map());
   const requested = useRef<Set<string>>(new Set());
 
-  // Stable join key of the inchi_keys present, so the effect re-runs only when
-  // the set of structures changes.
+  // Stable join key of the REAL inchi_keys present, so the effect re-runs only
+  // when the set of enrichable structures changes. Surrogate keys (from
+  // InChI-less structures) are excluded — PubChem's batch endpoint 422s the
+  // whole request on any non-InChIKey-shaped key.
   const keys = substances
     .map((s) => s.inchi_key)
-    .filter(Boolean)
+    .filter(isRealInchiKey)
     .join(",");
 
   useEffect(() => {
@@ -33,7 +36,7 @@ export function usePubChemEnrichment(
     // so this local points to the same Set in the cleanup — satisfying the
     // exhaustive-deps ref-in-cleanup guard while staying correct.
     const req = requested.current;
-    const pending = substances.filter((s) => s.inchi_key && !req.has(s.inchi_key));
+    const pending = substances.filter((s) => isRealInchiKey(s.inchi_key) && !req.has(s.inchi_key));
     if (pending.length === 0) return;
 
     pending.forEach((s) => req.add(s.inchi_key));
