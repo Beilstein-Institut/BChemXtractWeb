@@ -158,21 +158,24 @@ export function StructureCard({
     }
   }
 
-  // Delegate to useShareLink — the hook owns URL-building,
-  // clipboard write, the transient "shared" flag, and the 2 s reset-timer
-  // cleanup that was previously inlined here. We still stopPropagation on
-  // the click event so the wrapping card's onClick/keyboard handlers don't
-  // fire when the user taps the share icon.
+  // Delegate to useShareLink — it copies a public PubChem link (real InChIKey
+  // when available, else a SMILES structure search) so a recipient can open it
+  // without access to our per-session database. stopPropagation keeps the
+  // wrapping card's click/keyboard handlers from firing on the share tap.
   const handleShare = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation();
       try {
-        await share(substance.inchi_key);
+        await share({
+          inchiKey: substance.inchi_key,
+          inchi: substance.inchi,
+          smiles: substance.smiles,
+        });
       } catch {
-        toast.error("Couldn't copy the share link. Copy the page URL from the address bar.");
+        toast.error("Couldn't copy the PubChem link. Try again.");
       }
     },
-    [share, substance.inchi_key],
+    [share, substance.inchi_key, substance.inchi, substance.smiles],
   );
 
   /** Shared card inner content (SVG + metadata) used in both render modes. */
@@ -247,7 +250,7 @@ export function StructureCard({
               variant="ghost"
               size="icon-sm"
               type="button"
-              aria-label={shared ? "Share link copied" : "Copy share link"}
+              aria-label={shared ? "PubChem link copied" : "Copy PubChem link"}
               onClick={handleShare}
             >
               {shared ? (
@@ -260,7 +263,7 @@ export function StructureCard({
                 confirmation. The visible state change is on the button icon;
                 this lets non-sighted users hear the same feedback. */}
             <span data-slot="structure-card-share-status" aria-live="polite" className="sr-only">
-              {shared ? "Share link copied to clipboard" : ""}
+              {shared ? "PubChem link copied to clipboard" : ""}
             </span>
           </div>
           <span

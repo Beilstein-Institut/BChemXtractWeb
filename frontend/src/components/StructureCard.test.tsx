@@ -271,10 +271,10 @@ describe("StructureCard component", () => {
     render(<StructureCard substance={mockSubstance} />);
     const shareBtns = document.querySelectorAll("[data-slot='structure-card-share']");
     expect(shareBtns.length).toBeGreaterThan(0);
-    expect(shareBtns[0].getAttribute("aria-label")).toBe("Copy share link");
+    expect(shareBtns[0].getAttribute("aria-label")).toBe("Copy PubChem link");
   });
 
-  it("clicking share copies a URL containing the InChI key to the clipboard", async () => {
+  it("clicking share copies a PubChem InChIKey link to the clipboard", async () => {
     render(<StructureCard substance={mockSubstance} />);
     const shareBtn = document.querySelector("[data-slot='structure-card-share']") as HTMLElement;
     fireEvent.click(shareBtn);
@@ -282,24 +282,23 @@ describe("StructureCard component", () => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(1);
     });
     const call = (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(call).toContain(`#s=${encodeURIComponent(mockSubstance.inchi_key)}`);
-    expect(call).toContain("/browse");
+    // mockSubstance has a real InChI, so the link uses the exact InChIKey.
+    expect(call).toBe(
+      `https://pubchem.ncbi.nlm.nih.gov/#query=${encodeURIComponent(mockSubstance.inchi_key)}`,
+    );
   });
 
-  it("after share, the share button flips to 'Share link copied' aria-label", async () => {
+  it("after share, the share button flips to 'PubChem link copied' aria-label", async () => {
     render(<StructureCard substance={mockSubstance} />);
     const shareBtn = document.querySelector("[data-slot='structure-card-share']") as HTMLElement;
     fireEvent.click(shareBtn);
     await waitFor(() => {
       const after = document.querySelector("[data-slot='structure-card-share']") as HTMLElement;
-      expect(after.getAttribute("aria-label")).toBe("Share link copied");
+      expect(after.getAttribute("aria-label")).toBe("PubChem link copied");
     });
   });
 
   it("shows a toast.error when the share clipboard write fails", async () => {
-    // Regression guard: useShareLink used to swallow clipboard rejections,
-    // making the handler's catch branch dead code. The hook now rejects, so
-    // StructureCard must surface the error via sonner's toast.error.
     const { toast } = await import("sonner");
     (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new Error("denied"),
@@ -308,9 +307,7 @@ describe("StructureCard component", () => {
     const shareBtn = document.querySelector("[data-slot='structure-card-share']") as HTMLElement;
     fireEvent.click(shareBtn);
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith(
-        "Couldn't copy the share link. Copy the page URL from the address bar.",
-      );
+      expect(toast.error).toHaveBeenCalledWith("Couldn't copy the PubChem link. Try again.");
     });
   });
 

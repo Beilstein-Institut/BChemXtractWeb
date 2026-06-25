@@ -30,7 +30,6 @@ import { SearchFilter } from "@/components/SearchFilter";
 import { EMPTY_FILTERS, type BrowseFilters } from "@/components/browse/browseFilters";
 import { StructureBrowser } from "@/components/StructureBrowser";
 import { StructureSheet } from "@/components/StructureSheet";
-import { useShareTarget, clearShareHash } from "@/hooks/useShareTarget";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DEFAULT_DEPICTION } from "@/lib/depiction";
@@ -97,24 +96,14 @@ export function BrowsePage({
     [filteredSubstances],
   );
 
-  // Resolve a /browse#s=<inchikey> share deep link and open it in the sheet.
-  useShareTarget(setActiveSubstance);
-
-  // Page the sheet across the current filtered list when the active substance
-  // belongs to it (bento click); a shared deep-link substance that isn't in
-  // the loaded extraction shows on its own (prev/next disabled).
-  const sheetList = useMemo(() => {
-    if (!activeSubstance) return { list: filteredSubstances, index: -1 };
-    const idx = filteredSubstances.findIndex((s) => s.inchi_key === activeSubstance.inchi_key);
-    return idx >= 0
-      ? { list: filteredSubstances, index: idx }
-      : { list: [activeSubstance], index: 0 };
+  // Index of the open substance within the current filtered list, so the sheet
+  // can page across it with prev/next.
+  const sheetIndex = useMemo(() => {
+    if (!activeSubstance) return -1;
+    return filteredSubstances.findIndex((s) => s.inchi_key === activeSubstance.inchi_key);
   }, [activeSubstance, filteredSubstances]);
 
-  const closeSheet = useCallback(() => {
-    setActiveSubstance(null);
-    clearShareHash();
-  }, []);
+  const closeSheet = useCallback(() => setActiveSubstance(null), []);
 
   const handleBrowseAll = useCallback(() => {
     browserRef.current?.scrollIntoView({
@@ -214,23 +203,21 @@ export function BrowsePage({
         </>
       )}
 
-      {/* Single detail sheet for both the bento click and a shared deep link.
-          Rendered outside the hasExtraction branch so a /browse#s=<key> link
-          opens even when the recipient has no extraction loaded. */}
+      {/* Detail sheet for the bento click — pages across the filtered list. */}
       <StructureSheet
         open={activeSubstance !== null}
         onOpenChange={(open) => {
           if (!open) closeSheet();
         }}
         substance={activeSubstance}
-        substanceIndex={Math.max(0, sheetList.index)}
-        totalSubstances={sheetList.list.length}
+        substanceIndex={Math.max(0, sheetIndex)}
+        totalSubstances={filteredSubstances.length}
         onPrev={() => {
-          if (sheetList.index > 0) setActiveSubstance(sheetList.list[sheetList.index - 1]);
+          if (sheetIndex > 0) setActiveSubstance(filteredSubstances[sheetIndex - 1]);
         }}
         onNext={() => {
-          if (sheetList.index >= 0 && sheetList.index < sheetList.list.length - 1) {
-            setActiveSubstance(sheetList.list[sheetList.index + 1]);
+          if (sheetIndex >= 0 && sheetIndex < filteredSubstances.length - 1) {
+            setActiveSubstance(filteredSubstances[sheetIndex + 1]);
           }
         }}
         depiction={depiction}
