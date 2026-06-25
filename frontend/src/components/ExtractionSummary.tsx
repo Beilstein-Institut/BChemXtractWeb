@@ -46,7 +46,7 @@ export function ExtractionSummary({ response, onReset }: ExtractionSummaryProps)
   return (
     <div>
       {/* Summary bar */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <p className="text-caption text-muted-foreground tracking-[-0.016em]">
           {response.filename}
           {" · "}

@@ -106,7 +106,7 @@ export function SearchResults({ onViewExtraction }: SearchResultsProps = {}) {
         <span> · {TYPE_LABEL[type]}</span>
         <span> · {scopeLabel}</span>
       </div>
-      <Button variant="ghost" size="sm" onClick={() => clear()}>
+      <Button variant="ghost" size="sm" className="h-10 sm:h-8" onClick={() => clear()}>
         Clear search
       </Button>
     </div>

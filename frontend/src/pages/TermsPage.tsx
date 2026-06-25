@@ -63,7 +63,7 @@ const THIRD_PARTY: ThirdPartyEntry[] = [
     name: "Chemistry Development Kit (CDK 2.12)",
     href: "https://cdk.github.io/",
     spdx: "LGPL-2.1-or-later",
-    note: "Descriptor engine bundled inside the BChemXtract fat JAR. CDK is linked, not modified; dynamic linking is permitted by the LGPL. Source remains available upstream.",
+    note: "String-representation engine bundled inside the BChemXtract fat JAR. CDK is linked, not modified; dynamic linking is permitted by the LGPL. Source remains available upstream.",
   },
   {
     name: "React",
@@ -149,7 +149,7 @@ export function TermsPage() {
             This website and its content are provided for use &ldquo;as is&rdquo;. The
             Beilstein-Institut makes no representations or warranties with respect to this website
             or its contents, including without limitation the quality, completeness, timeliness or
-            accuracy of data. Computed descriptors (InChI, SMILES, molecular formulas, RInChI) are
+            accuracy of data. String representations (InChI, SMILES, molecular formulas, RInChI) are
             generated automatically and may contain errors.
           </li>
           <li>

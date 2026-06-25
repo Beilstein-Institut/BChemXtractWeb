@@ -47,7 +47,12 @@ function Logo() {
       )}
     >
       <img src="/bchemxtract-logo.svg" alt="" aria-hidden="true" className="h-8 w-8 shrink-0" />
-      <BrandName />
+      {/* Icon-only below 400px so the right-cluster controls (search + theme +
+          hamburger, all 44px tap targets) never get squeezed off-screen on
+          narrow phones. The home link stays accessible via its aria-label. */}
+      <span className="max-[400px]:hidden">
+        <BrandName />
+      </span>
     </Link>
   );
 }
@@ -74,7 +79,7 @@ export function AppHeader() {
         "border-b border-[var(--glass-border)]",
       )}
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-6">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6">
         <Logo />
 
         {/*
@@ -100,7 +105,7 @@ export function AppHeader() {
           CTA slot, though we keep it as a tight flex row rather than a
           wrapping pill so the chem flask toggle can breathe.
         */}
-        <div data-slot="header-right-cluster" className="flex min-w-0 items-center gap-3">
+        <div data-slot="header-right-cluster" className="flex min-w-0 items-center gap-1 sm:gap-3">
           <SearchInput />
           <ChemistryThemeSwitch />
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -136,7 +141,10 @@ export function AppHeader() {
                           data-slot="nav-link"
                           data-active={active ? "true" : undefined}
                           className={cn(
-                            "py-3 text-base font-medium border-b transition-colors",
+                            // px-4 aligns the label's left edge with the
+                            // SheetHeader logo (also p-4) so the text isn't
+                            // flush against the drawer edge.
+                            "px-4 py-3 text-base font-medium border-b transition-colors",
                             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                             active
                               ? "text-primary border-primary/30 font-semibold"

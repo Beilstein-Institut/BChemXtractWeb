@@ -86,7 +86,7 @@ export function ReactionCard({
        * the page. CDK's opaque white backdrop rect is stripped
        * server-side (sanitize_svg) so it doesn't double-paint inside
        * this container. */}
-      <div className="flex items-center justify-center bg-white rounded-t-xl p-6 h-[240px] md:h-[320px] lg:h-[400px]">
+      <div className="flex w-full items-center justify-center bg-white rounded-t-xl p-4 sm:p-6 h-[220px] sm:h-[240px] md:h-[320px] lg:h-[400px]">
         {svgSrc ? (
           <img
             src={svgSrc}

@@ -39,6 +39,9 @@ const SettingsPage = lazy(() =>
 const SearchResults = lazy(() =>
   import("@/components/SearchResults").then((m) => ({ default: m.SearchResults })),
 );
+const BatchViewPage = lazy(() =>
+  import("@/pages/BatchViewPage").then((m) => ({ default: m.BatchViewPage })),
+);
 
 /** Events that can change whether `?q=` is present in the URL. */
 const SEARCH_URL_EVENTS = ["popstate", "searchurlchange", "routechange"] as const;
@@ -230,6 +233,8 @@ function App() {
         return <PrivacyPage />;
       case "/settings":
         return <SettingsPage />;
+      case "/batch":
+        return <BatchViewPage />;
       case "/browse":
         return (
           <BrowsePage
@@ -287,7 +292,7 @@ function App() {
         <SearchProvider>
           <div className="flex min-h-screen flex-col bg-background text-foreground">
             <AppHeader />
-            <main className="mx-auto w-full max-w-7xl flex-1 px-6 pt-24 pb-12">
+            <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-20 pb-10 sm:px-6 sm:pt-24 sm:pb-12">
               <Suspense fallback={<PageSuspenseFallback />}>{renderRoute()}</Suspense>
             </main>
             <SiteFooter />

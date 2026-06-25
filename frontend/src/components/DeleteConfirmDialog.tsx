@@ -31,7 +31,7 @@ export function DeleteConfirmDialog({
 }: DeleteConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={(v) => !v && onCancel()}>
-      <AlertDialogContent className="max-w-[400px]">
+      <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="text-[17px] font-semibold">
             Delete extraction?

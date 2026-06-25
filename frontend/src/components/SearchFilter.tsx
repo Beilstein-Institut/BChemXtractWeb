@@ -71,7 +71,7 @@ function FilterChip({
       data-slot="filter-chip"
       data-active={active ? "true" : undefined}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+        "inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors sm:min-h-0 sm:py-1.5",
         "border border-border bg-surface-muted text-foreground-muted",
         "hover:bg-accent",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -137,7 +137,7 @@ export function SearchFilter({ value, onChange, debounceMs = 250, className }: S
       <div
         data-slot="browse-search-input"
         className={cn(
-          "relative flex min-w-[240px] flex-1 items-center gap-2",
+          "relative flex min-w-[160px] flex-1 items-center gap-2 sm:min-w-[240px]",
           "h-10 rounded-full bg-surface px-4",
           "shadow-[var(--shadow-neu-inset)]",
           "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0",

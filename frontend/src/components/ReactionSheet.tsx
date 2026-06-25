@@ -36,12 +36,16 @@ import type { ReactionComponentResponse, ReactionResponse } from "@/types/chemis
 function MetadataRow({ label, value }: { label: string; value: string }) {
   if (!value) return null;
   return (
-    <div className="flex items-start justify-between gap-2 px-4 py-2">
-      <span className="text-micro font-semibold text-muted-foreground uppercase tracking-widest min-w-[120px] shrink-0">
+    // Layout: label, copy button, value — the copy sits just before the value.
+    // See StructureSheet for the gap-x-2 / pt-1.5 alignment rationale.
+    <div className="flex items-start gap-x-2 px-4 py-2">
+      <span className="min-w-[84px] shrink-0 pt-1.5 text-micro font-semibold uppercase tracking-widest text-muted-foreground sm:min-w-[120px]">
         {label}
       </span>
-      <span className="text-caption text-foreground font-mono break-all flex-1">{value}</span>
-      <CopyButton value={value} label={label.toLowerCase()} />
+      <CopyButton value={value} label={label.toLowerCase()} className="shrink-0" />
+      <span className="min-w-0 flex-1 break-all pt-1.5 font-mono text-caption text-foreground">
+        {value}
+      </span>
     </div>
   );
 }
@@ -186,8 +190,10 @@ export function ReactionSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full overflow-y-auto"
-        style={{ maxWidth: "50vw", width: "50vw" }}
+        // Full-width on phones (minus a backdrop sliver), tapering to a
+        // half-screen panel on desktop. Uses the data-[side=right]: prefix so
+        // tailwind-merge overrides SheetContent's default w-3/4 / sm:max-w-sm.
+        className="overflow-y-auto data-[side=right]:w-full data-[side=right]:max-w-none data-[side=right]:sm:max-w-none data-[side=right]:md:max-w-[80vw] data-[side=right]:lg:max-w-[50vw]"
         aria-label="Reaction detail"
         showCloseButton={true}
       >
@@ -196,7 +202,7 @@ export function ReactionSheet({
           <div className="flex items-center gap-2 mb-2">
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               aria-label="Previous reaction"
               disabled={isPrevDisabled}
               onClick={onPrev}
@@ -209,7 +215,7 @@ export function ReactionSheet({
             </span>
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               aria-label="Next reaction"
               disabled={isNextDisabled}
               onClick={onNext}
@@ -233,7 +239,7 @@ export function ReactionSheet({
          * hard black and need a light canvas for legibility; in dark
          * mode this reads as a paper tile. CDK's white backdrop rect
          * is stripped server-side so it doesn't double-paint. */}
-        <div className="relative flex-none h-[420px] md:h-[520px] bg-white rounded-xl border border-border mx-4 overflow-hidden">
+        <div className="relative flex-none h-[280px] sm:h-[420px] md:h-[520px] bg-white rounded-xl border border-border mx-4 overflow-hidden">
           {svgSrc ? (
             <div className="w-full h-full overflow-auto flex items-center justify-center">
               <img
@@ -255,10 +261,11 @@ export function ReactionSheet({
           )}
 
           {svgSrc && (
-            <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-card/90 backdrop-blur-sm rounded-full px-2 py-1 ring-1 ring-foreground/10">
+            <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-white/85 backdrop-blur-sm rounded-full px-2 py-1 ring-1 ring-black/10 shadow-sm">
               <Button
                 variant="ghost"
                 size="icon-sm"
+                className="text-neutral-600 hover:text-neutral-900"
                 aria-label="Zoom out"
                 onClick={zoomOut}
                 disabled={zoom <= 0.25}
@@ -266,7 +273,7 @@ export function ReactionSheet({
                 <ZoomOutIcon className="size-4" aria-hidden="true" />
               </Button>
               <button
-                className="text-micro text-muted-foreground tabular-nums min-w-[40px] text-center hover:text-foreground transition-colors"
+                className="text-micro text-neutral-600 tabular-nums min-w-[40px] text-center hover:text-neutral-900 transition-colors"
                 onClick={zoomReset}
                 aria-label="Reset zoom"
               >
@@ -275,6 +282,7 @@ export function ReactionSheet({
               <Button
                 variant="ghost"
                 size="icon-sm"
+                className="text-neutral-600 hover:text-neutral-900"
                 aria-label="Zoom in"
                 onClick={zoomIn}
                 disabled={zoom >= 5}

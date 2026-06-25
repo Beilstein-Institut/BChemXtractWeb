@@ -150,7 +150,7 @@ export function BrowseToolbar({
   return (
     <div
       className={cn(
-        "flex items-center gap-4 px-6 py-3 h-12 border-b border-border",
+        "flex items-center gap-1 px-2 py-3 h-12 border-b border-border sm:gap-4 sm:px-6",
         disabled && "opacity-50 pointer-events-none",
       )}
     >
@@ -224,6 +224,15 @@ export function BrowseToolbar({
             <span className="text-xs text-muted-foreground">Per page</span>
             {renderPageSizeSelect(pageSize, onPageSizeChange, "w-full")}
           </div>
+          {/* Depiction toggle also lives here on mobile — the inline one below
+              is hidden < sm, and this is the only control that drives the
+              grid/table thumbnail layout (and the image export it governs). */}
+          {onDepictionChange && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">Depiction</span>
+              <DepictionToggle depiction={depiction} onChange={onDepictionChange} />
+            </div>
+          )}
         </PopoverContent>
       </Popover>
 
@@ -242,6 +251,7 @@ export function BrowseToolbar({
             align="end"
             disabled={isExporting || selectedCount === 0}
             reactionsAvailable={reactionsAvailable}
+            compactLabel
           />
         </div>
       )}
@@ -249,7 +259,11 @@ export function BrowseToolbar({
       {/* ChemDraw/CDK depiction toggle — immediately left of Export all so
           the layout choice and the image export it governs sit together.
           CDK (canonical layout) is the default. */}
-      {onDepictionChange && <DepictionToggle depiction={depiction} onChange={onDepictionChange} />}
+      {onDepictionChange && (
+        <div className="hidden sm:block">
+          <DepictionToggle depiction={depiction} onChange={onDepictionChange} />
+        </div>
+      )}
 
       {/* Export all — always visible when extraction is active and has substances */}
       {extractionId !== null && total > 0 && (
@@ -260,6 +274,7 @@ export function BrowseToolbar({
           align="end"
           disabled={isExporting}
           reactionsAvailable={reactionsAvailable}
+          compactLabel
         />
       )}
 

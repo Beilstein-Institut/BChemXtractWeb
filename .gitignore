@@ -103,6 +103,9 @@ backend/.bchemxtract-build/
 # Docker
 # -----------------------------------------------------------------------------
 .docker/
+# Compose override is local-only dev config (e.g. exposing Postgres 5432 on the
+# host for local pytest). Per Docker convention it is never committed.
+docker-compose.override.yml
 
 # -----------------------------------------------------------------------------
 # IDE / Editor
@@ -146,6 +149,14 @@ Desktop.ini
 # Per-project Claude Code config + CodeGraph knowledge graph — local-only.
 .claude/
 .codegraph/
+
+# -----------------------------------------------------------------------------
+# Scratch ChemDraw files dropped at the backend root for manual testing.
+# Scoped to the backend root so committed fixtures under
+# backend/tests/fixtures/ are unaffected.
+# -----------------------------------------------------------------------------
+/backend/*.cdx
+/backend/*.cdxml
 
 # -----------------------------------------------------------------------------
 # Backend-specific

@@ -49,7 +49,7 @@ export function DidYouMean({ type, query, onSuggest }: DidYouMeanProps) {
           type="button"
           variant="outline"
           size="sm"
-          className="text-primary border-primary/40 hover:bg-primary/5"
+          className="h-10 sm:h-8 text-primary border-primary/40 hover:bg-primary/5"
           disabled={!c.action}
           onClick={c.action}
         >

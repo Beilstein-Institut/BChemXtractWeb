@@ -81,7 +81,7 @@ export function Footer({
       <h2 id="site-footer-heading" className="sr-only">
         Site footer
       </h2>
-      <div className="px-4 lg:px-8">
+      <div className="px-3 sm:px-4 lg:px-8">
         <div
           className={cn(
             "md:flex md:items-start",
@@ -112,7 +112,7 @@ export function Footer({
                   rel="noopener noreferrer"
                   aria-label={link.label}
                   className={cn(
-                    "inline-flex h-10 w-10 items-center justify-center rounded-full",
+                    "inline-flex h-11 w-11 items-center justify-center rounded-full",
                     "border border-border bg-surface-elevated text-foreground-muted",
                     "transition-colors duration-200",
                     "hover:bg-accent hover:text-primary hover:border-primary/40",
@@ -137,7 +137,7 @@ export function Footer({
             {copyright.license && <div className="whitespace-nowrap">{copyright.license}</div>}
           </div>
           <nav aria-label="Footer navigation" className="mt-6 lg:col-[9/13] lg:row-[1/2] lg:mt-0">
-            <ul className="-my-1 -mx-2 flex list-none flex-wrap lg:justify-end">
+            <ul className="-my-1 -mx-2 flex list-none flex-wrap justify-end">
               {mainLinks.map((link) => (
                 <li key={link.href} className="my-1 mx-2 shrink-0">
                   {renderLink(
@@ -148,8 +148,8 @@ export function Footer({
               ))}
             </ul>
           </nav>
-          <div className="mt-6 lg:col-[9/13] lg:row-[2/3] lg:mt-0">
-            <ul className="-my-1 -mx-3 flex list-none flex-wrap lg:justify-end">
+          <div className="mt-1 lg:col-[9/13] lg:row-[2/3] lg:mt-0">
+            <ul className="-my-1 -mx-3 flex list-none flex-wrap justify-end">
               {legalLinks.map((link) => (
                 <li key={link.href} className="my-1 mx-3 shrink-0">
                   {renderLink(
@@ -163,8 +163,11 @@ export function Footer({
           {middleSlot && (
             <div
               className={cn(
-                "mt-6 flex items-center justify-center text-sm text-foreground-muted",
-                "lg:col-[4/9] lg:row-[1/3] lg:mt-0",
+                // Left-aligned on mobile so it lines up with the stacked
+                // copyright/links above; centered only at lg where it's the
+                // middle column of the 12-col grid.
+                "mt-6 flex items-center justify-start text-sm text-foreground-muted",
+                "lg:col-[4/9] lg:row-[1/3] lg:mt-0 lg:justify-center",
               )}
             >
               {middleSlot}

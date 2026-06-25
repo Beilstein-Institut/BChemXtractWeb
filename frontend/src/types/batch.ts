@@ -51,3 +51,16 @@ export interface BatchSummary {
   failedCount: number;
   processingTimeMs: number;
 }
+
+/** One extraction in a batch — summary for the combined view. */
+export interface BatchExtractionItem {
+  extraction_id: number;
+  filename: string;
+  structure_count: number;
+}
+
+/** Response from GET /api/batch/{batch_id}. */
+export interface BatchExtractionsResponse {
+  batch_id: string;
+  files: BatchExtractionItem[];
+}

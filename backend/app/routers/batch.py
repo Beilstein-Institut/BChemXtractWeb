@@ -25,7 +25,12 @@ from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 from app.celery_app import celery_app
 from app.config import settings
 from app.middleware.rate_limit import limiter
-from app.models.chemistry import BatchStartResponse, ErrorResponse
+from app.models.chemistry import (
+    BatchExtractionItem,
+    BatchExtractionsResponse,
+    BatchStartResponse,
+    ErrorResponse,
+)
 from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.services.db import get_scoped_db
 from app.services.filenames import build_content_disposition, safe_filename
@@ -307,6 +312,59 @@ async def cancel_batch(group_id: str) -> None:
         result = AsyncResult(async_result.id, app=celery_app)
         if result.state in ("PENDING", "RECEIVED"):
             celery_app.control.revoke(async_result.id, terminate=False)
+
+
+@router.get(
+    "/batch/{batch_id}",
+    response_model=BatchExtractionsResponse,
+    operation_id="getBatchExtractions",
+    summary="List a batch's extractions",
+    description=(
+        "Return the extractions belonging to a batch (summary fields only), "
+        "in upload order, for the combined batch view. `batch_id` is the UUID "
+        "assigned at batch start (NOT the Celery group_id). RLS scopes the "
+        "result to the caller's session."
+    ),
+    responses={
+        200: {"description": "Batch extraction summaries."},
+        404: {
+            "model": ErrorResponse,
+            "description": "No extractions found for this batch.",
+        },
+        500: {"model": ErrorResponse, "description": "Internal server error."},
+    },
+    tags=["batch"],
+)
+async def get_batch_extractions(batch_id: str, db: DbDep) -> BatchExtractionsResponse:
+    """List a batch's extractions (summaries) in upload order.
+
+    RLS (via get_scoped_db) restricts rows to the caller's session — the same
+    implicit scoping the ZIP endpoint relies on.
+
+    Raises:
+        HTTPException 404: No extractions found for this batch_id.
+    """
+    result = await db.execute(
+        select(Extraction)
+        .where(Extraction.batch_id == batch_id)
+        .order_by(Extraction.id)
+    )
+    extractions = result.scalars().all()
+    if not extractions:
+        raise HTTPException(
+            status_code=404, detail="No extractions found for this batch"
+        )
+    return BatchExtractionsResponse(
+        batch_id=batch_id,
+        files=[
+            BatchExtractionItem(
+                extraction_id=e.id,
+                filename=e.filename,
+                structure_count=e.structure_count,
+            )
+            for e in extractions
+        ],
+    )
 
 
 @router.get(

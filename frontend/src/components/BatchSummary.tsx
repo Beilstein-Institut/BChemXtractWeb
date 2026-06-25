@@ -1,7 +1,9 @@
 import { CheckCircle2Icon, DownloadIcon, PlusIcon, XCircleIcon } from "lucide-react";
 import { toast } from "sonner";
+import { BatchFilePreview } from "@/components/BatchFilePreview";
 import { Button } from "@/components/ui/button";
 import { downloadBatchZip } from "@/lib/apiClient";
+import { navigate } from "@/lib/router";
 import { cn } from "@/lib/utils";
 import type { BatchFileStatus } from "@/types/batch";
 
@@ -105,6 +107,13 @@ export function BatchSummary({
             New batch
           </Button>
           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/batch?batch=${encodeURIComponent(batchId)}`)}
+          >
+            View all
+          </Button>
+          <Button
             variant="primary"
             size="sm"
             className="rounded-full"
@@ -116,7 +125,10 @@ export function BatchSummary({
         </div>
       </div>
 
-      <dl data-slot="batch-summary-stats" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <dl
+        data-slot="batch-summary-stats"
+        className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3"
+      >
         <StatItem label="Files" value={totalFiles} />
         <StatItem label="Structures" value={totalStructures} />
         <StatItem label="Succeeded" value={succeededCount} tone="secondary" />
@@ -131,44 +143,67 @@ export function BatchSummary({
         data-slot="batch-summary-list"
         className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface"
       >
-        {files.map((f) => (
-          <li
-            key={f.filename}
-            data-slot="batch-summary-row"
-            data-state={f.state}
-            className="flex min-h-[48px] items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted/40"
-          >
-            <span className="sr-only">{f.state === "done" ? "Succeeded" : "Failed"}</span>
-            {f.state === "done" ? (
-              <CheckCircle2Icon className="size-4 shrink-0 text-secondary" aria-hidden="true" />
-            ) : (
-              <XCircleIcon className="size-4 shrink-0 text-destructive" aria-hidden="true" />
-            )}
+        {files.map((f) => {
+          const filename = (
             <span className="min-w-0 flex-1 truncate font-mono text-sm text-foreground">
               {f.filename}
             </span>
-            {f.state === "done" && (
-              <span className="shrink-0 text-xs tabular-nums text-foreground-muted">
-                {f.structureCount} structures
-              </span>
-            )}
-            {f.state === "failed" && (
-              <span className="max-w-[240px] shrink-0 truncate text-xs text-destructive">
-                {f.error}
-              </span>
-            )}
-            {f.state === "done" && f.extractionId != null && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="shrink-0"
-                onClick={() => onViewExtraction(f.extractionId!)}
-              >
-                View
-              </Button>
-            )}
-          </li>
-        ))}
+          );
+
+          return (
+            <li
+              key={f.filename}
+              data-slot="batch-summary-row"
+              data-state={f.state}
+              className="flex min-h-[48px] items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted/40"
+            >
+              <span className="sr-only">{f.state === "done" ? "Succeeded" : "Failed"}</span>
+              {f.state === "done" ? (
+                <CheckCircle2Icon className="size-4 shrink-0 text-secondary" aria-hidden="true" />
+              ) : (
+                <XCircleIcon className="size-4 shrink-0 text-destructive" aria-hidden="true" />
+              )}
+              {/* Desktop hover preview anchors to the filename (a non-focusable,
+                  flex-1 element — most of the row width). It deliberately does NOT
+                  wrap the focusable "View" button: Base UI's PreviewCard opens on
+                  focus, and if the button were inside the trigger, tabbing to it
+                  would bubble focus up and pop the preview open for keyboard users.
+                  Failed rows and touch users (via "View") are unaffected. */}
+              {f.state === "done" && f.extractionId != null ? (
+                <BatchFilePreview
+                  extractionId={f.extractionId}
+                  filename={f.filename}
+                  structureCount={f.structureCount ?? 0}
+                  onViewExtraction={onViewExtraction}
+                >
+                  {filename}
+                </BatchFilePreview>
+              ) : (
+                filename
+              )}
+              {f.state === "done" && (
+                <span className="shrink-0 text-xs tabular-nums text-foreground-muted">
+                  {f.structureCount} structures
+                </span>
+              )}
+              {f.state === "failed" && (
+                <span className="max-w-[240px] shrink-0 truncate text-xs text-destructive">
+                  {f.error}
+                </span>
+              )}
+              {f.state === "done" && f.extractionId != null && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => onViewExtraction(f.extractionId!)}
+                >
+                  View
+                </Button>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

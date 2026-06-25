@@ -62,12 +62,18 @@ export interface StructureSheetProps {
 /** Labeled metadata field + CopyButton, rendered inside the side-sheet. */
 function MetadataRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-2">
-      <span className="text-micro font-semibold text-muted-foreground uppercase tracking-widest min-w-[120px] shrink-0">
+    // Layout: label, then copy button, then value. The copy button sits just
+    // before the value (not before the label heading); gap-x-2 keeps a small
+    // space between the icon and the value, pt-1.5 lines the text up with the
+    // icon's centre.
+    <div className="flex items-start gap-x-2">
+      <span className="min-w-[84px] shrink-0 pt-1.5 text-micro font-semibold uppercase tracking-widest text-muted-foreground sm:min-w-[120px]">
         {label}
       </span>
-      <span className="text-caption text-foreground font-mono break-all flex-1">{value}</span>
-      <CopyButton value={value} label={label} />
+      <CopyButton value={value} label={label} className="shrink-0" />
+      <span className="min-w-0 flex-1 break-all pt-1.5 font-mono text-caption text-foreground">
+        {value}
+      </span>
     </div>
   );
 }
@@ -192,8 +198,10 @@ export function StructureSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full overflow-y-auto"
-        style={{ maxWidth: "50vw", width: "50vw" }}
+        // Full-width on phones (minus a backdrop sliver), tapering to a
+        // half-screen panel on desktop. Uses the data-[side=right]: prefix so
+        // tailwind-merge overrides SheetContent's default w-3/4 / sm:max-w-sm.
+        className="overflow-y-auto data-[side=right]:w-full data-[side=right]:max-w-none data-[side=right]:sm:max-w-none data-[side=right]:md:max-w-[80vw] data-[side=right]:lg:max-w-[50vw]"
         aria-label="Structure detail"
         showCloseButton={true}
       >
@@ -202,7 +210,7 @@ export function StructureSheet({
           <div className="flex items-center gap-2 mb-2">
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               aria-label="Previous structure"
               onClick={onPrev}
               disabled={isPrevDisabled}
@@ -213,7 +221,7 @@ export function StructureSheet({
             <span className="text-caption text-muted-foreground tabular-nums">{positionLabel}</span>
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               aria-label="Next structure"
               onClick={onNext}
               disabled={isNextDisabled}
@@ -243,8 +251,12 @@ export function StructureSheet({
 
         {substance ? (
           <>
-            {/* SVG display area: 50vh height with zoom controls */}
-            <div className="relative h-[50vh] bg-background rounded-xl border border-border mx-4 overflow-hidden">
+            {/* SVG display area: fixed-height with zoom controls. shrink-0 is
+                load-bearing — SheetContent is a flex-col, and without it this
+                box (whose content sets no min-height) collapses to ~0 to make
+                room for the long metadata below, hiding the depiction and
+                breaking the sheet's scroll. Mirrors ReactionSheet's flex-none. */}
+            <div className="relative h-[42vh] sm:h-[50vh] shrink-0 bg-white rounded-xl border border-border mx-4 overflow-hidden">
               {svgSrc ? (
                 <div className="w-full h-full overflow-auto flex items-center justify-center">
                   {/* key: fade in the swapped layout when CDK/ChemDraw flips. */}
@@ -267,11 +279,14 @@ export function StructureSheet({
                 </div>
               )}
 
-              {/* Layout toggle — always visible so users see disabled
-                  states and tooltips explaining when a layout is missing. */}
-              <div className="absolute bottom-3 left-3">
-                <TooltipProvider>
-                  <div className="flex items-center gap-1 bg-card/90 backdrop-blur-sm rounded-full px-2 py-1 ring-1 ring-foreground/10">
+              {/* Overlay controls — layout toggle + zoom share one bottom bar
+                  so they keep proper spacing (justify-between) and wrap instead
+                  of overlapping on narrow sheets. The toggle stays visible even
+                  without an SVG so disabled states + tooltips can explain a
+                  missing layout. */}
+              <TooltipProvider>
+                <div className="absolute inset-x-3 bottom-3 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 bg-white/85 backdrop-blur-sm rounded-full px-2.5 py-1 ring-1 ring-black/10 shadow-sm">
                     <Tooltip>
                       <TooltipTrigger
                         render={
@@ -280,11 +295,11 @@ export function StructureSheet({
                             onClick={() => substance?.svg && setUseCdxCoords(false)}
                             disabled={!substance?.svg}
                             aria-pressed={!useCdxCoords}
-                            className={`text-micro px-2 py-0.5 rounded-full transition-colors ${
+                            className={`text-micro px-2.5 py-1 rounded-full transition-colors ${
                               !useCdxCoords && substance?.svg
                                 ? "bg-primary text-white"
-                                : "text-muted-foreground hover:text-foreground"
-                            } disabled:opacity-50 disabled:hover:text-muted-foreground disabled:cursor-not-allowed`}
+                                : "text-neutral-600 hover:text-neutral-900"
+                            } disabled:opacity-50 disabled:hover:text-neutral-600 disabled:cursor-not-allowed`}
                           >
                             CDK
                           </button>
@@ -305,11 +320,11 @@ export function StructureSheet({
                             onClick={() => substance?.svg_cdx && setUseCdxCoords(true)}
                             disabled={!substance?.svg_cdx}
                             aria-pressed={useCdxCoords}
-                            className={`text-micro px-2 py-0.5 rounded-full transition-colors ${
+                            className={`text-micro px-2.5 py-1 rounded-full transition-colors ${
                               useCdxCoords && substance?.svg_cdx
                                 ? "bg-primary text-white"
-                                : "text-muted-foreground hover:text-foreground"
-                            } disabled:opacity-50 disabled:hover:text-muted-foreground disabled:cursor-not-allowed`}
+                                : "text-neutral-600 hover:text-neutral-900"
+                            } disabled:opacity-50 disabled:hover:text-neutral-600 disabled:cursor-not-allowed`}
                           >
                             ChemDraw
                           </button>
@@ -322,39 +337,41 @@ export function StructureSheet({
                       </TooltipContent>
                     </Tooltip>
                   </div>
-                </TooltipProvider>
-              </div>
 
-              {/* Zoom controls — only meaningful when we have something to zoom. */}
-              {svgSrc && (
-                <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-card/90 backdrop-blur-sm rounded-full px-2 py-1 ring-1 ring-foreground/10">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Zoom out"
-                    onClick={zoomOut}
-                    disabled={zoom <= 0.25}
-                  >
-                    <ZoomOutIcon className="size-4" />
-                  </Button>
-                  <button
-                    className="text-micro text-muted-foreground tabular-nums min-w-[40px] text-center hover:text-foreground transition-colors"
-                    onClick={zoomReset}
-                    aria-label="Reset zoom"
-                  >
-                    {Math.round(zoom * 100)}%
-                  </button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Zoom in"
-                    onClick={zoomIn}
-                    disabled={zoom >= 5}
-                  >
-                    <ZoomInIcon className="size-4" />
-                  </Button>
+                  {/* Zoom controls — only meaningful when we have something to zoom. */}
+                  {svgSrc && (
+                    <div className="flex items-center gap-1.5 bg-white/85 backdrop-blur-sm rounded-full px-2.5 py-1 ring-1 ring-black/10 shadow-sm">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-neutral-600 hover:text-neutral-900"
+                        aria-label="Zoom out"
+                        onClick={zoomOut}
+                        disabled={zoom <= 0.25}
+                      >
+                        <ZoomOutIcon className="size-4" />
+                      </Button>
+                      <button
+                        className="text-micro text-neutral-600 tabular-nums min-w-[40px] text-center hover:text-neutral-900 transition-colors"
+                        onClick={zoomReset}
+                        aria-label="Reset zoom"
+                      >
+                        {Math.round(zoom * 100)}%
+                      </button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-neutral-600 hover:text-neutral-900"
+                        aria-label="Zoom in"
+                        onClick={zoomIn}
+                        disabled={zoom >= 5}
+                      >
+                        <ZoomInIcon className="size-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              )}
+              </TooltipProvider>
             </div>
 
             {/* Metadata rows */}
