@@ -63,7 +63,9 @@ export function EmptyState({
     <div
       className={cn(
         "flex flex-col items-center text-center",
-        isLarge ? "min-h-[320px] py-16 gap-4 justify-center" : "py-8 gap-3",
+        isLarge
+          ? "min-h-[250px] py-10 gap-4 justify-center sm:min-h-[320px] sm:py-16"
+          : "py-8 gap-3",
         className,
       )}
     >

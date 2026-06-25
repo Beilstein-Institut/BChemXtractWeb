@@ -21,6 +21,7 @@ APPROVED_OPERATION_IDS = {
     "startBatch",
     "streamBatchProgress",
     "cancelBatch",
+    "getBatchExtractions",
     "downloadBatchZip",
     # export
     "exportSubstances",

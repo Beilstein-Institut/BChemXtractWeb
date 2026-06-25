@@ -59,9 +59,13 @@ const buttonVariants = cva(
         default: "h-10 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
         sm: "h-8 px-3 rounded-lg text-[0.8125rem] has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-12 px-5 text-[0.9375rem] has-data-[icon=inline-end]:pr-4 has-data-[icon=inline-start]:pl-4",
-        icon: "size-10",
-        // Legacy sizes preserved for downstream call sites that have not
-        // yet migrated to the new scale. Safe to narrow in a follow-up pass.
+        // 44px = WCAG 2.5.8 / iOS minimum tap target. This is the default for
+        // every icon-only control, so the floor is compliant everywhere.
+        icon: "size-11",
+        // Sub-44px sizes. Reserve for DECORATIVE icons or dense secondary
+        // controls only — never the sole tap target for a primary action.
+        // When an interactive control must stay visually small, wrap it in a
+        // min-h-11 min-w-11 hit area rather than using these as the target.
         xs: "h-6 gap-1 rounded-lg px-2 text-xs has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
         "icon-xs": "size-6 rounded-lg [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-8 rounded-lg",

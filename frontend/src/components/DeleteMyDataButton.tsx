@@ -63,7 +63,7 @@ export function DeleteMyDataButton() {
       >
         Delete all my data
       </AlertDialogTrigger>
-      <AlertDialogContent className="max-w-[480px]">
+      <AlertDialogContent className="data-[size=default]:sm:max-w-[480px]">
         <AlertDialogHeader>
           <AlertDialogTitle>Delete all your data?</AlertDialogTitle>
           <AlertDialogDescription>

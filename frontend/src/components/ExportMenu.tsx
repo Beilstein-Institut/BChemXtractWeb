@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import type { ExportFormat } from "@/types/export";
 import { FORMAT_LABELS } from "@/types/export";
 
@@ -70,6 +71,12 @@ export interface ExportMenuProps {
    * BrowseToolbar, StructureBrowser).
    */
   reactionsAvailable?: boolean;
+  /**
+   * When true (label variant only), the trigger collapses to an icon-only
+   * button below the `sm` breakpoint and shows the label at sm+. Lets a
+   * crowded mobile toolbar fit without cropping while desktop keeps the text.
+   */
+  compactLabel?: boolean;
 }
 
 /** Icon for each format item. RXN gets ArrowRightLeftIcon. */
@@ -100,36 +107,53 @@ export function ExportMenu({
   align = "end",
   onTriggerClick,
   reactionsAvailable = false,
+  compactLabel = false,
 }: ExportMenuProps) {
-  const trigger =
-    triggerVariant === "icon" ? (
-      <Tooltip>
-        <TooltipTrigger
+  // The menu trigger renders the <Button> directly (not wrapped in a <span>),
+  // so the trigger IS a native <button> — correct ARIA/keyboard semantics and
+  // no nested-interactive element (matches the Sheet/Tooltip trigger pattern
+  // used elsewhere). The icon variant composes the tooltip and menu triggers
+  // onto the same Button via nested `render` props.
+  return (
+    <DropdownMenu>
+      {triggerVariant === "icon" ? (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Export structure"
+                    disabled={disabled}
+                    className="opacity-0 transition-opacity group-hover:opacity-100"
+                    onClick={onTriggerClick}
+                  />
+                }
+              />
+            }
+          >
+            <DownloadIcon className="size-4" />
+          </TooltipTrigger>
+          <TooltipContent>Export structure</TooltipContent>
+        </Tooltip>
+      ) : (
+        <DropdownMenuTrigger
           render={
             <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Export structure"
+              variant="outline"
+              size="sm"
               disabled={disabled}
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={onTriggerClick}
+              aria-label={triggerLabel}
             />
           }
         >
-          <DownloadIcon className="size-4" />
-        </TooltipTrigger>
-        <TooltipContent>Export structure</TooltipContent>
-      </Tooltip>
-    ) : (
-      <Button variant="outline" size="sm" disabled={disabled} onClick={onTriggerClick}>
-        <DownloadIcon className="size-4 mr-1.5" />
-        {triggerLabel}
-      </Button>
-    );
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={<span />}>{trigger}</DropdownMenuTrigger>
+          <DownloadIcon className={cn("size-4", compactLabel ? "sm:mr-1.5" : "mr-1.5")} />
+          <span className={compactLabel ? "hidden sm:inline" : undefined}>{triggerLabel}</span>
+        </DropdownMenuTrigger>
+      )}
       <DropdownMenuContent align={align} className="w-48">
         <DropdownMenuGroup>
           <DropdownMenuLabel className="text-micro font-semibold uppercase tracking-widest text-muted-foreground px-3 py-1.5">

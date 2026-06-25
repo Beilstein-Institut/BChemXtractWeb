@@ -44,7 +44,7 @@ export function ExtractionTabs({
       onValueChange={(v) => setValue(v as "substances" | "reactions")}
       className="mt-6"
     >
-      <TabsList className="h-9 w-full sm:w-fit">
+      <TabsList className="h-9 w-full overflow-x-auto sm:w-fit">
         <TabsTrigger value="substances">
           <span className="flex items-center gap-2">
             Structures
@@ -57,7 +57,10 @@ export function ExtractionTabs({
             <Badge
               variant="secondary"
               className={cn(
-                "h-5 px-1.5 text-micro font-semibold border-0",
+                // Hidden on phones so the two tabs fit without cropping; the
+                // experimental warning still shows prominently in the
+                // Reactions panel (ExperimentalBanner).
+                "hidden h-5 px-1.5 text-micro font-semibold border-0 sm:inline-flex",
                 "bg-amber-100 text-amber-900",
                 "dark:bg-amber-900/30 dark:text-amber-200",
               )}

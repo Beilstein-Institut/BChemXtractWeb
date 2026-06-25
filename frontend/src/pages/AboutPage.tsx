@@ -43,7 +43,7 @@ const TECH_STACK: TechEntry[] = [
   { label: "Vite", detail: "Build + dev server" },
   { label: "FastAPI", detail: "Python 3.11 API" },
   { label: "JPype", detail: "Python ↔ JVM" },
-  { label: "CDK 2.12", detail: "Descriptor engine" },
+  { label: "CDK 2.12", detail: "String-representation engine" },
 ];
 
 interface LinkEntry {
@@ -69,7 +69,8 @@ const LINKS: LinkEntry[] = [
   {
     href: "https://cdk.github.io/",
     label: "Chemistry Development Kit",
-    description: "Open-source cheminformatics library (CDK 2.12) powering descriptor generation.",
+    description:
+      "Open-source cheminformatics library (CDK 2.12) powering string-representation generation.",
     icon: (
       <img src="/cdk-logo.png" alt="" aria-hidden="true" className="h-5 w-auto object-contain" />
     ),
@@ -148,8 +149,8 @@ function HeroTile() {
         </h2>
         <p className="max-w-[52ch] text-base leading-relaxed text-foreground-muted">
           <BrandName suffix="Web" /> parses CDX and CDXML files, extracts structures and reactions,
-          and enriches them with computed descriptors — InChI, SMILES, RInChI, molecular formulas —
-          all without installing Java or touching a command line. Drop a file, read the structures
+          and enriches them with string representations — InChI, SMILES, RInChI, molecular formulas
+          — all without installing Java or touching a command line. Drop a file, read the structures
           back as JSON, SDF, or CSV.
         </p>
       </div>
@@ -310,8 +311,9 @@ function CreditsTile() {
           , an independent non-profit foundation advancing the chemical sciences.
         </p>
         <p className="text-caption text-foreground-muted">
-          Built with CDK 2.12 for descriptors, FastAPI + JPype to bridge Python and the JVM, and
-          React 19 for the interface. Contributions, feedback, and issue reports welcome upstream.
+          Built with CDK 2.12 for string representations, FastAPI + JPype to bridge Python and the
+          JVM, and React 19 for the interface. Contributions, feedback, and issue reports welcome
+          upstream.
         </p>
       </div>
       <div className="mt-auto flex flex-wrap gap-2 pt-2">

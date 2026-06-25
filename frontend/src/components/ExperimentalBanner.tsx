@@ -57,7 +57,7 @@ export function ExperimentalBanner() {
       className={cn(
         "rounded-xl border-2 border-amber-400 border-l-4 border-l-amber-600",
         "bg-amber-100 dark:bg-amber-950/40 dark:border-amber-700 dark:border-l-amber-500",
-        "py-3 px-4 flex items-start gap-3",
+        "py-2 px-3 sm:py-3 sm:px-4 flex items-start gap-3",
       )}
     >
       <AlertTriangleIcon

@@ -37,12 +37,15 @@ export interface StructureDetailProps {
 
 function MetadataRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-2">
-      <span className="text-caption font-semibold text-muted-foreground min-w-[120px] shrink-0">
+    // Layout: label, copy button, value — the copy sits just before the value.
+    // gap-2 keeps a small space between the icon and the value, pt-1.5 lines the
+    // text up with the icon's centre.
+    <div className="flex items-start gap-2">
+      <span className="min-w-[120px] shrink-0 pt-1.5 text-caption font-semibold text-muted-foreground">
         {label}
       </span>
-      <span className="text-caption text-foreground break-all flex-1">{value}</span>
-      <CopyButton value={value} label={label} />
+      <CopyButton value={value} label={label} className="shrink-0" />
+      <span className="min-w-0 flex-1 break-all pt-1.5 text-caption text-foreground">{value}</span>
     </div>
   );
 }
@@ -74,7 +77,7 @@ export function StructureDetail({
       )}
 
       {/* SVG container: 400px fixed height */}
-      <div className="h-[400px] bg-background rounded-lg p-6 flex items-center justify-center">
+      <div className="h-[280px] sm:h-[400px] bg-white rounded-lg p-4 sm:p-6 flex items-center justify-center">
         {svgSrc ? (
           // key={depiction}: fade in the swapped layout (motion-reduce: none).
           <img

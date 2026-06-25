@@ -31,10 +31,11 @@ import type { Depiction, SubstanceResponse } from "@/types/chemistry";
 
 export interface StructureTableProps {
   substances: SubstanceResponse[];
-  selectedIds: Set<number>;
-  onToggleSelect: (id: number) => void;
-  onSelectAll: () => void;
-  allSelected: boolean;
+  /** Selection is optional — omit all four for a display-only table (no checkbox column). */
+  selectedIds?: Set<number>;
+  onToggleSelect?: (id: number) => void;
+  onSelectAll?: () => void;
+  allSelected?: boolean;
   onOpen: (index: number) => void;
   loading?: boolean;
   /** Active 2D layout for thumbnails (CDK "cdk" default / ChemDraw "cdx"). */
@@ -54,20 +55,22 @@ export function StructureTable({
   selectedIds,
   onToggleSelect,
   onSelectAll,
-  allSelected,
+  allSelected = false,
   onOpen,
   loading = false,
   depiction = DEFAULT_DEPICTION,
 }: StructureTableProps) {
+  const selectable = onToggleSelect !== undefined;
+
   if (loading) {
     return (
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-10" />
+            {selectable && <TableHead className="w-10" />}
             <TableHead className="w-14">Thumbnail</TableHead>
             <TableHead>Formula</TableHead>
-            <TableHead>SMILES</TableHead>
+            <TableHead className="hidden sm:table-cell">SMILES</TableHead>
             <TableHead className="hidden md:table-cell">InChI Key</TableHead>
             <TableHead className="w-10" />
           </TableRow>
@@ -75,16 +78,18 @@ export function StructureTable({
         <TableBody>
           {Array.from({ length: SKELETON_ROWS }).map((_, i) => (
             <TableRow key={i} className="h-14">
-              <TableCell>
-                <Skeleton className="h-4 w-4 rounded" />
-              </TableCell>
+              {selectable && (
+                <TableCell>
+                  <Skeleton className="h-4 w-4 rounded" />
+                </TableCell>
+              )}
               <TableCell>
                 <Skeleton className="h-12 w-12 rounded" />
               </TableCell>
               <TableCell>
                 <Skeleton className="h-4 w-20 rounded" />
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden sm:table-cell">
                 <Skeleton className="h-4 w-40 rounded" />
               </TableCell>
               <TableCell className="hidden md:table-cell">
@@ -104,16 +109,18 @@ export function StructureTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-10">
-            <Checkbox
-              checked={allSelected}
-              onCheckedChange={onSelectAll}
-              aria-label="Select all on page"
-            />
-          </TableHead>
+          {selectable && (
+            <TableHead className="w-10">
+              <Checkbox
+                checked={allSelected}
+                onCheckedChange={onSelectAll}
+                aria-label="Select all on page"
+              />
+            </TableHead>
+          )}
           <TableHead className="w-14">Thumbnail</TableHead>
           <TableHead>Formula</TableHead>
-          <TableHead>SMILES</TableHead>
+          <TableHead className="hidden sm:table-cell">SMILES</TableHead>
           <TableHead className="hidden md:table-cell">InChI Key</TableHead>
           <TableHead className="w-10" />
         </TableRow>
@@ -125,7 +132,8 @@ export function StructureTable({
             key={`${substance.id}-${substance.inchi_key}-${index}`}
             substance={substance}
             index={index}
-            selected={selectedIds.has(substance.id)}
+            selectable={selectable}
+            selected={selectedIds?.has(substance.id) ?? false}
             onToggleSelect={onToggleSelect}
             onOpen={onOpen}
             depiction={depiction}
@@ -139,8 +147,9 @@ export function StructureTable({
 interface RowProps {
   substance: SubstanceResponse;
   index: number;
+  selectable: boolean;
   selected: boolean;
-  onToggleSelect: (id: number) => void;
+  onToggleSelect?: (id: number) => void;
   onOpen: (index: number) => void;
   depiction: Depiction;
 }
@@ -152,6 +161,7 @@ function truncate(value: string, max: number): string {
 function StructureTableRow({
   substance,
   index,
+  selectable,
   selected,
   onToggleSelect,
   onOpen,
@@ -171,14 +181,16 @@ function StructureTableRow({
       data-selected={selected}
       onClick={() => onOpen(index)}
     >
-      {/* Checkbox cell — stop propagation to prevent row click */}
-      <TableCell onClick={(e) => e.stopPropagation()} className="w-10">
-        <Checkbox
-          checked={selected}
-          onCheckedChange={() => onToggleSelect(substance.id)}
-          aria-label={`Select ${substance.molecular_formula}`}
-        />
-      </TableCell>
+      {/* Checkbox cell — only rendered when table is in selection mode */}
+      {selectable && (
+        <TableCell onClick={(e) => e.stopPropagation()} className="w-10">
+          <Checkbox
+            checked={selected}
+            onCheckedChange={() => onToggleSelect?.(substance.id)}
+            aria-label={`Select ${substance.molecular_formula}`}
+          />
+        </TableCell>
+      )}
 
       {/* SVG thumbnail — 48×48px */}
       <TableCell className="w-14">
@@ -202,8 +214,8 @@ function StructureTableRow({
         <span className="text-xs font-semibold">{substance.molecular_formula}</span>
       </TableCell>
 
-      {/* SMILES — truncated at 40 chars with Tooltip */}
-      <TableCell>
+      {/* SMILES — truncated with Tooltip; hidden on phones (full value in detail sheet) */}
+      <TableCell className="hidden sm:table-cell">
         <Tooltip>
           <TooltipTrigger
             render={<span className="block max-w-[200px] truncate text-xs text-muted-foreground" />}

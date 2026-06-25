@@ -188,7 +188,7 @@ export function BatchProgress({ files, totalCount, onCancel }: BatchProgressProp
 
   return (
     <div data-slot="process-step" className="space-y-6">
-      <div data-slot="batch-stats" className="grid grid-cols-3 gap-3">
+      <div data-slot="batch-stats" className="grid grid-cols-3 gap-2 sm:gap-3">
         <Stat label="Total" value={totalCount} />
         <Stat label="Completed" value={succeededCount} tone="secondary" />
         <Stat label="Failed" value={failedCount} tone="destructive" />

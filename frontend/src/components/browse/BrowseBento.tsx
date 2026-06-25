@@ -166,7 +166,7 @@ function StructurePreviewTile({
           </p>
         </header>
         {substances.length > 0 ? (
-          <div className="grid flex-1 grid-cols-3 gap-3">
+          <div className="grid flex-1 grid-cols-2 gap-3 md:grid-cols-3">
             {substances.map((s, index) => (
               // Composite key: fresh-upload envelopes return id 0 for every
               // substance, so `s.id ?? …` alone collides (0 is not nullish).

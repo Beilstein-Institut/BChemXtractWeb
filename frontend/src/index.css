@@ -320,6 +320,17 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Global horizontal-overflow backstop. `overflow-x: clip` (not `hidden`)
+   stops any single overflowing child from producing document-level sideways
+   scroll on mobile WITHOUT establishing a scroll container, so the sticky
+   AppHeader keeps working. This is only a safety net: genuinely wide content
+   (data tables, long SMILES/InChI strings) must still live inside its own
+   `overflow-x-auto` scroller rather than relying on this clip. */
+html,
+body {
+  overflow-x: clip;
+}
+
 ::selection {
   background: var(--color-primary);
   color: var(--color-primary-foreground);
@@ -334,6 +345,20 @@ body {
    positioned inside the indicator's clipping box so the stripe is
    bounded by the filled portion of the bar.
    ============================================================ */
+/* Wizard stepper "processing" pulse — a soft scale breathe applied to each
+   step icon pill while a batch is in flight (staggered per step in
+   WizardStepper for a pipeline-wave feel). Only used via `motion-safe:`, so it
+   never runs under prefers-reduced-motion. */
+@keyframes wizard-step-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+
 @keyframes batch-shimmer {
   0% {
     transform: translateX(-100%);

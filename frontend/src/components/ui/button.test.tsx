@@ -115,9 +115,9 @@ describe("Button", () => {
     expect(screen.getByRole("button").className).toContain("h-10");
   });
 
-  it("applies the icon size as square 10", () => {
+  it("applies a 44px (size-11) icon tap target", () => {
     render(<Button size="icon">x</Button>);
-    expect(screen.getByRole("button").className).toContain("size-10");
+    expect(screen.getByRole("button").className).toContain("size-11");
   });
 
   it("forwards className into the generated class string", () => {

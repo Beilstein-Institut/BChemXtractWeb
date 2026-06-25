@@ -7,20 +7,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BChemXtract — Extract chemistry from ChemDraw files</title>
     <!-- Resolve the theme before first paint so the boot splash (and the app)
-         pick the right light/dark colors with no flash. Mirrors theme-provider:
-         storageKey "bchemxtract-theme", "system" default resolved via media query. -->
-    <script>
-      (function () {
-        try {
-          var t = localStorage.getItem("bchemxtract-theme") || "system";
-          var dark =
-            t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
-          document.documentElement.classList.add(dark ? "dark" : "light");
-        } catch (e) {
-          /* localStorage blocked (private mode) — fall through to light. */
-        }
-      })();
-    </script>
+         pick the right light/dark colors with no flash. Loaded as an external
+         same-origin script (not inline) so it satisfies the production CSP
+         `script-src 'self'` with no unsafe-inline/hash/nonce. Synchronous and
+         in <head>, so it still runs before the body paints (no FOUC). -->
+    <script src="/theme-init.js"></script>
     <!-- Boot splash: painted instantly from index.html (before the JS bundle
          loads) and removed by main.tsx the moment React mounts. The fade-IN is
          delayed, so fast/cached loads never see it — only loads slow enough to

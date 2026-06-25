@@ -51,6 +51,12 @@ interface WizardStepperProps {
   onStepChange?: (id: string) => void;
   /** Content slot rendered below the indicator. */
   children?: ReactNode;
+  /**
+   * When true, the step icons animate to signal in-flight work: each pill
+   * does a soft, staggered scale pulse and the active step's icon spins.
+   * Motion is gated behind `motion-safe` (disabled under prefers-reduced-motion).
+   */
+  processing?: boolean;
   className?: string;
 }
 
@@ -77,6 +83,7 @@ export function WizardStepper({
   currentStep,
   onStepChange,
   children,
+  processing = false,
   className,
 }: WizardStepperProps) {
   const activeIndex = Math.max(
@@ -144,6 +151,11 @@ export function WizardStepper({
                 data-slot="wizard-step"
                 data-status={status}
                 data-step-id={step.id}
+                // Always name the button: on phones the label span is
+                // display:none and the number pill is aria-hidden, so without
+                // this the control would be an unnamed "button" to screen
+                // readers. aria-label wins over visible text when both exist.
+                aria-label={step.label}
                 aria-current={status === "active" ? "step" : undefined}
                 onClick={() => {
                   if (onStepChange && step.id !== currentStep) {
@@ -151,22 +163,43 @@ export function WizardStepper({
                   }
                 }}
                 className={cn(
-                  "group inline-flex items-center gap-3 rounded-full px-3 py-1.5",
+                  "group inline-flex items-center gap-2 rounded-full px-2 py-1.5 sm:gap-3 sm:px-3",
                   "outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   "transition-colors",
                 )}
               >
                 <span
                   aria-hidden="true"
+                  // Stagger the processing pulse across the three pills so they
+                  // read as a left-to-right pipeline wave rather than pulsing in
+                  // unison. Inline because the delay is per-index.
+                  style={processing ? { animationDelay: `${index * 0.16}s` } : undefined}
                   className={cn(
                     "inline-flex size-8 shrink-0 items-center justify-center rounded-full",
-                    "text-sm font-medium ring-1 transition-colors",
+                    // `transition` (not `transition-colors`) so the hover scale
+                    // tweens too; status color changes still transition.
+                    "text-sm font-medium ring-1 transition",
+                    // Hover: every step's icon lifts slightly (motion-safe only).
+                    "motion-safe:group-hover:scale-110",
+                    // Processing: soft scale pulse on all three pills...
+                    processing &&
+                      "motion-safe:animate-[wizard-step-pulse_1.4s_ease-in-out_infinite]",
+                    // ...and the active step's icon (the Process loader) spins.
+                    processing && status === "active" && "motion-safe:[&_svg]:animate-spin",
                     PILL_STATUS_CLASSES[status],
                   )}
                 >
                   {step.icon ?? index + 1}
                 </span>
-                <span className={cn("text-sm transition-colors", LABEL_STATUS_CLASSES[status])}>
+                {/* Hide non-active labels on phones so the row never overflows;
+                    the active step keeps its label for context. All show at sm+. */}
+                <span
+                  className={cn(
+                    "text-sm transition-colors",
+                    LABEL_STATUS_CLASSES[status],
+                    status !== "active" && "hidden sm:inline",
+                  )}
+                >
                   {step.label}
                 </span>
               </button>

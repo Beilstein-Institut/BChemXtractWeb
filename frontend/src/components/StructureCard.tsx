@@ -208,7 +208,7 @@ export function StructureCard({
           regardless of theme (chemistry convention). */}
       <div
         data-slot="structure-card-image"
-        className="flex min-h-[160px] items-center justify-center rounded-md bg-white p-4"
+        className="flex min-h-[140px] items-center justify-center rounded-md bg-white p-3 sm:min-h-[160px] sm:p-4"
       >
         {svgSrc ? (
           // key={depiction}: fade in the swapped layout (motion-reduce: none).
@@ -226,7 +226,7 @@ export function StructureCard({
       </div>
 
       {/* Metadata block on the card surface. */}
-      <div className="space-y-2 px-5 py-4">
+      <div className="space-y-2 px-4 py-3 sm:px-5 sm:py-4">
         <h3
           data-slot="structure-card-name"
           className="font-sans text-base font-semibold leading-tight text-foreground line-clamp-2"
@@ -313,8 +313,8 @@ export function StructureCard({
       <div className="relative group">
         {checkboxOverlay}
         {/* Per-card export icon overlay — top-2 right-2, mirrors checkbox at top-2 left-2 */}
-        {/* stopPropagation on wrapper div covers trigger button, its span wrapper,
-            and the icon itself — prevents card onClick firing when export area is clicked. */}
+        {/* stopPropagation on wrapper div covers the export trigger button and
+            the icon itself — prevents card onClick firing when export area is clicked. */}
         <div className="absolute top-2 right-2 z-10" onClick={(e) => e.stopPropagation()}>
           <ExportMenu onExport={handleExport} triggerVariant="icon" align="start" />
         </div>
