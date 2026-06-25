@@ -1,22 +1,35 @@
-"""Tests for SSE batch progress endpoint."""
+"""Tests for the SSE batch progress endpoint (ownership + error path)."""
 
 from unittest.mock import patch
 
+from starlette.testclient import TestClient
+
+from app.main import app
+from app.routers import batch as batch_mod
 from tests.conftest import TEST_SESSION_COOKIE
 
 
-def test_batch_progress_returns_error_event_for_unknown_batch():
-    """SSE: GroupResult.restore=None emits error event, not HTTP 404.
+class _FakeOwnerStore:
+    """In-memory stand-in for the Redis batch-owner records."""
 
-    EventSourceResponse always returns HTTP 200 — errors are communicated
-    via SSE event type 'error' in the stream body.
+    def __init__(self, initial: dict[str, bytes] | None = None) -> None:
+        self._d: dict[str, bytes] = dict(initial or {})
+
+    def set(self, key: str, value: str, ex: int | None = None) -> None:
+        self._d[key] = value.encode() if isinstance(value, str) else value
+
+    def get(self, key: str) -> bytes | None:
+        return self._d.get(key)
+
+
+def test_batch_progress_unknown_batch_returns_404():
+    """An unrecorded group_id is rejected with 404 before the stream opens.
+
+    The SSE/cancel endpoints bypass RLS, so the ownership gate must run first
+    and report unknown/foreign batches identically (no existence oracle).
     """
-    from starlette.testclient import TestClient
-
-    from app.main import app
-
-    with patch("app.routers.batch.GroupResult") as mock_gr:
-        mock_gr.restore.return_value = None
+    store = _FakeOwnerStore()
+    with patch.object(batch_mod, "_owner_store", lambda: store):
         client = TestClient(app, raise_server_exceptions=False)
         client.cookies.set("bcx_sid", TEST_SESSION_COOKIE)
         response = client.get(
@@ -24,5 +37,30 @@ def test_batch_progress_returns_error_event_for_unknown_batch():
             headers={"Accept": "text/event-stream"},
         )
 
-    # EventSourceResponse returns 200 even for error events (SSE protocol)
+    assert response.status_code == 404
+
+
+def test_batch_progress_owned_missing_groupresult_emits_error_event():
+    """For a batch the caller OWNS whose GroupResult is gone from Redis (e.g.
+    results expired), the stream opens (HTTP 200) and emits an SSE 'error'
+    event rather than failing the request — the original in-stream error path.
+    """
+    store = _FakeOwnerStore(
+        {batch_mod._batch_owner_key("owned-id"): f"sid:{TEST_SESSION_COOKIE}".encode()}
+    )
+    with (
+        patch.object(batch_mod, "_owner_store", lambda: store),
+        patch.object(batch_mod, "GroupResult") as mock_gr,
+    ):
+        mock_gr.restore.return_value = None
+        client = TestClient(app, raise_server_exceptions=False)
+        client.cookies.set("bcx_sid", TEST_SESSION_COOKIE)
+        response = client.get(
+            "/api/batch/owned-id/progress",
+            headers={"Accept": "text/event-stream"},
+        )
+
+    # EventSourceResponse returns 200; the missing GroupResult surfaces as an
+    # SSE error event in the body.
     assert response.status_code == 200
+    assert "Batch not found" in response.text
