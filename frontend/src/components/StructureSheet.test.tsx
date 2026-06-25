@@ -493,4 +493,74 @@ describe("StructureSheet on-demand InChI", () => {
     expect(await screen.findByText("UHOVQNZJYSORNB-UHFFFAOYSA-N")).toBeInTheDocument();
     expect(screen.getByText("InChI=1S/C6H6/c1-2-4-6-5-3-1/h1-6H")).toBeInTheDocument();
   });
+
+  it("does NOT auto-query PubChem for a surrogate key (no misleading error)", () => {
+    const spy = vi.spyOn(api, "getPubChemCompound");
+    render(
+      <PubChemPreferencesContext.Provider
+        value={{ enabled: true, setEnabled: () => null, available: true }}
+      >
+        <StructureSheet
+          open={true}
+          onOpenChange={vi.fn()}
+          substance={noInchiSubstance}
+          substanceIndex={0}
+          totalSubstances={1}
+          onPrev={vi.fn()}
+          onNext={vi.fn()}
+        />
+      </PubChemPreferencesContext.Provider>,
+    );
+    // The surrogate key must never reach the PubChem lookup, and the panel's
+    // "unavailable" error must not show.
+    expect(spy).not.toHaveBeenCalled();
+    expect(screen.queryByText(/PubChem is unavailable/i)).toBeNull();
+  });
+
+  it("with PubChem on: Generate InChI auto-queries PubChem with the real key", async () => {
+    vi.spyOn(api, "postComputeInchi").mockResolvedValue({
+      inchi: "InChI=1S/C6H6/c1-2-4-6-5-3-1/h1-6H",
+      inchi_key: "UHOVQNZJYSORNB-UHFFFAOYSA-N",
+    });
+    const pubchemSpy = vi.spyOn(api, "getPubChemCompound").mockResolvedValue({
+      inchi_key: "UHOVQNZJYSORNB-UHFFFAOYSA-N",
+      status: "exact",
+      cid: 241,
+      iupac_name: "benzene",
+      molecular_formula: "C6H6",
+      molecular_weight: 78.11,
+      canonical_smiles: "C1=CC=CC=C1",
+      isomeric_smiles: "C1=CC=CC=C1",
+      xlogp: 2.1,
+      pubchem_url: "https://pubchem.ncbi.nlm.nih.gov/compound/241",
+      connectivity_cid_count: 0,
+      title: "Benzene",
+      synonyms: ["benzene"],
+      description: "An aromatic hydrocarbon.",
+      description_source: "NCIt",
+    });
+    render(
+      <PubChemPreferencesContext.Provider
+        value={{ enabled: true, setEnabled: () => null, available: true }}
+      >
+        <StructureSheet
+          open={true}
+          onOpenChange={vi.fn()}
+          substance={noInchiSubstance}
+          substanceIndex={0}
+          totalSubstances={1}
+          onPrev={vi.fn()}
+          onNext={vi.fn()}
+        />
+      </PubChemPreferencesContext.Provider>,
+    );
+
+    // Button text stays "Generate InChI" (no confusing relabel); the PubChem
+    // search happens automatically once the real key is generated.
+    const btn = screen.getByRole("button", { name: /Generate InChI/i });
+    fireEvent.click(btn);
+
+    expect(await screen.findByText("Benzene")).toBeInTheDocument();
+    expect(pubchemSpy).toHaveBeenCalledWith("UHOVQNZJYSORNB-UHFFFAOYSA-N");
+  });
 });

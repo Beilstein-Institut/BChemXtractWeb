@@ -70,7 +70,10 @@ export function StructureDetail({
   depiction = DEFAULT_DEPICTION,
 }: StructureDetailProps) {
   const svgSrc = useSvgObjectUrl(pickSvg(substance, depiction));
-  const pubchem = usePubChemCompound(substance.inchi_key);
+  // Key PubChem on the real InChIKey only. Without a real InChI the stored key
+  // is a SMILES-hash surrogate that 422s the lookup and shows a misleading
+  // "PubChem unavailable" error, so skip it (panel stays hidden).
+  const pubchem = usePubChemCompound(substance.inchi ? substance.inchi_key : undefined);
 
   return (
     <DialogContent className="sm:max-w-2xl w-full" showCloseButton={true}>

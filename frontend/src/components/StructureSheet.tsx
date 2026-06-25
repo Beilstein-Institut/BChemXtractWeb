@@ -113,17 +113,21 @@ export function StructureSheet({
   // currently-shown substance; reset whenever the substance changes.
   const [computedInchi, setComputedInchi] = useState<InchiResult | null>(null);
   const [inchiLoading, setInchiLoading] = useState(false);
-  // Tier-2 PubChem detail for the open structure. No-op (idle) until the user
-  // opts in; null substance -> no fetch.
-  const pubchem = usePubChemCompound(substance?.inchi_key);
 
   // Effective InChI / InChIKey: prefer the stored values, fall back to a value
   // computed on demand. The stored InChIKey is only trustworthy when a real
   // InChI exists — without one it is a SMILES-hash surrogate (prefix "S"), so
-  // we treat both as absent and offer the Generate action instead.
+  // we treat both as absent and offer the Generate / Search action instead.
   const hasStoredInchi = !!substance?.inchi;
   const effectiveInchi = substance?.inchi || computedInchi?.inchi || "";
   const effectiveInchiKey = hasStoredInchi ? substance.inchi_key : (computedInchi?.inchi_key ?? "");
+
+  // PubChem is keyed on the REAL InChIKey (stored, or just generated) — never
+  // the surrogate. A surrogate key 422s the lookup and surfaces a misleading
+  // "PubChem unavailable" error; an empty key keeps the hook idle (panel
+  // hidden) until the user generates a real one. So clicking "Generate InChI"
+  // computes the real key, which automatically drives the PubChem lookup.
+  const pubchem = usePubChemCompound(effectiveInchiKey || undefined);
 
   // Reset zoom and pick initial layout when substance changes. Follow the
   // page-level depiction preference (CDK by default); fall back to
@@ -165,6 +169,8 @@ export function StructureSheet({
     toast.loading("Generating InChI…", { id: toastId });
     try {
       const result = await postComputeInchi(substance.smiles);
+      // Setting the computed key makes effectiveInchiKey real, which auto-fires
+      // the PubChem lookup (the panel keys on it) — no separate user action.
       setComputedInchi(result);
       toast.success("InChI generated", { id: toastId, duration: 2000 });
     } catch (err) {
