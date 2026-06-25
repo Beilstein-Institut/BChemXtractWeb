@@ -91,6 +91,13 @@ logger = logging.getLogger(__name__)
 _INCHI_KEY_RE = re.compile(r"\A[A-Z]{14}(?:-[A-Z]{10}(?:-[A-Z])?)?\Z")
 _FORMULA_RE = re.compile(r"\A(?:[A-Z][a-z]?\d{0,5}){1,60}\Z")
 
+# Surrogate InChIKey minted in persistence.py for fragment-path substances
+# that have no real InChI: ``S`` + 13 hex + ``-`` + 10 hex + ``-N`` (uppercase
+# SHA-256 of the SMILES). Real InChIKeys are letters-only, so these fail
+# ``_INCHI_KEY_RE``; they are still a stable per-substance identifier, so the
+# share/deep-link path must be able to resolve one by exact match.
+_SURROGATE_KEY_RE = re.compile(r"\AS[0-9A-F]{13}-[0-9A-F]{10}-N\Z")
+
 # Polymer-SMILES deadlock ceiling. Same threshold applied inside
 # :func:`canonicalize._canonicalize_smiles_sync` — CDK's ``SmartsPattern``
 # matching path is *also* subject to the deadlock, so we apply the same
@@ -223,12 +230,23 @@ async def _search_inchi_key(
     * ``<14>`` — returns every stored key sharing the skeleton (any
       stereo / isotope / protonation).
 
+    A surrogate key (``S…``, minted for InChI-less fragment substances) is
+    matched exactly — it is a SMILES hash, so prefix matching is meaningless.
+    This is what lets a share/deep-link to such a structure resolve.
+
     Malformed input raises :class:`InvalidInchiKeyError` (422 /
     INVALID_INCHI_KEY). The LIKE branch is safe: the regex restricts
     the pattern to ``[A-Z]`` + hyphens, so no SQL wildcard characters
     (``%``, ``_``) can enter the pattern.
     """
     normalized = q.strip().upper()
+    # Surrogate keys (digits present) fail the real-InChIKey regex but are a
+    # valid stable identifier — match them exactly (bound param, injection-safe).
+    if _SURROGATE_KEY_RE.match(normalized):
+        stmt = _base_substance_select(scope_eid).where(
+            Substance.inchi_key == normalized
+        )
+        return list((await db.execute(stmt)).scalars().all())
     if not _INCHI_KEY_RE.match(normalized):
         raise InvalidInchiKeyError(
             "InChI key must be 14 letters, optionally followed by "

@@ -385,3 +385,21 @@ class PubChemStatusResponse(BaseModel):
     """
 
     enabled: bool
+
+
+class InchiRequest(BaseModel):
+    """POST /api/inchi body — compute InChI for a single SMILES on demand.
+
+    Used by the structure sheet's "Generate InChI" action for substances whose
+    InChI was skipped at extraction time. The length cap is generous (large
+    legitimate molecules are the whole point) but bounds obvious abuse.
+    """
+
+    smiles: str = Field(..., min_length=1, max_length=50_000)
+
+
+class InchiResponse(BaseModel):
+    """POST /api/inchi response — the computed InChI + its (real) InChIKey."""
+
+    inchi: str
+    inchi_key: str

@@ -69,6 +69,13 @@ _FRAGMENT_STAGE1_TIMEOUT = 60.0
 # to hang.
 _INCHI_FROM_SMILES_TIMEOUT = 20.0
 
+# Budget for the on-demand "compute InChI" action (no size cap — the user
+# explicitly asked for it). Kept under nginx's 130s proxy timeout so the 503
+# reaches the client. A molecule that needs longer (very large cages) cannot
+# finish interactively; the worker is freed and the abandoned native call is
+# left to drain (same trade-off as the extraction timeouts).
+_ON_DEMAND_INCHI_TIMEOUT = 90.0
+
 # Skip InChI recomputation above this many heavy (non-H) atoms. InChI
 # generation blows up super-linearly on large, highly-symmetric molecules: a
 # 162-heavy-atom supramolecular cage takes ~5 min (and is what makes
@@ -239,6 +246,30 @@ def _inchi_from_smiles(smiles: str, parser, igf) -> tuple[str, str]:
         return str(gen.getInchi() or ""), str(gen.getInchiKey() or "")
     except Exception:  # noqa: BLE001 — bad fragment: treated as unresolved
         return "", ""
+
+
+async def compute_inchi(smiles: str) -> tuple[str, str]:
+    """Compute (inchi, inchi_key) for a single SMILES on demand, off the loop.
+
+    Backs the interactive "Generate InChI" action for structures whose InChI
+    was skipped during extraction (xtractUnique timed out and the molecule was
+    over the auto-recovery size cap). Unlike the extraction-time recovery there
+    is NO size cap — the user has explicitly asked to compute it — only the
+    :data:`_ON_DEMAND_INCHI_TIMEOUT` budget.
+
+    Returns ``("", "")`` when CDK cannot produce an InChI (the caller turns
+    that into a 422). Raises :class:`TimeoutError` (-> 503) when the structure
+    is too large to finish within the budget.
+    """
+
+    def _sync() -> tuple[str, str]:
+        tools = _cdk_inchi_tools()
+        if tools is None:
+            return "", ""
+        parser, igf = tools
+        return _inchi_from_smiles(smiles, parser, igf)
+
+    return await run_in_jvm_thread(_sync, timeout=_ON_DEMAND_INCHI_TIMEOUT)
 
 
 def _enrich_inchi_from_smiles_sync(substances: list[dict]) -> list[dict]:

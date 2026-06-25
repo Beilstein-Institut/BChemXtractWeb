@@ -72,3 +72,50 @@ async def test_inchi_key_normalization(client_csrf: AsyncClient) -> None:
         r["substance"]["inchi_key"] == "UHOVQNZJYSORNB-UHFFFAOYSA-N"
         for r in body["results"]
     )
+
+
+_SURROGATE_KEY = "S274AC64682B2D-1DB993AA24-N"
+
+
+async def _seed_surrogate() -> None:
+    """Seed an InChI-less fragment substance with a surrogate ``S…`` key."""
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            text(
+                "INSERT INTO substances "
+                "(inchi_key, smiles, inchi, extended_smiles, molecular_formula, "
+                " svg, svg_cdx, mdlv3000, canonical_smiles) VALUES "
+                "(:k, 'C1CCCCC1', '', '', 'C6H12', '', '', '', 'C1CCCCC1') "
+                "ON CONFLICT (inchi_key) DO NOTHING"
+            ),
+            {"k": _SURROGATE_KEY},
+        )
+        await session.commit()
+    await link_substances_to_extraction([_SURROGATE_KEY])
+
+
+@pytest.mark.asyncio
+async def test_surrogate_inchi_key_resolves_for_share_links(
+    client_csrf: AsyncClient,
+) -> None:
+    """A surrogate ``S…`` key (digits → fails the real-InChIKey regex) must
+    still resolve by exact match, so a /browse#s=<surrogate> share link opens.
+    """
+    await _seed_surrogate()
+    resp = await client_csrf.post(
+        "/api/search",
+        json={"query": _SURROGATE_KEY, "type": "inchi_key"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert any(r["substance"]["inchi_key"] == _SURROGATE_KEY for r in body["results"])
+
+
+@pytest.mark.asyncio
+async def test_garbage_inchi_key_still_rejected(client_csrf: AsyncClient) -> None:
+    """A non-surrogate, non-InChIKey string is still a 422 (regex unchanged)."""
+    resp = await client_csrf.post(
+        "/api/search",
+        json={"query": "123 not a key", "type": "inchi_key"},
+    )
+    assert resp.status_code == 422, resp.text
