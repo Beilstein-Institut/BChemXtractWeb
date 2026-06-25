@@ -92,6 +92,63 @@ skip_under_superuser_db = pytest.mark.skipif(
     reason="RLS enforcement requires a NOSUPERUSER NOBYPASSRLS DB role",
 )
 
+
+async def link_substances_to_extraction(
+    inchi_keys: list[str],
+    session_id: str = TEST_SESSION_COOKIE,
+    *,
+    filename: str = "seed.cdx",
+) -> int:
+    """Create an extraction owned by ``session_id`` and link already-inserted
+    substances to it via ``extraction_substances``; return the extraction id.
+
+    Substance reads are RLS-scoped through the ExtractionSubstance join (the
+    ``substances`` table has no RLS of its own), so a seeded substance only
+    becomes visible to global search / stats once it is linked to one of the
+    caller's extractions. Tests that insert bare substances and then search
+    must call this. Sets ``app.session_id`` first so the inserts pass the
+    policy WITH CHECK when the suite runs under the NOSUPERUSER app role.
+    """
+    from sqlalchemy import text
+
+    from app.services.db import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as db:
+        await db.execute(
+            text("SELECT set_config('app.session_id', :sid, true)"),
+            {"sid": session_id},
+        )
+        eid = (
+            await db.execute(
+                text(
+                    "INSERT INTO extractions (session_id, filename, file_size, "
+                    "format, structure_count, extraction_time_ms, warnings) "
+                    "VALUES (:sid, :fn, 1, 'cdx', :n, 0, '[]'::jsonb) RETURNING id"
+                ),
+                {"sid": session_id, "fn": filename, "n": len(inchi_keys)},
+            )
+        ).scalar_one()
+        for pos, key in enumerate(inchi_keys):
+            sub_id = (
+                await db.execute(
+                    text("SELECT id FROM substances WHERE inchi_key = :k"),
+                    {"k": key},
+                )
+            ).scalar_one_or_none()
+            if sub_id is None:
+                continue
+            await db.execute(
+                text(
+                    "INSERT INTO extraction_substances "
+                    "(extraction_id, substance_id, position, session_id) "
+                    "VALUES (:eid, :sub, :pos, :sid)"
+                ),
+                {"eid": eid, "sub": sub_id, "pos": pos, "sid": session_id},
+            )
+        await db.commit()
+        return eid
+
+
 # Substance + reaction fixtures both live under backend/tests/fixtures/.
 # Substance fixtures (under substances/) were copied verbatim from upstream
 # BChemXtract's src/test/resources/ when the submodule was retired — see the
@@ -101,7 +158,9 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures" / "substances"
 REACTION_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "reactions"
 
 # --- test database URL ---
-TEST_DB_URL = "postgresql+psycopg://postgres:postgres@localhost:5432/bchemxtract_test"
+# Single source of truth: follows DATABASE_URL (set via env or the setdefault
+# above), so pointing the suite at a different Postgres only needs DATABASE_URL.
+TEST_DB_URL = os.environ["DATABASE_URL"]
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)

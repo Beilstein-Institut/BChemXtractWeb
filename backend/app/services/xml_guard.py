@@ -15,23 +15,33 @@ using default behaviour"* — giving any caller with a CDXML payload:
 Because we treat the upstream Java layer as read-only, we harden at the
 Python boundary. The guard:
 
-  * rejects any ``<!ENTITY>`` declaration,
-  * parses the DOCTYPE declaration structurally (respecting quoted
-    literals) to extract its SYSTEM / PUBLIC external identifier, and
+  * locates the document **prolog** — everything before the root element
+    start tag — by walking past the XML declaration, comments, and
+    processing instructions,
+  * rejects any ``<!ENTITY>`` declaration in that prolog,
+  * parses the prolog's ``<!DOCTYPE>`` declaration structurally (respecting
+    quoted literals) to extract its SYSTEM / PUBLIC external identifier, and
     requires the extracted literal to **exactly equal** one of the two
     catalogued DTD URLs,
   * rejects any DOCTYPE with an internal subset (``[...]``), which real
     ChemDraw files never emit and which could otherwise hide an external-DTD
     parameter entity reference that Xerces would fetch during prolog parsing.
 
-Structural parsing replaces an earlier substring-membership check that
-could be bypassed by placing a catalogued URL inside a comment, attribute,
-or processing instruction near the DOCTYPE while the real SYSTEM id
-pointed at an attacker-controlled URL.
+Scanning the *whole prolog* (rather than a fixed-size head window) is what
+makes this safe. An earlier version scanned only the first 64 KB; an attacker
+could pad the prolog with >64 KB of XML-legal whitespace or a comment and
+place the malicious ``<!DOCTYPE>`` beyond the window, so detection returned
+"no doctype" and the bytes reached the unhardened Java parser. Walking the
+prolog also means a decoy DOCTYPE/ENTITY hidden inside a comment (which the
+SAX parser ignores) is skipped rather than mistaken for the real one, and a
+substring-membership bypass (a catalogued URL placed in a comment or
+attribute near an attacker-controlled SYSTEM id) is rejected by structural
+extraction.
 
-The guard runs in bounded time (fixed 64 KB head scan, single regex pass)
-regardless of total file length, so it cannot be weaponised for CPU
-exhaustion itself.
+The walk runs in bounded time regardless of total file length: comments and
+processing instructions are skipped with a single ``bytes.find`` each, and
+only a bounded slice of the prolog's declaration block is ever inspected, so
+the guard cannot be weaponised for CPU exhaustion itself.
 """
 
 from __future__ import annotations
@@ -40,8 +50,20 @@ import re
 
 from app.errors import FormatDetectionError
 
-_HEAD_BYTES = 65_536
+# How many bytes of the prolog's markup-declaration block we inspect. Real
+# ChemDraw DOCTYPEs are a few hundred bytes; a declaration that does not
+# terminate within this slice is rejected as oversize/unterminated below, so
+# this is an inspection bound, not a detection window an attacker can pad
+# past (the prolog walk locates the declaration regardless of how far comment
+# padding pushes it into the file).
+_PROLOG_DECL_CAP = 65_536
+
+# A single DOCTYPE declaration is inspected up to this length; anything longer
+# is treated as unterminated/oversize and rejected. Real CDXML DOCTYPEs are
+# tiny, so a long one is always adversarial (e.g. a giant internal subset).
 _DOCTYPE_MAX_LEN = 2_048
+
+_DOCTYPE_KW_LEN = len(b"<!DOCTYPE")
 
 _DOCTYPE_RE = re.compile(rb"<!DOCTYPE\b", re.IGNORECASE)
 _ENTITY_RE = re.compile(rb"<!ENTITY\b", re.IGNORECASE)
@@ -73,14 +95,17 @@ _ALLOWED_SYSTEM_IDS: frozenset[bytes] = frozenset(
     }
 )
 
+# Bytes XML treats as whitespace between prolog items.
+_XML_WHITESPACE = frozenset({0x20, 0x09, 0x0A, 0x0D})
+
 
 def _find_declaration_end(head: bytes, start: int, limit: int) -> int | None:
     """Return the index just past the closing ``>`` of an SGML/XML
     declaration starting at ``start``, respecting quoted string literals.
 
     ``limit`` caps the scan so malformed/oversize declarations don't walk
-    off the end of the 64 KB head. Returns ``None`` if the declaration is
-    unterminated within ``[start, limit)``.
+    off the end of the inspected slice. Returns ``None`` if the declaration
+    is unterminated within ``[start, limit)``.
     """
     i = start
     in_quote: int | None = None  # ord of the active quote char, or None
@@ -97,49 +122,73 @@ def _find_declaration_end(head: bytes, start: int, limit: int) -> int | None:
     return None
 
 
-def reject_xml_external_entities(file_bytes: bytes) -> None:
-    """Reject CDXML payloads that could trigger XXE / SSRF / billion-laughs.
+def _extract_prolog_declarations(data: bytes) -> bytes:
+    """Return the prolog's markup-declaration bytes, or ``b""`` if none.
 
-    Enforced rules:
+    Walks the prolog from the start of the document, skipping a leading
+    UTF-8 BOM, the XML declaration, comments, and processing instructions,
+    until it reaches either:
 
-      - No ``<!ENTITY>`` declarations of any kind.
-      - If a ``<!DOCTYPE>`` declaration is present, it must:
-          * terminate inside the first 2 KB after its start,
-          * contain no internal subset (``[...]``),
-          * either have no SYSTEM/PUBLIC external id, or have an external
-            id whose literal URL is byte-exactly one of
-            :data:`_ALLOWED_SYSTEM_IDS`.
+      * a markup declaration (``<!`` — the DOCTYPE, plus any internal
+        subset) — a bounded slice from there is returned for inspection, or
+      * the root element start tag — ``b""`` is returned, since no
+        DOCTYPE/ENTITY the parser would act on can appear after it.
 
-    Args:
-        file_bytes: Raw file content as delivered by the client.
-
-    Raises:
-        FormatDetectionError: On any payload matching the rules above.
-            The error message is intentionally generic to avoid giving an
-            attacker hints about which check fired.
+    Skipping comments/PIs structurally (each via a single ``bytes.find``)
+    means neither a >64 KB padded prolog nor a decoy declaration hidden
+    inside a comment can fool the entity/doctype checks the caller runs on
+    the returned slice. Malformed prologs return a bounded slice from the
+    offending byte so the checks still run conservatively.
     """
-    head = file_bytes[:_HEAD_BYTES]
+    n = len(data)
+    i = 3 if data[:3] == b"\xef\xbb\xbf" else 0  # skip a leading UTF-8 BOM
+    while i < n:
+        ch = data[i]
+        if ch in _XML_WHITESPACE:
+            i += 1
+            continue
+        if ch != 0x3C:  # not '<' — malformed prolog; inspect conservatively
+            return data[i : i + _PROLOG_DECL_CAP]
+        if data[i : i + 4] == b"<!--":
+            end = data.find(b"-->", i + 4)
+            if end == -1:  # unterminated comment — inspect what remains
+                return data[i : i + _PROLOG_DECL_CAP]
+            i = end + 3
+            continue
+        if data[i : i + 2] == b"<?":
+            end = data.find(b"?>", i + 2)
+            if end == -1:
+                return data[i : i + _PROLOG_DECL_CAP]
+            i = end + 2
+            continue
+        if data[i : i + 2] == b"<!":
+            # Markup declaration block (the DOCTYPE and any internal subset).
+            return data[i : i + _PROLOG_DECL_CAP]
+        # '<' followed by a name char or '/': the root element start tag.
+        return b""
+    return b""
 
-    if _ENTITY_RE.search(head):
-        raise FormatDetectionError(
-            "CDXML payload contains <!ENTITY> declarations, which are "
-            "not permitted for security reasons."
-        )
 
-    doctype_match = _DOCTYPE_RE.search(head)
-    if doctype_match is None:
-        return
+def _inspect_doctype(prolog: bytes, start: int) -> None:
+    """Validate a single ``<!DOCTYPE`` declaration at ``start`` in ``prolog``.
 
-    doctype_start = doctype_match.start()
-    limit = min(doctype_start + _DOCTYPE_MAX_LEN, len(head))
-    doctype_end = _find_declaration_end(head, doctype_match.end(), limit)
-    if doctype_end is None:
+    Raises :class:`FormatDetectionError` if the declaration is unterminated /
+    oversize, carries an internal subset, or references an external
+    identifier that is not byte-exactly one of :data:`_ALLOWED_SYSTEM_IDS`.
+    A DOCTYPE with no external identifier is harmless and accepted.
+    """
+    end = _find_declaration_end(
+        prolog,
+        start + _DOCTYPE_KW_LEN,
+        min(start + _DOCTYPE_MAX_LEN, len(prolog)),
+    )
+    if end is None:
         raise FormatDetectionError(
             "CDXML DOCTYPE declaration is unterminated or exceeds the "
             "permitted size limit."
         )
 
-    doctype_decl = head[doctype_start:doctype_end]
+    doctype_decl = prolog[start:end]
 
     if b"[" in doctype_decl:
         raise FormatDetectionError(
@@ -158,3 +207,42 @@ def reject_xml_external_entities(file_bytes: bytes) -> None:
             "not in the permitted catalog. Only the bundled CDXML DTD "
             "URLs are allowed."
         )
+
+
+def reject_xml_external_entities(file_bytes: bytes) -> None:
+    """Reject CDXML payloads that could trigger XXE / SSRF / billion-laughs.
+
+    Enforced rules (applied to the document prolog — the only place a
+    ``<!DOCTYPE>`` / ``<!ENTITY>`` the SAX parser acts on can appear):
+
+      - No ``<!ENTITY>`` declarations of any kind.
+      - If a ``<!DOCTYPE>`` declaration is present, it must:
+          * terminate inside the inspected slice,
+          * contain no internal subset (``[...]``),
+          * either have no SYSTEM/PUBLIC external id, or have an external
+            id whose literal URL is byte-exactly one of
+            :data:`_ALLOWED_SYSTEM_IDS`.
+
+    Args:
+        file_bytes: Raw file content as delivered by the client.
+
+    Raises:
+        FormatDetectionError: On any payload matching the rules above.
+            The error message is intentionally generic to avoid giving an
+            attacker hints about which check fired.
+    """
+    prolog = _extract_prolog_declarations(file_bytes)
+    if not prolog:
+        return
+
+    if _ENTITY_RE.search(prolog):
+        raise FormatDetectionError(
+            "CDXML payload contains <!ENTITY> declarations, which are "
+            "not permitted for security reasons."
+        )
+
+    doctype_match = _DOCTYPE_RE.search(prolog)
+    if doctype_match is None:
+        return
+
+    _inspect_doctype(prolog, doctype_match.start())

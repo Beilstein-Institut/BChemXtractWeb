@@ -6,11 +6,11 @@
  *     The white sub-surface persists in dark mode — chemistry convention keeps
  *     structures on paper-white regardless of theme.
  *   - Metadata block below on the outer `--color-surface` card background:
- *       Name (IUPAC when present; molecular formula otherwise) in Inter
- *       semibold 16 px.
+ *       Name in Inter semibold 16 px — the IUPAC name when present, otherwise
+ *       the molecular formula rendered with chemistry subscripts via <sub>.
+ *       (The formula is shown only here; there is no separate formula row.)
  *       SMILES in Geist Mono 14 px, truncated with a native `title` tooltip
  *       for hover-reveal full.
- *       Molecular formula in Inter with chemistry subscripts via <sub> tags.
  *   - Bottom action row: Copy-SMILES icon button, Share link icon button,
  *     optional per-card export menu, optional Details trigger.
  *
@@ -28,9 +28,10 @@
  * All new slots follow the `data-slot` contract:
  *   data-slot="structure-card"            (root)
  *   data-slot="structure-card-image"      (white PNG surface)
- *   data-slot="structure-card-name"       (Inter semibold title)
+ *   data-slot="structure-card-name"       (Inter semibold title; IUPAC name,
+ *                                          or the molecular formula with
+ *                                          subscripts when no name is present)
  *   data-slot="structure-card-smiles"     (Geist Mono truncated)
- *   data-slot="structure-card-formula"    (Inter with subscripts)
  *   data-slot="structure-card-share"      (share icon button)
  *   data-slot="structure-card-details"    (details/ExternalLink trigger)
  */
@@ -44,6 +45,7 @@ import { CopyButton } from "@/components/internal/CopyButton";
 import { ExportMenu } from "@/components/ExportMenu";
 import { PubChemBadge } from "@/components/PubChemBadge";
 import { StructureDetail } from "@/components/StructureDetail";
+import { MolecularFormula } from "@/components/internal/MolecularFormula";
 import { useShareLink } from "@/hooks/useShareLink";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { postExport } from "@/lib/apiClient";
@@ -100,24 +102,6 @@ export interface StructureCardProps {
 }
 
 /**
- * Render a molecular formula (e.g. "C6H12O6") with digit runs wrapped in
- * `<sub>` tags so the output reads C₆H₁₂O₆ visually. Returns "—" for empty.
- */
-function renderFormulaWithSubscripts(formula: string | null | undefined): React.ReactNode {
-  if (!formula) return "—";
-  const parts = formula.split(/(\d+)/).filter((part) => part.length > 0);
-  return parts.map((part, i) =>
-    /^\d+$/.test(part) ? (
-      <sub key={i} className="text-[0.75em] align-baseline">
-        {part}
-      </sub>
-    ) : (
-      <span key={i}>{part}</span>
-    ),
-  );
-}
-
-/**
  * StructureCard — molecule grid tile.
  *
  * Implements the thumbnail card, molecular formula + SMILES, dialog trigger,
@@ -143,13 +127,12 @@ export function StructureCard({
 
   const svgSrc = useSvgObjectUrl(pickSvg(substance, depiction));
 
-  // Prefer IUPAC name for the Inter-semibold headline; fall back to the
-  // molecular formula (same text that already appears in the formula row, but
-  // serves as a stable label when no IUPAC name is present).
-  const displayName =
-    (substance.iupac_name && substance.iupac_name.trim()) ||
-    substance.molecular_formula ||
-    "Unnamed structure";
+  // Headline: the IUPAC name when present, otherwise the molecular formula
+  // (rendered with subscripts in the markup below). The formula is shown ONLY
+  // in this headline — there is no separate formula row — so a card never
+  // displays it twice.
+  const trimmedIupac = substance.iupac_name?.trim() ?? "";
+  const hasIupac = trimmedIupac.length > 0;
 
   async function handleExport(format: ExportFormat): Promise<void> {
     // Guard against sending substance_ids:[0] when id is falsy (Pydantic
@@ -175,21 +158,20 @@ export function StructureCard({
     }
   }
 
-  // Delegate to useShareLink — the hook owns URL-building,
-  // clipboard write, the transient "shared" flag, and the 2 s reset-timer
-  // cleanup that was previously inlined here. We still stopPropagation on
-  // the click event so the wrapping card's onClick/keyboard handlers don't
-  // fire when the user taps the share icon.
+  // Delegate to useShareLink — it copies a public PubChem link (real InChIKey
+  // when available, else a SMILES structure search) so a recipient can open it
+  // without access to our per-session database. stopPropagation keeps the
+  // wrapping card's click/keyboard handlers from firing on the share tap.
   const handleShare = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation();
       try {
-        await share(substance.inchi_key);
+        await share({ inchiKey: substance.inchi_key, smiles: substance.smiles });
       } catch {
-        toast.error("Couldn't copy the share link. Copy the page URL from the address bar.");
+        toast.error("Couldn't copy the PubChem link. Try again.");
       }
     },
-    [share, substance.inchi_key],
+    [share, substance.inchi_key, substance.smiles],
   );
 
   /** Shared card inner content (SVG + metadata) used in both render modes. */
@@ -231,7 +213,13 @@ export function StructureCard({
           data-slot="structure-card-name"
           className="font-sans text-base font-semibold leading-tight text-foreground line-clamp-2"
         >
-          {displayName}
+          {hasIupac ? (
+            trimmedIupac
+          ) : substance.molecular_formula ? (
+            <MolecularFormula value={substance.molecular_formula} />
+          ) : (
+            "Unnamed structure"
+          )}
         </h3>
 
         {pubchem && (
@@ -251,10 +239,6 @@ export function StructureCard({
           <CopyButton value={substance.smiles} label="SMILES" stopPropagation mutedIcon />
         </div>
 
-        <div data-slot="structure-card-formula" className="font-sans text-sm text-foreground-muted">
-          {renderFormulaWithSubscripts(substance.molecular_formula)}
-        </div>
-
         <div className="flex items-center justify-between border-t border-border pt-2">
           <div className="flex items-center gap-1">
             <Button
@@ -262,7 +246,7 @@ export function StructureCard({
               variant="ghost"
               size="icon-sm"
               type="button"
-              aria-label={shared ? "Share link copied" : "Copy share link"}
+              aria-label={shared ? "PubChem link copied" : "Copy PubChem link"}
               onClick={handleShare}
             >
               {shared ? (
@@ -275,7 +259,7 @@ export function StructureCard({
                 confirmation. The visible state change is on the button icon;
                 this lets non-sighted users hear the same feedback. */}
             <span data-slot="structure-card-share-status" aria-live="polite" className="sr-only">
-              {shared ? "Share link copied to clipboard" : ""}
+              {shared ? "PubChem link copied to clipboard" : ""}
             </span>
           </div>
           <span

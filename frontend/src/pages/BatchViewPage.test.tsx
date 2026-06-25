@@ -50,7 +50,7 @@ it("renders one section per file with filename header, table by default", async 
   expect(await screen.findByText("a.cdx")).toBeTruthy();
   expect(screen.getByText("b.cdx")).toBeTruthy();
   // Table is the default view → column headers present.
-  await waitFor(() => expect(screen.getAllByText("Formula").length).toBeGreaterThan(0));
+  await waitFor(() => expect(screen.getAllByText("Molecular Formula").length).toBeGreaterThan(0));
 });
 
 it("shows an empty state when no batch id is in the URL", () => {

@@ -24,6 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CopyButton } from "@/components/internal/CopyButton";
+import { MolecularFormula } from "@/components/internal/MolecularFormula";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { cn } from "@/lib/utils";
 import { DEFAULT_DEPICTION, pickSvg } from "@/lib/depiction";
@@ -69,7 +70,7 @@ export function StructureTable({
           <TableRow>
             {selectable && <TableHead className="w-10" />}
             <TableHead className="w-14">Thumbnail</TableHead>
-            <TableHead>Formula</TableHead>
+            <TableHead>Molecular Formula</TableHead>
             <TableHead className="hidden sm:table-cell">SMILES</TableHead>
             <TableHead className="hidden md:table-cell">InChI Key</TableHead>
             <TableHead className="w-10" />
@@ -119,7 +120,7 @@ export function StructureTable({
             </TableHead>
           )}
           <TableHead className="w-14">Thumbnail</TableHead>
-          <TableHead>Formula</TableHead>
+          <TableHead>Molecular Formula</TableHead>
           <TableHead className="hidden sm:table-cell">SMILES</TableHead>
           <TableHead className="hidden md:table-cell">InChI Key</TableHead>
           <TableHead className="w-10" />
@@ -211,7 +212,9 @@ function StructureTableRow({
 
       {/* Molecular formula */}
       <TableCell>
-        <span className="text-xs font-semibold">{substance.molecular_formula}</span>
+        <span className="text-xs font-semibold">
+          <MolecularFormula value={substance.molecular_formula} />
+        </span>
       </TableCell>
 
       {/* SMILES — truncated with Tooltip; hidden on phones (full value in detail sheet) */}

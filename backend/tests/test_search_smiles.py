@@ -7,6 +7,7 @@ from httpx import AsyncClient
 from sqlalchemy import text
 
 from app.services.db import AsyncSessionLocal
+from tests.conftest import link_substances_to_extraction
 
 
 @pytest.mark.asyncio
@@ -29,6 +30,7 @@ async def test_smiles_canonical_equivalence(client_csrf: AsyncClient) -> None:
             {"k": "UHOVQNZJYSORNB-UHFFFAOYSA-N"},
         )
         await session.commit()
+    await link_substances_to_extraction(["UHOVQNZJYSORNB-UHFFFAOYSA-N"])
 
     resp = await client_csrf.post(
         "/api/search",
@@ -57,6 +59,7 @@ async def test_smiles_literal_match(client_csrf: AsyncClient) -> None:
             {"k": "LITERALSMILESB-UHFFFAOYSA-N"},
         )
         await session.commit()
+    await link_substances_to_extraction(["LITERALSMILESB-UHFFFAOYSA-N"])
 
     resp = await client_csrf.post(
         "/api/search",

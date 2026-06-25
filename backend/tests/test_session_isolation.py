@@ -24,7 +24,7 @@ from sqlalchemy import text
 
 from app.models.orm import Extraction
 from app.services.db import AsyncSessionLocal
-from tests.conftest import skip_under_superuser_db
+from tests.conftest import link_substances_to_extraction, skip_under_superuser_db
 
 pytestmark = [pytest.mark.asyncio, skip_under_superuser_db]
 
@@ -134,3 +134,43 @@ async def test_anonymous_client_sees_zero_rows(started_app):
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["items"] == [], f"Fresh anonymous session saw existing rows: {body}"
+
+
+async def test_global_search_hides_other_session_substances(started_app):
+    """Global substance search as client A must NOT return a substance that is
+    only linked to client B's extraction (CWE-639).
+
+    The substances table has no RLS of its own — isolation comes entirely from
+    the ExtractionSubstance join in the search query. This proves the join
+    actually filters under the NOSUPERUSER role.
+    """
+    key = "ISOLATNXSEARCH-UHFFFAOYSA-N"
+    async with AsyncSessionLocal() as db:
+        await db.execute(
+            text(
+                "INSERT INTO substances (inchi_key, smiles, inchi, "
+                "extended_smiles, molecular_formula, svg, svg_cdx, mdlv3000, "
+                "canonical_smiles) VALUES "
+                "(:k, '', '', '', 'C13ISOLATE', '', '', '', '') "
+                "ON CONFLICT (inchi_key) DO NOTHING"
+            ),
+            {"k": key},
+        )
+        await db.commit()
+    # Link the substance to client B's extraction only.
+    await link_substances_to_extraction([key], session_id=SID_B)
+
+    transport = ASGITransport(app=started_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac_a:
+        ac_a.cookies.set("bcx_sid", SID_A)
+        csrf = (await ac_a.get("/api/csrf-token")).json()["csrf_token"]
+        resp = await ac_a.post(
+            "/api/search",
+            json={"query": "C13ISOLATE", "type": "formula", "scope": "global"},
+            headers={"X-CSRF-Token": csrf},
+        )
+        assert resp.status_code == 200, resp.text
+        keys = {r["substance"]["inchi_key"] for r in resp.json()["results"]}
+        assert key not in keys, (
+            f"RLS leak: client A's global search returned client B's substance {key}"
+        )

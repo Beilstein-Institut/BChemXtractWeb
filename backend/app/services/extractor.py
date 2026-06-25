@@ -21,6 +21,8 @@ fragment path and adds a warning to the response.
 
 import contextlib
 import logging
+import re
+import threading
 from collections import Counter
 
 import jpype
@@ -38,6 +40,7 @@ from app.services.depiction import (
     _set_svg_dimensions,
     render_substance_svg,
     render_substance_svg_cdk_layout,
+    sanitize_svg,
 )
 from app.services.format_detector import detect_format
 from app.services.jvm_bridge import run_in_jvm_thread
@@ -48,8 +51,76 @@ logger = logging.getLogger(__name__)
 # to the fragment-level extraction which bypasses InChI computation.
 _XTRACT_UNIQUE_TIMEOUT = 10.0
 
-# Timeout for the fragment-level fallback (typically completes in <1s).
+# Timeout for the whole fragment-first extraction (the outer
+# ``run_in_jvm_thread`` budget). Stage 1 + Stage 2 are individually bounded
+# below; this stays as a backstop.
 _FRAGMENT_FALLBACK_TIMEOUT = 90.0
+
+# Hard ceiling on Stage 1 (parse + fragment SMILES + depiction). Real files
+# finish in <1s; a crafted/pathological graph can make CDK's SMILES or
+# depiction generator hang, so we bound it. Generous headroom for genuinely
+# large legitimate files while still well under the outer budget.
+_FRAGMENT_STAGE1_TIMEOUT = 60.0
+
+# Backstop timeout for recomputing InChI from the fragment SMILES when
+# xtractUnique didn't deliver it (see _enrich_inchi_from_smiles_sync). This is
+# only a safety net: JPype cannot interrupt a running InChI call, so the real
+# guard is the size cap below — we never START InChI on a molecule big enough
+# to hang.
+_INCHI_FROM_SMILES_TIMEOUT = 20.0
+
+# Budget for the on-demand "compute InChI" action. Kept under nginx's 130s
+# proxy timeout so the 503 reaches the client. A molecule that needs longer
+# (very large cages) cannot finish interactively; the pool worker is freed at
+# the timeout and the abandoned native call drains in the background (same
+# trade-off as the extraction timeouts).
+_ON_DEMAND_INCHI_TIMEOUT = 90.0
+
+# Hard ceiling on the SMILES length the on-demand compute will touch. Generous
+# — a 162-heavy-atom cage is ~900 chars — so it only rejects abusive multi-KB
+# inputs (the request model allows up to 50k) that would needlessly tie up a
+# worker. Over this, compute_inchi returns "" (the router maps that to 422).
+_MAX_ON_DEMAND_SMILES_LEN = 10_000
+
+# Cap on concurrent in-flight JVM daemon subtasks, INCLUDING ones abandoned
+# after a timeout that are still draining a native call. JPype cannot interrupt
+# a native call, so a flood of pathological inputs would otherwise spawn
+# unbounded daemons (each holding a JVM thread + native memory) and exhaust the
+# process. Once the slots are full, new JVM work is refused (-> 503) instead of
+# growing without bound. Generous vs the 4-worker pool so normal concurrent
+# extraction never trips it. See :func:`_run_jvm_subtask`.
+_MAX_INFLIGHT_JVM_SUBTASKS = 16
+_jvm_subtask_slots = threading.BoundedSemaphore(_MAX_INFLIGHT_JVM_SUBTASKS)
+
+# Skip InChI recomputation above this many heavy (non-H) atoms. InChI
+# generation blows up super-linearly on large, highly-symmetric molecules: a
+# 162-heavy-atom supramolecular cage takes ~5 min (and is what makes
+# xtractUnique time out in the first place), while normal molecules (well
+# under 100 heavy atoms) finish in well under a second. Oversized molecules
+# keep an empty InChI and a SMILES-hash surrogate key.
+_MAX_INCHI_HEAVY_ATOMS = 100
+
+# Secondary guard for when the molecular formula is missing: skip InChI for
+# very long SMILES (polymers/cages) for the same reason.
+_MAX_INCHI_SMILES_LEN = 1500
+
+_ELEMENT_COUNT_RE = re.compile(r"([A-Z][a-z]?)(\d*)")
+
+
+def _heavy_atom_count(formula: str) -> int:
+    """Sum of non-hydrogen atom counts parsed from a molecular formula string.
+
+    Returns 0 for an unparseable/empty formula (caller falls back to the
+    SMILES-length guard). Charge suffixes and brackets are ignored — only
+    ``Element[count]`` runs contribute.
+    """
+    total = 0
+    for element, count in _ELEMENT_COUNT_RE.findall(formula or ""):
+        if not element or element == "H":
+            continue
+        total += int(count) if count else 1
+    return total
+
 
 # CDK SmilesParser + DepictionGenerator can deadlock on polymer/dendrimer
 # SMILES > 1500 chars (same root cause as canonicalize.py
@@ -191,6 +262,102 @@ def _inchi_from_smiles(smiles: str, parser, igf) -> tuple[str, str]:
         return str(gen.getInchi() or ""), str(gen.getInchiKey() or "")
     except Exception:  # noqa: BLE001 — bad fragment: treated as unresolved
         return "", ""
+
+
+async def compute_inchi(smiles: str) -> tuple[str, str]:
+    """Compute (inchi, inchi_key) for a single SMILES on demand, off the loop.
+
+    Backs the interactive "Generate InChI" action for structures whose InChI
+    was skipped during extraction (xtractUnique timed out and the molecule was
+    over the auto-recovery size cap). Unlike the extraction-time recovery there
+    is NO size cap — the user has explicitly asked to compute it — only the
+    :data:`_ON_DEMAND_INCHI_TIMEOUT` budget.
+
+    Returns ``("", "")`` when CDK cannot produce an InChI, or when the SMILES
+    exceeds :data:`_MAX_ON_DEMAND_SMILES_LEN` (the caller turns either into a
+    422). Raises :class:`TimeoutError` (-> 503) when the structure is too large
+    to finish within the budget, or when the JVM is already saturated.
+    """
+    if len(smiles) > _MAX_ON_DEMAND_SMILES_LEN:
+        return "", ""
+
+    def _compute() -> tuple[str, str]:
+        # JVM attach/detach owned by _run_jvm_subtask.
+        tools = _cdk_inchi_tools()
+        if tools is None:
+            return "", ""
+        parser, igf = tools
+        return _inchi_from_smiles(smiles, parser, igf)
+
+    # Run the (uninterruptible) InChI call on a daemon via _run_jvm_subtask so
+    # the JPype pool worker is FREED at the timeout instead of being pinned for
+    # the full native computation — a large cage's InChI can take minutes, and
+    # several such requests would otherwise exhaust the pool (CWE-400). The
+    # outer wait_for is a small backstop above the inner daemon timeout.
+    return await run_in_jvm_thread(
+        lambda: _run_jvm_subtask(_compute, _ON_DEMAND_INCHI_TIMEOUT, "compute-inchi"),
+        timeout=_ON_DEMAND_INCHI_TIMEOUT + 10,
+    )
+
+
+def _enrich_inchi_from_smiles_sync(substances: list[dict]) -> list[dict]:
+    """Fill empty inchi/inchi_key on fragment-path substances from their SMILES.
+
+    xtractUnique computes InChI for the whole document at once; when it times
+    out (one huge molecule is enough), every substance falls back to the
+    fragment path with no InChI. SMILES extraction still succeeds, so we
+    recompute InChI per molecule here via CDK — the small molecules in a file
+    that also contains a giant one then still get a real InChI + InChIKey.
+
+    Molecules above :data:`_MAX_INCHI_HEAVY_ATOMS` (or, if the formula is
+    missing, a SMILES longer than :data:`_MAX_INCHI_SMILES_LEN`) are skipped:
+    InChI generation blows up on exactly those molecules — it is what made
+    xtractUnique time out — and JPype cannot interrupt a running InChI call, so
+    the size cap (which never starts the call) is the only reliable guard.
+    Skipped molecules keep an empty InChI (and get a SMILES-hash surrogate key
+    at persistence). Returns a NEW list of dict copies; the input is never
+    mutated, so if this call times out and is abandoned, the still-running
+    daemon can't race the main thread's returned/persisted result. Run via
+    :func:`_run_jvm_subtask` (which owns the JVM attach/detach); when CDK isn't
+    available the copies are returned unchanged.
+    """
+    # Work on copies so the abandoned-on-timeout daemon never writes into the
+    # dicts the caller returns (data race, see docstring).
+    result = [dict(s) for s in substances]
+    tools = _cdk_inchi_tools()
+    if tools is None:
+        return result
+    parser, igf = tools
+    recovered = 0
+    skipped_large = 0
+    for s in result:
+        smiles = s.get("smiles") or ""
+        if s.get("inchi") or not smiles:
+            continue
+        heavy = _heavy_atom_count(s.get("molecular_formula") or "")
+        too_large = (
+            heavy > _MAX_INCHI_HEAVY_ATOMS
+            if heavy
+            else len(smiles) > _MAX_INCHI_SMILES_LEN
+        )
+        if too_large:
+            skipped_large += 1
+            continue
+        inchi, inchi_key = _inchi_from_smiles(smiles, parser, igf)
+        if inchi:
+            s["inchi"] = inchi
+            if inchi_key:
+                s["inchi_key"] = inchi_key
+            recovered += 1
+    if recovered or skipped_large:
+        logger.info(
+            "Recovered InChI from SMILES for %d/%d fragment substances "
+            "(%d skipped as too large)",
+            recovered,
+            len(result),
+            skipped_large,
+        )
+    return result
 
 
 def _coerce_role(java_list, role_frags: list[str] | None, cdk) -> list[dict]:
@@ -470,7 +637,10 @@ def _render_atom_container_svg(container) -> str:
             return ""
         dg = _make_depiction_generator()
         svg_str = str(dg.depict(container).toSvgStr())
-        return _set_svg_dimensions(svg_str, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
+        sized = _set_svg_dimensions(svg_str, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
+        # Strip any scriptable markup before the SVG is stored/served — matches
+        # the invariant the depiction module's _depict_container_to_svg holds.
+        return sanitize_svg(sized)
     except Exception as exc:
         logger.warning("SVG rendering failed for atom container: %s", exc)
         return ""
@@ -552,7 +722,9 @@ def _render_reaction_svg(reaction_smiles: str) -> tuple[str, str]:
         sized = _set_svg_dimensions(
             svg_str, SVG_REACTION_TARGET_WIDTH, SVG_REACTION_TARGET_HEIGHT
         )
-        return sized, ""
+        # Sanitize before the reaction SVG is stored/served (see sibling
+        # renderers): strip <script>/on*=/javascript: so stored markup is inert.
+        return sanitize_svg(sized), ""
     except Exception as exc:  # noqa: BLE001 — never raise from depiction
         logger.warning(
             "Reaction depiction failed for %r: %s", reaction_smiles[:80], exc
@@ -584,10 +756,68 @@ def _render_with_cdk_layout(container) -> str:
 
         dg = _make_depiction_generator()
         svg_str = str(dg.depict(mol_laid_out).toSvgStr())
-        return _set_svg_dimensions(svg_str, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
+        sized = _set_svg_dimensions(svg_str, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
+        return sanitize_svg(sized)
     except Exception as exc:
         logger.warning("CDK layout + render failed: %s", exc)
         return ""
+
+
+def _run_jvm_subtask(fn, timeout: float, label: str):
+    """Run a JVM-bound callable on a daemon thread with a hard timeout.
+
+    Returns ``fn()``'s value, or raises :class:`TimeoutError` if it does not
+    finish within ``timeout`` seconds. Any other exception from ``fn`` is
+    re-raised on the caller's thread.
+
+    On timeout the daemon thread is abandoned: it keeps a JVM thread until the
+    native call returns (or the process exits), but the *calling* JPype pool
+    worker is freed immediately. Without this, a CDK call that hangs on a
+    crafted/pathological graph (SMILES generation or depiction on a huge
+    symmetric molecule) would pin a pool worker for the full outer timeout and
+    never release it, so a few crafted uploads could exhaust the fixed JPype
+    pool and stall the whole API (CWE-400). A daemon thread (not a
+    ThreadPoolExecutor) is used so an abandoned hung call never blocks
+    interpreter shutdown.
+
+    The daemon thread is attached to the JVM before ``fn`` runs and detached
+    after, so ``fn`` is just its real CDK work — no attach/detach boilerplate.
+    (Attach is skipped when the JVM isn't started, e.g. pure-Python unit tests.)
+
+    Raises :class:`TimeoutError` (-> 503) immediately when too many JVM
+    subtasks are already in flight (:data:`_MAX_INFLIGHT_JVM_SUBTASKS`),
+    bounding daemon/native-memory growth under a flood of pathological inputs.
+    """
+    # The permit is held until the daemon TRULY finishes (released in the
+    # runner's finally), so an abandoned-but-still-draining call keeps occupying
+    # a slot — that is what bounds accumulation. Non-blocking: a full pool means
+    # the server is overloaded, so fail fast rather than queue.
+    if not _jvm_subtask_slots.acquire(blocking=False):
+        raise TimeoutError(f"JVM is busy ({label}); too many concurrent operations")
+
+    box: dict[str, object] = {}
+    done = threading.Event()
+
+    def _runner() -> None:
+        try:
+            if jpype.isJVMStarted() and not jpype.isThreadAttachedToJVM():
+                jpype.attachThreadToJVM()
+            box["value"] = fn()
+        except BaseException as exc:  # noqa: BLE001 — re-raised on caller thread
+            box["error"] = exc
+        finally:
+            if jpype.isJVMStarted():
+                with contextlib.suppress(Exception):
+                    jpype.java.lang.Thread.detach()
+            done.set()
+            _jvm_subtask_slots.release()
+
+    threading.Thread(target=_runner, name=label, daemon=True).start()
+    if not done.wait(timeout):
+        raise TimeoutError(f"{label} exceeded {timeout:.0f}s")
+    if "error" in box:
+        raise box["error"]  # type: ignore[misc]
+    return box.get("value")
 
 
 def _extract_with_fallback_sync(
@@ -604,6 +834,10 @@ def _extract_with_fallback_sync(
     The fragment path uses SmilesGenerator.isomeric() which preserves
     R/S and E/Z stereochemistry — no InChI dependency.
 
+    Both stages run on daemon threads with hard timeouts (see
+    :func:`_run_jvm_subtask`) so a hung CDK call cannot pin the calling JPype
+    pool worker.
+
     Args:
         file_bytes: Raw file content bytes.
         format_type: Either "cdx" or "cdxml".
@@ -612,18 +846,34 @@ def _extract_with_fallback_sync(
         Tuple of (substance dicts with svg, info dict, used_fallback bool).
 
     Raises:
-        ExtractionError: If fragment extraction fails.
+        ExtractionError: If document parsing or fragment extraction fails.
+        TimeoutError: If Stage 1 exceeds ``_FRAGMENT_STAGE1_TIMEOUT`` (maps
+            to 503); the calling pool worker is freed.
     """
-    import concurrent.futures
+
+    # Stage 1: parse + fragment extraction (SMILES + depiction). This is the
+    # fast, reliable path — but its CDK SMILES/depiction calls are also the
+    # hang surface, so it is bounded on its own daemon thread (JVM attach/detach
+    # owned by _run_jvm_subtask).
+    def _stage1():
+        document = _read_document(file_bytes, format_type)
+        results, info = _extract_fragments_from_document(document)
+        return document, results, info
 
     try:
-        document = _read_document(file_bytes, format_type)
+        document, fragment_results, fragment_info = _run_jvm_subtask(
+            _stage1, _FRAGMENT_STAGE1_TIMEOUT, "xtract-stage1"
+        )
+    except TimeoutError:
+        logger.warning(
+            "Stage 1 fragment extraction timed out after %.0fs",
+            _FRAGMENT_STAGE1_TIMEOUT,
+        )
+        raise
     except jpype.JException as exc:
         logger.error("Document parsing failed: %s", exc)
         raise ExtractionError("Failed to parse file") from exc
 
-    # Stage 1: always run fragment extraction first (fast, reliable)
-    fragment_results, fragment_info = _extract_fragments_from_document(document)
     logger.info(
         "Fragment extraction: %d substances from %d fragments",
         fragment_info["no_substances"],
@@ -636,11 +886,9 @@ def _extract_with_fallback_sync(
     # timeout — if it completes, we use its richer data; if not, we
     # return the fragment results.
     def _try_xtract_unique():
-        """Run xtractUnique on a daemon thread. Attaches to JVM."""
+        """Run xtractUnique on a daemon thread (JVM attach/detach owned by
+        _run_jvm_subtask)."""
         try:
-            if not jpype.isThreadAttachedToJVM():
-                jpype.attachThreadToJVM()
-
             BCXSubstanceInfo = jpype.JClass(  # noqa: N806
                 "org.beilstein.chemxtract.model.BCXSubstanceInfo"
             )
@@ -668,34 +916,41 @@ def _extract_with_fallback_sync(
         except jpype.JException as exc:
             logger.warning("xtractUnique failed: %s", str(exc)[:100])
             return None
-        finally:
-            with contextlib.suppress(Exception):
-                jpype.java.lang.Thread.detach()
 
-    pool = concurrent.futures.ThreadPoolExecutor(
-        max_workers=1, thread_name_prefix="xtract-enrich"
-    )
-    future = pool.submit(_try_xtract_unique)
     try:
-        result = future.result(timeout=_XTRACT_UNIQUE_TIMEOUT)
-        if result is not None:
-            logger.info(
-                "xtractUnique succeeded: %d substances (enriched)",
-                len(result[0]),
-            )
-            pool.shutdown(wait=False)
-            return result[0], result[1], False
-    except concurrent.futures.TimeoutError:
+        result = _run_jvm_subtask(
+            _try_xtract_unique, _XTRACT_UNIQUE_TIMEOUT, "xtract-enrich"
+        )
+    except TimeoutError:
         logger.warning(
             "xtractUnique timed out after %.0fs — using fragment results",
             _XTRACT_UNIQUE_TIMEOUT,
         )
-    # Don't wait for the hung thread — shut down immediately.
-    # The daemon thread will be abandoned (it holds a JVM thread
-    # until xtractUnique eventually completes or the process exits).
-    pool.shutdown(wait=False, cancel_futures=True)
+        result = None
 
-    # Return fragment results (xtractUnique timed out or failed)
+    if result is not None:
+        logger.info(
+            "xtractUnique succeeded: %d substances (enriched)",
+            len(result[0]),
+        )
+        return result[0], result[1], False
+
+    # xtractUnique timed out or failed — recover InChI per molecule from the
+    # SMILES we already have, so a file with one huge molecule still yields a
+    # real InChI for its smaller molecules. Returns a fresh list; on timeout the
+    # original SMILES-only fragment_results is kept untouched (the abandoned
+    # daemon only ever mutates its own copies).
+    try:
+        fragment_results = _run_jvm_subtask(
+            lambda: _enrich_inchi_from_smiles_sync(fragment_results),
+            _INCHI_FROM_SMILES_TIMEOUT,
+            "inchi-from-smiles",
+        )
+    except TimeoutError:
+        logger.warning(
+            "InChI-from-SMILES recovery timed out — returning SMILES-only results"
+        )
+
     return fragment_results, fragment_info, True
 
 

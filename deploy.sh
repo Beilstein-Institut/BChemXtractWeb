@@ -677,3 +677,21 @@ cat <<EOF
     Browser SPA flows use the bcx_sid cookie; programmatic callers
     use an admin-minted X-API-Key (see POST /api/admin/api-keys).
 EOF
+
+# --- DEBUG posture warning --------------------------------------------------
+# In DEBUG mode the stack serves plain HTTP, so the bcx_sid session cookie is
+# issued WITHOUT the Secure flag and /docs + /openapi.json are exposed. That is
+# correct for localhost dev but unsafe if the port is reachable from an
+# untrusted network. Warn loudly so an operator who port-forwards this does not
+# silently ship a non-Secure session cookie.
+if [[ "$(read_env_var DEBUG)" != "false" ]]; then
+  echo
+  warn '────────────────────────────────────────────────────────────────'
+  warn 'DEBUG=true: plain HTTP — the bcx_sid session cookie is NOT Secure'
+  warn 'and /docs + /openapi.json are exposed. Safe for localhost only.'
+  warn 'Before exposing this to any network or the internet:'
+  warn '  1. Terminate TLS in front of nginx (HTTPS).'
+  warn '  2. Set CORS_ORIGINS=["https://your.real.origin"] in .env.'
+  warn '  3. Set DEBUG=false in .env, then re-run ./deploy.sh.'
+  warn '────────────────────────────────────────────────────────────────'
+fi

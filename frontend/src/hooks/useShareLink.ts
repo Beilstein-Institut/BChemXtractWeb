@@ -1,41 +1,67 @@
 /**
- * useShareLink — copy a structure share URL to the clipboard.
+ * useShareLink — copy a public PubChem link for a structure to the clipboard.
  *
- * Builds a deep-link of the form `${origin}/browse#s=<urlencoded-inchikey>`
- * so a recipient opening the link can be routed to the same substance. The
- * hook wraps the clipboard call, flips `shared = true` for 2 s after a
- * successful copy (so callers can render a "Copied" hint), and cleans up
- * its timeout on unmount.
+ * The structures live in a per-session, RLS-scoped database with no user
+ * accounts, so an internal deep-link only works for the owner's own browser —
+ * useless to send to anyone else. Instead we share a link to PubChem, a public
+ * resource any recipient can open:
  *
- * Factored out of `StructureCard` — the inline `setTimeout` was a potential
- * leak when the card unmounts mid-flash. That leak is handled here by the
- * effect-level cleanup.
+ *   - real InChIKey (exact, precise lookup) when the structure has a real
+ *     InChI; the stored key is otherwise a SMILES-hash surrogate PubChem
+ *     can't resolve, so
+ *   - fall back to a SMILES structure search.
+ *
+ * The hook wraps the clipboard call, flips `shared = true` for 2 s after a
+ * successful copy (so callers can render a "Copied" hint), and cleans up its
+ * timeout on unmount.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { safeClipboardText } from "@/lib/safeStrings";
+import { isRealInchiKey } from "@/lib/inchi";
+
+/** The structure identity needed to build a PubChem link. */
+export interface ShareTarget {
+  inchiKey?: string | null;
+  smiles?: string | null;
+}
 
 export interface UseShareLinkResult {
   /** True for ~2 s after a successful copy — drives the "Copied!" UI state. */
   shared: boolean;
   /**
-   * Copy the share URL for the supplied InChI key. A falsy key is a no-op
-   * (caller doesn't need to pre-guard). Resolves once the clipboard write
-   * completes (or immediately on no-op / failure).
+   * Copy a PubChem link for the supplied structure. A target with neither a
+   * real InChIKey nor a SMILES is a no-op (caller needn't pre-guard). Resolves
+   * once the clipboard write completes (or immediately on no-op).
    */
-  share: (key: string | null | undefined) => Promise<void>;
+  share: (target: ShareTarget) => Promise<void>;
 }
 
-/** Build the share URL — exported so consumers/tests can assert on shape. */
-export function buildShareUrl(origin: string, inchiKey: string, path = "/browse"): string {
-  return `${origin}${path}#s=${encodeURIComponent(inchiKey)}`;
+const PUBCHEM_QUERY_BASE = "https://pubchem.ncbi.nlm.nih.gov/#query=";
+
+/**
+ * Build a public PubChem URL for a structure, or null when it can't be
+ * resolved (no real key and no SMILES). Exported so callers/tests can assert
+ * on the shape and disable the affordance when null.
+ */
+export function buildPubChemShareUrl(target: ShareTarget): string | null {
+  const { inchiKey, smiles } = target;
+  // Prefer a real InChIKey (exact lookup). A surrogate key (SMILES hash) fails
+  // isRealInchiKey, so fall back to a SMILES structure search.
+  if (inchiKey && isRealInchiKey(inchiKey)) {
+    return `${PUBCHEM_QUERY_BASE}${encodeURIComponent(inchiKey)}`;
+  }
+  if (smiles) {
+    return `${PUBCHEM_QUERY_BASE}${encodeURIComponent(smiles)}`;
+  }
+  return null;
 }
 
 const COPIED_FLAG_MS = 2000;
 
 /**
- * Hook: copy a share URL for a given InChI key and surface a transient
- * "shared" flag. See module docstring for the URL shape.
+ * Hook: copy a PubChem link for a structure and surface a transient "shared"
+ * flag. See module docstring for which URL shape is produced.
  */
 export function useShareLink(): UseShareLinkResult {
   const [shared, setShared] = useState(false);
@@ -52,14 +78,13 @@ export function useShareLink(): UseShareLinkResult {
     };
   }, []);
 
-  const share = useCallback(async (key: string | null | undefined): Promise<void> => {
-    if (!key) return;
-    const url = buildShareUrl(window.location.origin, key);
+  const share = useCallback(async (target: ShareTarget): Promise<void> => {
+    const url = buildPubChemShareUrl(target);
+    if (!url) return;
     // Let the promise reject naturally so callers can surface a toast /
     // fallback UI. The hook owns the "shared" flag + its cleanup timer,
     // but it does not own the user-facing error affordance — keeping that
-    // decision at the call site preserves reusability (some contexts may
-    // want a silent no-op, others a visible error).
+    // decision at the call site preserves reusability.
     await navigator.clipboard.writeText(safeClipboardText(url));
     if (timerRef.current !== null) {
       window.clearTimeout(timerRef.current);

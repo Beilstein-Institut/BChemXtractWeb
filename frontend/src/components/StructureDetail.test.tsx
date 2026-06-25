@@ -123,7 +123,24 @@ describe("StructureDetail component", () => {
   it("renders Molecular Formula label and value text", () => {
     render(<StructureDetail substance={mockSubstance} />);
     expect(screen.getAllByText("Molecular Formula").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("C6H6").length).toBeGreaterThan(0);
+    // The formula is rendered with <sub> subscripts, so the text is split
+    // across elements — match on combined textContent.
+    expect(screen.getAllByText((_, el) => el?.textContent === "C6H6").length).toBeGreaterThan(0);
+  });
+
+  it("hides InChI / InChI Key rows when there is no real InChI (surrogate key)", () => {
+    const surrogate: SubstanceResponse = {
+      ...mockSubstance,
+      inchi: "",
+      inchi_key: "S274AC64682B2D-1DB993AA24-N",
+    };
+    render(<StructureDetail substance={surrogate} />);
+    // Neither the empty InChI row nor the misleading surrogate key is shown.
+    expect(screen.queryByText("InChI")).not.toBeInTheDocument();
+    expect(screen.queryByText("InChI Key")).not.toBeInTheDocument();
+    expect(screen.queryByText("S274AC64682B2D-1DB993AA24-N")).not.toBeInTheDocument();
+    // SMILES + formula still render.
+    expect(screen.getByText("SMILES")).toBeInTheDocument();
   });
 
   it("does NOT render MDL V3000 row when mdlv3000 is empty string", () => {

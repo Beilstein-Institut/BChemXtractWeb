@@ -132,3 +132,100 @@ async def test_get_batch_extractions_rls_isolated(
     """A different session must not see another session's batch (RLS isolation)."""
     resp = await other_session_client.get(f"/api/batch/{seeded_batch.batch_id}")
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Batch group_id ownership — the SSE-progress and cancel endpoints key on the
+# Celery group_id and touch only Celery/Redis (no RLS), so they must verify
+# the caller owns the batch (IDOR, CWE-639). These tests substitute an
+# in-memory owner store + GroupResult so no live Redis/Celery is needed.
+# ---------------------------------------------------------------------------
+
+
+class _FakeOwnerStore:
+    """Minimal Redis stand-in for the batch-owner records."""
+
+    def __init__(self) -> None:
+        self._d: dict[str, bytes] = {}
+
+    def set(self, key: str, value: str, ex: int | None = None) -> None:
+        self._d[key] = value.encode() if isinstance(value, str) else value
+
+    def get(self, key: str) -> bytes | None:
+        return self._d.get(key)
+
+
+class _FakeGroupResult:
+    """GroupResult stand-in whose ``restore`` yields no member tasks."""
+
+    results: list = []
+
+    @staticmethod
+    def restore(group_id: str, app: object = None) -> _FakeGroupResult:
+        return _FakeGroupResult()
+
+
+async def test_scope_owner_token_precedence() -> None:
+    """API-key hash wins over session id; anonymous falls back to a sentinel."""
+    from app.routers.batch import _scope_owner_token
+
+    assert _scope_owner_token("sid-1", None) == "sid:sid-1"
+    assert _scope_owner_token("sid-1", b"\xab\xcd") == "akh:abcd"
+    assert _scope_owner_token(None, None) == "anon:"
+
+
+async def test_cancel_batch_foreign_owner_404(
+    client_csrf: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Cancelling a batch owned by another session returns 404 (not 403, to
+    avoid leaking that the group_id exists)."""
+    from app.routers import batch as batch_mod
+
+    store = _FakeOwnerStore()
+    store.set(batch_mod._batch_owner_key("grp-foreign"), f"sid:{OTHER_SESSION_COOKIE}")
+    monkeypatch.setattr(batch_mod, "_owner_store", lambda: store)
+
+    resp = await client_csrf.delete("/api/batch/grp-foreign")
+    assert resp.status_code == 404
+
+
+async def test_cancel_batch_unknown_group_404(
+    client_csrf: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Cancelling an unrecorded group_id returns 404."""
+    from app.routers import batch as batch_mod
+
+    monkeypatch.setattr(batch_mod, "_owner_store", lambda: _FakeOwnerStore())
+
+    resp = await client_csrf.delete("/api/batch/never-seen")
+    assert resp.status_code == 404
+
+
+async def test_cancel_batch_owner_succeeds(
+    client_csrf: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The owning session can cancel its own batch (204)."""
+    from app.routers import batch as batch_mod
+
+    store = _FakeOwnerStore()
+    store.set(batch_mod._batch_owner_key("grp-mine"), f"sid:{TEST_SESSION_COOKIE}")
+    monkeypatch.setattr(batch_mod, "_owner_store", lambda: store)
+    monkeypatch.setattr(batch_mod, "GroupResult", _FakeGroupResult)
+
+    resp = await client_csrf.delete("/api/batch/grp-mine")
+    assert resp.status_code == 204
+
+
+async def test_batch_progress_foreign_owner_404(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """SSE progress for another session's batch returns 404 before the stream
+    opens (no per-file results leak)."""
+    from app.routers import batch as batch_mod
+
+    store = _FakeOwnerStore()
+    store.set(batch_mod._batch_owner_key("grp-foreign2"), f"sid:{OTHER_SESSION_COOKIE}")
+    monkeypatch.setattr(batch_mod, "_owner_store", lambda: store)
+
+    resp = await client.get("/api/batch/grp-foreign2/progress")
+    assert resp.status_code == 404

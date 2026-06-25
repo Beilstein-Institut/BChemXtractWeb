@@ -152,6 +152,11 @@ services:
       # in .env for local plain-HTTP testing.
       <<: [*runtime_db_url, *app_env, *celery_env]
       JAR_PATH: /app/jars
+      # Trust X-Forwarded-For only from private (Docker network) peers so the
+      # rate limiter sees the real client IP via nginx. RFC-1918 ranges cover
+      # any compose subnet; 127.0.0.1 (the loopback-published port) is excluded
+      # so a host-local caller cannot spoof its rate-limit bucket.
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
     ports:
       # Loopback bind: the backend FastAPI is reachable only from the deploy
       # host (CLI scripts, curl on the same box). Browser traffic goes through

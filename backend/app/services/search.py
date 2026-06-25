@@ -24,7 +24,9 @@ extractions" per result (grouped in Python — fast, no N+1 risk for the
 
 Scope:
 
-- ``'global'`` — all substances.
+- ``'global'`` — every substance the caller owns. Substances are read
+  through an ``ExtractionSubstance`` JOIN so Postgres RLS scopes the result
+  to the caller's session (the ``substances`` table itself has no RLS).
 - ``'extraction:{id}'`` — restricts to substances linked to that extraction
   via :class:`app.models.orm.ExtractionSubstance` (IDOR-safe; mirrors
   the ``export.py`` pattern).
@@ -57,6 +59,7 @@ from app.errors import (
     InvalidSmilesError,
 )
 from app.models.chemistry import (
+    INCHI_KEY_PATTERN,
     SearchExtractionRef,
     SearchRequest,
     SearchResponse,
@@ -67,6 +70,7 @@ from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.services.canonicalize import canonicalize_smiles
 from app.services.depiction import render_substance_svg_with_highlight
 from app.services.jvm_bridge import run_in_jvm_thread
+from app.services.persistence import SURROGATE_INCHI_KEY_RE
 
 logger = logging.getLogger(__name__)
 
@@ -85,9 +89,14 @@ logger = logging.getLogger(__name__)
 # the 14-char connectivity block alone, or ``<14>-<10>`` (connectivity +
 # stereo). :func:`_search_inchi_key` distinguishes full vs partial by
 # ``len(normalized) == 27`` — a 27-char string matching this pattern can
-# only be the full shape.
-_INCHI_KEY_RE = re.compile(r"\A[A-Z]{14}(?:-[A-Z]{10}(?:-[A-Z])?)?\Z")
+# only be the full shape. Compiled from the canonical INCHI_KEY_PATTERN so the
+# shape is defined once (shared with the request models / pubchem router).
+_INCHI_KEY_RE = re.compile(INCHI_KEY_PATTERN)
 _FORMULA_RE = re.compile(r"\A(?:[A-Z][a-z]?\d{0,5}){1,60}\Z")
+
+# Surrogate keys (S-prefixed SMILES hashes) fail _INCHI_KEY_RE but are a stable
+# per-substance identifier; the share/deep-link path resolves one by exact
+# match. The format is owned by persistence (SURROGATE_INCHI_KEY_RE).
 
 # Polymer-SMILES deadlock ceiling. Same threshold applied inside
 # :func:`canonicalize._canonicalize_smiles_sync` — CDK's ``SmartsPattern``
@@ -175,25 +184,35 @@ def _resolve_effective_type(payload: SearchRequest) -> str:
 
 
 def _base_substance_select(scope_extraction_id: int | None):
-    """Build a ``SELECT Substance`` statement with optional IDOR-safe scope.
+    """Build a ``SELECT Substance`` that is always RLS-scoped to the caller.
 
-    When ``scope_extraction_id`` is given, JOIN through
-    :class:`ExtractionSubstance` and filter — this mirrors the ``export.py``
-    pattern (lines 62-67) proven to close the IDOR hole. The ``.distinct()``
-    call protects against duplicate substance rows when a substance appears
-    more than once inside the same extraction.
+    The ``substances`` table is a global, ``inchi_key``-deduplicated pool
+    with NO row-level security of its own — one molecule legitimately
+    belongs to many sessions, so a per-row owner column would be wrong.
+    Cross-session isolation is therefore enforced by **always** joining
+    through :class:`ExtractionSubstance`, which carries ``FORCE ROW LEVEL
+    SECURITY`` scoped to the caller's ``session_id`` / ``api_key_hash``.
+    A bare ``select(Substance)`` would bypass that and expose every
+    session's structures (CWE-639), so even the ``'global'`` scope goes
+    through the join — "global" means "everything the caller owns".
+
+    ``.distinct()`` collapses the duplicate ``Substance`` rows the join
+    produces when a molecule appears in more than one of the caller's
+    extractions. When ``scope_extraction_id`` is given, further restrict to
+    that single extraction (still RLS-scoped, so a guessed id from another
+    session yields nothing).
     """
-    if scope_extraction_id is None:
-        return select(Substance)
-    return (
+    stmt = (
         select(Substance)
         .join(
             ExtractionSubstance,
             Substance.id == ExtractionSubstance.substance_id,
         )
-        .where(ExtractionSubstance.extraction_id == scope_extraction_id)
         .distinct()
     )
+    if scope_extraction_id is not None:
+        stmt = stmt.where(ExtractionSubstance.extraction_id == scope_extraction_id)
+    return stmt
 
 
 async def _search_inchi_key(
@@ -211,12 +230,23 @@ async def _search_inchi_key(
     * ``<14>`` — returns every stored key sharing the skeleton (any
       stereo / isotope / protonation).
 
+    A surrogate key (``S…``, minted for InChI-less fragment substances) is
+    matched exactly — it is a SMILES hash, so prefix matching is meaningless.
+    This is what lets a share/deep-link to such a structure resolve.
+
     Malformed input raises :class:`InvalidInchiKeyError` (422 /
     INVALID_INCHI_KEY). The LIKE branch is safe: the regex restricts
     the pattern to ``[A-Z]`` + hyphens, so no SQL wildcard characters
     (``%``, ``_``) can enter the pattern.
     """
     normalized = q.strip().upper()
+    # Surrogate keys (digits present) fail the real-InChIKey regex but are a
+    # valid stable identifier — match them exactly (bound param, injection-safe).
+    if SURROGATE_INCHI_KEY_RE.match(normalized):
+        stmt = _base_substance_select(scope_eid).where(
+            Substance.inchi_key == normalized
+        )
+        return list((await db.execute(stmt)).scalars().all())
     if not _INCHI_KEY_RE.match(normalized):
         raise InvalidInchiKeyError(
             "InChI key must be 14 letters, optionally followed by "
@@ -448,16 +478,21 @@ async def _search_substructure(
     # — the UX distinction is "we tried but couldn't process this",
     # not "why". Scope-restricted when applicable so the count matches
     # the candidate universe.
+    # Count via the same RLS-protected join as the candidate select so the
+    # oversize tally never reflects substances outside the caller's scope.
     oversize_stmt = (
-        select(func.count())
+        select(func.count(func.distinct(Substance.id)))
         .select_from(Substance)
+        .join(
+            ExtractionSubstance,
+            Substance.id == ExtractionSubstance.substance_id,
+        )
         .where(func.length(Substance.smiles) > MAX_SUBSTRUCT_SMILES_LEN)
     )
     if scope_eid is not None:
-        oversize_stmt = oversize_stmt.join(
-            ExtractionSubstance,
-            Substance.id == ExtractionSubstance.substance_id,
-        ).where(ExtractionSubstance.extraction_id == scope_eid)
+        oversize_stmt = oversize_stmt.where(
+            ExtractionSubstance.extraction_id == scope_eid
+        )
     oversize_count = int((await db.execute(oversize_stmt)).scalar_one() or 0)
 
     id_smi = [(int(s.id), s.smiles or "") for s in candidate_rows]

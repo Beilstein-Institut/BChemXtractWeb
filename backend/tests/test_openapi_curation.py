@@ -32,6 +32,8 @@ APPROVED_OPERATION_IDS = {
     "searchSubstances",
     # search (parse-only validate endpoint)
     "validateSearchQuery",
+    # on-demand InChI compute
+    "computeInchi",
     # auth / CSRF / GDPR / admin api keys
     "putAuthMe",
     "postAuthRestore",

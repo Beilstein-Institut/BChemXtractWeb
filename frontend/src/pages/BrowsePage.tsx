@@ -29,8 +29,7 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { SearchFilter } from "@/components/SearchFilter";
 import { EMPTY_FILTERS, type BrowseFilters } from "@/components/browse/browseFilters";
 import { StructureBrowser } from "@/components/StructureBrowser";
-import { StructureDetail } from "@/components/StructureDetail";
-import { Dialog } from "@/components/ui/dialog";
+import { StructureSheet } from "@/components/StructureSheet";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DEFAULT_DEPICTION } from "@/lib/depiction";
@@ -96,6 +95,17 @@ export function BrowsePage({
     },
     [filteredSubstances],
   );
+
+  // Index of the open substance within the current filtered list, so the sheet
+  // can page across it with prev/next. Located by object identity (indexOf),
+  // NOT inchi_key — several substances can share an empty/surrogate key, which
+  // would collapse to the first match and page from the wrong position.
+  const sheetIndex = useMemo(() => {
+    if (!activeSubstance) return -1;
+    return filteredSubstances.indexOf(activeSubstance);
+  }, [activeSubstance, filteredSubstances]);
+
+  const closeSheet = useCallback(() => setActiveSubstance(null), []);
 
   const handleBrowseAll = useCallback(() => {
     browserRef.current?.scrollIntoView({
@@ -192,19 +202,28 @@ export function BrowsePage({
               />
             </ExtractionTabs>
           </div>
-
-          <Dialog
-            open={activeSubstance !== null}
-            onOpenChange={(open) => {
-              if (!open) setActiveSubstance(null);
-            }}
-          >
-            {activeSubstance && (
-              <StructureDetail substance={activeSubstance} depiction={depiction} />
-            )}
-          </Dialog>
         </>
       )}
+
+      {/* Detail sheet for the bento click — pages across the filtered list. */}
+      <StructureSheet
+        open={activeSubstance !== null}
+        onOpenChange={(open) => {
+          if (!open) closeSheet();
+        }}
+        substance={activeSubstance}
+        substanceIndex={Math.max(0, sheetIndex)}
+        totalSubstances={filteredSubstances.length}
+        onPrev={() => {
+          if (sheetIndex > 0) setActiveSubstance(filteredSubstances[sheetIndex - 1]);
+        }}
+        onNext={() => {
+          if (sheetIndex >= 0 && sheetIndex < filteredSubstances.length - 1) {
+            setActiveSubstance(filteredSubstances[sheetIndex + 1]);
+          }
+        }}
+        depiction={depiction}
+      />
     </PageContainer>
   );
 }

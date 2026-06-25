@@ -376,15 +376,36 @@ async def get_stats(db: DbDep) -> StatsResponse:
         await db.scalar(select(func.count()).select_from(Extraction)) or 0
     )
 
+    # The substances table has no RLS of its own (it is a global dedup pool),
+    # so both substance aggregates must reach it through the RLS-protected
+    # ExtractionSubstance join — otherwise they leak instance-wide counts
+    # across sessions (CWE-200). count(distinct) collapses the duplicate rows
+    # the join produces when a molecule spans several of the caller's
+    # extractions.
     unique_structures = (
-        await db.scalar(select(func.count()).select_from(Substance)) or 0
+        await db.scalar(
+            select(func.count(func.distinct(Substance.id)))
+            .select_from(Substance)
+            .join(
+                ExtractionSubstance,
+                Substance.id == ExtractionSubstance.substance_id,
+            )
+        )
+        or 0
     )
 
     formula_result = await db.execute(
-        select(Substance.molecular_formula, func.count().label("n"))
+        select(
+            Substance.molecular_formula,
+            func.count(func.distinct(Substance.id)).label("n"),
+        )
+        .join(
+            ExtractionSubstance,
+            Substance.id == ExtractionSubstance.substance_id,
+        )
         .where(Substance.molecular_formula != "")
         .group_by(Substance.molecular_formula)
-        .order_by(func.count().desc())
+        .order_by(func.count(func.distinct(Substance.id)).desc())
         .limit(1)
     )
     formula_row = formula_result.first()
