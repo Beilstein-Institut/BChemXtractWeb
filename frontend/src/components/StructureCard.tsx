@@ -166,16 +166,12 @@ export function StructureCard({
     async (e: React.MouseEvent) => {
       e.stopPropagation();
       try {
-        await share({
-          inchiKey: substance.inchi_key,
-          inchi: substance.inchi,
-          smiles: substance.smiles,
-        });
+        await share({ inchiKey: substance.inchi_key, smiles: substance.smiles });
       } catch {
         toast.error("Couldn't copy the PubChem link. Try again.");
       }
     },
-    [share, substance.inchi_key, substance.inchi, substance.smiles],
+    [share, substance.inchi_key, substance.smiles],
   );
 
   /** Shared card inner content (SVG + metadata) used in both render modes. */

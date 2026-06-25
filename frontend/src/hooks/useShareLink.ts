@@ -18,12 +18,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { safeClipboardText } from "@/lib/safeStrings";
+import { isRealInchiKey } from "@/lib/inchi";
 
 /** The structure identity needed to build a PubChem link. */
 export interface ShareTarget {
   inchiKey?: string | null;
-  /** Real InChI; when absent, `inchiKey` is treated as a non-resolvable surrogate. */
-  inchi?: string | null;
   smiles?: string | null;
 }
 
@@ -46,13 +45,14 @@ const PUBCHEM_QUERY_BASE = "https://pubchem.ncbi.nlm.nih.gov/#query=";
  * on the shape and disable the affordance when null.
  */
 export function buildPubChemShareUrl(target: ShareTarget): string | null {
-  // A real InChIKey only exists alongside a real InChI — without one the stored
-  // key is a SMILES-hash surrogate (prefix "S") that PubChem cannot resolve.
-  if (target.inchi && target.inchiKey) {
-    return `${PUBCHEM_QUERY_BASE}${encodeURIComponent(target.inchiKey)}`;
+  const { inchiKey, smiles } = target;
+  // Prefer a real InChIKey (exact lookup). A surrogate key (SMILES hash) fails
+  // isRealInchiKey, so fall back to a SMILES structure search.
+  if (inchiKey && isRealInchiKey(inchiKey)) {
+    return `${PUBCHEM_QUERY_BASE}${encodeURIComponent(inchiKey)}`;
   }
-  if (target.smiles) {
-    return `${PUBCHEM_QUERY_BASE}${encodeURIComponent(target.smiles)}`;
+  if (smiles) {
+    return `${PUBCHEM_QUERY_BASE}${encodeURIComponent(smiles)}`;
   }
   return null;
 }

@@ -82,7 +82,8 @@ function MetadataRow({
       <span className="min-w-[84px] shrink-0 pt-1.5 text-micro font-semibold uppercase tracking-widest text-muted-foreground sm:min-w-[120px]">
         {label}
       </span>
-      <CopyButton value={value} label={label} className="shrink-0" />
+      {/* No value to copy (e.g. the Generate-InChI action row) -> no button. */}
+      {value && <CopyButton value={value} label={label} className="shrink-0" />}
       <span className="min-w-0 flex-1 break-all pt-1.5 font-mono text-caption text-foreground">
         {display ?? value}
       </span>
@@ -117,10 +118,11 @@ export function StructureSheet({
   // Effective InChI / InChIKey: prefer the stored values, fall back to a value
   // computed on demand. The stored InChIKey is only trustworthy when a real
   // InChI exists — without one it is a SMILES-hash surrogate (prefix "S"), so
-  // we treat both as absent and offer the Generate / Search action instead.
-  const hasStoredInchi = !!substance?.inchi;
+  // we treat both as absent and offer the Generate action instead.
   const effectiveInchi = substance?.inchi || computedInchi?.inchi || "";
-  const effectiveInchiKey = hasStoredInchi ? substance.inchi_key : (computedInchi?.inchi_key ?? "");
+  const effectiveInchiKey = substance?.inchi
+    ? substance.inchi_key
+    : (computedInchi?.inchi_key ?? "");
 
   // PubChem is keyed on the REAL InChIKey (stored, or just generated) — never
   // the surrogate. A surrogate key 422s the lookup and surfaces a misleading
@@ -438,30 +440,33 @@ export function StructureSheet({
                 </>
               ) : (
                 substance.smiles && (
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="min-w-[84px] shrink-0 text-micro font-semibold uppercase tracking-widest text-muted-foreground sm:min-w-[120px]">
-                      InChI
-                    </span>
-                    <div className="flex min-w-0 flex-1 flex-col gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleGenerateInchi}
-                        disabled={inchiLoading}
-                        className="w-fit gap-1.5"
-                      >
-                        {inchiLoading ? (
-                          <Loader2Icon className="size-3.5 animate-spin" aria-hidden="true" />
-                        ) : (
-                          <SparklesIcon className="size-3.5" aria-hidden="true" />
-                        )}
-                        {inchiLoading ? "Generating…" : "Generate InChI"}
-                      </Button>
-                      <span className="text-micro text-muted-foreground">
-                        Not computed during extraction — generate it from the SMILES.
-                      </span>
-                    </div>
-                  </div>
+                  // Reuse MetadataRow (empty value -> no copy button) so the
+                  // label column stays aligned with the other rows.
+                  <MetadataRow
+                    label="InChI"
+                    value=""
+                    display={
+                      <div className="flex flex-col gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleGenerateInchi}
+                          disabled={inchiLoading}
+                          className="w-fit gap-1.5"
+                        >
+                          {inchiLoading ? (
+                            <Loader2Icon className="size-3.5 animate-spin" aria-hidden="true" />
+                          ) : (
+                            <SparklesIcon className="size-3.5" aria-hidden="true" />
+                          )}
+                          {inchiLoading ? "Generating…" : "Generate InChI"}
+                        </Button>
+                        <span className="text-micro text-muted-foreground">
+                          Not computed during extraction — generate it from the SMILES.
+                        </span>
+                      </div>
+                    }
+                  />
                 )
               )}
               {substance.molecular_formula && (

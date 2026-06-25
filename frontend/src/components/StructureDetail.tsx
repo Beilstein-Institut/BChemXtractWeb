@@ -22,6 +22,7 @@ import { AttributionPill } from "@/components/AttributionPill";
 import { PubChemPanel } from "@/components/PubChemPanel";
 import { usePubChemCompound } from "@/hooks/usePubChemEnrichment";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
+import { isRealInchiKey } from "@/lib/inchi";
 import { DEFAULT_DEPICTION, pickSvg } from "@/lib/depiction";
 import type { Depiction, SubstanceResponse } from "@/types/chemistry";
 import type { StructureCardAttribution } from "@/components/StructureCard";
@@ -70,10 +71,11 @@ export function StructureDetail({
   depiction = DEFAULT_DEPICTION,
 }: StructureDetailProps) {
   const svgSrc = useSvgObjectUrl(pickSvg(substance, depiction));
-  // Key PubChem on the real InChIKey only. Without a real InChI the stored key
-  // is a SMILES-hash surrogate that 422s the lookup and shows a misleading
-  // "PubChem unavailable" error, so skip it (panel stays hidden).
-  const pubchem = usePubChemCompound(substance.inchi ? substance.inchi_key : undefined);
+  // A surrogate key (SMILES hash, fails isRealInchiKey) is not a real
+  // identifier: it 422s the PubChem lookup and misleads anyone who copies it.
+  // One predicate gates both the PubChem query and the InChI/Key rows below.
+  const hasRealKey = isRealInchiKey(substance.inchi_key);
+  const pubchem = usePubChemCompound(hasRealKey ? substance.inchi_key : undefined);
 
   return (
     <DialogContent className="sm:max-w-2xl w-full" showCloseButton={true}>
@@ -114,13 +116,12 @@ export function StructureDetail({
       {/* Metadata rows */}
       <div className="space-y-3 mt-4">
         <MetadataRow label="SMILES" value={substance.smiles} />
-        {/* Show InChI / InChI Key only when a real InChI exists. Without one
-            the stored key is a SMILES-hash surrogate that misleads anyone who
-            copies it into PubChem etc., so hide both (mirrors StructureSheet). */}
-        {substance.inchi && (
+        {/* Show InChI / InChI Key only for a real key (mirrors StructureSheet);
+            a surrogate key is hidden so it can't be mistaken for a real one. */}
+        {hasRealKey && (
           <>
-            <MetadataRow label="InChI" value={substance.inchi} />
-            {substance.inchi_key && <MetadataRow label="InChI Key" value={substance.inchi_key} />}
+            {substance.inchi && <MetadataRow label="InChI" value={substance.inchi} />}
+            <MetadataRow label="InChI Key" value={substance.inchi_key} />
           </>
         )}
         <MetadataRow

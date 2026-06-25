@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getPubChemCompound, postPubChemEnrich } from "@/lib/apiClient";
 import { isRealInchiKey } from "@/lib/inchi";
 import { usePubChemPreferences } from "@/hooks/usePubChemPreferences";
@@ -24,11 +24,16 @@ export function usePubChemEnrichment(
   // Stable join key of the REAL inchi_keys present, so the effect re-runs only
   // when the set of enrichable structures changes. Surrogate keys (from
   // InChI-less structures) are excluded — PubChem's batch endpoint 422s the
-  // whole request on any non-InChIKey-shaped key.
-  const keys = substances
-    .map((s) => s.inchi_key)
-    .filter(isRealInchiKey)
-    .join(",");
+  // whole request on any non-InChIKey-shaped key. Memoized so the regex pass +
+  // join don't repeat on unrelated re-renders.
+  const keys = useMemo(
+    () =>
+      substances
+        .map((s) => s.inchi_key)
+        .filter(isRealInchiKey)
+        .join(","),
+    [substances],
+  );
 
   useEffect(() => {
     if (!active) return;

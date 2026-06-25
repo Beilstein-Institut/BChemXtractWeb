@@ -85,28 +85,21 @@ export function BatchViewPage() {
     };
   }, [batchId]);
 
-  const totalStructures = useMemo(
-    () => sections.reduce((n, s) => n + (s.detail?.substances.length ?? 0), 0),
-    [sections],
-  );
-
   // Flatten every file's substances (in section order) into one list so the
   // detail side-sheet can page across the whole batch with prev/next, matching
   // the Browse experience. `sectionOffsets[i]` is where section i starts in the
-  // flat list, used to map a section-local click index to the global index.
-  const allSubstances = useMemo(
-    () => sections.flatMap((s) => s.detail?.substances ?? []),
-    [sections],
-  );
-  const sectionOffsets = useMemo(() => {
+  // flat list (used to map a section-local click index to the global index).
+  // Both come from one pass over `sections`.
+  const { allSubstances, sectionOffsets } = useMemo(() => {
+    const all: SubstanceResponse[] = [];
     const offsets: number[] = [];
-    let acc = 0;
     for (const s of sections) {
-      offsets.push(acc);
-      acc += s.detail?.substances.length ?? 0;
+      offsets.push(all.length);
+      if (s.detail) all.push(...s.detail.substances);
     }
-    return offsets;
+    return { allSubstances: all, sectionOffsets: offsets };
   }, [sections]);
+  const totalStructures = allSubstances.length;
 
   const handleDownloadZip = useCallback(async () => {
     if (!batchId) return;

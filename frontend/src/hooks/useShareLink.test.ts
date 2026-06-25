@@ -11,22 +11,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildPubChemShareUrl, useShareLink } from "./useShareLink";
 
 describe("buildPubChemShareUrl", () => {
-  it("uses the real InChIKey when a real InChI is present", () => {
+  it("uses the real InChIKey when the key is real-shaped", () => {
     expect(
       buildPubChemShareUrl({
         inchiKey: "UHOVQNZJYSORNB-UHFFFAOYSA-N",
-        inchi: "InChI=1S/C6H6/c1-2-4-6-5-3-1/h1-6H",
         smiles: "c1ccccc1",
       }),
     ).toBe("https://pubchem.ncbi.nlm.nih.gov/#query=UHOVQNZJYSORNB-UHFFFAOYSA-N");
   });
 
-  it("falls back to a SMILES search when there is no real InChI (surrogate key)", () => {
-    // Surrogate key + empty inchi -> ignore the key, use SMILES.
+  it("falls back to a SMILES search for a surrogate key", () => {
+    // Surrogate key (digits) fails isRealInchiKey -> use SMILES.
     expect(
       buildPubChemShareUrl({
         inchiKey: "SABCDEF12345678-ABCDEFGHIJ-N",
-        inchi: "",
         smiles: "C1CCCCC1",
       }),
     ).toBe("https://pubchem.ncbi.nlm.nih.gov/#query=C1CCCCC1");
@@ -39,7 +37,7 @@ describe("buildPubChemShareUrl", () => {
   });
 
   it("returns null when neither a real key nor a SMILES is available", () => {
-    expect(buildPubChemShareUrl({ inchiKey: "SXXX-YYY-N", inchi: "", smiles: "" })).toBeNull();
+    expect(buildPubChemShareUrl({ inchiKey: "SXXX-YYY-N", smiles: "" })).toBeNull();
     expect(buildPubChemShareUrl({})).toBeNull();
   });
 });
@@ -67,7 +65,6 @@ describe("useShareLink", () => {
     await act(async () => {
       await result.current.share({
         inchiKey: "UHOVQNZJYSORNB-UHFFFAOYSA-N",
-        inchi: "InChI=1S/C6H6/c1-2-4-6-5-3-1/h1-6H",
         smiles: "c1ccccc1",
       });
     });
@@ -99,7 +96,7 @@ describe("useShareLink", () => {
   it("is a no-op when the target can't be resolved", async () => {
     const { result } = renderHook(() => useShareLink());
     await act(async () => {
-      await result.current.share({ inchiKey: "SXXX-YYY-N", inchi: "", smiles: "" });
+      await result.current.share({ inchiKey: "SXXX-YYY-N", smiles: "" });
       await result.current.share({});
     });
     expect(writeText).not.toHaveBeenCalled();
