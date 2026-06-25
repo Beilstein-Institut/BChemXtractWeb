@@ -8,6 +8,7 @@ enforce_cap() also commits internally as a housekeeping step.
 import asyncio
 import hashlib
 import logging
+import re
 
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -30,6 +31,22 @@ from app.services.canonicalize import canonicalize_smiles
 logger = logging.getLogger(__name__)
 
 MAX_EXTRACTIONS = 500
+
+# Surrogate InChIKey for fragment-path substances that have no real InChI:
+# "S" + 13 hex + "-" + 10 hex + "-N" (uppercase SHA-256 of the SMILES). Real
+# InChIKeys are letters-only, so a surrogate never collides with one. The
+# builder and the matcher live together so the byte layout is defined once;
+# search.py imports SURROGATE_INCHI_KEY_RE to resolve share/deep-links to such
+# structures.
+SURROGATE_INCHI_KEY_RE = re.compile(r"\AS[0-9A-F]{13}-[0-9A-F]{10}-N\Z")
+
+
+def make_surrogate_inchi_key(smiles: str) -> str:
+    """Mint a deterministic surrogate InChIKey from a SMILES (see module note)."""
+    h = hashlib.sha256(smiles.encode()).hexdigest().upper()
+    return f"S{h[:13]}-{h[13:23]}-N"
+
+
 """Retention cap: oldest extraction auto-deleted when limit is reached."""
 
 CANONICAL_BATCH_SIZE = 32
@@ -96,8 +113,7 @@ async def save_extraction(
     # SMILES-derived (real InChIKeys never start with "S").
     for s in response.substances:
         if not s.inchi_key and s.smiles:
-            h = hashlib.sha256(s.smiles.encode()).hexdigest().upper()
-            s.inchi_key = f"S{h[:13]}-{h[13:23]}-N"
+            s.inchi_key = make_surrogate_inchi_key(s.smiles)
 
     valid_substances = [s for s in response.substances if s.inchi_key]
     if valid_substances:

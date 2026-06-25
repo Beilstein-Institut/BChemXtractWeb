@@ -13,6 +13,7 @@ from httpx import AsyncClient
 from sqlalchemy import text
 
 from app.services.db import AsyncSessionLocal
+from tests.conftest import link_substances_to_extraction
 
 
 @pytest.mark.asyncio
@@ -32,6 +33,7 @@ async def test_substructure_benzene_in_naphthalene(client_csrf: AsyncClient) -> 
             {"k": "UFWIBTONFRDIAS-UHFFFAOYSA-N"},
         )
         await session.commit()
+    await link_substances_to_extraction(["UFWIBTONFRDIAS-UHFFFAOYSA-N"])
 
     resp = await client_csrf.post(
         "/api/search",
@@ -99,6 +101,7 @@ async def test_substructure_match_svg_highlight(client_csrf: AsyncClient) -> Non
             {"k": "UFWIBTONFRDIAS-UHFFFAOYSA-N"},
         )
         await session.commit()
+    await link_substances_to_extraction(["UFWIBTONFRDIAS-UHFFFAOYSA-N"])
 
     resp = await client_csrf.post(
         "/api/search",
@@ -150,6 +153,7 @@ async def test_substructure_unparsable_skipped_with_warning(
             {"k": "BADSMILESSTUB1-UHFFFAOYSA-N"},
         )
         await session.commit()
+    await link_substances_to_extraction(["BADSMILESSTUB1-UHFFFAOYSA-N"])
 
     resp = await client_csrf.post(
         "/api/search",

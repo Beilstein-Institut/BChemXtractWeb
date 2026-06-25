@@ -214,7 +214,7 @@ describe("SearchInput", () => {
     renderWithProvider(<SearchInput />);
     const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "C6H6" } });
-    expect(screen.getAllByText("Formula").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Molecular formula").length).toBeGreaterThan(0);
   });
 
   it("does not render an inline Submit button — search fires automatically as the user types", () => {

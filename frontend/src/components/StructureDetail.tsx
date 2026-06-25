@@ -7,6 +7,7 @@
  * dialog closes itself before any AttributionPill navigation
  * (handled by StructureCard's wrapper callback).
  */
+import type { ReactNode } from "react";
 import { FlaskConicalIcon } from "lucide-react";
 import {
   DialogContent,
@@ -16,10 +17,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CopyButton } from "@/components/internal/CopyButton";
+import { MolecularFormula } from "@/components/internal/MolecularFormula";
 import { AttributionPill } from "@/components/AttributionPill";
 import { PubChemPanel } from "@/components/PubChemPanel";
 import { usePubChemCompound } from "@/hooks/usePubChemEnrichment";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
+import { isRealInchiKey } from "@/lib/inchi";
 import { DEFAULT_DEPICTION, pickSvg } from "@/lib/depiction";
 import type { Depiction, SubstanceResponse } from "@/types/chemistry";
 import type { StructureCardAttribution } from "@/components/StructureCard";
@@ -35,7 +38,16 @@ export interface StructureDetailProps {
   depiction?: Depiction;
 }
 
-function MetadataRow({ label, value }: { label: string; value: string }) {
+function MetadataRow({
+  label,
+  value,
+  display,
+}: {
+  label: string;
+  value: string;
+  /** Optional formatted display node; the raw `value` still drives copy. */
+  display?: ReactNode;
+}) {
   return (
     // Layout: label, copy button, value — the copy sits just before the value.
     // gap-2 keeps a small space between the icon and the value, pt-1.5 lines the
@@ -45,7 +57,9 @@ function MetadataRow({ label, value }: { label: string; value: string }) {
         {label}
       </span>
       <CopyButton value={value} label={label} className="shrink-0" />
-      <span className="min-w-0 flex-1 break-all pt-1.5 text-caption text-foreground">{value}</span>
+      <span className="min-w-0 flex-1 break-all pt-1.5 text-caption text-foreground">
+        {display ?? value}
+      </span>
     </div>
   );
 }
@@ -57,12 +71,18 @@ export function StructureDetail({
   depiction = DEFAULT_DEPICTION,
 }: StructureDetailProps) {
   const svgSrc = useSvgObjectUrl(pickSvg(substance, depiction));
-  const pubchem = usePubChemCompound(substance.inchi_key);
+  // A surrogate key (SMILES hash, fails isRealInchiKey) is not a real
+  // identifier: it 422s the PubChem lookup and misleads anyone who copies it.
+  // One predicate gates both the PubChem query and the InChI/Key rows below.
+  const hasRealKey = isRealInchiKey(substance.inchi_key);
+  const pubchem = usePubChemCompound(hasRealKey ? substance.inchi_key : undefined);
 
   return (
     <DialogContent className="sm:max-w-2xl w-full" showCloseButton={true}>
       <DialogHeader>
-        <DialogTitle>{substance.molecular_formula}</DialogTitle>
+        <DialogTitle>
+          <MolecularFormula value={substance.molecular_formula} fallback="Structure" />
+        </DialogTitle>
         <DialogDescription>Detailed structure metadata</DialogDescription>
       </DialogHeader>
 
@@ -96,9 +116,19 @@ export function StructureDetail({
       {/* Metadata rows */}
       <div className="space-y-3 mt-4">
         <MetadataRow label="SMILES" value={substance.smiles} />
-        <MetadataRow label="InChI" value={substance.inchi} />
-        <MetadataRow label="InChI Key" value={substance.inchi_key} />
-        <MetadataRow label="Molecular Formula" value={substance.molecular_formula} />
+        {/* Show InChI / InChI Key only for a real key (mirrors StructureSheet);
+            a surrogate key is hidden so it can't be mistaken for a real one. */}
+        {hasRealKey && (
+          <>
+            {substance.inchi && <MetadataRow label="InChI" value={substance.inchi} />}
+            <MetadataRow label="InChI Key" value={substance.inchi_key} />
+          </>
+        )}
+        <MetadataRow
+          label="Molecular Formula"
+          value={substance.molecular_formula}
+          display={<MolecularFormula value={substance.molecular_formula} />}
+        />
         {/* MDL V3000 row is conditional — only render when non-empty */}
         {substance.mdlv3000 && <MetadataRow label="MDL V3000" value={substance.mdlv3000} />}
       </div>

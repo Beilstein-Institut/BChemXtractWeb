@@ -12,11 +12,13 @@
  * - SVG rendered via a Blob URL in <img src>, never innerHTML
  * - keydown listener added only when open===true, cleaned up on effect return
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   FlaskConicalIcon,
+  Loader2Icon,
+  SparklesIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "lucide-react";
@@ -31,14 +33,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CopyButton } from "@/components/internal/CopyButton";
+import { MolecularFormula } from "@/components/internal/MolecularFormula";
 import { ExportMenu } from "@/components/ExportMenu";
 import { PubChemPanel } from "@/components/PubChemPanel";
 import { usePubChemCompound } from "@/hooks/usePubChemEnrichment";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
-import { postExport } from "@/lib/apiClient";
+import { postComputeInchi, postExport } from "@/lib/apiClient";
 import { DEFAULT_DEPICTION } from "@/lib/depiction";
 import { safeDownloadSlug } from "@/lib/safeStrings";
-import type { Depiction, SubstanceResponse } from "@/types/chemistry";
+import type { Depiction, InchiResult, SubstanceResponse } from "@/types/chemistry";
 import type { ExportFormat } from "@/types/export";
 import { FORMAT_EXT } from "@/types/export";
 
@@ -60,7 +63,16 @@ export interface StructureSheetProps {
 }
 
 /** Labeled metadata field + CopyButton, rendered inside the side-sheet. */
-function MetadataRow({ label, value }: { label: string; value: string }) {
+function MetadataRow({
+  label,
+  value,
+  display,
+}: {
+  label: string;
+  value: string;
+  /** Optional formatted display node; the raw `value` still drives copy. */
+  display?: ReactNode;
+}) {
   return (
     // Layout: label, then copy button, then value. The copy button sits just
     // before the value (not before the label heading); gap-x-2 keeps a small
@@ -70,9 +82,10 @@ function MetadataRow({ label, value }: { label: string; value: string }) {
       <span className="min-w-[84px] shrink-0 pt-1.5 text-micro font-semibold uppercase tracking-widest text-muted-foreground sm:min-w-[120px]">
         {label}
       </span>
-      <CopyButton value={value} label={label} className="shrink-0" />
+      {/* No value to copy (e.g. the Generate-InChI action row) -> no button. */}
+      {value && <CopyButton value={value} label={label} className="shrink-0" />}
       <span className="min-w-0 flex-1 break-all pt-1.5 font-mono text-caption text-foreground">
-        {value}
+        {display ?? value}
       </span>
     </div>
   );
@@ -96,9 +109,27 @@ export function StructureSheet({
 }: StructureSheetProps) {
   const [zoom, setZoom] = useState(1);
   const [useCdxCoords, setUseCdxCoords] = useState(depiction === "cdx");
-  // Tier-2 PubChem detail for the open structure. No-op (idle) until the user
-  // opts in; null substance -> no fetch.
-  const pubchem = usePubChemCompound(substance?.inchi_key);
+  // On-demand InChI: when a structure's InChI was skipped at extraction time
+  // (huge molecule), the user can compute it here. Holds the result for the
+  // currently-shown substance; reset whenever the substance changes.
+  const [computedInchi, setComputedInchi] = useState<InchiResult | null>(null);
+  const [inchiLoading, setInchiLoading] = useState(false);
+
+  // Effective InChI / InChIKey: prefer the stored values, fall back to a value
+  // computed on demand. The stored InChIKey is only trustworthy when a real
+  // InChI exists — without one it is a SMILES-hash surrogate (prefix "S"), so
+  // we treat both as absent and offer the Generate action instead.
+  const effectiveInchi = substance?.inchi || computedInchi?.inchi || "";
+  const effectiveInchiKey = substance?.inchi
+    ? substance.inchi_key
+    : (computedInchi?.inchi_key ?? "");
+
+  // PubChem is keyed on the REAL InChIKey (stored, or just generated) — never
+  // the surrogate. A surrogate key 422s the lookup and surfaces a misleading
+  // "PubChem unavailable" error; an empty key keeps the hook idle (panel
+  // hidden) until the user generates a real one. So clicking "Generate InChI"
+  // computes the real key, which automatically drives the PubChem lookup.
+  const pubchem = usePubChemCompound(effectiveInchiKey || undefined);
 
   // Reset zoom and pick initial layout when substance changes. Follow the
   // page-level depiction preference (CDK by default); fall back to
@@ -110,6 +141,9 @@ export function StructureSheet({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- prop-sync
     setZoom(1);
+    // Drop any on-demand InChI from the previously-shown substance.
+    setComputedInchi(null);
+    setInchiLoading(false);
 
     setUseCdxCoords(
       substance
@@ -128,6 +162,25 @@ export function StructureSheet({
   }
   function zoomReset() {
     setZoom(1);
+  }
+
+  async function handleGenerateInchi(): Promise<void> {
+    if (!substance?.smiles || inchiLoading) return;
+    setInchiLoading(true);
+    const toastId = `inchi-${Date.now()}`;
+    toast.loading("Generating InChI…", { id: toastId });
+    try {
+      const result = await postComputeInchi(substance.smiles);
+      // Setting the computed key makes effectiveInchiKey real, which auto-fires
+      // the PubChem lookup (the panel keys on it) — no separate user action.
+      setComputedInchi(result);
+      toast.success("InChI generated", { id: toastId, duration: 2000 });
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : "no reason returned";
+      toast.error(`Couldn't generate InChI: ${reason}`, { id: toastId });
+    } finally {
+      setInchiLoading(false);
+    }
   }
 
   async function handleExport(format: ExportFormat): Promise<void> {
@@ -244,7 +297,7 @@ export function StructureSheet({
           )}
 
           <SheetTitle className="text-sub-heading font-semibold tracking-tight">
-            {substance?.molecular_formula ?? "Structure"}
+            <MolecularFormula value={substance?.molecular_formula} fallback="Structure" />
           </SheetTitle>
           <SheetDescription>Detailed structure metadata</SheetDescription>
         </SheetHeader>
@@ -377,10 +430,51 @@ export function StructureSheet({
             {/* Metadata rows */}
             <div className="space-y-3 mt-4 px-4 pb-6">
               {substance.smiles && <MetadataRow label="SMILES" value={substance.smiles} />}
-              {substance.inchi && <MetadataRow label="InChI" value={substance.inchi} />}
-              {substance.inchi_key && <MetadataRow label="InChI Key" value={substance.inchi_key} />}
+              {/* InChI / InChI Key shown only when a REAL InChI exists (stored
+                  or generated on demand). Without it the stored key is a
+                  SMILES-hash surrogate, so we hide both and offer Generate. */}
+              {effectiveInchi ? (
+                <>
+                  <MetadataRow label="InChI" value={effectiveInchi} />
+                  {effectiveInchiKey && <MetadataRow label="InChI Key" value={effectiveInchiKey} />}
+                </>
+              ) : (
+                substance.smiles && (
+                  // Reuse MetadataRow (empty value -> no copy button) so the
+                  // label column stays aligned with the other rows.
+                  <MetadataRow
+                    label="InChI"
+                    value=""
+                    display={
+                      <div className="flex flex-col gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleGenerateInchi}
+                          disabled={inchiLoading}
+                          className="w-fit gap-1.5"
+                        >
+                          {inchiLoading ? (
+                            <Loader2Icon className="size-3.5 animate-spin" aria-hidden="true" />
+                          ) : (
+                            <SparklesIcon className="size-3.5" aria-hidden="true" />
+                          )}
+                          {inchiLoading ? "Generating…" : "Generate InChI"}
+                        </Button>
+                        <span className="text-micro text-muted-foreground">
+                          Not computed during extraction — generate it from the SMILES.
+                        </span>
+                      </div>
+                    }
+                  />
+                )
+              )}
               {substance.molecular_formula && (
-                <MetadataRow label="Formula" value={substance.molecular_formula} />
+                <MetadataRow
+                  label="Molecular Formula"
+                  value={substance.molecular_formula}
+                  display={<MolecularFormula value={substance.molecular_formula} />}
+                />
               )}
               {substance.mdlv3000 && <MetadataRow label="MDL V3000" value={substance.mdlv3000} />}
               {pubchem.state !== "idle" && (

@@ -7,6 +7,7 @@ from httpx import AsyncClient
 from sqlalchemy import text
 
 from app.services.db import AsyncSessionLocal
+from tests.conftest import link_substances_to_extraction
 
 
 @pytest.mark.asyncio
@@ -24,6 +25,9 @@ async def test_formula_match(client_csrf: AsyncClient) -> None:
             {"k": "UHOVQNZJYSORNB-UHFFFAOYSA-N"},
         )
         await session.commit()
+    # Substances are only reachable by search once linked to one of the
+    # caller's extractions (RLS scopes the join, not the substances table).
+    await link_substances_to_extraction(["UHOVQNZJYSORNB-UHFFFAOYSA-N"])
 
     resp = await client_csrf.post(
         "/api/search",

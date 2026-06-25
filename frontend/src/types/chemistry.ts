@@ -136,3 +136,9 @@ export interface PubChemCardState {
   state: "idle" | "loading" | "success" | "error";
   data: PubChemEnrichment | null;
 }
+
+/** POST /api/inchi response — InChI + real InChIKey computed on demand. */
+export interface InchiResult {
+  inchi: string;
+  inchi_key: string;
+}

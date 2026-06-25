@@ -68,4 +68,10 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# --proxy-headers makes uvicorn honour X-Forwarded-For from trusted peers so
+# request.client.host (and thus the per-IP rate-limit key) reflects the real
+# client, not the nginx container IP. The trusted set is FORWARDED_ALLOW_IPS
+# (env, default = RFC-1918 private ranges) — the nginx hop is private and
+# trusted; the loopback-published port (127.0.0.1) is NOT, so a host-local
+# caller cannot spoof XFF.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]

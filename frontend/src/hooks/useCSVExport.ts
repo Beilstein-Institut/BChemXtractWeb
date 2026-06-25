@@ -47,10 +47,19 @@ export interface CSVExportOptions<T> {
 
 /** Escape a single cell per RFC 4180. Pure — exported for tests. */
 export function escapeCSVCell(value: string): string {
-  if (/[",\r\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
+  // Neutralize spreadsheet formula injection (CWE-1236): a cell beginning
+  // with =, +, -, @, tab, or CR is interpreted as a formula by Excel /
+  // LibreOffice / Sheets. The uploaded filename is fully client-controlled,
+  // so prefix a single quote to force literal-text rendering. Runs before
+  // RFC-4180 quoting so the guard survives the quote-wrapping.
+  let cell = value;
+  if (cell.length > 0 && /^[=+\-@\t\r]/.test(cell)) {
+    cell = `'${cell}`;
   }
-  return value;
+  if (/[",\r\n]/.test(cell)) {
+    return `"${cell.replace(/"/g, '""')}"`;
+  }
+  return cell;
 }
 
 /** Serialise rows + columns to a CSV string (no download). Pure; testable. */

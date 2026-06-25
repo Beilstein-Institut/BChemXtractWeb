@@ -1,6 +1,7 @@
 import { csrfTokenCache, needsCsrf } from "@/lib/csrfTokenCache";
 import type {
   ExtractionResponse,
+  InchiResult,
   PagedSubstancesResponse,
   PubChemEnrichment,
   ReactionExtractionResponse,
@@ -613,4 +614,21 @@ export async function getPubChemCompound(inchiKey: string): Promise<PubChemEnric
     errorPrefix: "PubChem detail failed",
   });
   return response.json() as Promise<PubChemEnrichment>;
+}
+
+/**
+ * POST /api/inchi — compute an InChI + real InChIKey for a SMILES on demand.
+ *
+ * Used by the structure sheet's "Generate InChI" action for substances whose
+ * InChI was skipped at extraction time. Throws on HTTP error (503 when the
+ * structure is too large to compute within the server time budget).
+ */
+export async function postComputeInchi(smiles: string): Promise<InchiResult> {
+  const response = await apiFetch("/api/inchi", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ smiles }),
+    errorPrefix: "InChI generation failed",
+  });
+  return response.json() as Promise<InchiResult>;
 }

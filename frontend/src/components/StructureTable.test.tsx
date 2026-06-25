@@ -140,8 +140,12 @@ describe("StructureTable", () => {
       />,
     );
 
-    // 3 molecular formula cells should exist (one per substance row)
-    const formulaCells = screen.getAllByText(/C[0-9]+H[0-9]+/);
+    // 3 molecular formula cells should exist (one per substance row). The
+    // formula is rendered with <sub> subscripts, so match the outer cell span
+    // on combined textContent rather than a single text node.
+    const formulaCells = screen.getAllByText(
+      (_, el) => el?.tagName === "SPAN" && /^C\d+H\d+$/.test(el.textContent ?? ""),
+    );
     expect(formulaCells.length).toBe(3);
   });
 

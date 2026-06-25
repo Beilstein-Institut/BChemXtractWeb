@@ -34,7 +34,7 @@ afterEach(() => vi.restoreAllMocks());
 describe("usePubChemEnrichment", () => {
   it("does not fetch when disabled", () => {
     const spy = vi.spyOn(api, "postPubChemEnrich");
-    renderHook(() => usePubChemEnrichment([makeSubstance("KEY1XXXXXXXXXX-AAAAAAAAAA-N")]), {
+    renderHook(() => usePubChemEnrichment([makeSubstance("KEYAXXXXXXXXXX-AAAAAAAAAA-N")]), {
       wrapper: enabledWrapper(false),
     });
     expect(spy).not.toHaveBeenCalled();
@@ -42,7 +42,7 @@ describe("usePubChemEnrichment", () => {
 
   it("does not fetch when the server feature is unavailable", () => {
     const spy = vi.spyOn(api, "postPubChemEnrich");
-    renderHook(() => usePubChemEnrichment([makeSubstance("KEY1XXXXXXXXXX-AAAAAAAAAA-N")]), {
+    renderHook(() => usePubChemEnrichment([makeSubstance("KEYAXXXXXXXXXX-AAAAAAAAAA-N")]), {
       wrapper: enabledWrapper(true, false),
     });
     expect(spy).not.toHaveBeenCalled();
@@ -51,8 +51,8 @@ describe("usePubChemEnrichment", () => {
   it("fetches and exposes per-key state when enabled", async () => {
     vi.spyOn(api, "postPubChemEnrich").mockResolvedValue({
       results: {
-        "KEY1XXXXXXXXXX-AAAAAAAAAA-N": {
-          inchi_key: "KEY1XXXXXXXXXX-AAAAAAAAAA-N",
+        "KEYAXXXXXXXXXX-AAAAAAAAAA-N": {
+          inchi_key: "KEYAXXXXXXXXXX-AAAAAAAAAA-N",
           status: "exact",
           cid: 241,
           iupac_name: null,
@@ -71,13 +71,34 @@ describe("usePubChemEnrichment", () => {
       },
     });
     const { result } = renderHook(
-      () => usePubChemEnrichment([makeSubstance("KEY1XXXXXXXXXX-AAAAAAAAAA-N")]),
+      () => usePubChemEnrichment([makeSubstance("KEYAXXXXXXXXXX-AAAAAAAAAA-N")]),
       { wrapper: enabledWrapper(true) },
     );
     await waitFor(() =>
-      expect(result.current.get("KEY1XXXXXXXXXX-AAAAAAAAAA-N")?.state).toBe("success"),
+      expect(result.current.get("KEYAXXXXXXXXXX-AAAAAAAAAA-N")?.state).toBe("success"),
     );
-    expect(result.current.get("KEY1XXXXXXXXXX-AAAAAAAAAA-N")?.data?.cid).toBe(241);
+    expect(result.current.get("KEYAXXXXXXXXXX-AAAAAAAAAA-N")?.data?.cid).toBe(241);
+  });
+
+  it("never sends surrogate keys to the batch endpoint (would 422 the whole batch)", async () => {
+    const spy = vi.spyOn(api, "postPubChemEnrich").mockResolvedValue({ results: {} });
+    const real = "AAAAAAAAAAAAAA-AAAAAAAAAA-N";
+    const surrogate = "S274AC64682B2D-1DB993AA24-N"; // SMILES-hash surrogate (has digits)
+    renderHook(() => usePubChemEnrichment([makeSubstance(real), makeSubstance(surrogate)]), {
+      wrapper: enabledWrapper(true),
+    });
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1));
+    const sentKeys = spy.mock.calls[0][0].map((i) => i.inchi_key);
+    expect(sentKeys).toEqual([real]);
+    expect(sentKeys).not.toContain(surrogate);
+  });
+
+  it("does not fetch at all when every key is a surrogate", () => {
+    const spy = vi.spyOn(api, "postPubChemEnrich");
+    renderHook(() => usePubChemEnrichment([makeSubstance("S274AC64682B2D-1DB993AA24-N")]), {
+      wrapper: enabledWrapper(true),
+    });
+    expect(spy).not.toHaveBeenCalled();
   });
 
   it("re-requests a key whose first fetch was cancelled by a list change", async () => {

