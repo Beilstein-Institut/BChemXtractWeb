@@ -17,6 +17,8 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   FlaskConicalIcon,
+  Loader2Icon,
+  SparklesIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "lucide-react";
@@ -36,10 +38,10 @@ import { ExportMenu } from "@/components/ExportMenu";
 import { PubChemPanel } from "@/components/PubChemPanel";
 import { usePubChemCompound } from "@/hooks/usePubChemEnrichment";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
-import { postExport } from "@/lib/apiClient";
+import { postComputeInchi, postExport } from "@/lib/apiClient";
 import { DEFAULT_DEPICTION } from "@/lib/depiction";
 import { safeDownloadSlug } from "@/lib/safeStrings";
-import type { Depiction, SubstanceResponse } from "@/types/chemistry";
+import type { Depiction, InchiResult, SubstanceResponse } from "@/types/chemistry";
 import type { ExportFormat } from "@/types/export";
 import { FORMAT_EXT } from "@/types/export";
 
@@ -106,9 +108,22 @@ export function StructureSheet({
 }: StructureSheetProps) {
   const [zoom, setZoom] = useState(1);
   const [useCdxCoords, setUseCdxCoords] = useState(depiction === "cdx");
+  // On-demand InChI: when a structure's InChI was skipped at extraction time
+  // (huge molecule), the user can compute it here. Holds the result for the
+  // currently-shown substance; reset whenever the substance changes.
+  const [computedInchi, setComputedInchi] = useState<InchiResult | null>(null);
+  const [inchiLoading, setInchiLoading] = useState(false);
   // Tier-2 PubChem detail for the open structure. No-op (idle) until the user
   // opts in; null substance -> no fetch.
   const pubchem = usePubChemCompound(substance?.inchi_key);
+
+  // Effective InChI / InChIKey: prefer the stored values, fall back to a value
+  // computed on demand. The stored InChIKey is only trustworthy when a real
+  // InChI exists — without one it is a SMILES-hash surrogate (prefix "S"), so
+  // we treat both as absent and offer the Generate action instead.
+  const hasStoredInchi = !!substance?.inchi;
+  const effectiveInchi = substance?.inchi || computedInchi?.inchi || "";
+  const effectiveInchiKey = hasStoredInchi ? substance.inchi_key : (computedInchi?.inchi_key ?? "");
 
   // Reset zoom and pick initial layout when substance changes. Follow the
   // page-level depiction preference (CDK by default); fall back to
@@ -120,6 +135,9 @@ export function StructureSheet({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- prop-sync
     setZoom(1);
+    // Drop any on-demand InChI from the previously-shown substance.
+    setComputedInchi(null);
+    setInchiLoading(false);
 
     setUseCdxCoords(
       substance
@@ -138,6 +156,23 @@ export function StructureSheet({
   }
   function zoomReset() {
     setZoom(1);
+  }
+
+  async function handleGenerateInchi(): Promise<void> {
+    if (!substance?.smiles || inchiLoading) return;
+    setInchiLoading(true);
+    const toastId = `inchi-${Date.now()}`;
+    toast.loading("Generating InChI…", { id: toastId });
+    try {
+      const result = await postComputeInchi(substance.smiles);
+      setComputedInchi(result);
+      toast.success("InChI generated", { id: toastId, duration: 2000 });
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : "no reason returned";
+      toast.error(`Couldn't generate InChI: ${reason}`, { id: toastId });
+    } finally {
+      setInchiLoading(false);
+    }
   }
 
   async function handleExport(format: ExportFormat): Promise<void> {
@@ -387,8 +422,42 @@ export function StructureSheet({
             {/* Metadata rows */}
             <div className="space-y-3 mt-4 px-4 pb-6">
               {substance.smiles && <MetadataRow label="SMILES" value={substance.smiles} />}
-              {substance.inchi && <MetadataRow label="InChI" value={substance.inchi} />}
-              {substance.inchi_key && <MetadataRow label="InChI Key" value={substance.inchi_key} />}
+              {/* InChI / InChI Key shown only when a REAL InChI exists (stored
+                  or generated on demand). Without it the stored key is a
+                  SMILES-hash surrogate, so we hide both and offer Generate. */}
+              {effectiveInchi ? (
+                <>
+                  <MetadataRow label="InChI" value={effectiveInchi} />
+                  {effectiveInchiKey && <MetadataRow label="InChI Key" value={effectiveInchiKey} />}
+                </>
+              ) : (
+                substance.smiles && (
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="min-w-[84px] shrink-0 text-micro font-semibold uppercase tracking-widest text-muted-foreground sm:min-w-[120px]">
+                      InChI
+                    </span>
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGenerateInchi}
+                        disabled={inchiLoading}
+                        className="w-fit gap-1.5"
+                      >
+                        {inchiLoading ? (
+                          <Loader2Icon className="size-3.5 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <SparklesIcon className="size-3.5" aria-hidden="true" />
+                        )}
+                        {inchiLoading ? "Generating…" : "Generate InChI"}
+                      </Button>
+                      <span className="text-micro text-muted-foreground">
+                        Not computed during extraction — generate it from the SMILES.
+                      </span>
+                    </div>
+                  </div>
+                )
+              )}
               {substance.molecular_formula && (
                 <MetadataRow
                   label="Molecular Formula"

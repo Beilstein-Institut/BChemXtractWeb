@@ -110,6 +110,8 @@ vi.mock("@base-ui/react/tooltip", () => {
 vi.mock("sonner", () => ({
   toast: {
     error: vi.fn(),
+    loading: vi.fn(),
+    success: vi.fn(),
   },
 }));
 
@@ -434,5 +436,61 @@ describe("StructureSheet PubChem panel", () => {
       </PubChemPreferencesContext.Provider>,
     );
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe("StructureSheet on-demand InChI", () => {
+  // A substance whose InChI was skipped at extraction: empty inchi + a
+  // surrogate "S…" InChIKey. SMILES is present.
+  const noInchiSubstance: SubstanceResponse = {
+    ...mockSubstance,
+    inchi: "",
+    inchi_key: "SABCDEF12345678-ABCDEFGHIJ-N",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function renderSheet(substance: SubstanceResponse) {
+    render(
+      <StructureSheet
+        open={true}
+        onOpenChange={vi.fn()}
+        substance={substance}
+        substanceIndex={0}
+        totalSubstances={1}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+      />,
+    );
+  }
+
+  it("hides the surrogate InChI Key and shows a Generate InChI button", () => {
+    renderSheet(noInchiSubstance);
+    // The misleading surrogate key must not be shown.
+    expect(screen.queryByText("SABCDEF12345678-ABCDEFGHIJ-N")).toBeNull();
+    expect(screen.queryByText("InChI Key")).toBeNull();
+    expect(screen.getByRole("button", { name: /Generate InChI/i })).toBeInTheDocument();
+  });
+
+  it("shows a real InChI + Key (no button) when InChI is present", () => {
+    renderSheet(mockSubstance);
+    expect(screen.getByText("UHOVQNZJYSORNB-UHFFFAOYSA-N")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Generate InChI/i })).toBeNull();
+  });
+
+  it("computes and displays InChI + Key when the button is clicked", async () => {
+    const spy = vi.spyOn(api, "postComputeInchi").mockResolvedValue({
+      inchi: "InChI=1S/C6H6/c1-2-4-6-5-3-1/h1-6H",
+      inchi_key: "UHOVQNZJYSORNB-UHFFFAOYSA-N",
+    });
+    renderSheet(noInchiSubstance);
+
+    fireEvent.click(screen.getByRole("button", { name: /Generate InChI/i }));
+
+    expect(spy).toHaveBeenCalledWith("c1ccccc1");
+    expect(await screen.findByText("UHOVQNZJYSORNB-UHFFFAOYSA-N")).toBeInTheDocument();
+    expect(screen.getByText("InChI=1S/C6H6/c1-2-4-6-5-3-1/h1-6H")).toBeInTheDocument();
   });
 });
