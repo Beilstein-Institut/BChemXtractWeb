@@ -134,7 +134,7 @@ export function BatchFilePreview({
        * Hover timing (`delay` = open, `closeDelay`) lives on the Trigger in
        * Base UI's PreviewCard — not the Root — so it is set here.
        */}
-      <HoverCardTrigger delay={150} closeDelay={100} render={children} />
+      <HoverCardTrigger delay={350} closeDelay={100} render={children} />
       <HoverCardContent className="w-72" aria-label={`Preview of ${filename}`}>
         {thumbs === false ? (
           <p className="text-caption text-foreground-muted">Preview unavailable.</p>

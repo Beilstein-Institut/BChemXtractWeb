@@ -2,8 +2,15 @@
  * Unit tests for apiClient batch functions.
  * Verifies FormData field name, URL shape, and HTTP method contracts.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { postBatchStart, getBatchSSEUrl, cancelBatch, getBatchExtractions } from "./apiClient";
+
+// Each test stubs `fetch` itself, so unstub after every test. vi.restoreAllMocks()
+// does NOT undo vi.stubGlobal(), so without this a stubbed fetch from one block
+// would leak into the next (only masked because each block re-stubs).
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("postBatchStart", () => {
   beforeEach(() => {

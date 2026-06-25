@@ -313,8 +313,8 @@ export function StructureCard({
       <div className="relative group">
         {checkboxOverlay}
         {/* Per-card export icon overlay — top-2 right-2, mirrors checkbox at top-2 left-2 */}
-        {/* stopPropagation on wrapper div covers trigger button, its span wrapper,
-            and the icon itself — prevents card onClick firing when export area is clicked. */}
+        {/* stopPropagation on wrapper div covers the export trigger button and
+            the icon itself — prevents card onClick firing when export area is clicked. */}
         <div className="absolute top-2 right-2 z-10" onClick={(e) => e.stopPropagation()}>
           <ExportMenu onExport={handleExport} triggerVariant="icon" align="start" />
         </div>

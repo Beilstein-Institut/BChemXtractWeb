@@ -144,17 +144,43 @@ export function BatchSummary({
         className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface"
       >
         {files.map((f) => {
-          const rowInner = (
-            <>
+          const filename = (
+            <span className="min-w-0 flex-1 truncate font-mono text-sm text-foreground">
+              {f.filename}
+            </span>
+          );
+
+          return (
+            <li
+              key={f.filename}
+              data-slot="batch-summary-row"
+              data-state={f.state}
+              className="flex min-h-[48px] items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted/40"
+            >
               <span className="sr-only">{f.state === "done" ? "Succeeded" : "Failed"}</span>
               {f.state === "done" ? (
                 <CheckCircle2Icon className="size-4 shrink-0 text-secondary" aria-hidden="true" />
               ) : (
                 <XCircleIcon className="size-4 shrink-0 text-destructive" aria-hidden="true" />
               )}
-              <span className="min-w-0 flex-1 truncate font-mono text-sm text-foreground">
-                {f.filename}
-              </span>
+              {/* Desktop hover preview anchors to the filename (a non-focusable,
+                  flex-1 element — most of the row width). It deliberately does NOT
+                  wrap the focusable "View" button: Base UI's PreviewCard opens on
+                  focus, and if the button were inside the trigger, tabbing to it
+                  would bubble focus up and pop the preview open for keyboard users.
+                  Failed rows and touch users (via "View") are unaffected. */}
+              {f.state === "done" && f.extractionId != null ? (
+                <BatchFilePreview
+                  extractionId={f.extractionId}
+                  filename={f.filename}
+                  structureCount={f.structureCount ?? 0}
+                  onViewExtraction={onViewExtraction}
+                >
+                  {filename}
+                </BatchFilePreview>
+              ) : (
+                filename
+              )}
               {f.state === "done" && (
                 <span className="shrink-0 text-xs tabular-nums text-foreground-muted">
                   {f.structureCount} structures
@@ -175,35 +201,6 @@ export function BatchSummary({
                   View
                 </Button>
               )}
-            </>
-          );
-
-          const liProps = {
-            "data-slot": "batch-summary-row" as const,
-            "data-state": f.state,
-            className:
-              "flex min-h-[48px] items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted/40",
-          };
-
-          // Desktop hover preview — wraps done rows that have a known
-          // extraction. Failed rows (and touch users via "View") are unaffected.
-          if (f.state === "done" && f.extractionId != null) {
-            return (
-              <BatchFilePreview
-                key={f.filename}
-                extractionId={f.extractionId}
-                filename={f.filename}
-                structureCount={f.structureCount ?? 0}
-                onViewExtraction={onViewExtraction}
-              >
-                <li {...liProps}>{rowInner}</li>
-              </BatchFilePreview>
-            );
-          }
-
-          return (
-            <li key={f.filename} {...liProps}>
-              {rowInner}
             </li>
           );
         })}
