@@ -12,7 +12,7 @@
  * jsdom pointer-hover timer semantics. Production code never passes these
  * props — the card is fully hover-driven.
  */
-import { useState, useEffect, useRef, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactElement } from "react";
 import { ArrowRightIcon, FlaskConicalIcon } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -45,7 +45,12 @@ export interface BatchFilePreviewProps {
   filename: string;
   structureCount: number;
   onViewExtraction: (id: number) => void;
-  children: ReactNode;
+  /**
+   * The row element to wrap. It is rendered AS the hover-card trigger (Base UI
+   * merges the trigger props onto it), so it must be a single element with a
+   * real layout box — the popover anchors to its bounding rect.
+   */
+  children: ReactElement;
   /**
    * Controlled open state — only used by unit tests that need to drive open
    * state without relying on jsdom hover-timer behavior. Production callers
@@ -119,17 +124,17 @@ export function BatchFilePreview({
   return (
     <HoverCard onOpenChange={handleOpenChange} {...controlledProps}>
       {/*
-       * HoverCardTrigger renders an <a> by default. We replace it with a
-       * plain <div> via `render` so the row's existing interactive buttons
-       * (the "View" button) remain fully clickable — a nested <a> would
-       * swallow pointer events on child buttons.
+       * Render the row element itself AS the trigger. The trigger must have a
+       * real layout box because Base UI's positioner anchors the popover to its
+       * bounding rect — a `display: contents` wrapper has no box, so the popover
+       * would anchor to (0,0) and jump to the top-left corner. Rendering the row
+       * (a real <li>) keeps the popover anchored to the row and leaves the row's
+       * own interactive buttons (the "View" button) fully clickable.
        *
        * Hover timing (`delay` = open, `closeDelay`) lives on the Trigger in
        * Base UI's PreviewCard — not the Root — so it is set here.
        */}
-      <HoverCardTrigger delay={150} closeDelay={100} render={<div className="contents" />}>
-        {children}
-      </HoverCardTrigger>
+      <HoverCardTrigger delay={150} closeDelay={100} render={children} />
       <HoverCardContent className="w-72" aria-label={`Preview of ${filename}`}>
         {thumbs === false ? (
           <p className="text-caption text-foreground-muted">Preview unavailable.</p>
