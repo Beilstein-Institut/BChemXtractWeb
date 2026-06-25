@@ -780,9 +780,11 @@ def _run_jvm_subtask(fn, timeout: float, label: str):
     ThreadPoolExecutor) is used so an abandoned hung call never blocks
     interpreter shutdown.
 
-    The daemon thread is attached to the JVM before ``fn`` runs and detached
-    after, so ``fn`` is just its real CDK work — no attach/detach boilerplate.
-    (Attach is skipped when the JVM isn't started, e.g. pure-Python unit tests.)
+    The daemon thread is attached to the JVM (as a JVM *daemon* thread, so an
+    abandoned-on-timeout thread never wedges JVM shutdown) before ``fn`` runs
+    and detached after, so ``fn`` is just its real CDK work — no attach/detach
+    boilerplate. (Attach is skipped when the JVM isn't started, e.g. pure-Python
+    unit tests.)
 
     Raises :class:`TimeoutError` (-> 503) immediately when too many JVM
     subtasks are already in flight (:data:`_MAX_INFLIGHT_JVM_SUBTASKS`),
@@ -800,8 +802,15 @@ def _run_jvm_subtask(fn, timeout: float, label: str):
 
     def _runner() -> None:
         try:
-            if jpype.isJVMStarted() and not jpype.isThreadAttachedToJVM():
-                jpype.attachThreadToJVM()
+            # Attach as a JVM *daemon* thread. This thread is abandoned on
+            # timeout (it keeps running until its native call returns), so a
+            # non-daemon attachment (jpype.attachThreadToJVM) would make the
+            # JVM's DestroyJavaVM block on — and crash over — the still-running
+            # abandoned thread at interpreter shutdown (SIGSEGV). Daemon threads
+            # are reaped cleanly by the JVM at shutdown.
+            jvm_thread = jpype.java.lang.Thread
+            if jpype.isJVMStarted() and not jvm_thread.isAttached():
+                jvm_thread.attachAsDaemon()
             box["value"] = fn()
         except BaseException as exc:  # noqa: BLE001 — re-raised on caller thread
             box["error"] = exc
