@@ -139,7 +139,12 @@ export function ExtractPage({
         </p>
       </header>
 
-      <WizardStepper steps={WIZARD_STEPS} currentStep={currentStep} onStepChange={handleStepChange}>
+      <WizardStepper
+        steps={WIZARD_STEPS}
+        currentStep={currentStep}
+        onStepChange={handleStepChange}
+        processing={currentStep === "process"}
+      >
         {currentStep === "upload" && (
           <FileUpload
             onExtract={onExtract}

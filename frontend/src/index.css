@@ -345,6 +345,20 @@ body {
    positioned inside the indicator's clipping box so the stripe is
    bounded by the filled portion of the bar.
    ============================================================ */
+/* Wizard stepper "processing" pulse — a soft scale breathe applied to each
+   step icon pill while a batch is in flight (staggered per step in
+   WizardStepper for a pipeline-wave feel). Only used via `motion-safe:`, so it
+   never runs under prefers-reduced-motion. */
+@keyframes wizard-step-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+
 @keyframes batch-shimmer {
   0% {
     transform: translateX(-100%);
