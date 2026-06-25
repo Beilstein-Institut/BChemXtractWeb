@@ -282,17 +282,12 @@ async def compute_inchi(smiles: str) -> tuple[str, str]:
         return "", ""
 
     def _compute() -> tuple[str, str]:
-        try:
-            if not jpype.isThreadAttachedToJVM():
-                jpype.attachThreadToJVM()
-            tools = _cdk_inchi_tools()
-            if tools is None:
-                return "", ""
-            parser, igf = tools
-            return _inchi_from_smiles(smiles, parser, igf)
-        finally:
-            with contextlib.suppress(Exception):
-                jpype.java.lang.Thread.detach()
+        # JVM attach/detach owned by _run_jvm_subtask.
+        tools = _cdk_inchi_tools()
+        if tools is None:
+            return "", ""
+        parser, igf = tools
+        return _inchi_from_smiles(smiles, parser, igf)
 
     # Run the (uninterruptible) InChI call on a daemon via _run_jvm_subtask so
     # the JPype pool worker is FREED at the timeout instead of being pinned for
@@ -322,52 +317,47 @@ def _enrich_inchi_from_smiles_sync(substances: list[dict]) -> list[dict]:
     Skipped molecules keep an empty InChI (and get a SMILES-hash surrogate key
     at persistence). Returns a NEW list of dict copies; the input is never
     mutated, so if this call times out and is abandoned, the still-running
-    daemon can't race the main thread's returned/persisted result. Must run on
-    a JVM-attached thread (via :func:`_run_jvm_subtask`).
+    daemon can't race the main thread's returned/persisted result. Run via
+    :func:`_run_jvm_subtask` (which owns the JVM attach/detach); when CDK isn't
+    available the copies are returned unchanged.
     """
-    try:
-        if not jpype.isThreadAttachedToJVM():
-            jpype.attachThreadToJVM()
-        # Work on copies so the abandoned-on-timeout daemon never writes into
-        # the dicts the caller returns (data race, see docstring).
-        result = [dict(s) for s in substances]
-        tools = _cdk_inchi_tools()
-        if tools is None:
-            return result
-        parser, igf = tools
-        recovered = 0
-        skipped_large = 0
-        for s in result:
-            smiles = s.get("smiles") or ""
-            if s.get("inchi") or not smiles:
-                continue
-            heavy = _heavy_atom_count(s.get("molecular_formula") or "")
-            too_large = (
-                heavy > _MAX_INCHI_HEAVY_ATOMS
-                if heavy
-                else len(smiles) > _MAX_INCHI_SMILES_LEN
-            )
-            if too_large:
-                skipped_large += 1
-                continue
-            inchi, inchi_key = _inchi_from_smiles(smiles, parser, igf)
-            if inchi:
-                s["inchi"] = inchi
-                if inchi_key:
-                    s["inchi_key"] = inchi_key
-                recovered += 1
-        if recovered or skipped_large:
-            logger.info(
-                "Recovered InChI from SMILES for %d/%d fragment substances "
-                "(%d skipped as too large)",
-                recovered,
-                len(result),
-                skipped_large,
-            )
+    # Work on copies so the abandoned-on-timeout daemon never writes into the
+    # dicts the caller returns (data race, see docstring).
+    result = [dict(s) for s in substances]
+    tools = _cdk_inchi_tools()
+    if tools is None:
         return result
-    finally:
-        with contextlib.suppress(Exception):
-            jpype.java.lang.Thread.detach()
+    parser, igf = tools
+    recovered = 0
+    skipped_large = 0
+    for s in result:
+        smiles = s.get("smiles") or ""
+        if s.get("inchi") or not smiles:
+            continue
+        heavy = _heavy_atom_count(s.get("molecular_formula") or "")
+        too_large = (
+            heavy > _MAX_INCHI_HEAVY_ATOMS
+            if heavy
+            else len(smiles) > _MAX_INCHI_SMILES_LEN
+        )
+        if too_large:
+            skipped_large += 1
+            continue
+        inchi, inchi_key = _inchi_from_smiles(smiles, parser, igf)
+        if inchi:
+            s["inchi"] = inchi
+            if inchi_key:
+                s["inchi_key"] = inchi_key
+            recovered += 1
+    if recovered or skipped_large:
+        logger.info(
+            "Recovered InChI from SMILES for %d/%d fragment substances "
+            "(%d skipped as too large)",
+            recovered,
+            len(result),
+            skipped_large,
+        )
+    return result
 
 
 def _coerce_role(java_list, role_frags: list[str] | None, cdk) -> list[dict]:
@@ -790,7 +780,9 @@ def _run_jvm_subtask(fn, timeout: float, label: str):
     ThreadPoolExecutor) is used so an abandoned hung call never blocks
     interpreter shutdown.
 
-    ``fn`` must attach itself to the JVM and detach in a ``finally``.
+    The daemon thread is attached to the JVM before ``fn`` runs and detached
+    after, so ``fn`` is just its real CDK work — no attach/detach boilerplate.
+    (Attach is skipped when the JVM isn't started, e.g. pure-Python unit tests.)
 
     Raises :class:`TimeoutError` (-> 503) immediately when too many JVM
     subtasks are already in flight (:data:`_MAX_INFLIGHT_JVM_SUBTASKS`),
@@ -808,10 +800,15 @@ def _run_jvm_subtask(fn, timeout: float, label: str):
 
     def _runner() -> None:
         try:
+            if jpype.isJVMStarted() and not jpype.isThreadAttachedToJVM():
+                jpype.attachThreadToJVM()
             box["value"] = fn()
         except BaseException as exc:  # noqa: BLE001 — re-raised on caller thread
             box["error"] = exc
         finally:
+            if jpype.isJVMStarted():
+                with contextlib.suppress(Exception):
+                    jpype.java.lang.Thread.detach()
             done.set()
             _jvm_subtask_slots.release()
 
@@ -856,17 +853,12 @@ def _extract_with_fallback_sync(
 
     # Stage 1: parse + fragment extraction (SMILES + depiction). This is the
     # fast, reliable path — but its CDK SMILES/depiction calls are also the
-    # hang surface, so it is bounded on its own daemon thread.
+    # hang surface, so it is bounded on its own daemon thread (JVM attach/detach
+    # owned by _run_jvm_subtask).
     def _stage1():
-        try:
-            if not jpype.isThreadAttachedToJVM():
-                jpype.attachThreadToJVM()
-            document = _read_document(file_bytes, format_type)
-            results, info = _extract_fragments_from_document(document)
-            return document, results, info
-        finally:
-            with contextlib.suppress(Exception):
-                jpype.java.lang.Thread.detach()
+        document = _read_document(file_bytes, format_type)
+        results, info = _extract_fragments_from_document(document)
+        return document, results, info
 
     try:
         document, fragment_results, fragment_info = _run_jvm_subtask(
@@ -894,11 +886,9 @@ def _extract_with_fallback_sync(
     # timeout — if it completes, we use its richer data; if not, we
     # return the fragment results.
     def _try_xtract_unique():
-        """Run xtractUnique on a daemon thread. Attaches to JVM."""
+        """Run xtractUnique on a daemon thread (JVM attach/detach owned by
+        _run_jvm_subtask)."""
         try:
-            if not jpype.isThreadAttachedToJVM():
-                jpype.attachThreadToJVM()
-
             BCXSubstanceInfo = jpype.JClass(  # noqa: N806
                 "org.beilstein.chemxtract.model.BCXSubstanceInfo"
             )
@@ -926,9 +916,6 @@ def _extract_with_fallback_sync(
         except jpype.JException as exc:
             logger.warning("xtractUnique failed: %s", str(exc)[:100])
             return None
-        finally:
-            with contextlib.suppress(Exception):
-                jpype.java.lang.Thread.detach()
 
     try:
         result = _run_jvm_subtask(

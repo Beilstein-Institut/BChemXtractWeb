@@ -59,6 +59,7 @@ from app.errors import (
     InvalidSmilesError,
 )
 from app.models.chemistry import (
+    INCHI_KEY_PATTERN,
     SearchExtractionRef,
     SearchRequest,
     SearchResponse,
@@ -69,6 +70,7 @@ from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.services.canonicalize import canonicalize_smiles
 from app.services.depiction import render_substance_svg_with_highlight
 from app.services.jvm_bridge import run_in_jvm_thread
+from app.services.persistence import SURROGATE_INCHI_KEY_RE
 
 logger = logging.getLogger(__name__)
 
@@ -87,16 +89,14 @@ logger = logging.getLogger(__name__)
 # the 14-char connectivity block alone, or ``<14>-<10>`` (connectivity +
 # stereo). :func:`_search_inchi_key` distinguishes full vs partial by
 # ``len(normalized) == 27`` — a 27-char string matching this pattern can
-# only be the full shape.
-_INCHI_KEY_RE = re.compile(r"\A[A-Z]{14}(?:-[A-Z]{10}(?:-[A-Z])?)?\Z")
+# only be the full shape. Compiled from the canonical INCHI_KEY_PATTERN so the
+# shape is defined once (shared with the request models / pubchem router).
+_INCHI_KEY_RE = re.compile(INCHI_KEY_PATTERN)
 _FORMULA_RE = re.compile(r"\A(?:[A-Z][a-z]?\d{0,5}){1,60}\Z")
 
-# Surrogate InChIKey minted in persistence.py for fragment-path substances
-# that have no real InChI: ``S`` + 13 hex + ``-`` + 10 hex + ``-N`` (uppercase
-# SHA-256 of the SMILES). Real InChIKeys are letters-only, so these fail
-# ``_INCHI_KEY_RE``; they are still a stable per-substance identifier, so the
-# share/deep-link path must be able to resolve one by exact match.
-_SURROGATE_KEY_RE = re.compile(r"\AS[0-9A-F]{13}-[0-9A-F]{10}-N\Z")
+# Surrogate keys (S-prefixed SMILES hashes) fail _INCHI_KEY_RE but are a stable
+# per-substance identifier; the share/deep-link path resolves one by exact
+# match. The format is owned by persistence (SURROGATE_INCHI_KEY_RE).
 
 # Polymer-SMILES deadlock ceiling. Same threshold applied inside
 # :func:`canonicalize._canonicalize_smiles_sync` — CDK's ``SmartsPattern``
@@ -242,7 +242,7 @@ async def _search_inchi_key(
     normalized = q.strip().upper()
     # Surrogate keys (digits present) fail the real-InChIKey regex but are a
     # valid stable identifier — match them exactly (bound param, injection-safe).
-    if _SURROGATE_KEY_RE.match(normalized):
+    if SURROGATE_INCHI_KEY_RE.match(normalized):
         stmt = _base_substance_select(scope_eid).where(
             Substance.inchi_key == normalized
         )
