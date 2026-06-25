@@ -158,7 +158,9 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures" / "substances"
 REACTION_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "reactions"
 
 # --- test database URL ---
-TEST_DB_URL = "postgresql+psycopg://postgres:postgres@localhost:5432/bchemxtract_test"
+# Single source of truth: follows DATABASE_URL (set via env or the setdefault
+# above), so pointing the suite at a different Postgres only needs DATABASE_URL.
+TEST_DB_URL = os.environ["DATABASE_URL"]
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
