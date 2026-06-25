@@ -21,6 +21,7 @@ fragment path and adds a warning to the response.
 
 import contextlib
 import logging
+import threading
 from collections import Counter
 
 import jpype
@@ -48,8 +49,16 @@ logger = logging.getLogger(__name__)
 # to the fragment-level extraction which bypasses InChI computation.
 _XTRACT_UNIQUE_TIMEOUT = 10.0
 
-# Timeout for the fragment-level fallback (typically completes in <1s).
+# Timeout for the whole fragment-first extraction (the outer
+# ``run_in_jvm_thread`` budget). Stage 1 + Stage 2 are individually bounded
+# below; this stays as a backstop.
 _FRAGMENT_FALLBACK_TIMEOUT = 90.0
+
+# Hard ceiling on Stage 1 (parse + fragment SMILES + depiction). Real files
+# finish in <1s; a crafted/pathological graph can make CDK's SMILES or
+# depiction generator hang, so we bound it. Generous headroom for genuinely
+# large legitimate files while still well under the outer budget.
+_FRAGMENT_STAGE1_TIMEOUT = 60.0
 
 # CDK SmilesParser + DepictionGenerator can deadlock on polymer/dendrimer
 # SMILES > 1500 chars (same root cause as canonicalize.py
@@ -590,6 +599,44 @@ def _render_with_cdk_layout(container) -> str:
         return ""
 
 
+def _run_jvm_subtask(fn, timeout: float, label: str):
+    """Run a JVM-bound callable on a daemon thread with a hard timeout.
+
+    Returns ``fn()``'s value, or raises :class:`TimeoutError` if it does not
+    finish within ``timeout`` seconds. Any other exception from ``fn`` is
+    re-raised on the caller's thread.
+
+    On timeout the daemon thread is abandoned: it keeps a JVM thread until the
+    native call returns (or the process exits), but the *calling* JPype pool
+    worker is freed immediately. Without this, a CDK call that hangs on a
+    crafted/pathological graph (SMILES generation or depiction on a huge
+    symmetric molecule) would pin a pool worker for the full outer timeout and
+    never release it, so a few crafted uploads could exhaust the fixed JPype
+    pool and stall the whole API (CWE-400). A daemon thread (not a
+    ThreadPoolExecutor) is used so an abandoned hung call never blocks
+    interpreter shutdown.
+
+    ``fn`` must attach itself to the JVM and detach in a ``finally``.
+    """
+    box: dict[str, object] = {}
+    done = threading.Event()
+
+    def _runner() -> None:
+        try:
+            box["value"] = fn()
+        except BaseException as exc:  # noqa: BLE001 — re-raised on caller thread
+            box["error"] = exc
+        finally:
+            done.set()
+
+    threading.Thread(target=_runner, name=label, daemon=True).start()
+    if not done.wait(timeout):
+        raise TimeoutError(f"{label} exceeded {timeout:.0f}s")
+    if "error" in box:
+        raise box["error"]  # type: ignore[misc]
+    return box.get("value")
+
+
 def _extract_with_fallback_sync(
     file_bytes: bytes, format_type: str
 ) -> tuple[list[dict], dict, bool]:
@@ -604,6 +651,10 @@ def _extract_with_fallback_sync(
     The fragment path uses SmilesGenerator.isomeric() which preserves
     R/S and E/Z stereochemistry — no InChI dependency.
 
+    Both stages run on daemon threads with hard timeouts (see
+    :func:`_run_jvm_subtask`) so a hung CDK call cannot pin the calling JPype
+    pool worker.
+
     Args:
         file_bytes: Raw file content bytes.
         format_type: Either "cdx" or "cdxml".
@@ -612,18 +663,39 @@ def _extract_with_fallback_sync(
         Tuple of (substance dicts with svg, info dict, used_fallback bool).
 
     Raises:
-        ExtractionError: If fragment extraction fails.
+        ExtractionError: If document parsing or fragment extraction fails.
+        TimeoutError: If Stage 1 exceeds ``_FRAGMENT_STAGE1_TIMEOUT`` (maps
+            to 503); the calling pool worker is freed.
     """
-    import concurrent.futures
+
+    # Stage 1: parse + fragment extraction (SMILES + depiction). This is the
+    # fast, reliable path — but its CDK SMILES/depiction calls are also the
+    # hang surface, so it is bounded on its own daemon thread.
+    def _stage1():
+        try:
+            if not jpype.isThreadAttachedToJVM():
+                jpype.attachThreadToJVM()
+            document = _read_document(file_bytes, format_type)
+            results, info = _extract_fragments_from_document(document)
+            return document, results, info
+        finally:
+            with contextlib.suppress(Exception):
+                jpype.java.lang.Thread.detach()
 
     try:
-        document = _read_document(file_bytes, format_type)
+        document, fragment_results, fragment_info = _run_jvm_subtask(
+            _stage1, _FRAGMENT_STAGE1_TIMEOUT, "xtract-stage1"
+        )
+    except TimeoutError:
+        logger.warning(
+            "Stage 1 fragment extraction timed out after %.0fs",
+            _FRAGMENT_STAGE1_TIMEOUT,
+        )
+        raise
     except jpype.JException as exc:
         logger.error("Document parsing failed: %s", exc)
         raise ExtractionError("Failed to parse file") from exc
 
-    # Stage 1: always run fragment extraction first (fast, reliable)
-    fragment_results, fragment_info = _extract_fragments_from_document(document)
     logger.info(
         "Fragment extraction: %d substances from %d fragments",
         fragment_info["no_substances"],
@@ -672,30 +744,25 @@ def _extract_with_fallback_sync(
             with contextlib.suppress(Exception):
                 jpype.java.lang.Thread.detach()
 
-    pool = concurrent.futures.ThreadPoolExecutor(
-        max_workers=1, thread_name_prefix="xtract-enrich"
-    )
-    future = pool.submit(_try_xtract_unique)
     try:
-        result = future.result(timeout=_XTRACT_UNIQUE_TIMEOUT)
-        if result is not None:
-            logger.info(
-                "xtractUnique succeeded: %d substances (enriched)",
-                len(result[0]),
-            )
-            pool.shutdown(wait=False)
-            return result[0], result[1], False
-    except concurrent.futures.TimeoutError:
+        result = _run_jvm_subtask(
+            _try_xtract_unique, _XTRACT_UNIQUE_TIMEOUT, "xtract-enrich"
+        )
+    except TimeoutError:
         logger.warning(
             "xtractUnique timed out after %.0fs — using fragment results",
             _XTRACT_UNIQUE_TIMEOUT,
         )
-    # Don't wait for the hung thread — shut down immediately.
-    # The daemon thread will be abandoned (it holds a JVM thread
-    # until xtractUnique eventually completes or the process exits).
-    pool.shutdown(wait=False, cancel_futures=True)
+        result = None
 
-    # Return fragment results (xtractUnique timed out or failed)
+    if result is not None:
+        logger.info(
+            "xtractUnique succeeded: %d substances (enriched)",
+            len(result[0]),
+        )
+        return result[0], result[1], False
+
+    # xtractUnique timed out or failed — return the fragment results.
     return fragment_results, fragment_info, True
 
 
