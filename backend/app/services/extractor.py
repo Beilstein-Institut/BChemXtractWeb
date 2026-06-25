@@ -39,6 +39,7 @@ from app.services.depiction import (
     _set_svg_dimensions,
     render_substance_svg,
     render_substance_svg_cdk_layout,
+    sanitize_svg,
 )
 from app.services.format_detector import detect_format
 from app.services.jvm_bridge import run_in_jvm_thread
@@ -479,7 +480,10 @@ def _render_atom_container_svg(container) -> str:
             return ""
         dg = _make_depiction_generator()
         svg_str = str(dg.depict(container).toSvgStr())
-        return _set_svg_dimensions(svg_str, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
+        sized = _set_svg_dimensions(svg_str, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
+        # Strip any scriptable markup before the SVG is stored/served — matches
+        # the invariant the depiction module's _depict_container_to_svg holds.
+        return sanitize_svg(sized)
     except Exception as exc:
         logger.warning("SVG rendering failed for atom container: %s", exc)
         return ""
@@ -561,7 +565,9 @@ def _render_reaction_svg(reaction_smiles: str) -> tuple[str, str]:
         sized = _set_svg_dimensions(
             svg_str, SVG_REACTION_TARGET_WIDTH, SVG_REACTION_TARGET_HEIGHT
         )
-        return sized, ""
+        # Sanitize before the reaction SVG is stored/served (see sibling
+        # renderers): strip <script>/on*=/javascript: so stored markup is inert.
+        return sanitize_svg(sized), ""
     except Exception as exc:  # noqa: BLE001 — never raise from depiction
         logger.warning(
             "Reaction depiction failed for %r: %s", reaction_smiles[:80], exc
@@ -593,7 +599,8 @@ def _render_with_cdk_layout(container) -> str:
 
         dg = _make_depiction_generator()
         svg_str = str(dg.depict(mol_laid_out).toSvgStr())
-        return _set_svg_dimensions(svg_str, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
+        sized = _set_svg_dimensions(svg_str, SVG_TARGET_WIDTH, SVG_TARGET_HEIGHT)
+        return sanitize_svg(sized)
     except Exception as exc:
         logger.warning("CDK layout + render failed: %s", exc)
         return ""
