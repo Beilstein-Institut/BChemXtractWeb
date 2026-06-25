@@ -29,8 +29,8 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { SearchFilter } from "@/components/SearchFilter";
 import { EMPTY_FILTERS, type BrowseFilters } from "@/components/browse/browseFilters";
 import { StructureBrowser } from "@/components/StructureBrowser";
-import { StructureDetail } from "@/components/StructureDetail";
-import { Dialog } from "@/components/ui/dialog";
+import { StructureSheet } from "@/components/StructureSheet";
+import { useShareTarget, clearShareHash } from "@/hooks/useShareTarget";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DEFAULT_DEPICTION } from "@/lib/depiction";
@@ -96,6 +96,25 @@ export function BrowsePage({
     },
     [filteredSubstances],
   );
+
+  // Resolve a /browse#s=<inchikey> share deep link and open it in the sheet.
+  useShareTarget(setActiveSubstance);
+
+  // Page the sheet across the current filtered list when the active substance
+  // belongs to it (bento click); a shared deep-link substance that isn't in
+  // the loaded extraction shows on its own (prev/next disabled).
+  const sheetList = useMemo(() => {
+    if (!activeSubstance) return { list: filteredSubstances, index: -1 };
+    const idx = filteredSubstances.findIndex((s) => s.inchi_key === activeSubstance.inchi_key);
+    return idx >= 0
+      ? { list: filteredSubstances, index: idx }
+      : { list: [activeSubstance], index: 0 };
+  }, [activeSubstance, filteredSubstances]);
+
+  const closeSheet = useCallback(() => {
+    setActiveSubstance(null);
+    clearShareHash();
+  }, []);
 
   const handleBrowseAll = useCallback(() => {
     browserRef.current?.scrollIntoView({
@@ -192,19 +211,30 @@ export function BrowsePage({
               />
             </ExtractionTabs>
           </div>
-
-          <Dialog
-            open={activeSubstance !== null}
-            onOpenChange={(open) => {
-              if (!open) setActiveSubstance(null);
-            }}
-          >
-            {activeSubstance && (
-              <StructureDetail substance={activeSubstance} depiction={depiction} />
-            )}
-          </Dialog>
         </>
       )}
+
+      {/* Single detail sheet for both the bento click and a shared deep link.
+          Rendered outside the hasExtraction branch so a /browse#s=<key> link
+          opens even when the recipient has no extraction loaded. */}
+      <StructureSheet
+        open={activeSubstance !== null}
+        onOpenChange={(open) => {
+          if (!open) closeSheet();
+        }}
+        substance={activeSubstance}
+        substanceIndex={Math.max(0, sheetList.index)}
+        totalSubstances={sheetList.list.length}
+        onPrev={() => {
+          if (sheetList.index > 0) setActiveSubstance(sheetList.list[sheetList.index - 1]);
+        }}
+        onNext={() => {
+          if (sheetList.index >= 0 && sheetList.index < sheetList.list.length - 1) {
+            setActiveSubstance(sheetList.list[sheetList.index + 1]);
+          }
+        }}
+        depiction={depiction}
+      />
     </PageContainer>
   );
 }
