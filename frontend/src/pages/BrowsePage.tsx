@@ -97,10 +97,12 @@ export function BrowsePage({
   );
 
   // Index of the open substance within the current filtered list, so the sheet
-  // can page across it with prev/next.
+  // can page across it with prev/next. Located by object identity (indexOf),
+  // NOT inchi_key — several substances can share an empty/surrogate key, which
+  // would collapse to the first match and page from the wrong position.
   const sheetIndex = useMemo(() => {
     if (!activeSubstance) return -1;
-    return filteredSubstances.findIndex((s) => s.inchi_key === activeSubstance.inchi_key);
+    return filteredSubstances.indexOf(activeSubstance);
   }, [activeSubstance, filteredSubstances]);
 
   const closeSheet = useCallback(() => setActiveSubstance(null), []);

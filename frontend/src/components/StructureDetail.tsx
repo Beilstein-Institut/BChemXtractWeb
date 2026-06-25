@@ -114,8 +114,15 @@ export function StructureDetail({
       {/* Metadata rows */}
       <div className="space-y-3 mt-4">
         <MetadataRow label="SMILES" value={substance.smiles} />
-        <MetadataRow label="InChI" value={substance.inchi} />
-        <MetadataRow label="InChI Key" value={substance.inchi_key} />
+        {/* Show InChI / InChI Key only when a real InChI exists. Without one
+            the stored key is a SMILES-hash surrogate that misleads anyone who
+            copies it into PubChem etc., so hide both (mirrors StructureSheet). */}
+        {substance.inchi && (
+          <>
+            <MetadataRow label="InChI" value={substance.inchi} />
+            {substance.inchi_key && <MetadataRow label="InChI Key" value={substance.inchi_key} />}
+          </>
+        )}
         <MetadataRow
           label="Molecular Formula"
           value={substance.molecular_formula}
