@@ -474,9 +474,27 @@ CSV_COLUMNS = [
     "extended_smiles",
 ]
 
+# Leading characters that Excel / LibreOffice / Google Sheets interpret as the
+# start of a formula. A field beginning with one of these (the chemical fields
+# are derived from attacker-uploaded ChemDraw content) is prefixed with a
+# single quote so it renders as literal text rather than executing
+# (CSV/formula injection, CWE-1236).
+_CSV_FORMULA_TRIGGERS = frozenset("=+-@\t\r")
+
+
+def _neutralize_csv_formula(value: str) -> str:
+    """Prefix a leading formula trigger with a single quote; else return as-is."""
+    if value and value[0] in _CSV_FORMULA_TRIGGERS:
+        return "'" + value
+    return value
+
 
 def _generate_csv(substances: list[dict]) -> bytes:
     """CSV with header row. Pure Python — no JVM thread needed.
+
+    Each field is passed through :func:`_neutralize_csv_formula` so a value
+    crafted to start with ``= + - @`` cannot execute as a spreadsheet formula
+    when the export is opened.
 
     Args:
         substances: List of substance dicts.
@@ -488,7 +506,11 @@ def _generate_csv(substances: list[dict]) -> bytes:
     writer = csv.DictWriter(buf, fieldnames=CSV_COLUMNS, extrasaction="ignore")
     writer.writeheader()
     for s in substances:
-        writer.writerow({col: s.get(col, "") for col in CSV_COLUMNS})
+        row = {}
+        for col in CSV_COLUMNS:
+            raw = s.get(col, "")
+            row[col] = _neutralize_csv_formula("" if raw is None else str(raw))
+        writer.writerow(row)
     return buf.getvalue().encode("utf-8")
 
 

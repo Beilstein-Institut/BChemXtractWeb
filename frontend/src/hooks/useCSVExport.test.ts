@@ -48,6 +48,25 @@ describe("escapeCSVCell", () => {
     expect(escapeCSVCell("line1\nline2")).toBe('"line1\nline2"');
     expect(escapeCSVCell("line1\r\nline2")).toBe('"line1\r\nline2"');
   });
+
+  it("neutralizes leading formula triggers with a single quote (CWE-1236)", () => {
+    expect(escapeCSVCell("=1+1")).toBe("'=1+1");
+    expect(escapeCSVCell("+1")).toBe("'+1");
+    expect(escapeCSVCell("-1")).toBe("'-1");
+    expect(escapeCSVCell("@SUM(A1)")).toBe("'@SUM(A1)");
+  });
+
+  it("neutralizes a formula and still RFC-4180-quotes when needed", () => {
+    // A malicious uploaded filename: leading '=' plus a comma.
+    expect(escapeCSVCell('=HYPERLINK("http://evil",A1)')).toBe(
+      '"\'=HYPERLINK(""http://evil"",A1)"',
+    );
+  });
+
+  it("does not prefix a trigger char that is not leading", () => {
+    expect(escapeCSVCell("C6H6")).toBe("C6H6");
+    expect(escapeCSVCell("a=b")).toBe("a=b");
+  });
 });
 
 describe("serializeCSV", () => {

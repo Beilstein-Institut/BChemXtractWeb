@@ -351,3 +351,43 @@ async def test_export_all_uses_extraction_id(client: AsyncClient) -> None:
     assert resp.status_code == 200, resp.text
     assert fetched_args.get("extraction_id") == 42
     assert fetched_args.get("substance_ids") == []
+
+
+# ---------------------------------------------------------------------------
+# CSV formula injection (CWE-1236)
+# ---------------------------------------------------------------------------
+
+
+def test_neutralize_csv_formula_prefixes_triggers() -> None:
+    from app.services.export import _neutralize_csv_formula
+
+    assert _neutralize_csv_formula("=1+1") == "'=1+1"
+    assert _neutralize_csv_formula("+1") == "'+1"
+    assert _neutralize_csv_formula("-1") == "'-1"
+    assert _neutralize_csv_formula("@x") == "'@x"
+    assert _neutralize_csv_formula("\tx") == "'\tx"
+    # Non-leading triggers and benign values are untouched.
+    assert _neutralize_csv_formula("C6H6") == "C6H6"
+    assert _neutralize_csv_formula("a=b") == "a=b"
+    assert _neutralize_csv_formula("") == ""
+
+
+def test_generate_csv_neutralizes_formula_fields() -> None:
+    from app.services.export import _generate_csv
+
+    rows = [
+        {
+            "id": 1,
+            "inchi_key": "K",
+            "smiles": "=cmd|'/c calc'!A1",
+            "molecular_formula": "C6H6",
+            "inchi": "",
+            "iupac_name": "",
+            "extended_smiles": "",
+        }
+    ]
+    text = _generate_csv(rows).decode("utf-8")
+    # The dangerous SMILES cell must be neutralized (leading single quote)
+    # and never start a bare formula.
+    assert "'=cmd" in text
+    assert ",=cmd" not in text
