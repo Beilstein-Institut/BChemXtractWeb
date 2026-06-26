@@ -19,7 +19,7 @@ import time
 
 from celery.exceptions import SoftTimeLimitExceeded
 
-from app.celery_app import celery_app
+from app.celery_app import batch_cancel_key, celery_app
 from app.models.chemistry import (
     ExtractionResponse,
     SubstanceInfoResponse,
@@ -27,10 +27,33 @@ from app.models.chemistry import (
 )
 from app.services.db import AsyncSessionLocal
 from app.services.extractor import _extract_with_fallback_sync
-from app.services.format_detector import detect_format
+from app.services.format_detector import check_extension_mismatch, detect_format
 from app.services.persistence import save_extraction
 
 logger = logging.getLogger(__name__)
+
+
+def _cancel_store():
+    """Redis client backing the cooperative batch-cancel flag.
+
+    Indirection point so tests can substitute an in-memory fake without a
+    live Redis (mirrors the owner-store accessor in routers/batch.py).
+    """
+    return celery_app.backend.client
+
+
+def _batch_is_cancelled(group_id: str | None) -> bool:
+    """True when the batch this task belongs to has been cancelled.
+
+    Fails open (returns False) on any Redis error: a cancel-flag lookup must
+    never abort an otherwise-healthy extraction.
+    """
+    if not group_id:
+        return False
+    try:
+        return bool(_cancel_store().get(batch_cancel_key(group_id)))
+    except Exception:  # noqa: BLE001 — best-effort check, never block work
+        return False
 
 
 @celery_app.task(bind=True, name="extraction.extract_file")
@@ -66,6 +89,19 @@ def extract_file_task(
         dict with keys: filename, structure_count, extraction_id, error.
         error is None on success, a string on failure (skip-and-continue).
     """
+    # Stop after the current file: a task already running is not interrupted,
+    # but every not-yet-started task in a cancelled batch short-circuits here
+    # rather than doing the (expensive) JVM extraction. self.request.group is
+    # the Celery group_id the cancel endpoint flagged.
+    if _batch_is_cancelled(self.request.group):
+        logger.info("Skipping %s — batch %s cancelled", filename, self.request.group)
+        return {
+            "filename": filename,
+            "structure_count": 0,
+            "extraction_id": None,
+            "error": "Batch cancelled",
+        }
+
     self.update_state(
         state="STARTED",
         meta={"filename": filename, "status": "processing"},
@@ -75,7 +111,10 @@ def extract_file_task(
     try:
         file_bytes = base64.b64decode(file_b64)
         format_type = detect_format(file_bytes)
-        warnings: list[str] = []
+        # Extension mismatch is a warning, not an error — content detection is
+        # authoritative. Mirrors the synchronous /api/extract path so the async
+        # single-file flow (and batch) surface the same advisory.
+        warnings: list[str] = check_extension_mismatch(filename, format_type)
 
         raw_substances, raw_info, used_fallback = _extract_with_fallback_sync(
             file_bytes, format_type
@@ -109,6 +148,24 @@ def extract_file_task(
         # extractions policy uses USING for INSERTs too, so missing GUCs
         # raise InsufficientPrivilege under the prod role.
         akh = bytes.fromhex(api_key_hash_hex) if api_key_hash_hex else None
+
+        # Re-check the cancel flag AFTER the (uninterruptible) extraction and
+        # BEFORE persisting. The start-of-task check can't catch the file that
+        # was already mid-extraction when cancel fired; this one does, so a
+        # cancelled batch leaves no half-saved row. The cancel endpoint deletes
+        # any rows that committed before the flag was set.
+        if _batch_is_cancelled(self.request.group):
+            logger.info(
+                "Discarding %s result — batch %s cancelled mid-extraction",
+                filename,
+                self.request.group,
+            )
+            return {
+                "filename": filename,
+                "structure_count": 0,
+                "extraction_id": None,
+                "error": "Batch cancelled",
+            }
 
         async def _persist() -> int:
             async with AsyncSessionLocal() as db:

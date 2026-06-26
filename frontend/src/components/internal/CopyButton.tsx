@@ -3,8 +3,9 @@
  * flashes a check icon for 2 seconds. Used in StructureDetail, StructureSheet,
  * ReactionSheet, ReactionCard, StructureCard, and StructureTable.
  *
- * All consumers rely on the same XSS-safe `safeClipboardText` sanitiser (SEC-8)
- * so clipboard payloads cannot contain CR/LF/NUL control characters.
+ * Copying goes through `copyText`, which sanitises the payload (SEC-8: no
+ * CR/LF/NUL) and falls back to a legacy copy on plain-HTTP origins where the
+ * Clipboard API is unavailable.
  *
  * Pass `stopPropagation` for card/row contexts where a parent click handler
  * must not fire.
@@ -13,7 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { safeClipboardText } from "@/lib/safeStrings";
+import { copyText } from "@/lib/clipboard";
 import { cn } from "@/lib/utils";
 
 export interface CopyButtonProps {
@@ -48,7 +49,7 @@ export function CopyButton({
   async function handleCopy(e: React.MouseEvent) {
     if (stopPropagation) e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(safeClipboardText(value));
+      await copyText(value);
       if (timerRef.current !== null) clearTimeout(timerRef.current);
       setCopied(true);
       timerRef.current = setTimeout(() => setCopied(false), 2000);

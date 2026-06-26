@@ -21,6 +21,7 @@
 import { useCallback, useMemo } from "react";
 import { CheckIcon, LoaderIcon, UploadIcon } from "lucide-react";
 import { BatchProgress } from "@/components/BatchProgress";
+import { BatchStopped } from "@/components/BatchStopped";
 import { BatchSummary } from "@/components/BatchSummary";
 import { FileUpload } from "@/components/FileUpload";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -54,12 +55,13 @@ const STEP_ORDER: readonly WizardStepId[] = ["upload", "process", "results"];
 /**
  * Derive the active wizard step from the two hook states.
  *
- * Completed batches pin to "results". Mid-flight single/batch extractions
- * pin to "process". Everything else (idle, error, cancelled) lands on
- * "upload" so the user can retry or begin a new run.
+ * Completed batches pin to "results"; a cancelled batch also pins there but
+ * renders the "Batch stopped" panel instead of a summary (its results were
+ * deleted). Mid-flight single/batch extractions pin to "process". Everything
+ * else (idle, error) lands on "upload".
  */
 function deriveStep(extractState: ExtractState, batchState: BatchState): WizardStepId {
-  if (batchState === "complete") return "results";
+  if (batchState === "complete" || batchState === "cancelled") return "results";
   if (extractState === "loading" || batchState === "processing") {
     return "process";
   }
@@ -164,18 +166,23 @@ export function ExtractPage({
           />
         )}
 
-        {currentStep === "results" && batchId && (
-          <BatchSummary
-            batchId={batchId}
-            files={batchFiles}
-            totalFiles={batchFiles.length}
-            totalStructures={batchTotalStructures}
-            succeededCount={batchCompletedCount}
-            failedCount={batchFailedCount}
-            onViewExtraction={onViewExtraction}
-            onReset={onResetBatch}
-          />
-        )}
+        {currentStep === "results" &&
+          (batchState === "cancelled" ? (
+            <BatchStopped onReset={onResetBatch} />
+          ) : (
+            batchId && (
+              <BatchSummary
+                batchId={batchId}
+                files={batchFiles}
+                totalFiles={batchFiles.length}
+                totalStructures={batchTotalStructures}
+                succeededCount={batchCompletedCount}
+                failedCount={batchFailedCount}
+                onViewExtraction={onViewExtraction}
+                onReset={onResetBatch}
+              />
+            )
+          ))}
       </WizardStepper>
     </PageContainer>
   );

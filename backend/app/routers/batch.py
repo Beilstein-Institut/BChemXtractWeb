@@ -10,6 +10,7 @@ import asyncio
 import base64
 import io
 import json
+import logging
 import uuid
 import zipfile
 from typing import Annotated, Any
@@ -22,7 +23,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
-from app.celery_app import celery_app
+from app.celery_app import batch_cancel_key, celery_app
 from app.config import settings
 from app.middleware.rate_limit import limiter
 from app.models.chemistry import (
@@ -32,8 +33,11 @@ from app.models.chemistry import (
     ErrorResponse,
 )
 from app.models.orm import Extraction, ExtractionSubstance, Substance
+from app.services import job_ownership
+from app.services.audit import audit_log_insert_in_session
 from app.services.db import get_scoped_db
 from app.services.filenames import build_content_disposition, safe_filename
+from app.services.persistence import delete_extractions_by_batch_id
 from app.services.upload_guard import read_upload_bounded
 from app.tasks.extraction import extract_file_task
 
@@ -44,13 +48,13 @@ _BATCH_FILE_LIMIT = 20
 _SSE_POLL_SECONDS = 0.5
 _ERROR_DETAIL_MAX_CHARS = 200
 
-# Redis key prefix binding a Celery group_id to the scope that started the
-# batch. The SSE-progress and cancel endpoints address a batch purely by its
-# Celery group_id and touch only Celery/Redis (which carry no Postgres RLS),
-# so without this binding any party holding a group_id could stream another
-# session's per-file results or cancel its pending tasks (IDOR, CWE-639).
-_BATCH_OWNER_KEY_PREFIX = "bcx:batch-owner:"
+# Redis key mapping a Celery group_id to the DB batch_id (UUID) it produced.
+# The cancel endpoint is addressed by group_id but must delete the batch's
+# extractions, which are tagged with batch_id — this is the server-authoritative
+# link between the two ids. Same TTL/store as the ownership record.
+_BATCH_DBID_KEY_PREFIX = "bcx:batch-dbid:"
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -58,54 +62,22 @@ DbDep = Annotated[AsyncSession, Depends(get_scoped_db)]
 UploadFiles = Annotated[list[UploadFile], File(...)]
 
 
-def _owner_store():
-    """Return the Redis client backing batch-ownership records.
-
-    Indirection point so tests can substitute an in-memory fake without a
-    live Redis. Uses the Celery result backend's client — the same store the
-    GroupResult is saved to — so ownership records share its lifetime.
-    """
-    return celery_app.backend.client
+def _batch_dbid_key(group_id: str) -> str:
+    return f"{_BATCH_DBID_KEY_PREFIX}{group_id}"
 
 
-def _scope_owner_token(session_id: str | None, api_key_hash: bytes | None) -> str:
-    """Stable string identity for a request scope.
-
-    Binds a batch to the session cookie or API key that created it. API-key
-    scope takes precedence over a session id, mirroring ``get_scoped_db``.
-    """
-    if api_key_hash is not None:
-        return f"akh:{api_key_hash.hex()}"
-    if session_id is not None:
-        return f"sid:{session_id}"
-    return "anon:"
-
-
-def _batch_owner_key(group_id: str) -> str:
-    return f"{_BATCH_OWNER_KEY_PREFIX}{group_id}"
-
-
-def _record_batch_owner(group_id: str, token: str) -> None:
-    """Persist the batch owner token with the same TTL as the group result."""
+def _record_batch_dbid(group_id: str, batch_id: str) -> None:
+    """Persist the group_id -> DB batch_id link with the result TTL."""
     ttl = int(celery_app.conf.result_expires or 3600)
-    _owner_store().set(_batch_owner_key(group_id), token, ex=ttl)
+    job_ownership.owner_store().set(_batch_dbid_key(group_id), batch_id, ex=ttl)
 
 
-def _require_batch_owner(group_id: str, request: Request) -> None:
-    """Raise 404 unless the caller's scope matches the recorded batch owner.
-
-    A missing or foreign owner record is reported identically to a genuinely
-    absent batch so the endpoint cannot be used to probe which group_ids
-    exist.
-    """
-    scope = getattr(request.state, "scope", (None, None))
-    expected = _scope_owner_token(*scope)
-    stored = _owner_store().get(_batch_owner_key(group_id))
+def _read_batch_dbid(group_id: str) -> str | None:
+    """Return the DB batch_id for a group_id, or None if unrecorded/expired."""
+    stored = job_ownership.owner_store().get(_batch_dbid_key(group_id))
     if stored is None:
-        raise HTTPException(status_code=404, detail="Batch not found")
-    stored_token = stored.decode() if isinstance(stored, bytes) else str(stored)
-    if stored_token != expected:
-        raise HTTPException(status_code=404, detail="Batch not found")
+        return None
+    return stored.decode() if isinstance(stored, bytes) else str(stored)
 
 
 def _substance_to_dict(s: Substance) -> dict[str, Any]:
@@ -248,7 +220,11 @@ async def start_batch(request: Request, files: UploadFiles) -> BatchStartRespons
     group_result.save()
     # Bind the group_id to this caller so the SSE/cancel endpoints (which key
     # on group_id and bypass RLS) can reject other sessions.
-    _record_batch_owner(group_result.id, _scope_owner_token(session_id, api_key_hash))
+    job_ownership.record_job_owner(
+        group_result.id, job_ownership.scope_owner_token(session_id, api_key_hash)
+    )
+    # Record the group_id -> batch_id link so cancel can delete this batch's rows.
+    _record_batch_dbid(group_result.id, batch_id)
 
     return BatchStartResponse(
         batch_id=batch_id,
@@ -299,7 +275,7 @@ async def batch_progress(group_id: str, request: Request) -> EventSourceResponse
     """
     # Ownership gate runs before the stream opens so a foreign/missing batch
     # gets a plain 404, not an SSE error event.
-    _require_batch_owner(group_id, request)
+    job_ownership.require_job_owner(group_id, request)
 
     async def event_generator():
         group_result = GroupResult.restore(group_id, app=celery_app)
@@ -343,15 +319,16 @@ async def batch_progress(group_id: str, request: Request) -> EventSourceResponse
     "/batch/{group_id}",
     status_code=204,
     operation_id="cancelBatch",
-    summary="Cancel pending batch tasks",
+    summary="Cancel a batch and discard its results",
     description=(
-        "Revoke all pending tasks in the batch. The currently running "
-        "task (if any) finishes normally — `terminate=False` "
-        "so no in-flight file is interrupted. `group_id` is the Celery "
+        "Stop the batch and delete everything it produced (clean slate): "
+        "not-yet-started files never run, the in-flight file finishes its "
+        "uninterruptible work but is not saved, and every already-completed "
+        "extraction for this batch is deleted. `group_id` is the Celery "
         "GroupResult.id returned by `POST /api/batch`."
     ),
     responses={
-        204: {"description": "Pending tasks cancelled."},
+        204: {"description": "Batch cancelled and its results deleted."},
         404: {
             "model": ErrorResponse,
             "description": "Batch group_id not found.",
@@ -360,26 +337,64 @@ async def batch_progress(group_id: str, request: Request) -> EventSourceResponse
     },
     tags=["batch"],
 )
-async def cancel_batch(group_id: str, request: Request) -> None:
-    """Cancel pending tasks in a batch.
+async def cancel_batch(group_id: str, request: Request, db: DbDep) -> None:
+    """Cancel a batch and delete its partial results.
 
-    group_id is the Celery GroupResult.id (NOT the custom batch_id used
-    for DB/ZIP lookups). The currently-executing task finishes normally
-    because ``terminate=False`` (cancel after the current file).
+    group_id is the Celery GroupResult.id (NOT the custom batch_id used for
+    DB/ZIP lookups). The currently-executing file finishes its uninterruptible
+    JVM work but does not persist (the worker re-checks the cancel flag before
+    saving); every row this batch already committed is deleted here.
 
     Raises:
         HTTPException 404: group_id is unknown or owned by another session.
     """
-    _require_batch_owner(group_id, request)
+    job_ownership.require_job_owner(group_id, request)
 
+    # Set the cooperative cancel flag FIRST, before anything that can fail or
+    # 404. Every not-yet-started task reads it before working, so prefetched/
+    # reserved tasks the solo worker can't be revoked out from under also stop;
+    # the in-flight file reads it again before persisting, so it saves nothing.
+    # Ownership already gated unknown ids above, so a later restore miss (group
+    # meta expired) must not block the cancel — the flag is the real stop.
+    ttl = int(celery_app.conf.result_expires or 3600)
+    job_ownership.owner_store().set(batch_cancel_key(group_id), "1", ex=ttl)
+    logger.info("Batch %s cancel requested — cancel flag set", group_id)
+
+    # Revoke is a best-effort fast-path that drops still-queued tasks without
+    # spinning them up; the flag handles everything the broadcast can't reach.
     group_result = GroupResult.restore(group_id, app=celery_app)
-    if group_result is None:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    if group_result is not None:
+        for async_result in group_result.results:
+            result = AsyncResult(async_result.id, app=celery_app)
+            if result.state in ("PENDING", "RECEIVED"):
+                celery_app.control.revoke(async_result.id, terminate=False)
 
-    for async_result in group_result.results:
-        result = AsyncResult(async_result.id, app=celery_app)
-        if result.state in ("PENDING", "RECEIVED"):
-            celery_app.control.revoke(async_result.id, terminate=False)
+    # Delete this batch's already-committed rows (clean slate). RLS scopes the
+    # delete to the caller. The flag set above guarantees no worker persists a
+    # new row after this point, so the delete is final. The deletion and its
+    # audit row commit atomically, mirroring the history single-delete path.
+    batch_id = _read_batch_dbid(group_id)
+    if batch_id is not None:
+        session_id, api_key_hash = (
+            request.state.scope if hasattr(request.state, "scope") else (None, None)
+        )
+        deleted = await delete_extractions_by_batch_id(db, batch_id)
+        await audit_log_insert_in_session(
+            db,
+            event="batch.cancelled",
+            session_id=session_id,
+            api_key_hash=api_key_hash,
+            target_id=batch_id,
+            request=request,
+            meta={"deleted_extractions": deleted},
+        )
+        await db.commit()
+        logger.info(
+            "Batch %s cancelled — deleted %d extraction(s) for batch_id=%s",
+            group_id,
+            deleted,
+            batch_id,
+        )
 
 
 @router.get(

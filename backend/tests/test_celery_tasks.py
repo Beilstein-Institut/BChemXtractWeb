@@ -147,3 +147,103 @@ def test_extract_file_task_returns_error_dict_on_failure():
     assert result["error"] is not None
     assert "bad format" in result["error"]
     assert result["structure_count"] == 0
+
+
+class _FakeCancelStore:
+    """In-memory stand-in for the Redis cancel-flag store."""
+
+    def __init__(self, cancelled: set[str]) -> None:
+        self._d = {f"bcx:batch-cancelled:{g}": b"1" for g in cancelled}
+
+    def get(self, key: str) -> bytes | None:
+        return self._d.get(key)
+
+
+def test_batch_is_cancelled_reads_flag(monkeypatch):
+    """_batch_is_cancelled reflects the flag and ignores a missing group_id."""
+    from app.tasks import extraction
+
+    monkeypatch.setattr(
+        extraction, "_cancel_store", lambda: _FakeCancelStore({"grp-x"})
+    )
+    assert extraction._batch_is_cancelled("grp-x") is True
+    assert extraction._batch_is_cancelled("grp-other") is False
+    assert extraction._batch_is_cancelled(None) is False
+
+
+def test_extract_file_task_short_circuits_when_cancelled(monkeypatch):
+    """A cancelled batch's not-yet-started task returns without extracting."""
+    from app.tasks import extraction
+    from app.tasks.extraction import extract_file_task
+
+    monkeypatch.setattr(
+        extraction, "_cancel_store", lambda: _FakeCancelStore({"grp-x"})
+    )
+    # If the short-circuit fails, this raise surfaces as a failure, not a skip.
+    monkeypatch.setattr(
+        extraction,
+        "_extract_with_fallback_sync",
+        lambda *a, **k: pytest.fail("extraction ran for a cancelled batch"),
+    )
+
+    extract_file_task.push_request(group="grp-x")
+    try:
+        result = extract_file_task.run(
+            base64.b64encode(b"bytes").decode(), "skip.cdx", "batch-uuid"
+        )
+    finally:
+        extract_file_task.pop_request()
+
+    assert result["error"] == "Batch cancelled"
+    assert result["structure_count"] == 0
+    assert result["extraction_id"] is None
+
+
+def test_extract_file_task_skips_persist_when_cancelled_mid_extraction(monkeypatch):
+    """A file already mid-extraction when cancel fires finishes the (un-
+    interruptible) work but must NOT persist — the pre-persist flag re-check
+    catches it, so a cancelled batch leaves no half-saved row."""
+    from app.tasks import extraction
+    from app.tasks.extraction import extract_file_task
+
+    mock_sub = {
+        "inchi": "",
+        "inchi_key": "AAAA",
+        "smiles": "C",
+        "extended_smiles": "",
+        "iupac_name": "",
+        "molecular_formula": "CH4",
+        "aux_info": "",
+        "mdlv3000": "",
+        "abbreviations": {},
+        "svg": "",
+    }
+    mock_info = {"no_fragments": 1, "no_inchis": 1, "no_substances": 1}
+
+    # Not cancelled at the start-of-task check; cancelled by the pre-persist check.
+    flag_reads = iter([False, True])
+    monkeypatch.setattr(extraction, "_batch_is_cancelled", lambda g: next(flag_reads))
+
+    with (
+        patch(
+            "app.tasks.extraction._extract_with_fallback_sync",
+            return_value=([mock_sub], mock_info, False),
+        ),
+        patch("app.tasks.extraction.detect_format", return_value="cdx"),
+        patch(
+            "app.tasks.extraction.asyncio.run",
+            side_effect=AssertionError("persist must not run for a cancelled batch"),
+        ),
+    ):
+        # An id is required because this task passes the start check and reaches
+        # self.update_state (unlike the short-circuit test, which returns first).
+        extract_file_task.push_request(id="task-y", group="grp-y")
+        try:
+            result = extract_file_task.run(
+                base64.b64encode(b"bytes").decode(), "inflight.cdx", "batch-uuid"
+            )
+        finally:
+            extract_file_task.pop_request()
+
+    assert result["error"] == "Batch cancelled"
+    assert result["extraction_id"] is None

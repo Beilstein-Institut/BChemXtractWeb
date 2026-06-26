@@ -97,6 +97,10 @@ class Settings(BaseSettings):
     rate_limit_batch: str = "3/minute"
     rate_limit_search: str = "30/minute"
     rate_limit_export: str = "30/minute"
+    # Async extraction status poll: the frontend polls ~1/s for up to ~3 min, so
+    # this needs its own generous bucket (override_defaults=True) — the 120/min
+    # default would 429 a long or concurrent extraction into a spurious failure.
+    rate_limit_poll: str = "600/minute"
     rate_limit_storage_uri: str = "memory://"
 
     # --- OpenAPI documentation surface gating ---

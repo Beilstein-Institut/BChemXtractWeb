@@ -1,4 +1,5 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { BatchProgress } from "./BatchProgress";
 import type { BatchFileStatus } from "@/types/batch";
@@ -28,6 +29,20 @@ describe("BatchProgress", () => {
   it("shows Cancel batch button", () => {
     render(<BatchProgress files={[]} totalCount={0} onCancel={vi.fn()} />);
     expect(screen.getByText("Cancel batch")).toBeDefined();
+  });
+
+  it("Stop batch calls onCancel and dismisses the dialog immediately", async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    render(<BatchProgress files={files} totalCount={3} onCancel={onCancel} />);
+
+    await user.click(screen.getByRole("button", { name: "Cancel batch" }));
+    const stop = await screen.findByRole("button", { name: "Stop batch" });
+    await user.click(stop);
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    // Dialog must close on click, not wait for the async cancel to settle.
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Stop batch" })).toBeNull());
   });
 
   it("renders the 3-up stat strip with Total / Completed / Failed labels", () => {
