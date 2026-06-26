@@ -8,6 +8,8 @@ from httpx import AsyncClient
 APPROVED_OPERATION_IDS = {
     # extraction
     "extractFile",
+    "submitExtractJob",
+    "getExtractJobStatus",
     "getExtractionSubstances",
     # extraction (experimental reactions)
     "extractReactions",

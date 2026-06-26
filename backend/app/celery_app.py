@@ -57,6 +57,18 @@ celery_app.conf.update(
 )
 
 
+# Cooperative batch cancellation. control.revoke(terminate=False) is a
+# best-effort broadcast that the solo worker can't act on while blocked inside
+# a JVM extraction, and prefetched tasks may already be reserved — so the only
+# reliable "stop after the current file" signal is a flag each task reads
+# before it starts work. Keyed by the Celery group_id (== self.request.group).
+_BATCH_CANCEL_KEY_PREFIX = "bcx:batch-cancelled:"
+
+
+def batch_cancel_key(group_id: str) -> str:
+    return f"{_BATCH_CANCEL_KEY_PREFIX}{group_id}"
+
+
 def _parse_pool_flag(argv: list[str]) -> str | None:
     """Return the value of ``--pool=<x>`` / ``--pool <x>`` from ``argv``.
 

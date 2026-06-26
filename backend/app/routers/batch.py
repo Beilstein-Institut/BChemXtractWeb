@@ -22,7 +22,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
-from app.celery_app import celery_app
+from app.celery_app import batch_cancel_key, celery_app
 from app.config import settings
 from app.middleware.rate_limit import limiter
 from app.models.chemistry import (
@@ -32,6 +32,7 @@ from app.models.chemistry import (
     ErrorResponse,
 )
 from app.models.orm import Extraction, ExtractionSubstance, Substance
+from app.services import job_ownership
 from app.services.db import get_scoped_db
 from app.services.filenames import build_content_disposition, safe_filename
 from app.services.upload_guard import read_upload_bounded
@@ -44,68 +45,10 @@ _BATCH_FILE_LIMIT = 20
 _SSE_POLL_SECONDS = 0.5
 _ERROR_DETAIL_MAX_CHARS = 200
 
-# Redis key prefix binding a Celery group_id to the scope that started the
-# batch. The SSE-progress and cancel endpoints address a batch purely by its
-# Celery group_id and touch only Celery/Redis (which carry no Postgres RLS),
-# so without this binding any party holding a group_id could stream another
-# session's per-file results or cancel its pending tasks (IDOR, CWE-639).
-_BATCH_OWNER_KEY_PREFIX = "bcx:batch-owner:"
-
-
 router = APIRouter()
 
 DbDep = Annotated[AsyncSession, Depends(get_scoped_db)]
 UploadFiles = Annotated[list[UploadFile], File(...)]
-
-
-def _owner_store():
-    """Return the Redis client backing batch-ownership records.
-
-    Indirection point so tests can substitute an in-memory fake without a
-    live Redis. Uses the Celery result backend's client — the same store the
-    GroupResult is saved to — so ownership records share its lifetime.
-    """
-    return celery_app.backend.client
-
-
-def _scope_owner_token(session_id: str | None, api_key_hash: bytes | None) -> str:
-    """Stable string identity for a request scope.
-
-    Binds a batch to the session cookie or API key that created it. API-key
-    scope takes precedence over a session id, mirroring ``get_scoped_db``.
-    """
-    if api_key_hash is not None:
-        return f"akh:{api_key_hash.hex()}"
-    if session_id is not None:
-        return f"sid:{session_id}"
-    return "anon:"
-
-
-def _batch_owner_key(group_id: str) -> str:
-    return f"{_BATCH_OWNER_KEY_PREFIX}{group_id}"
-
-
-def _record_batch_owner(group_id: str, token: str) -> None:
-    """Persist the batch owner token with the same TTL as the group result."""
-    ttl = int(celery_app.conf.result_expires or 3600)
-    _owner_store().set(_batch_owner_key(group_id), token, ex=ttl)
-
-
-def _require_batch_owner(group_id: str, request: Request) -> None:
-    """Raise 404 unless the caller's scope matches the recorded batch owner.
-
-    A missing or foreign owner record is reported identically to a genuinely
-    absent batch so the endpoint cannot be used to probe which group_ids
-    exist.
-    """
-    scope = getattr(request.state, "scope", (None, None))
-    expected = _scope_owner_token(*scope)
-    stored = _owner_store().get(_batch_owner_key(group_id))
-    if stored is None:
-        raise HTTPException(status_code=404, detail="Batch not found")
-    stored_token = stored.decode() if isinstance(stored, bytes) else str(stored)
-    if stored_token != expected:
-        raise HTTPException(status_code=404, detail="Batch not found")
 
 
 def _substance_to_dict(s: Substance) -> dict[str, Any]:
@@ -248,7 +191,9 @@ async def start_batch(request: Request, files: UploadFiles) -> BatchStartRespons
     group_result.save()
     # Bind the group_id to this caller so the SSE/cancel endpoints (which key
     # on group_id and bypass RLS) can reject other sessions.
-    _record_batch_owner(group_result.id, _scope_owner_token(session_id, api_key_hash))
+    job_ownership.record_job_owner(
+        group_result.id, job_ownership.scope_owner_token(session_id, api_key_hash)
+    )
 
     return BatchStartResponse(
         batch_id=batch_id,
@@ -299,7 +244,7 @@ async def batch_progress(group_id: str, request: Request) -> EventSourceResponse
     """
     # Ownership gate runs before the stream opens so a foreign/missing batch
     # gets a plain 404, not an SSE error event.
-    _require_batch_owner(group_id, request)
+    job_ownership.require_job_owner(group_id, request)
 
     async def event_generator():
         group_result = GroupResult.restore(group_id, app=celery_app)
@@ -370,11 +315,18 @@ async def cancel_batch(group_id: str, request: Request) -> None:
     Raises:
         HTTPException 404: group_id is unknown or owned by another session.
     """
-    _require_batch_owner(group_id, request)
+    job_ownership.require_job_owner(group_id, request)
 
     group_result = GroupResult.restore(group_id, app=celery_app)
     if group_result is None:
         raise HTTPException(status_code=404, detail="Batch not found")
+
+    # Set the cooperative cancel flag first: every not-yet-started task reads it
+    # before working, so prefetched/reserved tasks the solo worker can't be
+    # revoked out from under also stop. The revoke below is a fast-path that
+    # drops still-queued tasks without spinning them up at all.
+    ttl = int(celery_app.conf.result_expires or 3600)
+    job_ownership.owner_store().set(batch_cancel_key(group_id), "1", ex=ttl)
 
     for async_result in group_result.results:
         result = AsyncResult(async_result.id, app=celery_app)

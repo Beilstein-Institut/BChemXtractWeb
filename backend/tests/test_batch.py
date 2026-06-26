@@ -18,6 +18,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete, text
 
 from app.models.orm import Extraction
+from app.services import job_ownership as jo
 from app.services.db import AsyncSessionLocal
 from tests.conftest import TEST_SESSION_COOKIE, skip_under_superuser_db
 
@@ -167,11 +168,11 @@ class _FakeGroupResult:
 
 async def test_scope_owner_token_precedence() -> None:
     """API-key hash wins over session id; anonymous falls back to a sentinel."""
-    from app.routers.batch import _scope_owner_token
+    from app.services.job_ownership import scope_owner_token
 
-    assert _scope_owner_token("sid-1", None) == "sid:sid-1"
-    assert _scope_owner_token("sid-1", b"\xab\xcd") == "akh:abcd"
-    assert _scope_owner_token(None, None) == "anon:"
+    assert scope_owner_token("sid-1", None) == "sid:sid-1"
+    assert scope_owner_token("sid-1", b"\xab\xcd") == "akh:abcd"
+    assert scope_owner_token(None, None) == "anon:"
 
 
 async def test_cancel_batch_foreign_owner_404(
@@ -179,11 +180,10 @@ async def test_cancel_batch_foreign_owner_404(
 ) -> None:
     """Cancelling a batch owned by another session returns 404 (not 403, to
     avoid leaking that the group_id exists)."""
-    from app.routers import batch as batch_mod
 
     store = _FakeOwnerStore()
-    store.set(batch_mod._batch_owner_key("grp-foreign"), f"sid:{OTHER_SESSION_COOKIE}")
-    monkeypatch.setattr(batch_mod, "_owner_store", lambda: store)
+    store.set(jo.job_owner_key("grp-foreign"), f"sid:{OTHER_SESSION_COOKIE}")
+    monkeypatch.setattr(jo, "owner_store", lambda: store)
 
     resp = await client_csrf.delete("/api/batch/grp-foreign")
     assert resp.status_code == 404
@@ -193,9 +193,8 @@ async def test_cancel_batch_unknown_group_404(
     client_csrf: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Cancelling an unrecorded group_id returns 404."""
-    from app.routers import batch as batch_mod
 
-    monkeypatch.setattr(batch_mod, "_owner_store", lambda: _FakeOwnerStore())
+    monkeypatch.setattr(jo, "owner_store", lambda: _FakeOwnerStore())
 
     resp = await client_csrf.delete("/api/batch/never-seen")
     assert resp.status_code == 404
@@ -208,8 +207,8 @@ async def test_cancel_batch_owner_succeeds(
     from app.routers import batch as batch_mod
 
     store = _FakeOwnerStore()
-    store.set(batch_mod._batch_owner_key("grp-mine"), f"sid:{TEST_SESSION_COOKIE}")
-    monkeypatch.setattr(batch_mod, "_owner_store", lambda: store)
+    store.set(jo.job_owner_key("grp-mine"), f"sid:{TEST_SESSION_COOKIE}")
+    monkeypatch.setattr(jo, "owner_store", lambda: store)
     monkeypatch.setattr(batch_mod, "GroupResult", _FakeGroupResult)
 
     resp = await client_csrf.delete("/api/batch/grp-mine")
@@ -221,11 +220,10 @@ async def test_batch_progress_foreign_owner_404(
 ) -> None:
     """SSE progress for another session's batch returns 404 before the stream
     opens (no per-file results leak)."""
-    from app.routers import batch as batch_mod
 
     store = _FakeOwnerStore()
-    store.set(batch_mod._batch_owner_key("grp-foreign2"), f"sid:{OTHER_SESSION_COOKIE}")
-    monkeypatch.setattr(batch_mod, "_owner_store", lambda: store)
+    store.set(jo.job_owner_key("grp-foreign2"), f"sid:{OTHER_SESSION_COOKIE}")
+    monkeypatch.setattr(jo, "owner_store", lambda: store)
 
     resp = await client.get("/api/batch/grp-foreign2/progress")
     assert resp.status_code == 404

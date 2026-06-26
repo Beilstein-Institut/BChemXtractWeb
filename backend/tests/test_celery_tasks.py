@@ -147,3 +147,53 @@ def test_extract_file_task_returns_error_dict_on_failure():
     assert result["error"] is not None
     assert "bad format" in result["error"]
     assert result["structure_count"] == 0
+
+
+class _FakeCancelStore:
+    """In-memory stand-in for the Redis cancel-flag store."""
+
+    def __init__(self, cancelled: set[str]) -> None:
+        self._d = {f"bcx:batch-cancelled:{g}": b"1" for g in cancelled}
+
+    def get(self, key: str) -> bytes | None:
+        return self._d.get(key)
+
+
+def test_batch_is_cancelled_reads_flag(monkeypatch):
+    """_batch_is_cancelled reflects the flag and ignores a missing group_id."""
+    from app.tasks import extraction
+
+    monkeypatch.setattr(
+        extraction, "_cancel_store", lambda: _FakeCancelStore({"grp-x"})
+    )
+    assert extraction._batch_is_cancelled("grp-x") is True
+    assert extraction._batch_is_cancelled("grp-other") is False
+    assert extraction._batch_is_cancelled(None) is False
+
+
+def test_extract_file_task_short_circuits_when_cancelled(monkeypatch):
+    """A cancelled batch's not-yet-started task returns without extracting."""
+    from app.tasks import extraction
+    from app.tasks.extraction import extract_file_task
+
+    monkeypatch.setattr(
+        extraction, "_cancel_store", lambda: _FakeCancelStore({"grp-x"})
+    )
+    # If the short-circuit fails, this raise surfaces as a failure, not a skip.
+    monkeypatch.setattr(
+        extraction,
+        "_extract_with_fallback_sync",
+        lambda *a, **k: pytest.fail("extraction ran for a cancelled batch"),
+    )
+
+    extract_file_task.push_request(group="grp-x")
+    try:
+        result = extract_file_task.run(
+            base64.b64encode(b"bytes").decode(), "skip.cdx", "batch-uuid"
+        )
+    finally:
+        extract_file_task.pop_request()
+
+    assert result["error"] == "Batch cancelled"
+    assert result["structure_count"] == 0
+    assert result["extraction_id"] is None

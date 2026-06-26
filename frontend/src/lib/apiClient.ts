@@ -257,6 +257,53 @@ export async function postExtract(file: File): Promise<ExtractionResponse> {
   );
 }
 
+/** Handle returned by POST /api/extract/jobs — poll status with getExtractJobStatus. */
+export interface ExtractJob {
+  task_id: string;
+}
+
+/** Status from GET /api/extract/jobs/{task_id}. */
+export interface ExtractJobStatus {
+  state: "processing" | "done" | "failed";
+  extraction_id?: number | null;
+  error?: string | null;
+}
+
+/**
+ * Submit an async single-file extraction. Returns immediately with a task_id;
+ * the extraction runs on the worker so no proxy can time out a long-held
+ * connection. Synchronous validation errors (415 unsupported format, 413 too
+ * large) still surface here. Poll {@link getExtractJobStatus} for the result.
+ */
+export async function postExtractJob(file: File): Promise<ExtractJob> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await apiFetch("/api/extract/jobs", {
+    method: "POST",
+    body: formData,
+    connectionError: "Extraction server unreachable. Check your network and retry.",
+    errorPrefix: "Extraction failed",
+  });
+  return parseJsonEnvelope<ExtractJob>(
+    response,
+    "Extraction failed",
+    (b) => typeof (b as { task_id?: unknown }).task_id === "string",
+  );
+}
+
+/** Poll the status of an async extraction job (see {@link postExtractJob}). */
+export async function getExtractJobStatus(taskId: string): Promise<ExtractJobStatus> {
+  const response = await apiFetch(`/api/extract/jobs/${encodeURIComponent(taskId)}`, {
+    errorPrefix: "Could not check extraction status",
+  });
+  return parseJsonEnvelope<ExtractJobStatus>(
+    response,
+    "Could not check extraction status",
+    (b) => typeof (b as { state?: unknown }).state === "string",
+  );
+}
+
 /**
  * Fetch extraction history list.
  * @param limit - Number of entries to fetch. Use "all" for no limit.
