@@ -160,32 +160,4 @@ describe("BatchSummary", () => {
     fireEvent.click(screen.getByRole("button", { name: /view all/i }));
     expect(navigate).toHaveBeenCalledWith("/batch?batch=b42");
   });
-
-  it("stopped mode: shows a stopped heading + note and omits never-run files", () => {
-    const partial: BatchFileStatus[] = [
-      { state: "done", filename: "a.cdx", fileSize: 1, structureCount: 3, extractionId: 10 },
-      { state: "queued", filename: "later.cdx", fileSize: 2 },
-    ];
-    render(
-      <BatchSummary
-        batchId="bid"
-        files={partial}
-        totalFiles={2}
-        totalStructures={3}
-        succeededCount={1}
-        failedCount={0}
-        onViewExtraction={vi.fn()}
-        onReset={vi.fn()}
-        stopped
-      />,
-    );
-    expect(screen.getByText("Batch stopped")).toBeDefined();
-    expect(document.querySelector("[data-slot='batch-stopped-note']")?.textContent).toContain(
-      "1 of 2 files",
-    );
-    // The never-run file must not appear (it would otherwise mis-render as failed).
-    const list = document.querySelector("[data-slot='batch-summary-list']");
-    expect(list?.textContent).toContain("a.cdx");
-    expect(list?.textContent).not.toContain("later.cdx");
-  });
 });

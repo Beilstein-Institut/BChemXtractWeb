@@ -54,13 +54,13 @@ const STEP_ORDER: readonly WizardStepId[] = ["upload", "process", "results"];
 /**
  * Derive the active wizard step from the two hook states.
  *
- * Completed AND cancelled batches pin to "results" — a cancelled batch still
- * has completed files to show plus a "stopped" notice and a start-over action,
- * rather than silently dropping the user back to upload. Mid-flight single/
- * batch extractions pin to "process"; everything else lands on "upload".
+ * Completed batches pin to "results". Mid-flight single/batch extractions pin
+ * to "process". A cancelled batch returns to "upload" (a "Batch stopped" toast
+ * fires from useBatch) — a stop means a clean stop, not a partial-results
+ * screen. Everything else (idle, error) also lands on "upload".
  */
 function deriveStep(extractState: ExtractState, batchState: BatchState): WizardStepId {
-  if (batchState === "complete" || batchState === "cancelled") return "results";
+  if (batchState === "complete") return "results";
   if (extractState === "loading" || batchState === "processing") {
     return "process";
   }
@@ -175,7 +175,6 @@ export function ExtractPage({
             failedCount={batchFailedCount}
             onViewExtraction={onViewExtraction}
             onReset={onResetBatch}
-            stopped={batchState === "cancelled"}
           />
         )}
       </WizardStepper>

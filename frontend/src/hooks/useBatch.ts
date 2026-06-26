@@ -168,6 +168,9 @@ export function useBatch(): UseBatchReturn {
     if (groupId) {
       try {
         await apiCancelBatch(groupId);
+        // Stop means a clean stop: no partial-results screen. Completed files
+        // are persisted as they finish, so point the user at History for them.
+        toast.success("Batch stopped. Completed files are saved to History.");
       } catch {
         // The stop request didn't reach the server, so the worker may keep
         // running. Surface it rather than silently implying it stopped.

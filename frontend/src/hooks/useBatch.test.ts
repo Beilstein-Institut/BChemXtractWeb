@@ -22,7 +22,7 @@ class MockEventSource {
 vi.stubGlobal("EventSource", MockEventSource);
 
 // Mock sonner
-vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 import { postBatchStart, cancelBatch as apiCancelBatch } from "@/lib/apiClient";
 

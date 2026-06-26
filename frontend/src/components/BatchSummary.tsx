@@ -42,8 +42,6 @@ export interface BatchSummaryProps {
   onViewExtraction: (extractionId: number) => void;
   /** Called when user wants to reset and start a new batch */
   onReset: () => void;
-  /** True when the batch was cancelled before finishing (not all files ran). */
-  stopped?: boolean;
 }
 
 type StatTone = "default" | "secondary" | "destructive";
@@ -88,15 +86,7 @@ export function BatchSummary({
   failedCount,
   onViewExtraction,
   onReset,
-  stopped = false,
 }: BatchSummaryProps) {
-  // Only files that actually ran belong in a results list. For a completed
-  // batch every file is terminal so this is a no-op; for a stopped batch it
-  // drops the never-run (queued) files, which would otherwise mis-render as
-  // failed.
-  const processedFiles = files.filter((f) => f.state === "done" || f.state === "failed");
-  const processedCount = processedFiles.length;
-
   async function handleDownloadZip() {
     try {
       await downloadBatchZip(batchId);
@@ -111,9 +101,7 @@ export function BatchSummary({
   return (
     <div data-slot="results-step" className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-xl font-semibold text-foreground">
-          {stopped ? "Batch stopped" : "Batch complete"}
-        </h2>
+        <h2 className="font-display text-xl font-semibold text-foreground">Batch complete</h2>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={onReset} icon={<PlusIcon />}>
             New batch
@@ -137,16 +125,6 @@ export function BatchSummary({
         </div>
       </div>
 
-      {stopped && (
-        <p
-          data-slot="batch-stopped-note"
-          className="rounded-lg border border-border bg-surface-muted/40 px-4 py-3 text-sm text-foreground-muted"
-        >
-          Processing stopped after {processedCount} of {totalFiles} files. The completed results
-          below are kept — start a new batch to process the rest, or reload the page.
-        </p>
-      )}
-
       <dl
         data-slot="batch-summary-stats"
         className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3"
@@ -165,7 +143,7 @@ export function BatchSummary({
         data-slot="batch-summary-list"
         className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface"
       >
-        {processedFiles.map((f) => {
+        {files.map((f) => {
           const filename = (
             <span className="min-w-0 flex-1 truncate font-mono text-sm text-foreground">
               {f.filename}
