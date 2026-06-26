@@ -240,6 +240,36 @@ async def test_cancel_batch_sets_flag_even_when_group_meta_missing(
     assert store.get(batch_cancel_key("grp-gone")) is not None
 
 
+async def test_cancel_batch_deletes_the_batchs_extractions(
+    client_csrf: AsyncClient,
+    seeded_batch: SeededBatch,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Cancel is a clean stop: every already-completed extraction for the batch
+    is deleted from the DB (verified via the batch-extractions endpoint going
+    from 200 to 404)."""
+    from app.routers import batch as batch_mod
+
+    group_id = "grp-del"
+    store = _FakeOwnerStore()
+    store.set(jo.job_owner_key(group_id), f"sid:{TEST_SESSION_COOKIE}")
+    # Server-authoritative group_id -> DB batch_id link the cancel reads.
+    store.set(batch_mod._batch_dbid_key(group_id), seeded_batch.batch_id)
+    monkeypatch.setattr(jo, "owner_store", lambda: store)
+    monkeypatch.setattr(batch_mod, "GroupResult", _FakeGroupResult)
+
+    # Rows exist before cancel.
+    before = await client_csrf.get(f"/api/batch/{seeded_batch.batch_id}")
+    assert before.status_code == 200
+
+    resp = await client_csrf.delete(f"/api/batch/{group_id}")
+    assert resp.status_code == 204
+
+    # Rows are gone after cancel.
+    after = await client_csrf.get(f"/api/batch/{seeded_batch.batch_id}")
+    assert after.status_code == 404
+
+
 async def test_batch_progress_foreign_owner_404(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

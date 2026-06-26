@@ -149,6 +149,24 @@ def extract_file_task(
         # raise InsufficientPrivilege under the prod role.
         akh = bytes.fromhex(api_key_hash_hex) if api_key_hash_hex else None
 
+        # Re-check the cancel flag AFTER the (uninterruptible) extraction and
+        # BEFORE persisting. The start-of-task check can't catch the file that
+        # was already mid-extraction when cancel fired; this one does, so a
+        # cancelled batch leaves no half-saved row. The cancel endpoint deletes
+        # any rows that committed before the flag was set.
+        if _batch_is_cancelled(self.request.group):
+            logger.info(
+                "Discarding %s result — batch %s cancelled mid-extraction",
+                filename,
+                self.request.group,
+            )
+            return {
+                "filename": filename,
+                "structure_count": 0,
+                "extraction_id": None,
+                "error": "Batch cancelled",
+            }
+
         async def _persist() -> int:
             async with AsyncSessionLocal() as db:
                 db.info["rls_scope"] = (session_id, akh)

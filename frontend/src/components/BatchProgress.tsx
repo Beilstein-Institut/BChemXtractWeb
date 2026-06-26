@@ -238,7 +238,8 @@ export function BatchProgress({ files, totalCount, onCancel }: BatchProgressProp
             <AlertDialogHeader>
               <AlertDialogTitle>Cancel batch?</AlertDialogTitle>
               <AlertDialogDescription>
-                Processing will stop after the current file finishes. Completed results are kept.
+                Processing stops and this batch&rsquo;s results are discarded. This can&rsquo;t be
+                undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
