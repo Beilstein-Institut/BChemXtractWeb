@@ -186,6 +186,12 @@ export function BatchProgress({ files, totalCount, onCancel }: BatchProgressProp
   // up); adding a rotating tagline there competes for attention.
   const pipelinePhase = usePipelinePhase(totalCount === 1 && isTimerActive);
 
+  // Controlled so "Stop batch" dismisses the dialog immediately on click.
+  // AlertDialogAction is a plain Button (not a Close element), and onCancel is
+  // async (it awaits a DELETE) — without this the dialog lingers until that
+  // round-trip resolves, which reads as "nothing happened".
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
   return (
     <div data-slot="process-step" className="space-y-6">
       <div data-slot="batch-stats" className="grid grid-cols-3 gap-2 sm:gap-3">
@@ -216,7 +222,7 @@ export function BatchProgress({ files, totalCount, onCancel }: BatchProgressProp
           )}
         </div>
 
-        <AlertDialog>
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
           <AlertDialogTrigger
             render={
               <Button
@@ -239,7 +245,10 @@ export function BatchProgress({ files, totalCount, onCancel }: BatchProgressProp
               <AlertDialogCancel>Keep running</AlertDialogCancel>
               <AlertDialogAction
                 className="bg-destructive text-white hover:opacity-90"
-                onClick={onCancel}
+                onClick={() => {
+                  setConfirmOpen(false);
+                  onCancel();
+                }}
               >
                 Stop batch
               </AlertDialogAction>
