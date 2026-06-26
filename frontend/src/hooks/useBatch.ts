@@ -164,14 +164,19 @@ export function useBatch(): UseBatchReturn {
   );
 
   const cancelBatch = useCallback(async () => {
-    closeSSE();
     if (groupId) {
       try {
         await apiCancelBatch(groupId);
       } catch {
-        // Best-effort cancel.
+        // The stop request didn't reach the server, so the batch may still be
+        // running and its results not deleted. Don't claim it stopped — keep
+        // the live progress visible and tell the user to retry.
+        toast.error("Couldn't reach the server to stop the batch. Reload the page to retry.");
+        return;
       }
     }
+    // Stop confirmed by the server (batch cancelled, partial results deleted).
+    closeSSE();
     setState("cancelled");
   }, [groupId, closeSSE]);
 

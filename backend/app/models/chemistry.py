@@ -184,6 +184,30 @@ class BatchExtractionsResponse(BaseModel):
     files: list[BatchExtractionItem]
 
 
+class ExtractJobResponse(BaseModel):
+    """Response from POST /api/extract/jobs — async single-file extraction.
+
+    The browser submits a file, gets back a ``task_id`` immediately (so no
+    proxy/gateway can time out a long-held connection), then polls
+    GET /api/extract/jobs/{task_id} until the extraction finishes.
+    """
+
+    task_id: str
+
+
+class ExtractJobStatusResponse(BaseModel):
+    """Response from GET /api/extract/jobs/{task_id}.
+
+    ``state`` is "processing" until the worker finishes; then "done" (with
+    ``extraction_id`` — fetch the full result via GET /api/history/{id}) or
+    "failed" (with a human-readable ``error``).
+    """
+
+    state: Literal["processing", "done", "failed"]
+    extraction_id: int | None = None
+    error: str | None = None
+
+
 ExportFormatLiteral = Literal["sdf", "json", "csv", "png", "svg", "v3000", "rxn"]
 
 # Which 2D layout the image formats (png/svg) use:

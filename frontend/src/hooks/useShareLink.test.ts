@@ -58,6 +58,9 @@ describe("useShareLink", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    // restoreAllMocks does NOT undo an Object.defineProperty, so a test that
+    // installs a fake execCommand would otherwise leak it into later tests.
+    Reflect.deleteProperty(document, "execCommand");
   });
 
   it("copies the PubChem InChIKey link and flips the shared flag", async () => {
@@ -103,11 +106,17 @@ describe("useShareLink", () => {
     expect(result.current.shared).toBe(false);
   });
 
-  it("rejects when clipboard.writeText rejects and leaves shared=false", async () => {
+  it("rejects when both the Clipboard API and the legacy fallback fail", async () => {
     writeText.mockRejectedValueOnce(new Error("denied"));
+    // copyText falls back to execCommand when writeText rejects; make that
+    // fail too so the share genuinely cannot copy and the promise rejects.
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: vi.fn().mockReturnValue(false),
+    });
     const { result } = renderHook(() => useShareLink());
     await act(async () => {
-      await expect(result.current.share({ smiles: "c1ccccc1" })).rejects.toThrow("denied");
+      await expect(result.current.share({ smiles: "c1ccccc1" })).rejects.toThrow();
     });
     expect(writeText).toHaveBeenCalledTimes(1);
     expect(result.current.shared).toBe(false);

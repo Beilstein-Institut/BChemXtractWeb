@@ -74,19 +74,20 @@ function MetadataRow({
   display?: ReactNode;
 }) {
   return (
-    // Layout: label, then copy button, then value. The copy button sits just
-    // before the value (not before the label heading); gap-x-2 keeps a small
-    // space between the icon and the value, pt-1.5 lines the text up with the
-    // icon's centre.
-    <div className="flex items-start gap-x-2">
-      <span className="min-w-[84px] shrink-0 pt-1.5 text-micro font-semibold uppercase tracking-widest text-muted-foreground sm:min-w-[120px]">
+    // Layout: the label heading on its own line, then the value stacked beneath
+    // it with the copy button immediately before the value (SMILES/InChI/…) —
+    // long strings get the full panel width instead of a squeezed column.
+    <div className="flex flex-col gap-1">
+      <span className="text-micro font-semibold uppercase tracking-widest text-muted-foreground">
         {label}
       </span>
-      {/* No value to copy (e.g. the Generate-InChI action row) -> no button. */}
-      {value && <CopyButton value={value} label={label} className="shrink-0" />}
-      <span className="min-w-0 flex-1 break-all pt-1.5 font-mono text-caption text-foreground">
-        {display ?? value}
-      </span>
+      <div className="flex items-start gap-x-2">
+        {/* No value to copy (e.g. the Generate-InChI action row) -> no button. */}
+        {value && <CopyButton value={value} label={label} className="shrink-0" />}
+        <span className="min-w-0 flex-1 break-all font-mono text-caption text-foreground">
+          {display ?? value}
+        </span>
+      </div>
     </div>
   );
 }

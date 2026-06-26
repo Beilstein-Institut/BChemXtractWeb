@@ -22,7 +22,7 @@ class MockEventSource {
 vi.stubGlobal("EventSource", MockEventSource);
 
 // Mock sonner
-vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 import { postBatchStart, cancelBatch as apiCancelBatch } from "@/lib/apiClient";
 
@@ -117,6 +117,27 @@ describe("useBatch", () => {
     expect(result.current.state).toBe("cancelled");
     expect(apiCancelBatch).toHaveBeenCalledWith("gid");
     expect(mockEventSource.close).toHaveBeenCalled();
+  });
+
+  it("cancelBatch stays in processing (does NOT claim cancelled) when the stop request fails", async () => {
+    vi.mocked(postBatchStart).mockResolvedValue({
+      batch_id: "bid",
+      group_id: "gid",
+      task_ids: [],
+      file_count: 0,
+    });
+    vi.mocked(apiCancelBatch).mockRejectedValue(new Error("network down"));
+
+    const { result } = renderHook(() => useBatch());
+    await act(async () => {
+      await result.current.startBatch([new File([""], "f.cdx")]);
+    });
+    await act(async () => {
+      await result.current.cancelBatch();
+    });
+
+    // The stop didn't reach the server — must not falsely report "cancelled".
+    expect(result.current.state).toBe("processing");
   });
 
   it("completedCount and failedCount computed correctly", () => {

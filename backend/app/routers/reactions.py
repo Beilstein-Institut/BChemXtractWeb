@@ -27,10 +27,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.middleware.rate_limit import limiter
 from app.models.chemistry import ErrorResponse, ReactionExtractionResponse
-from app.routers._shared import check_extension_mismatch
 from app.services.db import get_scoped_db
 from app.services.extractor import extract_reactions_with_svg
-from app.services.format_detector import detect_format
+from app.services.format_detector import check_extension_mismatch, detect_format
 from app.services.persistence import (
     get_extraction_reactions,
     get_or_create_extraction_row,

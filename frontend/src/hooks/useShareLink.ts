@@ -17,7 +17,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { safeClipboardText } from "@/lib/safeStrings";
+import { copyText } from "@/lib/clipboard";
 import { isRealInchiKey } from "@/lib/inchi";
 
 /** The structure identity needed to build a PubChem link. */
@@ -85,7 +85,7 @@ export function useShareLink(): UseShareLinkResult {
     // fallback UI. The hook owns the "shared" flag + its cleanup timer,
     // but it does not own the user-facing error affordance — keeping that
     // decision at the call site preserves reusability.
-    await navigator.clipboard.writeText(safeClipboardText(url));
+    await copyText(url);
     if (timerRef.current !== null) {
       window.clearTimeout(timerRef.current);
     }

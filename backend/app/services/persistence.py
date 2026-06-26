@@ -287,6 +287,38 @@ async def delete_extraction_by_id(db: AsyncSession, extraction_id: int) -> bool:
     return True
 
 
+async def delete_extractions_by_batch_id(db: AsyncSession, batch_id: str) -> int:
+    """Delete every extraction tagged with ``batch_id``, then orphan-sweep.
+
+    Used when a batch is cancelled and the partial results must be removed
+    (clean slate). The CASCADE FKs on extraction_substances / extraction_reactions
+    remove join rows; the orphan sweeps then drop substances and reactions that
+    no longer link to any extraction (shared/deduped rows still referenced by
+    other extractions are kept). RLS scopes the DELETE to the caller's own rows.
+
+    Does NOT commit — the caller owns the transaction so the deletion and its
+    audit row land atomically (mirrors the history single-delete path).
+
+    Returns:
+        Number of extraction rows deleted.
+    """
+    result = await db.execute(delete(Extraction).where(Extraction.batch_id == batch_id))
+    deleted = result.rowcount or 0
+    await db.flush()
+
+    await db.execute(
+        delete(Substance).where(
+            Substance.id.not_in(select(ExtractionSubstance.substance_id))
+        )
+    )
+    await db.execute(
+        delete(Reaction).where(
+            Reaction.id.not_in(select(ExtractionReaction.reaction_id))
+        )
+    )
+    return deleted
+
+
 async def update_substance_svgs(
     db: AsyncSession,
     substance_id: int,

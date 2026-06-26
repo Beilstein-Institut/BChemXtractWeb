@@ -15,7 +15,7 @@ import { CheckIcon, CopyIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { safeClipboardText } from "@/lib/safeStrings";
+import { copyText } from "@/lib/clipboard";
 
 export interface RecoveryCodeCardProps {
   /** Session UUID returned by `useAuth()` — null while the hook is loading. */
@@ -37,14 +37,13 @@ export function RecoveryCodeCard({ sessionId, isLoading }: RecoveryCodeCardProps
   async function handleCopy() {
     if (!sessionId) return;
     try {
-      await navigator.clipboard.writeText(safeClipboardText(sessionId));
+      await copyText(sessionId);
       if (timerRef.current !== null) clearTimeout(timerRef.current);
       setCopied(true);
       timerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard API can fail on plain HTTP origins or when the document
-      // isn't focused. The code is visible on-screen — the user can select
-      // and copy manually.
+      // Even the legacy fallback can fail (e.g. document not focused). The
+      // code is visible on-screen — the user can select and copy manually.
     }
   }
 

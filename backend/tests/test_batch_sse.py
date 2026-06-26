@@ -6,6 +6,7 @@ from starlette.testclient import TestClient
 
 from app.main import app
 from app.routers import batch as batch_mod
+from app.services import job_ownership as jo
 from tests.conftest import TEST_SESSION_COOKIE
 
 
@@ -29,7 +30,7 @@ def test_batch_progress_unknown_batch_returns_404():
     and report unknown/foreign batches identically (no existence oracle).
     """
     store = _FakeOwnerStore()
-    with patch.object(batch_mod, "_owner_store", lambda: store):
+    with patch.object(jo, "owner_store", lambda: store):
         client = TestClient(app, raise_server_exceptions=False)
         client.cookies.set("bcx_sid", TEST_SESSION_COOKIE)
         response = client.get(
@@ -46,10 +47,10 @@ def test_batch_progress_owned_missing_groupresult_emits_error_event():
     event rather than failing the request — the original in-stream error path.
     """
     store = _FakeOwnerStore(
-        {batch_mod._batch_owner_key("owned-id"): f"sid:{TEST_SESSION_COOKIE}".encode()}
+        {jo.job_owner_key("owned-id"): f"sid:{TEST_SESSION_COOKIE}".encode()}
     )
     with (
-        patch.object(batch_mod, "_owner_store", lambda: store),
+        patch.object(jo, "owner_store", lambda: store),
         patch.object(batch_mod, "GroupResult") as mock_gr,
     ):
         mock_gr.restore.return_value = None
