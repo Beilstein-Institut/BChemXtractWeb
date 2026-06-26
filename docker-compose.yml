@@ -152,6 +152,15 @@ services:
       # in .env for local plain-HTTP testing.
       <<: [*runtime_db_url, *app_env, *celery_env]
       JAR_PATH: /app/jars
+      # The backend JVM serves direct-API sync extraction, on-demand InChI, and
+      # reaction rendering — lighter than the worker now that browsers use the
+      # async worker path, but still renders SVGs. Modest bump from the 512m
+      # default + exit-on-OOM self-heal (restart: unless-stopped recycles it).
+      JVM_MAX_HEAP: ${BACKEND_JVM_MAX_HEAP:-1g}
+      JVM_OPTS: ${BACKEND_JVM_OPTS:--XX:+ExitOnOutOfMemoryError}
+      # Writable fontconfig cache (see celery-worker note) — the backend renders
+      # SVGs too (sync extract, on-demand InChI, reactions).
+      XDG_CACHE_HOME: /tmp/.cache
       # Trust X-Forwarded-For only from private (Docker network) peers so the
       # rate limiter sees the real client IP via nginx. RFC-1918 ranges cover
       # any compose subnet; 127.0.0.1 (the loopback-published port) is excluded
@@ -250,6 +259,20 @@ services:
       <<: [*runtime_db_url, *app_env, *celery_env]
       JAR_PATH: /app/jars
       JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
+      # The worker now runs ALL extractions (single-file + batch) in one
+      # long-lived JVM. CDK SVG rendering is heap-heavy and jpype_workers=4
+      # render concurrently, so the 512m default OOMs under sustained load on
+      # this otherwise idle host. Give it real headroom, and exit-on-OOM so an
+      # exhausted JVM is recycled by `restart: unless-stopped` instead of
+      # limping in a degraded state. Tune via WORKER_JVM_MAX_HEAP in .env.
+      JVM_MAX_HEAP: ${WORKER_JVM_MAX_HEAP:-2g}
+      JVM_OPTS: ${WORKER_JVM_OPTS:--XX:+ExitOnOutOfMemoryError}
+      # Give fontconfig a writable cache dir. The container's run user
+      # (appuser) can't write any of the default <cachedir> paths, so every
+      # CDK SVG render logged "Fontconfig error: No writable cache directories"
+      # and re-scanned fonts. /tmp is writable; fontconfig uses
+      # $XDG_CACHE_HOME/fontconfig.
+      XDG_CACHE_HOME: /tmp/.cache
     # Override the Dockerfile's baked-in HEALTHCHECK, which curls :8000 — that
     # is correct for the backend service (uvicorn) but wrong for this container,
     # which runs a Celery worker and has no HTTP server. `inspect ping`
