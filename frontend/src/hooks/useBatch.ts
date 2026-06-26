@@ -169,7 +169,9 @@ export function useBatch(): UseBatchReturn {
       try {
         await apiCancelBatch(groupId);
       } catch {
-        // Best-effort cancel.
+        // The stop request didn't reach the server, so the worker may keep
+        // running. Surface it rather than silently implying it stopped.
+        toast.error("Couldn't reach the server to stop the batch. Reload the page to retry.");
       }
     }
     setState("cancelled");

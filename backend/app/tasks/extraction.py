@@ -94,6 +94,7 @@ def extract_file_task(
     # rather than doing the (expensive) JVM extraction. self.request.group is
     # the Celery group_id the cancel endpoint flagged.
     if _batch_is_cancelled(self.request.group):
+        logger.info("Skipping %s — batch %s cancelled", filename, self.request.group)
         return {
             "filename": filename,
             "structure_count": 0,

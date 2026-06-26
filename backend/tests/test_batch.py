@@ -215,6 +215,31 @@ async def test_cancel_batch_owner_succeeds(
     assert resp.status_code == 204
 
 
+async def test_cancel_batch_sets_flag_even_when_group_meta_missing(
+    client_csrf: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Cancel sets the cooperative flag and 204s even if the GroupResult meta
+    has expired from Redis — the worker's per-file flag is the real stop, so a
+    restore miss must not block cancellation."""
+    from app.celery_app import batch_cancel_key
+    from app.routers import batch as batch_mod
+
+    store = _FakeOwnerStore()
+    store.set(jo.job_owner_key("grp-gone"), f"sid:{TEST_SESSION_COOKIE}")
+    monkeypatch.setattr(jo, "owner_store", lambda: store)
+
+    class _MissingGroupResult:
+        @staticmethod
+        def restore(group_id: str, app: object = None):
+            return None
+
+    monkeypatch.setattr(batch_mod, "GroupResult", _MissingGroupResult)
+
+    resp = await client_csrf.delete("/api/batch/grp-gone")
+    assert resp.status_code == 204
+    assert store.get(batch_cancel_key("grp-gone")) is not None
+
+
 async def test_batch_progress_foreign_owner_404(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

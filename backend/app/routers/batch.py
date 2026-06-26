@@ -10,6 +10,7 @@ import asyncio
 import base64
 import io
 import json
+import logging
 import uuid
 import zipfile
 from typing import Annotated, Any
@@ -44,6 +45,8 @@ from app.tasks.extraction import extract_file_task
 _BATCH_FILE_LIMIT = 20
 _SSE_POLL_SECONDS = 0.5
 _ERROR_DETAIL_MAX_CHARS = 200
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -317,21 +320,23 @@ async def cancel_batch(group_id: str, request: Request) -> None:
     """
     job_ownership.require_job_owner(group_id, request)
 
-    group_result = GroupResult.restore(group_id, app=celery_app)
-    if group_result is None:
-        raise HTTPException(status_code=404, detail="Batch not found")
-
-    # Set the cooperative cancel flag first: every not-yet-started task reads it
-    # before working, so prefetched/reserved tasks the solo worker can't be
-    # revoked out from under also stop. The revoke below is a fast-path that
-    # drops still-queued tasks without spinning them up at all.
+    # Set the cooperative cancel flag FIRST, before anything that can fail or
+    # 404. Every not-yet-started task reads it before working, so prefetched/
+    # reserved tasks the solo worker can't be revoked out from under also stop.
+    # Ownership already gated unknown ids above, so a later restore miss (group
+    # meta expired) must not block the cancel — the flag is the real stop.
     ttl = int(celery_app.conf.result_expires or 3600)
     job_ownership.owner_store().set(batch_cancel_key(group_id), "1", ex=ttl)
+    logger.info("Batch %s cancel requested — cancel flag set", group_id)
 
-    for async_result in group_result.results:
-        result = AsyncResult(async_result.id, app=celery_app)
-        if result.state in ("PENDING", "RECEIVED"):
-            celery_app.control.revoke(async_result.id, terminate=False)
+    # Revoke is a best-effort fast-path that drops still-queued tasks without
+    # spinning them up; the flag handles everything the broadcast can't reach.
+    group_result = GroupResult.restore(group_id, app=celery_app)
+    if group_result is not None:
+        for async_result in group_result.results:
+            result = AsyncResult(async_result.id, app=celery_app)
+            if result.state in ("PENDING", "RECEIVED"):
+                celery_app.control.revoke(async_result.id, terminate=False)
 
 
 @router.get(
