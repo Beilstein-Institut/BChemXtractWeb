@@ -136,6 +136,15 @@ services:
         BCHEMXTRACT_REF: ${BCHEMXTRACT_VERSION:-}
     restart: unless-stopped
     logging: *default_logging
+    # Hard RAM cap with swap DISABLED (memswap_limit == mem_limit). The backend
+    # is the latency-critical HTTP process; a swapped-out backend is exactly
+    # what surfaced as `POST …ERR_TIMED_OUT` when the host went into swap. With
+    # swap disabled it stays resident (or is OOM-killed + restarted cleanly),
+    # never paged out mid-request. Sized for heap (640m) + CDK Java2D native
+    # headroom. Needs cgroup v2 swap control (default on modern Ubuntu); without
+    # it Docker warns and applies mem_limit only. Tune via BACKEND_MEM_LIMIT.
+    mem_limit: ${BACKEND_MEM_LIMIT:-1250m}
+    memswap_limit: ${BACKEND_MEM_LIMIT:-1250m}
     depends_on:
       db:
         condition: service_healthy
@@ -152,11 +161,11 @@ services:
       # in .env for local plain-HTTP testing.
       <<: [*runtime_db_url, *app_env, *celery_env]
       JAR_PATH: /app/jars
-      # The backend JVM serves direct-API sync extraction, on-demand InChI, and
-      # reaction rendering — lighter than the worker now that browsers use the
-      # async worker path, but still renders SVGs. Modest bump from the 512m
-      # default + exit-on-OOM self-heal (restart: unless-stopped recycles it).
-      JVM_MAX_HEAP: ${BACKEND_JVM_MAX_HEAP:-1g}
+      # Backend JVM: sync direct-API extraction, on-demand InChI, and reaction
+      # rendering — lighter than the worker now that browsers use the async
+      # worker path. Modest heap, kept well under the mem_limit above so the
+      # heap + native footprint fits resident without swap on an 8 GB host.
+      JVM_MAX_HEAP: ${BACKEND_JVM_MAX_HEAP:-640m}
       JVM_OPTS: ${BACKEND_JVM_OPTS:--XX:+ExitOnOutOfMemoryError}
       # Writable fontconfig cache (see celery-worker note) — the backend renders
       # SVGs too (sync extract, on-demand InChI, reactions).
@@ -244,6 +253,18 @@ services:
         BCHEMXTRACT_REF: ${BCHEMXTRACT_VERSION:-}
     restart: unless-stopped
     logging: *default_logging
+    # Hard RAM cap with swap DISABLED (memswap_limit == mem_limit). CDK's
+    # Java2D rendering retains heap AND native (off-heap) memory per render —
+    # an upstream leak we can't fix — so this long-lived JVM's RSS climbs over
+    # its life. With swap disabled, when RSS crosses the cap the container is
+    # OOM-killed and `restart: unless-stopped` recycles it to a FRESH JVM,
+    # instead of swapping and thrashing the whole 8 GB host (which paged out
+    # the backend → POST timeouts). This cap is the only real bound on the
+    # native leak — -XX:+ExitOnOutOfMemoryError only catches heap OOM, not the
+    # off-heap growth. Sized for heap (1g) + native headroom; a fresh worker
+    # extracts the heaviest real files in ~1.1 GB. Tune via WORKER_MEM_LIMIT.
+    mem_limit: ${WORKER_MEM_LIMIT:-1750m}
+    memswap_limit: ${WORKER_MEM_LIMIT:-1750m}
     # --pool=solo is mandatory — extraction tasks use
     # asyncio.run() internally and will error on prefork/thread pools.
     # The Celery app also asserts solo pool at worker_process_init.
@@ -259,13 +280,13 @@ services:
       <<: [*runtime_db_url, *app_env, *celery_env]
       JAR_PATH: /app/jars
       JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
-      # The worker now runs ALL extractions (single-file + batch) in one
-      # long-lived JVM. CDK SVG rendering is heap-heavy and jpype_workers=4
-      # render concurrently, so the 512m default OOMs under sustained load on
-      # this otherwise idle host. Give it real headroom, and exit-on-OOM so an
-      # exhausted JVM is recycled by `restart: unless-stopped` instead of
-      # limping in a degraded state. Tune via WORKER_JVM_MAX_HEAP in .env.
-      JVM_MAX_HEAP: ${WORKER_JVM_MAX_HEAP:-2g}
+      # The worker runs ALL extractions (single-file + batch) in one long-lived
+      # JVM. Heap is capped MODESTLY (not "as big as fits") because a large heap
+      # on this shared 8 GB host is what drove it into swap — see the mem_limit
+      # note above for the full reasoning. 1g comfortably handles the heaviest
+      # real files; the mem_limit + restart policy bounds the native leak.
+      # Raise WORKER_JVM_MAX_HEAP and WORKER_MEM_LIMIT together on a bigger box.
+      JVM_MAX_HEAP: ${WORKER_JVM_MAX_HEAP:-1g}
       JVM_OPTS: ${WORKER_JVM_OPTS:--XX:+ExitOnOutOfMemoryError}
       # Give fontconfig a writable cache dir. The container's run user
       # (appuser) can't write any of the default <cachedir> paths, so every
