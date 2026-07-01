@@ -360,6 +360,31 @@ def _enrich_inchi_from_smiles_sync(substances: list[dict]) -> list[dict]:
     return result
 
 
+def _has_inchi_oversized_molecule(substances: list[dict]) -> bool:
+    """True if any substance is too large for InChI generation to finish.
+
+    Mirrors the exact per-molecule skip test in
+    :func:`_enrich_inchi_from_smiles_sync` (heavy-atom cap, or SMILES-length cap
+    when the molecular formula is missing). Used to skip the whole-document
+    ``xtractUnique`` attempt, which computes InChI internally and hangs
+    uninterruptibly on precisely these molecules — see the call site for why the
+    abandoned daemon is so damaging under repeated uploads.
+    """
+    for s in substances:
+        smiles = s.get("smiles") or ""
+        if not smiles:
+            continue
+        heavy = _heavy_atom_count(s.get("molecular_formula") or "")
+        too_large = (
+            heavy > _MAX_INCHI_HEAVY_ATOMS
+            if heavy
+            else len(smiles) > _MAX_INCHI_SMILES_LEN
+        )
+        if too_large:
+            return True
+    return False
+
+
 def _coerce_role(java_list, role_frags: list[str] | None, cdk) -> list[dict]:
     """Coerce one reaction role (reactants/products/agents) to component dicts.
 
@@ -926,16 +951,38 @@ def _extract_with_fallback_sync(
             logger.warning("xtractUnique failed: %s", str(exc)[:100])
             return None
 
-    try:
-        result = _run_jvm_subtask(
-            _try_xtract_unique, _XTRACT_UNIQUE_TIMEOUT, "xtract-enrich"
-        )
-    except TimeoutError:
-        logger.warning(
-            "xtractUnique timed out after %.0fs — using fragment results",
-            _XTRACT_UNIQUE_TIMEOUT,
+    # xtractUnique computes InChI for the WHOLE document internally, and InChI
+    # generation blows up (minutes, unbounded heap) on molecules over
+    # _MAX_INCHI_HEAVY_ATOMS. JPype cannot interrupt that native call, so the
+    # daemon spawned here keeps running — and holding heap — long after its 10s
+    # timeout. Repeated uploads of such a file stack abandoned daemons until the
+    # JVM heap is exhausted; the largest molecule's render is the first to OOM
+    # (small ones still fit), so it silently drops to an empty SVG while the
+    # small structures still depict — and in prod -XX:+ExitOnOutOfMemoryError
+    # then recycles the worker mid-request. Because xtractUnique is GUARANTEED to
+    # time out on an oversized molecule (and its result be discarded), skipping
+    # it changes nothing about the output for such files — they already fall
+    # through to the SMILES→InChI recovery below — but it avoids the hang and the
+    # leaked daemon entirely. Files with no oversized molecule are unaffected.
+    if _has_inchi_oversized_molecule(fragment_results):
+        logger.info(
+            "Skipping xtractUnique: document contains a molecule too large for "
+            "InChI (>%d heavy atoms) — it would hang and leak an uninterruptible "
+            "daemon. Using the fragment path with per-molecule InChI recovery.",
+            _MAX_INCHI_HEAVY_ATOMS,
         )
         result = None
+    else:
+        try:
+            result = _run_jvm_subtask(
+                _try_xtract_unique, _XTRACT_UNIQUE_TIMEOUT, "xtract-enrich"
+            )
+        except TimeoutError:
+            logger.warning(
+                "xtractUnique timed out after %.0fs — using fragment results",
+                _XTRACT_UNIQUE_TIMEOUT,
+            )
+            result = None
 
     if result is not None:
         logger.info(

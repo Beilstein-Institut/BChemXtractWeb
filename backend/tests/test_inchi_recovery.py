@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from app.services.extractor import (
     _MAX_INCHI_HEAVY_ATOMS,
+    _MAX_INCHI_SMILES_LEN,
+    _has_inchi_oversized_molecule,
     _heavy_atom_count,
 )
 
@@ -41,3 +43,56 @@ def test_cap_separates_normal_molecules_from_the_giant_cage() -> None:
     for formula in ("C14H16N2", "C8H20O2Si", "C7H7BO3"):
         assert _heavy_atom_count(formula) <= _MAX_INCHI_HEAVY_ATOMS
     assert _heavy_atom_count("C132H174B6N6O12Si6") > _MAX_INCHI_HEAVY_ATOMS
+
+
+# --- xtractUnique skip guard (the fix for the reported "big molecule never
+# renders + upload takes forever" bug) --------------------------------------
+# _has_inchi_oversized_molecule decides whether to SKIP the whole-document
+# xtractUnique attempt. xtractUnique computes InChI internally and hangs
+# uninterruptibly on an oversized molecule; the abandoned daemon it leaves
+# behind accumulates across uploads until the JVM OOMs and the big molecule's
+# SVG render silently fails. Skipping it when we already know a molecule is
+# oversized is safe: such files always fell through to the fragment path anyway.
+
+
+def test_oversized_guard_true_for_the_reported_cage() -> None:
+    subs = [
+        {"molecular_formula": "C14H16N2", "smiles": "NCc1ccc(-c2ccc(CN)cc2)cc1"},
+        {"molecular_formula": "C132H174B6N6O12Si6", "smiles": "C" * 394},
+    ]
+    assert _has_inchi_oversized_molecule(subs) is True
+
+
+def test_oversized_guard_false_for_all_normal_molecules() -> None:
+    # The 3 small molecules from the reported file — xtractUnique should still
+    # run for a file like this (no behavior change for normal files).
+    subs = [
+        {"molecular_formula": "C14H16N2", "smiles": "NCc1ccc(-c2ccc(CN)cc2)cc1"},
+        {"molecular_formula": "C8H20O2Si", "smiles": "CC(C)(C)[Si](O)(O)C(C)(C)C"},
+        {"molecular_formula": "C7H7BO3", "smiles": "OB(O)c1ccc(C=O)cc1"},
+    ]
+    assert _has_inchi_oversized_molecule(subs) is False
+
+
+def test_oversized_guard_uses_smiles_len_when_formula_missing() -> None:
+    # No formula → fall back to the SMILES-length cap (a polymer/cage with no
+    # parseable formula must still be caught).
+    assert (
+        _has_inchi_oversized_molecule(
+            [{"molecular_formula": "", "smiles": "C" * (_MAX_INCHI_SMILES_LEN + 1)}]
+        )
+        is True
+    )
+    assert (
+        _has_inchi_oversized_molecule([{"molecular_formula": "", "smiles": "C" * 10}])
+        is False
+    )
+
+
+def test_oversized_guard_ignores_substances_without_smiles() -> None:
+    # An empty list, or entries with no SMILES, are never "oversized".
+    assert _has_inchi_oversized_molecule([]) is False
+    assert (
+        _has_inchi_oversized_molecule([{"molecular_formula": "C999", "smiles": ""}])
+        is False
+    )
