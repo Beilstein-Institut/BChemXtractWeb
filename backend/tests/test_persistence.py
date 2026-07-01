@@ -146,3 +146,77 @@ async def test_enforce_cap_removes_oldest_extractions(db_session):
     result = await db_session.execute(select(Extraction))
     remaining = result.scalars().all()
     assert len(remaining) <= 3, f"Expected at most 3 extractions, got {len(remaining)}"
+
+
+def _response_with_svg(filename: str, key: str, svg: str, svg_cdx: str):
+    """ExtractionResponse for one substance with explicit svg / svg_cdx."""
+    return ExtractionResponse(
+        substances=[
+            SubstanceResponse(
+                inchi_key=key,
+                inchi="InChI=1S/test",
+                smiles="C1CC1",
+                molecular_formula="C3H6",
+                svg=svg,
+                svg_cdx=svg_cdx,
+            )
+        ],
+        info=SubstanceInfoResponse(no_substances=1),
+        format="cdx",
+        filename=filename,
+        file_size=100,
+        structure_count=1,
+        extraction_time_ms=50.0,
+        warnings=[],
+    )
+
+
+async def _stored_svgs(db_session, key: str) -> tuple[str, str]:
+    row = (
+        await db_session.execute(
+            select(Substance.svg, Substance.svg_cdx).where(Substance.inchi_key == key)
+        )
+    ).one()
+    return row[0], row[1]
+
+
+@pytest.mark.asyncio
+async def test_reextraction_heals_a_blank_svg_row(db_session):
+    """A substance first persisted blank (render OOM'd in an earlier deploy) is
+    healed when a later extraction supplies a good SVG — the reported
+    "big molecule never renders even after re-upload" bug.
+
+    Before the fix, ON CONFLICT DO NOTHING kept the blank row and discarded the
+    good SVG on every re-upload; the row served a blank image forever.
+    """
+    key = _make_key("H")  # surrogate-style stand-in; dedup is by inchi_key
+    # 1st upload: render failed -> persisted blank.
+    await save_extraction(db_session, _response_with_svg("blank.cdx", key, "", ""))
+    assert await _stored_svgs(db_session, key) == ("", "")
+
+    # 2nd upload: render succeeded -> must heal the blank row in place.
+    await save_extraction(
+        db_session,
+        _response_with_svg("good.cdx", key, "<svg>ok</svg>", "<svg>cdx</svg>"),
+    )
+    assert await _stored_svgs(db_session, key) == ("<svg>ok</svg>", "<svg>cdx</svg>")
+
+
+@pytest.mark.asyncio
+async def test_reextraction_never_clobbers_a_good_svg(db_session):
+    """The heal only fills blanks — a good stored SVG is never overwritten by a
+    later extraction (even one that itself rendered), so first-good-render wins.
+    """
+    key = _make_key("I")
+    await save_extraction(
+        db_session,
+        _response_with_svg("first.cdx", key, "<svg>GOOD</svg>", "<svg>GOODC</svg>"),
+    )
+    # A later extraction with a *different* (or empty) render must not overwrite.
+    await save_extraction(
+        db_session, _response_with_svg("second.cdx", key, "<svg>OTHER</svg>", "")
+    )
+    assert await _stored_svgs(db_session, key) == (
+        "<svg>GOOD</svg>",
+        "<svg>GOODC</svg>",
+    )
