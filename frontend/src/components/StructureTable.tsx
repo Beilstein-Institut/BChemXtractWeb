@@ -201,7 +201,7 @@ function StructureTableRow({
             key={depiction}
             src={svgSrc}
             alt={`${substance.molecular_formula} structure`}
-            className="h-12 w-12 object-contain animate-in fade-in duration-200 motion-reduce:animate-none"
+            className="h-12 w-12 rounded bg-white p-0.5 object-contain animate-in fade-in duration-200 motion-reduce:animate-none"
           />
         ) : (
           <div className="h-12 w-12 flex items-center justify-center bg-muted rounded">
