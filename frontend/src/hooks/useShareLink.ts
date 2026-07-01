@@ -1,5 +1,6 @@
 /**
- * useShareLink — copy a public PubChem link for a structure to the clipboard.
+ * useShareLink — copy a public PubChem link for a structure to the clipboard
+ * and open it in a new tab.
  *
  * The structures live in a per-session, RLS-scoped database with no user
  * accounts, so an internal deep-link only works for the owner's own browser —
@@ -11,9 +12,9 @@
  *     can't resolve, so
  *   - fall back to a SMILES structure search.
  *
- * The hook wraps the clipboard call, flips `shared = true` for 2 s after a
- * successful copy (so callers can render a "Copied" hint), and cleans up its
- * timeout on unmount.
+ * The hook opens the link in a new tab, wraps the clipboard call, flips
+ * `shared = true` for 2 s after a successful copy (so callers can render a
+ * "Copied" hint), and cleans up its timeout on unmount.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -81,6 +82,11 @@ export function useShareLink(): UseShareLinkResult {
   const share = useCallback(async (target: ShareTarget): Promise<void> => {
     const url = buildPubChemShareUrl(target);
     if (!url) return;
+    // Open PubChem in a new tab as well as copying the link. Do it here,
+    // synchronously before the awaited clipboard write, so it runs inside the
+    // click's user-activation window and pop-up blockers let it through.
+    // noopener/noreferrer keeps the new tab from reaching back into this app.
+    window.open(url, "_blank", "noopener,noreferrer");
     // Let the promise reject naturally so callers can surface a toast /
     // fallback UI. The hook owns the "shared" flag + its cleanup timer,
     // but it does not own the user-facing error affordance — keeping that
