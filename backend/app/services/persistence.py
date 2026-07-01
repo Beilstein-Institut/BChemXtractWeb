@@ -173,12 +173,32 @@ async def save_extraction(
             .on_conflict_do_nothing(index_elements=["inchi_key"])
         )
 
-        # Step 3: Fetch IDs for all substances (new + pre-existing)
+        # Step 3: Fetch IDs for all substances (new + pre-existing), keyed by
+        # inchi_key so we can both build the join rows and heal blank SVGs.
         inchi_keys = [s.inchi_key for s in valid_substances]
         result = await db.execute(
-            select(Substance.id).where(Substance.inchi_key.in_(inchi_keys))
+            select(Substance.id, Substance.inchi_key).where(
+                Substance.inchi_key.in_(inchi_keys)
+            )
         )
-        substance_ids = result.scalars().all()
+        id_by_key = {key: sid for sid, key in result.all()}
+        substance_ids = list(id_by_key.values())
+
+        # Heal blank SVGs on pre-existing rows. ON CONFLICT DO NOTHING above
+        # keeps first-seen metadata — so a substance first persisted with an
+        # empty svg (e.g. a render that OOM'd under memory pressure in an
+        # earlier deploy) keeps serving a blank image forever, because every
+        # later re-upload discards its freshly-rendered good SVG on conflict.
+        # We already hold that good SVG here, so fill it in. update_substance_svgs
+        # only writes columns that are still '' (its CASE/WHERE guard), so this
+        # heals blanks without ever clobbering a good existing render, and is a
+        # no-op for the common case where the row was stored non-blank.
+        for s in valid_substances:
+            if not (s.svg or s.svg_cdx):
+                continue
+            sid = id_by_key.get(s.inchi_key)
+            if sid is not None:
+                await update_substance_svgs(db, sid, s.svg, s.svg_cdx)
 
         # Step 4: Insert join rows (ignore duplicates — re-extracting same file)
         # Owner columns mirror the parent Extraction so RLS
