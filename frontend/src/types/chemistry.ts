@@ -42,6 +42,8 @@ export interface ExtractionResponse {
   structure_count: number;
   extraction_time_ms: number;
   warnings: string[];
+  /** Distinct ChemDraw abbreviations expanded across the file (aggregate). */
+  abbreviation_count: number;
   extraction_id?: number;
 }
 

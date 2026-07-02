@@ -136,6 +136,7 @@ def extract_file_task(
             structure_count=len(substances),
             extraction_time_ms=elapsed_ms,
             warnings=warnings,
+            abbreviation_count=len({k for s in substances for k in s.abbreviations}),
             substances=substances,
             info=SubstanceInfoResponse(**raw_info),
             extraction_id=None,

@@ -97,6 +97,7 @@ async def save_extraction(
         file_size=response.file_size,
         format=response.format,
         structure_count=response.structure_count,
+        abbreviation_count=response.abbreviation_count,
         extraction_time_ms=response.extraction_time_ms,
         warnings=response.warnings,
         session_id=session_id,

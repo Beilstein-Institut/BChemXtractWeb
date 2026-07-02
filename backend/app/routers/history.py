@@ -124,6 +124,7 @@ def _extraction_to_response(e: Extraction) -> ExtractionResponse:
         structure_count=e.structure_count,
         extraction_time_ms=e.extraction_time_ms,
         warnings=e.warnings or [],
+        abbreviation_count=e.abbreviation_count,
         extraction_id=e.id,
     )
 

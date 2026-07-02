@@ -7,39 +7,40 @@
  *
  *   1. Page header (display title + sub-copy).
  *   2. `SearchFilter` composite (debounced 250 ms query + 3 chips).
- *   3. `BrowseBento` — one-band bento (6 cols at lg): wide Structure
- *      preview hero + two square columns (Total/Unique stacked, Source
- *      format/Browse-all CTA stacked).
+ *   3. `BrowseBento` — a compact extraction receipt (filename, dedup, InChI
+ *      usability, PubChem matches when enabled, reactions when present).
+ *      Describes the whole extraction, not the filtered view. Export lives
+ *      in the StructureBrowser toolbar below, so it is not duplicated here.
  *   4. `ExtractionTabs` wrapping `StructureBrowser` (full paginated
  *      grid/table view + Reactions tab).
  *
- * The bento consumes the full `activeResult.substances` list filtered
- * locally; the StructureBrowser below keeps its paginated server-driven
- * contract (`useBrowse` unchanged). Filters also reach the
- * browser via a `filters` prop so the paginated grid honours the same
- * chip + query state on the current page slice (client-side predicate —
- * server pagination is unmodified).
+ * The StructureBrowser below keeps its paginated server-driven contract
+ * (`useBrowse` unchanged); the `filters` prop reaches it so the grid
+ * honours the same chip + query state on the current page slice
+ * (client-side predicate — server pagination is unmodified).
  */
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { FileUpIcon, HistoryIcon } from "lucide-react";
 import { BrowseBento } from "@/components/browse/BrowseBento";
-import { filterSubstances } from "@/components/browse/filterSubstances";
 import { ExtractionTabs } from "@/components/ExtractionTabs";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { SearchFilter } from "@/components/SearchFilter";
-import { EMPTY_FILTERS, type BrowseFilters } from "@/components/browse/browseFilters";
+import {
+  EMPTY_FILTERS,
+  hasActiveFilters,
+  type BrowseFilters,
+} from "@/components/browse/browseFilters";
+import { filterSubstances } from "@/components/browse/filterSubstances";
 import { StructureBrowser } from "@/components/StructureBrowser";
-import { StructureSheet } from "@/components/StructureSheet";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DEFAULT_DEPICTION } from "@/lib/depiction";
 import { Link } from "@/lib/Link";
-import type {
-  Depiction,
-  ExtractionResponse,
-  ReactionExtractionResponse,
-  SubstanceResponse,
-} from "@/types/chemistry";
+import { isRealInchiKey } from "@/lib/inchi";
+import { formulaHasMetal } from "@/lib/elements";
+import { usePubChemEnrichment } from "@/hooks/usePubChemEnrichment";
+import { usePubChemPreferences } from "@/hooks/usePubChemPreferences";
+import type { Depiction, ExtractionResponse, ReactionExtractionResponse } from "@/types/chemistry";
 
 export interface BrowsePageProps {
   activeExtractionId: number | null;
@@ -69,50 +70,89 @@ export function BrowsePage({
   const hasExtraction = activeExtractionId !== null && activeResult !== null;
 
   const [filters, setFilters] = useState<BrowseFilters>({ ...EMPTY_FILTERS });
-  const [activeSubstance, setActiveSubstance] = useState<SubstanceResponse | null>(null);
   // Page-wide 2D layout: CDK (canonical layout) by default, ChemDraw via
   // the toolbar toggle. Drives every structure render on this page plus
   // the depiction sent with image exports. Deliberately NOT persisted —
   // the product default is CDK on every visit.
   const [depiction, setDepiction] = useState<Depiction>(DEFAULT_DEPICTION);
 
-  const browserRef = useRef<HTMLDivElement | null>(null);
+  // Reactions are known eagerly only for a persisted extraction (App
+  // prefetches them). For a fresh upload the count stays unknown until the
+  // Reactions tab runs. The receipt only surfaces reactions when there is a
+  // positive count, so undefined/0 simply hides that section.
+  const reactionCount =
+    cachedReactionsData?.reaction_count ?? (liveReactionCount > 0 ? liveReactionCount : undefined);
 
-  const allSubstances = useMemo<SubstanceResponse[]>(
-    () => activeResult?.substances ?? [],
-    [activeResult],
+  // PubChem match count for the receipt. Enriches the WHOLE extraction (not
+  // just the visible page) so the count is extraction-level; no-ops unless the
+  // user opted in, and hits are cached server-side so repeats are cheap.
+  // ponytail: StructureBrowser runs its own per-page enrichment, so the
+  // current page is requested twice; the server cache absorbs the overlap.
+  // Lift enrichment to share one map if that ever matters.
+  const substancesForEnrichment = useMemo(() => activeResult?.substances ?? [], [activeResult]);
+  const { enabled: pubchemEnabled, available: pubchemAvailable } = usePubChemPreferences();
+  const pubchemStates = usePubChemEnrichment(substancesForEnrichment);
+  const pubchem = useMemo(() => {
+    // Count over DISTINCT real InChIKeys (the enrichment hook dedups too), so
+    // a repeated compound cannot inflate the totals. Track errored lookups
+    // separately from matches so a network failure is not reported as "0 of N".
+    const seen = new Set<string>();
+    let total = 0;
+    let matched = 0;
+    let settled = 0;
+    let errored = 0;
+    let mwMin: number | undefined;
+    let mwMax: number | undefined;
+    for (const s of substancesForEnrichment) {
+      if (!isRealInchiKey(s.inchi_key) || seen.has(s.inchi_key)) continue;
+      seen.add(s.inchi_key);
+      total += 1;
+      const st = pubchemStates.get(s.inchi_key);
+      if (!st || st.state === "loading") continue;
+      settled += 1;
+      if (st.state === "error") {
+        errored += 1;
+        continue;
+      }
+      if (st.data?.status === "exact") {
+        matched += 1;
+        const mw = st.data.molecular_weight;
+        if (mw != null) {
+          mwMin = mwMin == null ? mw : Math.min(mwMin, mw);
+          mwMax = mwMax == null ? mw : Math.max(mwMax, mw);
+        }
+      }
+    }
+    return {
+      active: pubchemEnabled && pubchemAvailable,
+      matched,
+      total,
+      settled,
+      errored,
+      mwMin,
+      mwMax,
+    };
+  }, [substancesForEnrichment, pubchemStates, pubchemEnabled, pubchemAvailable]);
+
+  // Receipt is extraction-level, but the SearchFilter above narrows the grid
+  // below — surface a cue so the count never silently contradicts an empty grid.
+  const filtersActive = hasActiveFilters(filters);
+  const filteredCount = useMemo(
+    () =>
+      filtersActive
+        ? filterSubstances(substancesForEnrichment, filters).length
+        : substancesForEnrichment.length,
+    [substancesForEnrichment, filters, filtersActive],
   );
 
-  const filteredSubstances = useMemo(
-    () => filterSubstances(allSubstances, filters),
-    [allSubstances, filters],
+  // Abbreviation count is a server-computed aggregate (persisted, so it also
+  // survives reopening a historical extraction — the per-substance maps are
+  // not stored). Metal count is a cheap client-side formula scan.
+  const abbreviationCount = activeResult?.abbreviation_count ?? 0;
+  const metalCount = useMemo(
+    () => substancesForEnrichment.filter((s) => formulaHasMetal(s.molecular_formula)).length,
+    [substancesForEnrichment],
   );
-
-  const handleOpenSubstance = useCallback(
-    (index: number) => {
-      const match = filteredSubstances[index];
-      if (match) setActiveSubstance(match);
-    },
-    [filteredSubstances],
-  );
-
-  // Index of the open substance within the current filtered list, so the sheet
-  // can page across it with prev/next. Located by object identity (indexOf),
-  // NOT inchi_key — several substances can share an empty/surrogate key, which
-  // would collapse to the first match and page from the wrong position.
-  const sheetIndex = useMemo(() => {
-    if (!activeSubstance) return -1;
-    return filteredSubstances.indexOf(activeSubstance);
-  }, [activeSubstance, filteredSubstances]);
-
-  const closeSheet = useCallback(() => setActiveSubstance(null), []);
-
-  const handleBrowseAll = useCallback(() => {
-    browserRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }, []);
 
   return (
     <PageContainer data-slot="browse-page">
@@ -170,18 +210,30 @@ export function BrowsePage({
 
           <section className="mt-6">
             <BrowseBento
-              substances={filteredSubstances}
-              totalSubstances={allSubstances.length}
+              filename={activeResult.filename}
               format={activeResult.format}
-              onBrowseAll={handleBrowseAll}
-              onOpenSubstance={handleOpenSubstance}
-              depiction={depiction}
+              fileSize={activeResult.file_size}
+              extractionTimeMs={activeResult.extraction_time_ms}
+              info={activeResult.info}
+              structureCount={activeResult.substances.length}
+              filteredCount={filteredCount}
+              filtersActive={filtersActive}
+              missingInchi={activeResult.substances
+                .filter((s) => !s.inchi?.trim())
+                .map((s) => s.molecular_formula ?? "")}
+              warnings={activeResult.warnings}
+              reactionCount={reactionCount}
+              pubchem={pubchem}
+              abbreviationCount={abbreviationCount}
+              metalCount={metalCount}
             />
           </section>
 
-          <div ref={browserRef} className="mt-10">
+          <div className="mt-10">
             <ExtractionTabs
-              substanceCount={activeResult.structure_count}
+              // Use the actual substance array length so the tab count and the
+              // receipt's headline count share one source and cannot disagree.
+              substanceCount={activeResult.substances.length}
               reactionsTabProps={{
                 file: selectedFile,
                 filename: activeResult.filename,
@@ -204,26 +256,6 @@ export function BrowsePage({
           </div>
         </>
       )}
-
-      {/* Detail sheet for the bento click — pages across the filtered list. */}
-      <StructureSheet
-        open={activeSubstance !== null}
-        onOpenChange={(open) => {
-          if (!open) closeSheet();
-        }}
-        substance={activeSubstance}
-        substanceIndex={Math.max(0, sheetIndex)}
-        totalSubstances={filteredSubstances.length}
-        onPrev={() => {
-          if (sheetIndex > 0) setActiveSubstance(filteredSubstances[sheetIndex - 1]);
-        }}
-        onNext={() => {
-          if (sheetIndex >= 0 && sheetIndex < filteredSubstances.length - 1) {
-            setActiveSubstance(filteredSubstances[sheetIndex + 1]);
-          }
-        }}
-        depiction={depiction}
-      />
     </PageContainer>
   );
 }

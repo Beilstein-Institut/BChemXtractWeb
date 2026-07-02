@@ -82,6 +82,10 @@ class ExtractionResponse(BaseModel):
     structure_count: int
     extraction_time_ms: float
     warnings: list[str] = Field(default_factory=list)
+    # Distinct ChemDraw abbreviations expanded across the file. Persisted as an
+    # aggregate count because per-substance abbreviations are not stored (the
+    # substances table is deduplicated globally by InChIKey).
+    abbreviation_count: int = 0
     extraction_id: int | None = None
 
 

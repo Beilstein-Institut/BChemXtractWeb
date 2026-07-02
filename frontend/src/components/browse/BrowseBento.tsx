@@ -1,344 +1,395 @@
 /**
- * BrowseBento — bento-grid landing for the Browse page.
+ * BrowseBento — compact extraction receipt for the Browse page.
  *
- * Composition — one band at `lg:` (6 columns, 2 rows):
- *   ┌──────────────────────────────┬───────┬───────┐
- *   │ Preview (4:2)                 │ Total │Format │
- *   │                               ├───────┼───────┤
- *   │                               │Unique │  CTA  │
- *   └──────────────────────────────┴───────┴───────┘
- * The hero preview takes 2/3 of the band so the structure thumbnails
- * render wide enough to read; the four small tiles form two columns of
- * near-square cells (counts stacked on the left, format + CTA on the
- * right). The accented "Browse all" CTA sits bottom-right so the
- * reading order ends on the action. Collapses through 2-col (md) to
- * 1-col (mobile) via BentoGrid's responsive contract — spans are
- * ignored and every cell stacks on small screens.
+ * One low panel, split into sections at `lg` so it fills width instead of
+ * leaving a void:
  *
- * Data shape: takes a pre-filtered `SubstanceResponse[]` (parent does
- * the filtering once; the bento + the StructureBrowser grid below
- * consume the same slice). The hero tile previews substances in
- * extraction order — the backend exposes no recency or popularity
- * signal, so the copy says "preview", not "recent". When more than 5
- * structures are present, the preview trims to 3 thumbnails (one clean
- * row); at 5 or fewer, it shows them all. A former "Featured
- * structures" strip (substances 7–10) was removed: it carried no
- * signal and duplicated the full browser below.
+ *   ┌───────────────────┬──────────────────────────────┬────────────┐
+ *   │ CURRENT EXTRACTION │  4  unique structures        │ 3 reactions│
+ *   │ m16284363-12.cdx   │  InChI status (names gaps)   │ (if any)   │
+ *   │ CDX · 22 KB · 3.6s │                              │            │
+ *   └───────────────────┴──────────────────────────────┴────────────┘
+ *
+ * Deliberately NOT an export hub: export lives in the toolbar on the list
+ * directly below, so a second export control here just duplicated it. The
+ * reactions section only appears when reactions actually exist — an empty
+ * "no reactions" note read as an error and told the user nothing useful.
+ *
+ * InChI status is driven by the *real* per-structure InChI (`substance.inchi`
+ * non-empty), not `info.no_inchis`. When the rich extractor times out on one
+ * giant molecule, the small structures get an InChI recomputed from SMILES and
+ * the oversized one is skipped — so a file lands "3 of 4". The status names the
+ * structures still missing a key (by formula) so "open a structure" points at a
+ * specific one; the detail sheet's Generate InChI action does the rest (and
+ * reports, per structure, when a molecule is too complex to compute).
  */
-import type { MouseEventHandler } from "react";
-import { CompassIcon, FlaskConicalIcon, LayoutGridIcon } from "lucide-react";
+import { AlertTriangleIcon, CheckIcon, DatabaseIcon, FileIcon, SparklesIcon } from "lucide-react";
 
-import { BentoGrid } from "@/components/layout/BentoGrid";
-import { BentoCell } from "@/components/layout/BentoCell";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { MolecularFormula } from "@/components/internal/MolecularFormula";
-import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { cn } from "@/lib/utils";
-import { DEFAULT_DEPICTION, pickSvg } from "@/lib/depiction";
-import type { Depiction, SubstanceResponse } from "@/types/chemistry";
+import type { SubstanceInfoResponse } from "@/types/chemistry";
 
 export interface BrowseBentoProps {
-  /** Substance slice after `SearchFilter` filters are applied. */
-  substances: readonly SubstanceResponse[];
-  /** Raw, unfiltered count of substances in the extraction. */
-  totalSubstances: number;
+  /** Source filename, headline of the receipt. */
+  filename: string;
   /** ChemDraw format label, e.g. "cdxml". */
   format?: string;
-  /** Called when the "Browse all" CTA is clicked. */
-  onBrowseAll: () => void;
-  /** Called when a preview thumbnail is clicked. */
-  onOpenSubstance?: (index: number) => void;
-  /** Active 2D layout for thumbnails (CDK "cdk" default / ChemDraw "cdx"). */
-  depiction?: Depiction;
+  /** Uploaded file size in bytes. */
+  fileSize?: number;
+  /** Server-side extraction wall time in ms. */
+  extractionTimeMs?: number;
+  /** Fragment / substance counts from the backend (the dedup story). */
+  info?: SubstanceInfoResponse;
+  /** Structures shown (== `substances.length`). */
+  structureCount: number;
+  /**
+   * Count of structures matching the active SearchFilter above the receipt,
+   * and whether a filter is applied. Lets the receipt flag when the filter has
+   * narrowed or emptied the grid below, instead of contradicting it silently.
+   */
+  filteredCount?: number;
+  filtersActive?: boolean;
+  /**
+   * Molecular formula (or "") for each structure with NO real InChI. Length
+   * is the missing count; non-empty entries name the gaps in the status.
+   */
+  missingInchi: readonly string[];
+  /** Backend warnings. The fragment-fallback one is folded into the InChI
+   *  status and filtered out here. */
+  warnings?: readonly string[];
+  /**
+   * Known reaction count. When falsy (none, or not yet extracted), the
+   * reactions section is hidden — the Reactions tab below owns that story.
+   */
+  reactionCount?: number;
+  /**
+   * PubChem match summary, shown only when the user has enrichment on
+   * (`active`). Counts are over DISTINCT enrichable InChIKeys. `matched` =
+   * exact hits; `settled` = lookups that succeeded or errored (drives the
+   * "checking" state); `errored` = failed lookups (kept separate so a network
+   * outage is not reported as "0 matched"). `mwMin`/`mwMax` are the molecular
+   * weight range across matched compounds.
+   */
+  pubchem?: {
+    active: boolean;
+    matched: number;
+    total: number;
+    settled: number;
+    errored: number;
+    mwMin?: number;
+    mwMax?: number;
+  };
+  /** Distinct ChemDraw abbreviations expanded across the file (Ph, Bn, ...). */
+  abbreviationCount?: number;
+  /** Structures whose formula contains a metal / metalloid. */
+  metalCount?: number;
   className?: string;
 }
 
-/** Small white thumbnail used in the preview tile. */
-function StructureThumb({
-  substance,
-  onClick,
-  depiction,
-  className,
-}: {
-  substance: SubstanceResponse;
-  onClick?: MouseEventHandler<HTMLButtonElement>;
-  depiction: Depiction;
-  className?: string;
-}) {
-  const src = useSvgObjectUrl(pickSvg(substance, depiction));
-  const label =
-    substance.iupac_name?.trim() ||
-    substance.molecular_formula ||
-    substance.inchi_key ||
-    "structure";
+/** "84 KB" / "1.2 MB" — null when the size is unknown/invalid. */
+function formatBytes(bytes?: number): string | null {
+  if (bytes == null || !Number.isFinite(bytes) || bytes < 0) return null;
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb < 10 ? kb.toFixed(1) : Math.round(kb)} KB`;
+  return `${(kb / 1024).toFixed(1)} MB`;
+}
 
-  const content = (
+/** "0.4s" — matches ExtractionSummary's format. null when unknown. */
+function formatTime(ms?: number): string | null {
+  if (ms == null || !Number.isFinite(ms) || ms < 0) return null;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+/** Section divider: vertical when the panel is split, horizontal when stacked. */
+function Divider() {
+  return (
     <>
-      <div className="flex min-h-[96px] flex-1 items-center justify-center rounded-md bg-white p-3">
-        {src ? (
-          // key={depiction}: remount on layout switch so the new render
-          // fades in instead of snapping (motion-reduce disables it).
-          <img
-            key={depiction}
-            src={src}
-            alt={`${label} structure`}
-            className="max-h-full max-w-full object-contain animate-in fade-in duration-200 motion-reduce:animate-none"
-          />
-        ) : (
-          <FlaskConicalIcon className="size-6 text-foreground-muted" aria-hidden="true" />
-        )}
-      </div>
-      <p className="mt-2 line-clamp-1 text-caption font-medium text-foreground">
-        <MolecularFormula value={substance.molecular_formula} />
-      </p>
+      <div className="hidden w-px shrink-0 self-stretch bg-border lg:block" />
+      <div className="h-px w-full shrink-0 bg-border lg:hidden" />
     </>
   );
+}
 
-  if (!onClick) {
+/** PubChem match summary — only rendered when enrichment is on. */
+function PubChemStatus({
+  matched,
+  total,
+  settled,
+  errored,
+  mwMin,
+  mwMax,
+}: {
+  matched: number;
+  total: number;
+  settled: number;
+  errored: number;
+  mwMin?: number;
+  mwMax?: number;
+}) {
+  if (total === 0) return null;
+
+  // Still resolving — every lookup that has neither succeeded nor errored.
+  if (settled < total) {
     return (
-      <div
-        data-slot="browse-bento-thumb"
-        className={cn(
-          "flex h-full flex-col rounded-md border border-border bg-surface-muted p-2",
-          className,
-        )}
-      >
-        {content}
-      </div>
+      <p className="flex items-center gap-1.5 text-caption text-foreground-muted">
+        <DatabaseIcon className="size-3.5 shrink-0 text-secondary" aria-hidden="true" />
+        Checking PubChem…
+      </p>
     );
   }
 
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      data-slot="browse-bento-thumb"
-      aria-label={`Open details for ${label}`}
-      className={cn(
-        "group/thumb flex h-full flex-col rounded-md border border-border bg-surface-muted p-2 text-left transition-colors",
-        "hover:border-primary/40 hover:bg-accent",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        className,
-      )}
-    >
-      {content}
-    </button>
-  );
-}
-
-/** Sub-line for the preview tile: filter-aware, honest about ordering. */
-function previewCaption(shown: number, totalFiltered: number, totalUnfiltered: number): string {
-  if (totalFiltered === 0) return "No structures match the current filters.";
-  if (shown >= totalFiltered) {
-    return totalFiltered === 1
-      ? "Showing 1 structure."
-      : `Showing all ${totalFiltered} structures.`;
+  // Every lookup failed — a network/service problem, NOT "none are in PubChem".
+  if (errored >= total) {
+    return (
+      <p className="flex items-center gap-1.5 text-caption text-foreground-muted">
+        <DatabaseIcon className="size-3.5 shrink-0 text-secondary" aria-hidden="true" />
+        Could not reach PubChem.
+      </p>
+    );
   }
-  const noun = totalFiltered === totalUnfiltered ? "structures" : "matches";
-  return `Showing the first ${shown} of ${totalFiltered} ${noun}.`;
+
+  // MW range over matched compounds; compare the ROUNDED values so two weights
+  // that round to the same integer render "MW 320", not "MW 320 to 320".
+  let mw: string | null = null;
+  if (mwMin != null && mwMax != null) {
+    const lo = Math.round(mwMin);
+    const hi = Math.round(mwMax);
+    mw = lo === hi ? `MW ${lo}` : `MW ${lo} to ${hi}`;
+  }
+
+  return (
+    <p className="flex items-center gap-1.5 text-caption text-foreground-muted">
+      <DatabaseIcon className="size-3.5 shrink-0 text-secondary" aria-hidden="true" />
+      <span className="font-medium text-foreground">
+        {matched} of {total}
+      </span>{" "}
+      matched in PubChem
+      {errored > 0 && ` · ${errored} not checked`}
+      {mw && ` · ${mw}`}
+    </p>
+  );
 }
 
-function StructurePreviewTile({
-  substances,
-  totalFiltered,
-  totalUnfiltered,
-  onOpenSubstance,
-  depiction,
-}: {
-  substances: readonly SubstanceResponse[];
-  totalFiltered: number;
-  totalUnfiltered: number;
-  onOpenSubstance?: (index: number) => void;
-  depiction: Depiction;
-}) {
+/**
+ * InChI usability. Quiet when everything resolved; an inviting prompt that
+ * NAMES the structures still missing a key otherwise, so the guidance points
+ * at a specific structure instead of a vague "the rest". Never an alarming
+ * error — a missing key is recoverable per structure in the detail sheet.
+ */
+function InchiStatus({ total, missing }: { total: number; missing: readonly string[] }) {
+  if (total === 0) return null;
+
+  const have = total - missing.length;
+  if (have >= total) {
+    return (
+      <p className="flex items-center gap-1.5 text-caption text-foreground-muted">
+        <CheckIcon className="size-3.5 shrink-0 text-secondary" aria-hidden="true" />
+        {total === 1 ? "InChI key resolved." : `All ${total} InChI keys resolved.`}
+      </p>
+    );
+  }
+
+  const allMissing = have === 0;
+  const named = missing.filter(Boolean);
+  const shown = named.slice(0, 3);
+  // "and N more" must count ALL still-missing structures, not just the named
+  // ones — structures without a formula are still missing an InChI key.
+  const extra = missing.length - shown.length;
+  const openTarget = allMissing ? "any structure" : missing.length === 1 ? "it" : "them";
+
   return (
-    <Card data-slot="browse-bento-recent" className="flex h-full flex-col bg-surface">
-      <CardContent className="flex flex-1 flex-col gap-4">
-        <header className="space-y-1">
-          <p className="text-caption font-medium uppercase tracking-wide text-foreground-muted">
-            Current extraction
-          </p>
-          <h2 className="font-display text-2xl font-semibold leading-tight text-foreground">
-            Structure preview
-          </h2>
-          <p className="text-sm text-foreground-muted">
-            {previewCaption(substances.length, totalFiltered, totalUnfiltered)}
-          </p>
-        </header>
-        {substances.length > 0 ? (
-          <div className="grid flex-1 grid-cols-2 gap-3 md:grid-cols-3">
-            {substances.map((s, index) => (
-              // Composite key: fresh-upload envelopes return id 0 for every
-              // substance, so `s.id ?? …` alone collides (0 is not nullish).
-              <StructureThumb
-                key={`${s.id}-${s.inchi_key}-${index}`}
-                substance={s}
-                depiction={depiction}
-                onClick={onOpenSubstance ? () => onOpenSubstance(index) : undefined}
-              />
+    <div className="flex items-start gap-2 rounded-lg bg-surface-muted px-2.5 py-2">
+      <SparklesIcon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+      <p className="text-caption leading-snug text-foreground-muted">
+        <span className="font-medium text-foreground">
+          {allMissing
+            ? "InChI keys are not available for this file."
+            : `${have} of ${total} structures have an InChI key.`}
+        </span>{" "}
+        {named.length > 0 && (
+          <>
+            Missing:{" "}
+            {shown.map((f, i) => (
+              <span key={i} className="font-medium text-foreground">
+                {i > 0 && ", "}
+                <MolecularFormula value={f} />
+              </span>
             ))}
-          </div>
-        ) : (
-          <div
-            className={cn(
-              "flex flex-1 items-center justify-center rounded-md border border-dashed border-border",
-              "bg-surface-muted/50 p-6 text-center",
-            )}
-          >
-            <div className="space-y-1">
-              <LayoutGridIcon className="mx-auto size-6 text-foreground-muted" aria-hidden="true" />
-              <p className="text-sm text-foreground-muted">
-                Adjust your search or filters to see structures here.
-              </p>
-            </div>
-          </div>
+            {extra > 0 && ` and ${extra} more`}.{" "}
+          </>
         )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function StatTile({
-  label,
-  value,
-  tone = "primary",
-  hint,
-}: {
-  label: string;
-  value: number | string;
-  tone?: "primary" | "secondary";
-  hint?: string;
-}) {
-  const toneClass = tone === "secondary" ? "text-secondary" : "text-primary";
-  return (
-    <Card
-      data-slot="browse-bento-stat"
-      data-tone={tone}
-      size="sm"
-      className="flex h-full flex-col justify-between bg-surface"
-    >
-      <CardContent className="flex h-full flex-col justify-between gap-2">
-        <p className={cn("font-display text-4xl font-semibold tabular-nums", toneClass)}>{value}</p>
-        <div>
-          <p className="text-sm font-medium text-foreground">{label}</p>
-          {hint && <p className="mt-1 text-caption text-foreground-muted">{hint}</p>}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function BrowseAllTile({ count, onClick }: { count: number; onClick: () => void }) {
-  return (
-    <Card
-      data-slot="browse-bento-cta"
-      size="sm"
-      className={cn(
-        "flex h-full flex-col justify-between",
-        "bg-[color-mix(in_oklch,var(--color-primary)_12%,var(--color-surface))]",
-      )}
-    >
-      <CardContent className="flex h-full flex-col justify-between gap-3">
-        <div className="space-y-1">
-          <p className="text-caption font-medium uppercase tracking-wide text-foreground-muted">
-            Full list
-          </p>
-          <h2 className="font-display text-lg font-semibold leading-tight text-foreground">
-            Browse all
-          </h2>
-          <p className="text-sm leading-snug text-foreground-muted">
-            Jump to the full list of {count.toLocaleString()}{" "}
-            {count === 1 ? "structure" : "structures"} below.
-          </p>
-        </div>
-        {/* gap-1.5/px-2: at the 1024px band the square tile's content box
-            is ~100px and the default padding clips the icon + label. */}
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={onClick}
-          data-slot="browse-bento-cta-button"
-          className="w-full justify-center gap-1.5 px-2"
-          icon={<CompassIcon />}
-        >
-          View all
-        </Button>
-      </CardContent>
-    </Card>
+        Open {openTarget} below to generate the InChI and InChIKey.
+      </p>
+    </div>
   );
 }
 
 export function BrowseBento({
-  substances,
-  totalSubstances,
+  filename,
   format,
-  onBrowseAll,
-  onOpenSubstance,
-  depiction = DEFAULT_DEPICTION,
+  fileSize,
+  extractionTimeMs,
+  info,
+  structureCount,
+  filteredCount,
+  filtersActive,
+  missingInchi,
+  warnings,
+  reactionCount,
+  pubchem,
+  abbreviationCount,
+  metalCount,
   className,
 }: BrowseBentoProps) {
-  // Preview rule: more than 5 structures → trim to 3 thumbnails (one
-  // clean row in the 3-col thumb grid); 5 or fewer → show them all.
-  const preview = substances.slice(0, substances.length > 5 ? 3 : 5);
+  const fragments = info?.no_fragments;
+  const deduped = fragments != null && fragments > structureCount;
+  const showReactions = reactionCount != null && reactionCount > 0;
 
-  const filteredCount = substances.length;
-  const uniqueInchiCount = new Set(
-    substances.map((s) => s.inchi_key?.trim()).filter((key): key is string => !!key),
-  ).size;
+  // Compact composition facts, dot-joined into a single muted line so they
+  // add breadth, not height, to the receipt.
+  const facts = [
+    abbreviationCount
+      ? `${abbreviationCount} abbreviation${abbreviationCount === 1 ? "" : "s"} expanded`
+      : null,
+    metalCount ? `${metalCount} with a metal or metalloid` : null,
+  ].filter(Boolean);
+
+  const provenance = [format?.toUpperCase(), formatBytes(fileSize), formatTime(extractionTimeMs)]
+    .filter(Boolean)
+    .join(" · ");
+
+  // The fragment-fallback warning is jargon and duplicates the InChI status,
+  // which now says the same thing in plain language. Suppress just that one.
+  // ponytail: matched by phrase; a structured `used_fallback` flag on the API
+  // would be cleaner if a second warning ever collides.
+  const otherWarnings = (warnings ?? []).filter((w) => !/fragment fallback/i.test(w));
 
   return (
-    <BentoGrid
-      cols={6}
-      className={cn("auto-rows-[minmax(160px,auto)]", className)}
+    <Card
       data-slot="browse-bento"
+      className={cn(
+        "bg-surface",
+        // Subtle entrance so a fresh extraction settles in rather than snapping.
+        "duration-500 animate-in fade-in slide-in-from-bottom-1 motion-reduce:animate-none",
+        className,
+      )}
     >
-      <BentoCell span="4:2" data-slot="browse-bento-cell-recent">
-        <StructurePreviewTile
-          substances={preview}
-          totalFiltered={filteredCount}
-          totalUnfiltered={totalSubstances}
-          onOpenSubstance={onOpenSubstance}
-          depiction={depiction}
-        />
-      </BentoCell>
+      <CardContent className="flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-6">
+        {/* Identity — icon tile anchors the block so the wide column reads
+            deliberate instead of half-empty. */}
+        <section
+          data-slot="browse-bento-identity"
+          className="flex min-w-0 items-center gap-4 lg:flex-1"
+        >
+          <div
+            aria-hidden="true"
+            className="grid size-12 shrink-0 place-items-center rounded-2xl bg-surface-muted text-primary"
+          >
+            <FileIcon className="size-6" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-caption font-medium uppercase tracking-wide text-foreground-muted">
+              Current extraction
+            </p>
+            <h2
+              className="truncate font-display text-2xl font-semibold leading-tight text-foreground"
+              title={filename}
+            >
+              {filename}
+            </h2>
+            {provenance && (
+              <p className="mt-0.5 font-mono text-sm text-foreground-muted">{provenance}</p>
+            )}
+          </div>
+        </section>
 
-      {/* DOM order fills row-first: Total + Format on row 1, Unique +
-          CTA on row 2 — so the two counts stack in the left square
-          column and the CTA ends bottom-right. */}
-      <BentoCell span="1:1" data-slot="browse-bento-cell-total">
-        <StatTile
-          label="Structures in view"
-          value={filteredCount.toLocaleString()}
-          hint={
-            filteredCount === totalSubstances
-              ? "All extracted structures."
-              : `Filtered from ${totalSubstances.toLocaleString()} total.`
-          }
-        />
-      </BentoCell>
+        <Divider />
 
-      <BentoCell span="1:1" data-slot="browse-bento-cell-format">
-        <StatTile
-          label="Source format"
-          value={format ? format.toUpperCase() : "—"}
-          tone="secondary"
-          hint="ChemDraw file type detected at upload."
-        />
-      </BentoCell>
+        {/* Results: count + InChI status + any real warnings */}
+        <section
+          data-slot="browse-bento-results"
+          className="flex min-w-0 flex-col justify-center gap-2.5 lg:flex-[1.4]"
+        >
+          <div className="flex items-baseline gap-3">
+            <span className="font-display text-6xl font-bold leading-[0.85] tracking-tight tabular-nums text-primary">
+              {structureCount.toLocaleString()}
+            </span>
+            <span className="text-sm font-semibold text-foreground">
+              unique {structureCount === 1 ? "structure" : "structures"}
+              {deduped && (
+                <span className="block text-caption font-normal text-foreground-muted">
+                  from {fragments!.toLocaleString()} fragments
+                </span>
+              )}
+            </span>
+          </div>
 
-      <BentoCell span="1:1" data-slot="browse-bento-cell-unique">
-        <StatTile
-          label="Unique InChI keys"
-          value={uniqueInchiCount.toLocaleString()}
-          tone="secondary"
-          hint="Deduplicated across the current view."
-        />
-      </BentoCell>
+          {filtersActive && filteredCount != null && (
+            <p
+              className={cn(
+                "text-caption",
+                filteredCount === 0
+                  ? "text-amber-700 dark:text-amber-300"
+                  : "text-foreground-muted",
+              )}
+            >
+              {filteredCount === 0
+                ? "No structures match your filter."
+                : `${filteredCount.toLocaleString()} of ${structureCount.toLocaleString()} match your filter.`}
+            </p>
+          )}
 
-      <BentoCell span="1:1" data-slot="browse-bento-cell-cta">
-        <BrowseAllTile count={filteredCount} onClick={onBrowseAll} />
-      </BentoCell>
-    </BentoGrid>
+          <InchiStatus total={structureCount} missing={missingInchi} />
+
+          {pubchem?.active && (
+            <PubChemStatus
+              matched={pubchem.matched}
+              total={pubchem.total}
+              settled={pubchem.settled}
+              errored={pubchem.errored}
+              mwMin={pubchem.mwMin}
+              mwMax={pubchem.mwMax}
+            />
+          )}
+
+          {facts.length > 0 && (
+            <p className="text-caption text-foreground-muted">{facts.join(" · ")}</p>
+          )}
+
+          {otherWarnings.length > 0 && (
+            <div className="space-y-1 text-caption text-amber-700 dark:text-amber-300">
+              {otherWarnings.map((w, i) => (
+                <p key={i} className="flex items-start gap-1.5">
+                  <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                  <span>{w}</span>
+                </p>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {showReactions && (
+          <>
+            <Divider />
+            <section
+              data-slot="browse-bento-reactions"
+              className="flex items-center gap-2.5 lg:flex-none"
+            >
+              <span className="font-display text-3xl font-bold leading-none tabular-nums text-secondary">
+                {reactionCount!.toLocaleString()}
+              </span>
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {reactionCount === 1 ? "reaction" : "reactions"}
+                </p>
+                <p className="text-caption text-foreground-muted">in this file</p>
+              </div>
+            </section>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
