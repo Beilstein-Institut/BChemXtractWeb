@@ -83,12 +83,10 @@ export function BrowsePage({
   const reactionCount =
     cachedReactionsData?.reaction_count ?? (liveReactionCount > 0 ? liveReactionCount : undefined);
 
-  // PubChem match count for the receipt. Enriches the WHOLE extraction (not
-  // just the visible page) so the count is extraction-level; no-ops unless the
-  // user opted in, and hits are cached server-side so repeats are cheap.
-  // ponytail: StructureBrowser runs its own per-page enrichment, so the
-  // current page is requested twice; the server cache absorbs the overlap.
-  // Lift enrichment to share one map if that ever matters.
+  // Single PubChem enrichment for the whole extraction: feeds both the
+  // receipt match count and the StructureBrowser cards below (passed down as
+  // `pubchem`), so the visible page is not enriched twice. No-ops unless the
+  // user opted in; hits are cached server-side.
   const substancesForEnrichment = useMemo(() => activeResult?.substances ?? [], [activeResult]);
   const { enabled: pubchemEnabled, available: pubchemAvailable } = usePubChemPreferences();
   const pubchemStates = usePubChemEnrichment(substancesForEnrichment);
@@ -251,6 +249,7 @@ export function BrowsePage({
                 filters={filters}
                 depiction={depiction}
                 onDepictionChange={setDepiction}
+                pubchem={pubchemStates}
               />
             </ExtractionTabs>
           </div>

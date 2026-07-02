@@ -90,16 +90,10 @@ describe("BrowseBento", () => {
     ).toBeInTheDocument();
   });
 
-  it("suppresses the fragment-fallback warning but keeps real warnings", () => {
-    renderBento({
-      structureCount: 4,
-      missingInchi: ["", "", "", ""],
-      warnings: [
-        "Extracted via fragment fallback — InChI/InChIKey not available for this file.",
-        "File extension does not match detected format.",
-      ],
-    });
-    expect(screen.queryByText(/fragment fallback/i)).not.toBeInTheDocument();
+  it("renders backend warnings verbatim (no client-side filtering)", () => {
+    // The redundant fragment-fallback warning is dropped at the backend now,
+    // so the component simply renders whatever warnings it is given.
+    renderBento({ warnings: ["File extension does not match detected format."] });
     expect(screen.getByText(/extension does not match/i)).toBeInTheDocument();
   });
 

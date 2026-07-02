@@ -8,6 +8,7 @@ Endpoints:
 """
 
 import logging
+import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -91,6 +92,14 @@ async def _backfill_missing_svgs(db: AsyncSession, substances: list[Substance]) 
             await db.rollback()
 
 
+# Fragment-fallback warnings persisted before the message was dropped (it is
+# now conveyed by the data-driven InChI status). Strip them so reopening an old
+# extraction does not show stale jargon. Matches both historical wordings.
+_LEGACY_FALLBACK_RE = re.compile(
+    r"fragment fallback|direct fragment conversion", re.IGNORECASE
+)
+
+
 def _extraction_to_response(e: Extraction) -> ExtractionResponse:
     """Convert an Extraction ORM row (with loaded substances) to ExtractionResponse.
 
@@ -123,7 +132,7 @@ def _extraction_to_response(e: Extraction) -> ExtractionResponse:
         file_size=e.file_size,
         structure_count=e.structure_count,
         extraction_time_ms=e.extraction_time_ms,
-        warnings=e.warnings or [],
+        warnings=[w for w in (e.warnings or []) if not _LEGACY_FALLBACK_RE.search(w)],
         abbreviation_count=e.abbreviation_count,
         extraction_id=e.id,
     )

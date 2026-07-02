@@ -260,11 +260,10 @@ export function BrowseBento({
     .filter(Boolean)
     .join(" · ");
 
-  // The fragment-fallback warning is jargon and duplicates the InChI status,
-  // which now says the same thing in plain language. Suppress just that one.
-  // ponytail: matched by phrase; a structured `used_fallback` flag on the API
-  // would be cleaner if a second warning ever collides.
-  const otherWarnings = (warnings ?? []).filter((w) => !/fragment fallback/i.test(w));
+  // Warnings render verbatim: the backend no longer emits the redundant
+  // fragment-fallback warning (the InChI status conveys that from the data),
+  // so there is nothing to phrase-match away here.
+  const shownWarnings = warnings ?? [];
 
   return (
     <Card
@@ -358,9 +357,9 @@ export function BrowseBento({
             <p className="text-caption text-foreground-muted">{facts.join(" · ")}</p>
           )}
 
-          {otherWarnings.length > 0 && (
+          {shownWarnings.length > 0 && (
             <div className="space-y-1 text-caption text-amber-700 dark:text-amber-300">
-              {otherWarnings.map((w, i) => (
+              {shownWarnings.map((w, i) => (
                 <p key={i} className="flex items-start gap-1.5">
                   <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
                   <span>{w}</span>

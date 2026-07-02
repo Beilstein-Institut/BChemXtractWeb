@@ -116,14 +116,11 @@ def extract_file_task(
         # single-file flow (and batch) surface the same advisory.
         warnings: list[str] = check_extension_mismatch(filename, format_type)
 
-        raw_substances, raw_info, used_fallback = _extract_with_fallback_sync(
+        # Fallback flag intentionally not surfaced as a warning; the UI reports
+        # missing InChI from the substance data itself.
+        raw_substances, raw_info, _used_fallback = _extract_with_fallback_sync(
             file_bytes, format_type
         )
-        if used_fallback:
-            warnings.append(
-                "Extracted via fragment fallback — InChI/InChIKey not "
-                "available for this file."
-            )
 
         elapsed_ms = round((time.perf_counter() - start) * 1000, 1)
 
