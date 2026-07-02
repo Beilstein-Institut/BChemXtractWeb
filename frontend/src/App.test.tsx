@@ -17,6 +17,7 @@ vi.mock("./hooks/useBatch", () => ({
     startBatch: vi.fn(),
     cancelBatch: vi.fn(),
     reset: vi.fn(),
+    getUploadedFile: vi.fn(() => null),
   }),
 }));
 vi.mock("./hooks/useHistory", () => ({

@@ -131,6 +131,7 @@ async def extract_file(
         structure_count=len(substances),
         extraction_time_ms=round(elapsed_ms, 1),
         warnings=warnings,
+        abbreviation_count=len({k for s in substances for k in s.abbreviations}),
     )
 
     # Auto-persist every extraction. Best-effort — DB failures are

@@ -147,4 +147,48 @@ describe("useBatch", () => {
     expect(result.current.failedCount).toBe(0);
     expect(result.current.totalStructures).toBe(0);
   });
+
+  it("retains uploaded files so getUploadedFile resolves the File by extraction id", async () => {
+    vi.mocked(postBatchStart).mockResolvedValue({
+      batch_id: "bid",
+      group_id: "gid",
+      task_ids: ["t1"],
+      file_count: 1,
+    });
+
+    const { result } = renderHook(() => useBatch());
+    const fileA = new File(["content"], "a.cdx");
+
+    await act(async () => {
+      await result.current.startBatch([fileA]);
+    });
+
+    // Grab the file_complete handler the hook registered on the EventSource and
+    // drive it as the server would once a.cdx finishes extracting.
+    const handler = mockEventSource.addEventListener.mock.calls.find(
+      ([evt]) => evt === "file_complete",
+    )?.[1] as (e: MessageEvent) => void;
+    expect(handler).toBeTypeOf("function");
+
+    act(() => {
+      handler({
+        data: JSON.stringify({
+          task_id: "t1",
+          state: "SUCCESS",
+          result: { filename: "a.cdx", structure_count: 3, extraction_id: 42, error: null },
+        }),
+      } as MessageEvent);
+    });
+
+    // The just-uploaded bytes are still in memory — no re-upload needed to
+    // extract reactions for this batch file.
+    expect(result.current.getUploadedFile(42)).toBe(fileA);
+    // Unknown extraction id → null (e.g. a history entry from another session).
+    expect(result.current.getUploadedFile(999)).toBeNull();
+
+    act(() => {
+      result.current.reset();
+    });
+    expect(result.current.getUploadedFile(42)).toBeNull();
+  });
 });

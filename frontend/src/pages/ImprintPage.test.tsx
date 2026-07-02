@@ -21,24 +21,13 @@ describe("ImprintPage", () => {
     expect(text).toMatch(/\+49 \(0\) 69 71673-20/);
   });
 
-  it("names the content officer under §18 (2) MStV", () => {
+  it("omits the media-treaty content officer and VAT ID (not applicable)", () => {
     const { container } = render(<ImprintPage />);
-    const governance = container.querySelector(
-      '[data-slot="imprint-governance"]',
-    ) as HTMLElement | null;
-    expect(governance).not.toBeNull();
-    const text = governance!.textContent ?? "";
-    expect(text).toMatch(/§\s*18.*MStV/);
-    expect(text).toMatch(/Wendy Patterson/);
-  });
-
-  it("states the VAT identification number", () => {
-    const { container } = render(<ImprintPage />);
-    const governance = container.querySelector(
-      '[data-slot="imprint-governance"]',
-    ) as HTMLElement | null;
-    expect(governance).not.toBeNull();
-    expect(governance!.textContent).toMatch(/DE 114234743/);
+    const text = container.textContent ?? "";
+    expect(text).not.toMatch(/MStV/);
+    expect(text).not.toMatch(/MDStV/);
+    expect(text).not.toMatch(/DE 114234743/);
+    expect(text).not.toMatch(/VAT ID/i);
   });
 
   it("renders the copyright notice", () => {
@@ -58,15 +47,5 @@ describe("ImprintPage", () => {
       name: /info@beilstein-institut\.de/i,
     });
     expect(mail).toHaveAttribute("href", "mailto:info@beilstein-institut.de");
-  });
-
-  it("attributes the imprint to its authoritative source", () => {
-    render(<ImprintPage />);
-    const attribution = screen.getByRole("link", {
-      name: /beilstein-institut\.de\/en\/impressum/i,
-    });
-    expect(attribution).toHaveAttribute("href", "https://www.beilstein-institut.de/en/impressum/");
-    expect(attribution).toHaveAttribute("target", "_blank");
-    expect(attribution).toHaveAttribute("rel", "noreferrer");
   });
 });

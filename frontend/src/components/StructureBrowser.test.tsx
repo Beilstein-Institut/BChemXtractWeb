@@ -4,10 +4,8 @@
  *
  * useBrowse and all child components are mocked for isolation.
  */
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { vi, beforeEach } from "vitest";
-import * as api from "@/lib/apiClient";
-import { PubChemPreferencesContext } from "@/context/PubChemPreferencesContext";
 import type { UseBrowseReturn, BrowseView, BrowseSort } from "@/hooks/useBrowse";
 import type { PagedSubstancesResponse, PubChemEnrichment } from "@/types/chemistry";
 
@@ -202,7 +200,7 @@ describe("StructureBrowser component", () => {
   });
 });
 
-describe("StructureBrowser PubChem enrichment wiring", () => {
+describe("StructureBrowser PubChem prop threading", () => {
   const KEY = "UHOVQNZJYSORNB-UHFFFAOYSA-N";
   const onePage: PagedSubstancesResponse = {
     items: [
@@ -243,35 +241,24 @@ describe("StructureBrowser PubChem enrichment wiring", () => {
     description_source: null,
   };
 
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("fires tier-1 enrichment for visible cards on the live browse surface when opted in", async () => {
+  // Enrichment is now owned by the parent (BrowsePage) and passed down as the
+  // `pubchem` map, so the grid no longer fires its own lookups — it just
+  // renders whatever map it is given onto the cards.
+  it("renders the enrichment passed via the pubchem prop onto cards", () => {
     mockUseBrowse.mockReturnValue(makeBrowseReturn({ browseState: "success", page: onePage }));
-    const spy = vi
-      .spyOn(api, "postPubChemEnrich")
-      .mockResolvedValue({ results: { [KEY]: enrichment } });
-
     render(
-      <PubChemPreferencesContext.Provider
-        value={{ enabled: true, setEnabled: () => null, available: true }}
-      >
-        <StructureBrowser extractionId={42} onReset={vi.fn()} />
-      </PubChemPreferencesContext.Provider>,
+      <StructureBrowser
+        extractionId={42}
+        onReset={vi.fn()}
+        pubchem={new Map([[KEY, { state: "success", data: enrichment }]])}
+      />,
     );
-
-    await waitFor(() => expect(spy).toHaveBeenCalled());
-    // The card actually receives the enrichment (hook -> prop threading).
-    await waitFor(() =>
-      expect(screen.getByTestId("structure-card").getAttribute("data-pubchem-cid")).toBe("241"),
-    );
+    expect(screen.getByTestId("structure-card").getAttribute("data-pubchem-cid")).toBe("241");
   });
 
-  it("does not fire enrichment when opted out (default)", () => {
+  it("renders no PubChem chrome when no map is provided", () => {
     mockUseBrowse.mockReturnValue(makeBrowseReturn({ browseState: "success", page: onePage }));
-    const spy = vi.spyOn(api, "postPubChemEnrich");
     render(<StructureBrowser extractionId={42} onReset={vi.fn()} />);
-    expect(spy).not.toHaveBeenCalled();
+    expect(screen.getByTestId("structure-card").getAttribute("data-pubchem-cid")).toBe("");
   });
 });

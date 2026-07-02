@@ -44,6 +44,7 @@ describe("buildPubChemShareUrl", () => {
 
 describe("useShareLink", () => {
   let writeText: ReturnType<typeof vi.fn>;
+  let openSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -53,6 +54,9 @@ describe("useShareLink", () => {
       configurable: true,
       value: { writeText },
     });
+    // jsdom's window.open is a no-op that logs "Not implemented"; spy so it
+    // stays quiet and assertable.
+    openSpy = vi.spyOn(window, "open").mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -76,6 +80,19 @@ describe("useShareLink", () => {
       "https://pubchem.ncbi.nlm.nih.gov/#query=UHOVQNZJYSORNB-UHFFFAOYSA-N",
     );
     expect(result.current.shared).toBe(true);
+  });
+
+  it("opens the PubChem link in a new tab as well as copying it", async () => {
+    const { result } = renderHook(() => useShareLink());
+    await act(async () => {
+      await result.current.share({ smiles: "c1ccccc1" });
+    });
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledWith(
+      "https://pubchem.ncbi.nlm.nih.gov/#query=c1ccccc1",
+      "_blank",
+      "noopener,noreferrer",
+    );
   });
 
   it("resets the shared flag after 2 seconds", async () => {
@@ -103,6 +120,7 @@ describe("useShareLink", () => {
       await result.current.share({});
     });
     expect(writeText).not.toHaveBeenCalled();
+    expect(openSpy).not.toHaveBeenCalled();
     expect(result.current.shared).toBe(false);
   });
 

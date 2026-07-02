@@ -45,6 +45,11 @@ class Extraction(Base):
     file_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
     format: Mapped[str] = mapped_column(String(10), nullable=False)
     structure_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Distinct ChemDraw abbreviations expanded across the file (aggregate; the
+    # per-substance maps are not persisted because substances dedup by InChIKey).
+    abbreviation_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0", default=0
+    )
     extraction_time_ms: Mapped[float] = mapped_column(Float, nullable=False)
     warnings: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(

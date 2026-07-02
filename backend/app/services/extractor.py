@@ -1222,20 +1222,17 @@ async def extract_substances_with_svg(
     # fragment-level extraction on the same thread if xtractUnique throws
     # a Java exception. This avoids thread-pool contention where a hung
     # xtractUnique thread blocks fallback calls on separate threads.
-    raw_substances, raw_info, used_fallback = await run_in_jvm_thread(
+    # The third element is a used-fallback flag. We intentionally do NOT surface
+    # it as a warning: when fallback runs, every substance lacks a real InChI,
+    # which the UI already reports from the data (empty `inchi` -> "InChI keys
+    # are not available; open a structure to generate one"). A duplicate warning
+    # only invited brittle client-side phrase-matching to hide it again.
+    raw_substances, raw_info, _used_fallback = await run_in_jvm_thread(
         _extract_with_fallback_sync,
         file_bytes,
         format_type,
         timeout=_FRAGMENT_FALLBACK_TIMEOUT,
     )
-
-    if used_fallback:
-        warnings.append(
-            "File contains complex structures. Extracted via direct "
-            "fragment conversion — SMILES and structure images are "
-            "available, but InChI and InChIKey are not computed for "
-            "this file."
-        )
 
     return (
         [SubstanceResponse(**d) for d in raw_substances],

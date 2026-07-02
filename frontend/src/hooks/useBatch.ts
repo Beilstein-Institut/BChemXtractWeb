@@ -49,6 +49,13 @@ export interface UseBatchReturn {
   cancelBatch: () => Promise<void>;
   /** Reset to idle — allows starting a new batch */
   reset: () => void;
+  /**
+   * The original uploaded File for a completed batch extraction, or null if
+   * this id isn't from the current batch. Lets the Reactions tab extract
+   * on-demand from bytes still in memory instead of forcing a re-upload.
+   * Session-scoped: cleared by reset() and replaced by the next startBatch().
+   */
+  getUploadedFile: (extractionId: number) => File | null;
 }
 
 /**
@@ -67,6 +74,11 @@ export function useBatch(): UseBatchReturn {
   const [groupId, setGroupId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
+  // Original File objects from this batch, keyed by filename (the same key the
+  // SSE file_complete handler matches on). Held in a ref so retaining the bytes
+  // doesn't trigger re-renders; joined with `files` (which carries the
+  // extractionId) in getUploadedFile.
+  const filesByNameRef = useRef<Map<string, File>>(new Map());
 
   const completedCount = files.filter((f) => f.state === "done").length;
   const failedCount = files.filter((f) => f.state === "failed").length;
@@ -120,6 +132,10 @@ export function useBatch(): UseBatchReturn {
     async (inputFiles: File[]) => {
       setState("processing");
       setErrorMessage(null);
+
+      // Retain the uploaded bytes for this session so the Reactions tab can
+      // extract on-demand without a re-upload. Replaces any prior batch's files.
+      filesByNameRef.current = new Map(inputFiles.map((f) => [f.name, f]));
 
       // Initialise per-file status list in queued state.
       setFiles(
@@ -187,7 +203,17 @@ export function useBatch(): UseBatchReturn {
     setBatchId(null);
     setGroupId(null);
     setErrorMessage(null);
+    filesByNameRef.current = new Map();
   }, [closeSSE]);
+
+  const getUploadedFile = useCallback(
+    (extractionId: number): File | null => {
+      const match = files.find((f) => f.state === "done" && f.extractionId === extractionId);
+      if (!match) return null;
+      return filesByNameRef.current.get(match.filename) ?? null;
+    },
+    [files],
+  );
 
   return {
     state,
@@ -200,5 +226,6 @@ export function useBatch(): UseBatchReturn {
     startBatch,
     cancelBatch,
     reset,
+    getUploadedFile,
   };
 }

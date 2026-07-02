@@ -88,6 +88,7 @@ function App() {
     startBatch,
     cancelBatch: cancelBatchFn,
     reset: resetBatch,
+    getUploadedFile,
   } = useBatch();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -184,14 +185,29 @@ function App() {
 
   const handleBackToLatest = useCallback(() => {
     setHistoricalResult(null);
-    setActiveExtractionId(result?.extraction_id ?? null);
+    // "Latest" is the live single-file extraction. When there isn't one — the
+    // user reached Browse by opening a file from a completed batch (or from
+    // History) — there's no single extraction to pin, so returning to Browse
+    // would strand them on the empty "No extraction loaded" state. Send them
+    // back to the Extract page instead, which still shows the batch results.
+    const latestId = result?.extraction_id ?? null;
+    setActiveExtractionId(latestId);
+    if (latestId === null) navigate("/");
   }, [result?.extraction_id]);
 
-  const handleReloadSuccess = useCallback((response: ExtractionResponse) => {
-    setHistoricalResult(response);
-    setActiveExtractionId(response.extraction_id ?? null);
-    navigate("/browse");
-  }, []);
+  // inMemoryFile: the original upload if we still hold its bytes (batch files
+  // viewed in the same session). Setting selectedFile lets the Reactions tab
+  // extract on-demand instead of prompting a re-upload; null clears any stale
+  // single-file File so a plain history view doesn't extract from the wrong one.
+  const handleReloadSuccess = useCallback(
+    (response: ExtractionResponse, inMemoryFile: File | null = null) => {
+      setHistoricalResult(response);
+      setActiveExtractionId(response.extraction_id ?? null);
+      setSelectedFile(inMemoryFile);
+      navigate("/browse");
+    },
+    [],
+  );
 
   // Fetches the full ExtractionResponse so the Bento (driven by `activeResult`)
   // and the paginated grid (driven by `activeExtractionId` via useBrowse) both
@@ -201,12 +217,14 @@ function App() {
     async (extractionId: number) => {
       try {
         const response = await getHistoryDetail(extractionId);
-        handleReloadSuccess(response);
+        // Batch files uploaded this session still have their bytes in memory —
+        // hand them to the Reactions tab so reactions extract without re-upload.
+        handleReloadSuccess(response, getUploadedFile(extractionId));
       } catch {
         toast.error("Couldn't load that extraction. Refresh and retry.");
       }
     },
-    [handleReloadSuccess],
+    [handleReloadSuccess, getUploadedFile],
   );
 
   const handleSearchWithin = useCallback(() => {

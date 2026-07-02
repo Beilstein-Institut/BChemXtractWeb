@@ -246,7 +246,7 @@ export function StructureCard({
               variant="ghost"
               size="icon-sm"
               type="button"
-              aria-label={shared ? "PubChem link copied" : "Copy PubChem link"}
+              aria-label={shared ? "Opened in PubChem, link copied" : "Open in PubChem, copy link"}
               onClick={handleShare}
             >
               {shared ? (
@@ -259,7 +259,7 @@ export function StructureCard({
                 confirmation. The visible state change is on the button icon;
                 this lets non-sighted users hear the same feedback. */}
             <span data-slot="structure-card-share-status" aria-live="polite" className="sr-only">
-              {shared ? "PubChem link copied to clipboard" : ""}
+              {shared ? "Opened PubChem in a new tab and copied the link" : ""}
             </span>
           </div>
           <span

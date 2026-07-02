@@ -11,7 +11,25 @@ import logging
 import pytest
 from httpx import AsyncClient
 
+from app.routers.history import _LEGACY_FALLBACK_RE
+
 logger = logging.getLogger(__name__)
+
+
+def test_legacy_fallback_warnings_are_stripped_from_history():
+    """Both historical fragment-fallback wordings are recognised for stripping,
+    while ordinary warnings pass through untouched."""
+    assert _LEGACY_FALLBACK_RE.search(
+        "Extracted via fragment fallback — InChI/InChIKey not available for this file."
+    )
+    assert _LEGACY_FALLBACK_RE.search(
+        "File contains complex structures. Extracted via direct fragment "
+        "conversion — SMILES and structure images are available, but InChI and "
+        "InChIKey are not computed for this file."
+    )
+    assert not _LEGACY_FALLBACK_RE.search(
+        "File extension does not match detected format."
+    )
 
 
 @pytest.mark.asyncio
