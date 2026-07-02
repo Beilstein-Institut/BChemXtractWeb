@@ -147,6 +147,9 @@ describe("StructureCard component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    // Sharing also opens the PubChem link in a new tab; jsdom's window.open is
+    // an unimplemented no-op, so stub it to keep the output clean.
+    vi.spyOn(window, "open").mockReturnValue(null);
   });
 
   it("renders IUPAC name in the Inter-semibold name slot", () => {
@@ -271,7 +274,7 @@ describe("StructureCard component", () => {
     render(<StructureCard substance={mockSubstance} />);
     const shareBtns = document.querySelectorAll("[data-slot='structure-card-share']");
     expect(shareBtns.length).toBeGreaterThan(0);
-    expect(shareBtns[0].getAttribute("aria-label")).toBe("Copy PubChem link");
+    expect(shareBtns[0].getAttribute("aria-label")).toBe("Open in PubChem, copy link");
   });
 
   it("clicking share copies a PubChem InChIKey link to the clipboard", async () => {
@@ -288,13 +291,13 @@ describe("StructureCard component", () => {
     );
   });
 
-  it("after share, the share button flips to 'PubChem link copied' aria-label", async () => {
+  it("after share, the share button flips to the 'link copied' aria-label", async () => {
     render(<StructureCard substance={mockSubstance} />);
     const shareBtn = document.querySelector("[data-slot='structure-card-share']") as HTMLElement;
     fireEvent.click(shareBtn);
     await waitFor(() => {
       const after = document.querySelector("[data-slot='structure-card-share']") as HTMLElement;
-      expect(after.getAttribute("aria-label")).toBe("PubChem link copied");
+      expect(after.getAttribute("aria-label")).toBe("Opened in PubChem, link copied");
     });
   });
 

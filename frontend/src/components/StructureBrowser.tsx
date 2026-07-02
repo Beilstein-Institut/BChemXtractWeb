@@ -28,7 +28,6 @@ import {
   PaginationEllipsis,
 } from "@/components/ui/pagination";
 import { useBrowse } from "@/hooks/useBrowse";
-import { usePubChemEnrichment } from "@/hooks/usePubChemEnrichment";
 import { BrowseToolbar } from "@/components/BrowseToolbar";
 import { StructureCard } from "@/components/StructureCard";
 import { StructureTable } from "@/components/StructureTable";
@@ -36,7 +35,11 @@ import { StructureSheet } from "@/components/StructureSheet";
 import { filterSubstances } from "@/components/browse/filterSubstances";
 import { hasActiveFilters, type BrowseFilters } from "@/components/browse/browseFilters";
 import { DEFAULT_DEPICTION } from "@/lib/depiction";
-import type { Depiction } from "@/types/chemistry";
+import type { Depiction, PubChemCardState } from "@/types/chemistry";
+
+// Stable empty map so the default prop value doesn't change identity across
+// renders (avoids needless work in memoized children).
+const EMPTY_PUBCHEM: ReadonlyMap<string, PubChemCardState> = new Map();
 
 export interface StructureBrowserProps {
   /** The extraction ID to browse. Null/undefined renders idle state. */
@@ -76,6 +79,13 @@ export interface StructureBrowserProps {
   depiction?: Depiction;
   /** Forwarded to BrowseToolbar's ChemDraw/CDK toggle. */
   onDepictionChange?: (depiction: Depiction) => void;
+  /**
+   * PubChem enrichment map keyed by InChIKey, owned by the parent so the
+   * whole extraction is enriched once (also feeds the receipt) instead of the
+   * grid firing its own duplicate per-page lookups. Empty when the user has
+   * not opted in. Missing keys render no PubChem chrome.
+   */
+  pubchem?: ReadonlyMap<string, PubChemCardState>;
 }
 
 /**
@@ -105,6 +115,7 @@ export function StructureBrowser({
   filters,
   depiction = DEFAULT_DEPICTION,
   onDepictionChange,
+  pubchem = EMPTY_PUBCHEM,
 }: StructureBrowserProps) {
   const {
     browseState,
@@ -142,9 +153,6 @@ export function StructureBrowser({
     return filters ? filterSubstances(items, filters) : items;
   }, [page, filters]);
   const activeSubstance = substances[sheetIndex] ?? null;
-  // Batched PubChem enrichment for the visible page. No-op (empty Map) until
-  // the user opts in, so cards render no PubChem chrome by default.
-  const pubchem = usePubChemEnrichment(substances);
   const allSelected = substances.length > 0 && substances.every((s) => selectedIds.has(s.id));
   const totalPages = page?.pages ?? 0;
   const filtersActive = filters ? hasActiveFilters(filters) : false;
