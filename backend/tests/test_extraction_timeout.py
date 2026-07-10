@@ -13,8 +13,7 @@ import time
 import pytest
 
 from app.services import extractor
-from app.services.extractor import _run_jvm_subtask
-from app.services.jvm_bridge import run_in_jvm_thread
+from app.services.jvm_bridge import _run_jvm_subtask, run_in_jvm_thread
 
 pytestmark = pytest.mark.asyncio
 
@@ -72,7 +71,10 @@ async def test_run_jvm_subtask_caps_concurrent_daemons(
     import threading
 
     # Shrink the cap to 1 with a fresh semaphore so the test is deterministic.
-    monkeypatch.setattr(extractor, "_jvm_subtask_slots", threading.BoundedSemaphore(1))
+    # The semaphore lives in jvm_bridge now (shared by every abandonable call).
+    monkeypatch.setattr(
+        "app.services.jvm_bridge._jvm_subtask_slots", threading.BoundedSemaphore(1)
+    )
 
     # Occupy the only slot with a still-running (abandoned) daemon.
     with pytest.raises(TimeoutError, match="exceeded"):

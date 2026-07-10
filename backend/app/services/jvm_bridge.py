@@ -23,6 +23,7 @@ import asyncio
 import contextlib
 import glob
 import logging
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -39,6 +40,21 @@ T = TypeVar("T")
 
 _executor: ThreadPoolExecutor | None = None
 _pool_size: int = 0
+
+# Cap on concurrent in-flight JVM daemon subtasks, INCLUDING ones abandoned
+# after a timeout that are still draining a native call. JPype cannot interrupt
+# a native call, so a flood of pathological inputs would otherwise spawn
+# unbounded daemons (each holding a JVM thread + native memory) and exhaust the
+# process. Once the slots are full, new JVM work is refused (-> 503) instead of
+# growing without bound. Generous vs the small worker pool so normal concurrent
+# work never trips it. See :func:`_run_jvm_subtask`.
+_MAX_INFLIGHT_JVM_SUBTASKS = 16
+_jvm_subtask_slots = threading.BoundedSemaphore(_MAX_INFLIGHT_JVM_SUBTASKS)
+
+# Extra outer-timeout headroom for run_in_jvm_thread_abandonable: the inner
+# daemon's own TimeoutError (which frees the worker) must surface before the
+# outer run_in_jvm_thread guard fires.
+_ABANDON_OUTER_BUFFER = 5.0
 
 
 def initialize_jvm(settings: Settings) -> None:
@@ -210,3 +226,121 @@ async def run_in_jvm_thread(
             fn.__name__ if hasattr(fn, "__name__") else str(fn),
         )
         raise
+
+
+def _run_jvm_subtask(fn: Any, timeout: float, label: str) -> Any:
+    """Run a JVM-bound callable on a daemon thread with a hard timeout.
+
+    Returns ``fn()``'s value, or raises :class:`TimeoutError` if it does not
+    finish within ``timeout`` seconds. Any other exception from ``fn`` is
+    re-raised on the caller's thread.
+
+    On timeout the daemon thread is abandoned: it keeps a JVM thread until the
+    native call returns (or the process exits), but the *calling* JPype pool
+    worker is freed immediately. Without this, a CDK call that hangs on a
+    crafted/pathological graph (SMILES generation, depiction, or substructure
+    matching on a huge symmetric molecule) would pin a pool worker for the full
+    outer timeout and never release it, so a few crafted requests could exhaust
+    the fixed JPype pool and stall the whole API (CWE-400). A daemon thread (not
+    a ThreadPoolExecutor) is used so an abandoned hung call never blocks
+    interpreter shutdown.
+
+    The daemon thread is attached to the JVM (as a JVM *daemon* thread, so an
+    abandoned-on-timeout thread never wedges JVM shutdown) before ``fn`` runs
+    and detached after, so ``fn`` is just its real CDK work -- no attach/detach
+    boilerplate. (Attach is skipped when the JVM isn't started, e.g. pure-Python
+    unit tests.)
+
+    Raises :class:`TimeoutError` (-> 503) immediately when too many JVM
+    subtasks are already in flight (:data:`_MAX_INFLIGHT_JVM_SUBTASKS`),
+    bounding daemon/native-memory growth under a flood of pathological inputs.
+    """
+    # The permit is held until the daemon TRULY finishes (released in the
+    # runner's finally), so an abandoned-but-still-draining call keeps occupying
+    # a slot -- that is what bounds accumulation. Non-blocking: a full pool means
+    # the server is overloaded, so fail fast rather than queue.
+    if not _jvm_subtask_slots.acquire(blocking=False):
+        raise TimeoutError(f"JVM is busy ({label}); too many concurrent operations")
+
+    box: dict[str, object] = {}
+    done = threading.Event()
+
+    def _runner() -> None:
+        try:
+            # Attach as a JVM *daemon* thread. This thread is abandoned on
+            # timeout (it keeps running until its native call returns), so a
+            # non-daemon attachment (jpype.attachThreadToJVM) would make the
+            # JVM's DestroyJavaVM block on -- and crash over -- the still-running
+            # abandoned thread at interpreter shutdown (SIGSEGV). Daemon threads
+            # are reaped cleanly by the JVM at shutdown. Guard the whole block on
+            # isJVMStarted() -- touching ``jpype.java.lang`` without a JVM raises,
+            # so pure-Python unit tests (no JVM) skip attach entirely.
+            if jpype.isJVMStarted():
+                jvm_thread = jpype.java.lang.Thread
+                if not jvm_thread.isAttached():
+                    jvm_thread.attachAsDaemon()
+            box["value"] = fn()
+        except BaseException as exc:  # noqa: BLE001 -- re-raised on caller thread
+            box["error"] = exc
+        finally:
+            if jpype.isJVMStarted():
+                with contextlib.suppress(Exception):
+                    jpype.java.lang.Thread.detach()
+            done.set()
+            _jvm_subtask_slots.release()
+
+    try:
+        threading.Thread(target=_runner, name=label, daemon=True).start()
+    except BaseException:
+        # start() failed after we took the permit and before _runner (which owns
+        # the release) could run -- release here so the slot isn't leaked.
+        _jvm_subtask_slots.release()
+        raise
+    if not done.wait(timeout):
+        raise TimeoutError(f"{label} exceeded {timeout:.0f}s")
+    if "error" in box:
+        raise box["error"]  # type: ignore[misc]
+    return box.get("value")
+
+
+async def run_in_jvm_thread_abandonable(
+    fn: Any,
+    *args: Any,
+    label: str,
+    timeout: float = 30.0,
+    **kwargs: Any,
+) -> Any:
+    """Async JPype wrapper that abandons a hung call instead of pinning a worker.
+
+    Like :func:`run_in_jvm_thread`, but the blocking call runs on an
+    abandonable daemon thread (see :func:`_run_jvm_subtask`): if it exceeds
+    ``timeout`` the pool worker is freed immediately and the still-running
+    native call is bounded by the shared in-flight semaphore. Use this for
+    user-reachable CDK calls whose worst case is an uninterruptible hang on a
+    pathological molecule (substructure matching, depiction, SMILES/InChI
+    generation). Plain :func:`run_in_jvm_thread` -- which holds the worker until
+    the call returns -- is fine for calls with a naturally bounded runtime.
+
+    Args:
+        fn: The blocking callable to execute (typically a JPype/CDK call).
+        *args: Positional arguments passed to ``fn``.
+        timeout: Seconds before the daemon is abandoned and TimeoutError raised.
+        label: Short name for logging and the busy/timeout messages.
+        **kwargs: Keyword arguments passed to ``fn``.
+
+    Returns:
+        The return value of ``fn(*args, **kwargs)``.
+
+    Raises:
+        TimeoutError: If the call exceeds ``timeout`` or the in-flight cap is
+            hit (both map to 503).
+        RuntimeError: If the thread pool is not initialized.
+    """
+
+    def _outer() -> Any:
+        return _run_jvm_subtask(lambda: fn(*args, **kwargs), timeout, label)
+
+    # The pool worker only blocks on the daemon's completion event; the daemon
+    # does the Java work. Give the outer guard headroom so the inner
+    # (worker-freeing) TimeoutError surfaces first.
+    return await run_in_jvm_thread(_outer, timeout=timeout + _ABANDON_OUTER_BUFFER)

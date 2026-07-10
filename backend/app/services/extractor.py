@@ -22,7 +22,6 @@ fragment path and adds a warning to the response.
 import contextlib
 import logging
 import re
-import threading
 from collections import Counter
 
 import jpype
@@ -43,7 +42,11 @@ from app.services.depiction import (
     sanitize_svg,
 )
 from app.services.format_detector import detect_format
-from app.services.jvm_bridge import run_in_jvm_thread
+from app.services.jvm_bridge import (
+    _run_jvm_subtask,
+    run_in_jvm_thread,
+    run_in_jvm_thread_abandonable,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,16 +84,6 @@ _ON_DEMAND_INCHI_TIMEOUT = 90.0
 # inputs (the request model allows up to 50k) that would needlessly tie up a
 # worker. Over this, compute_inchi returns "" (the router maps that to 422).
 _MAX_ON_DEMAND_SMILES_LEN = 10_000
-
-# Cap on concurrent in-flight JVM daemon subtasks, INCLUDING ones abandoned
-# after a timeout that are still draining a native call. JPype cannot interrupt
-# a native call, so a flood of pathological inputs would otherwise spawn
-# unbounded daemons (each holding a JVM thread + native memory) and exhaust the
-# process. Once the slots are full, new JVM work is refused (-> 503) instead of
-# growing without bound. Generous vs the 4-worker pool so normal concurrent
-# extraction never trips it. See :func:`_run_jvm_subtask`.
-_MAX_INFLIGHT_JVM_SUBTASKS = 16
-_jvm_subtask_slots = threading.BoundedSemaphore(_MAX_INFLIGHT_JVM_SUBTASKS)
 
 # Skip InChI recomputation above this many heavy (non-H) atoms. InChI
 # generation blows up super-linearly on large, highly-symmetric molecules: a
@@ -289,14 +282,12 @@ async def compute_inchi(smiles: str) -> tuple[str, str]:
         parser, igf = tools
         return _inchi_from_smiles(smiles, parser, igf)
 
-    # Run the (uninterruptible) InChI call on a daemon via _run_jvm_subtask so
-    # the JPype pool worker is FREED at the timeout instead of being pinned for
-    # the full native computation — a large cage's InChI can take minutes, and
-    # several such requests would otherwise exhaust the pool (CWE-400). The
-    # outer wait_for is a small backstop above the inner daemon timeout.
-    return await run_in_jvm_thread(
-        lambda: _run_jvm_subtask(_compute, _ON_DEMAND_INCHI_TIMEOUT, "compute-inchi"),
-        timeout=_ON_DEMAND_INCHI_TIMEOUT + 10,
+    # Run the (uninterruptible) InChI call on an abandonable daemon so the JPype
+    # pool worker is FREED at the timeout instead of being pinned for the full
+    # native computation — a large cage's InChI can take minutes, and several
+    # such requests would otherwise exhaust the pool (CWE-400).
+    return await run_in_jvm_thread_abandonable(
+        _compute, timeout=_ON_DEMAND_INCHI_TIMEOUT, label="compute-inchi"
     )
 
 
@@ -786,72 +777,6 @@ def _render_with_cdk_layout(container) -> str:
     except Exception as exc:
         logger.warning("CDK layout + render failed: %s", exc)
         return ""
-
-
-def _run_jvm_subtask(fn, timeout: float, label: str):
-    """Run a JVM-bound callable on a daemon thread with a hard timeout.
-
-    Returns ``fn()``'s value, or raises :class:`TimeoutError` if it does not
-    finish within ``timeout`` seconds. Any other exception from ``fn`` is
-    re-raised on the caller's thread.
-
-    On timeout the daemon thread is abandoned: it keeps a JVM thread until the
-    native call returns (or the process exits), but the *calling* JPype pool
-    worker is freed immediately. Without this, a CDK call that hangs on a
-    crafted/pathological graph (SMILES generation or depiction on a huge
-    symmetric molecule) would pin a pool worker for the full outer timeout and
-    never release it, so a few crafted uploads could exhaust the fixed JPype
-    pool and stall the whole API (CWE-400). A daemon thread (not a
-    ThreadPoolExecutor) is used so an abandoned hung call never blocks
-    interpreter shutdown.
-
-    The daemon thread is attached to the JVM (as a JVM *daemon* thread, so an
-    abandoned-on-timeout thread never wedges JVM shutdown) before ``fn`` runs
-    and detached after, so ``fn`` is just its real CDK work — no attach/detach
-    boilerplate. (Attach is skipped when the JVM isn't started, e.g. pure-Python
-    unit tests.)
-
-    Raises :class:`TimeoutError` (-> 503) immediately when too many JVM
-    subtasks are already in flight (:data:`_MAX_INFLIGHT_JVM_SUBTASKS`),
-    bounding daemon/native-memory growth under a flood of pathological inputs.
-    """
-    # The permit is held until the daemon TRULY finishes (released in the
-    # runner's finally), so an abandoned-but-still-draining call keeps occupying
-    # a slot — that is what bounds accumulation. Non-blocking: a full pool means
-    # the server is overloaded, so fail fast rather than queue.
-    if not _jvm_subtask_slots.acquire(blocking=False):
-        raise TimeoutError(f"JVM is busy ({label}); too many concurrent operations")
-
-    box: dict[str, object] = {}
-    done = threading.Event()
-
-    def _runner() -> None:
-        try:
-            # Attach as a JVM *daemon* thread. This thread is abandoned on
-            # timeout (it keeps running until its native call returns), so a
-            # non-daemon attachment (jpype.attachThreadToJVM) would make the
-            # JVM's DestroyJavaVM block on — and crash over — the still-running
-            # abandoned thread at interpreter shutdown (SIGSEGV). Daemon threads
-            # are reaped cleanly by the JVM at shutdown.
-            jvm_thread = jpype.java.lang.Thread
-            if jpype.isJVMStarted() and not jvm_thread.isAttached():
-                jvm_thread.attachAsDaemon()
-            box["value"] = fn()
-        except BaseException as exc:  # noqa: BLE001 — re-raised on caller thread
-            box["error"] = exc
-        finally:
-            if jpype.isJVMStarted():
-                with contextlib.suppress(Exception):
-                    jpype.java.lang.Thread.detach()
-            done.set()
-            _jvm_subtask_slots.release()
-
-    threading.Thread(target=_runner, name=label, daemon=True).start()
-    if not done.wait(timeout):
-        raise TimeoutError(f"{label} exceeded {timeout:.0f}s")
-    if "error" in box:
-        raise box["error"]  # type: ignore[misc]
-    return box.get("value")
 
 
 def _extract_with_fallback_sync(
