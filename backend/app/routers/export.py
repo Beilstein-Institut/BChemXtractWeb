@@ -76,12 +76,22 @@ async def _fetch_substances(payload: ExportRequest, db: AsyncSession) -> list[di
                 Substance.id == ExtractionSubstance.substance_id,
             )
             .where(Substance.id.in_(payload.substance_ids))
-            .distinct()
         )
         if payload.extraction_id is not None:
+            # Scoped to one extraction: the (extraction_id, substance_id)
+            # unique constraint means each substance joins exactly one row, so
+            # we can order by in-file position (matching the extraction_id
+            # branch and the browse view) with no DISTINCT needed.
             stmt = stmt.where(
                 ExtractionSubstance.extraction_id == payload.extraction_id
-            )
+            ).order_by(ExtractionSubstance.position)
+        else:
+            # No extraction scope: a substance may link to several extractions,
+            # so the join can duplicate rows — DISTINCT dedups. No single
+            # position exists across extractions; order by id for a stable
+            # result. (DISTINCT requires the ORDER BY column in the select
+            # list, and Substance.id is; position would not be.)
+            stmt = stmt.distinct().order_by(Substance.id)
         result = await db.execute(stmt)
         substances = result.scalars().all()
     elif payload.extraction_id is not None:
@@ -107,8 +117,9 @@ async def _fetch_substances(payload: ExportRequest, db: AsyncSession) -> list[di
         )
 
     # Element-aware (Hill) ordering to match the browse view's formula sort.
-    # Stable over the position order the extraction_id branch loads in, so
-    # equal-formula ties preserve original order — same as the browse endpoint.
+    # Stable over the deterministic order loaded above (position when scoped to
+    # an extraction, else id), so equal-formula ties keep that order — same as
+    # the browse endpoint.
     if payload.sort == "formula":
         substances = sorted(
             substances, key=lambda s: formula_sort_key(s.molecular_formula or "")
