@@ -1,15 +1,32 @@
-"""Molecular-formula ordering helpers.
+"""Molecular-formula parsing and ordering helpers.
 
-Pure string parsing only — deliberately free of JPype/CDK so the browse
-endpoint can import it without touching the JVM.
+Pure string parsing only — deliberately free of JPype/CDK so any caller (the
+browse endpoint, the extractor's heavy-atom guard) can import it without
+touching the JVM.
 """
 
 import re
 
 # Element token = one uppercase letter + optional lowercase (e.g. C, Cl, Na),
-# followed by an optional count. Matches the parser used elsewhere for formula
-# atom counting. Bounded quantifiers only — no catastrophic backtracking.
+# followed by an optional count. Bounded quantifiers only — no catastrophic
+# backtracking. This is the single molecular-formula parser for the backend.
 _ELEMENT_COUNT_RE = re.compile(r"([A-Z][a-z]?)(\d*)")
+
+
+def element_counts(formula: str) -> dict[str, int]:
+    """Parse a molecular-formula string into ``{element: count}``.
+
+    Charge suffixes and brackets are ignored — only ``Element[count]`` runs
+    contribute; an empty/unparseable formula yields an empty dict. ponytail:
+    flat regex parse, no nested groups or hydrate dots; correct for CDK's flat
+    Hill formulas, revisit if bracketed formulae appear.
+    """
+    counts: dict[str, int] = {}
+    for element, count in _ELEMENT_COUNT_RE.findall(formula or ""):
+        if not element:
+            continue
+        counts[element] = counts.get(element, 0) + (int(count) if count else 1)
+    return counts
 
 
 def formula_sort_key(formula: str) -> tuple[int, int, tuple[tuple[str, int], ...]]:
@@ -23,15 +40,9 @@ def formula_sort_key(formula: str) -> tuple[int, int, tuple[tuple[str, int], ...
     sorts ahead of any carbon-containing one; an empty/unparseable formula
     sorts first of all.
 
-    Charge suffixes and brackets are ignored — only ``Element[count]`` runs
-    contribute. ponytail: flat regex parse, no nested groups or hydrate dots;
-    correct for CDK's flat Hill formulas, revisit if bracketed formulae appear.
+    Parsing is delegated to :func:`element_counts`.
     """
-    counts: dict[str, int] = {}
-    for element, count in _ELEMENT_COUNT_RE.findall(formula or ""):
-        if not element:
-            continue
-        counts[element] = counts.get(element, 0) + (int(count) if count else 1)
+    counts = element_counts(formula)
     carbon = counts.pop("C", 0)
     hydrogen = counts.pop("H", 0)
     others = tuple(sorted(counts.items()))

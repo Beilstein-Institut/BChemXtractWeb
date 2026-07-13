@@ -21,7 +21,6 @@ fragment path and adds a warning to the response.
 
 import contextlib
 import logging
-import re
 from collections import Counter
 
 import jpype
@@ -42,6 +41,7 @@ from app.services.depiction import (
     sanitize_svg,
 )
 from app.services.format_detector import detect_format
+from app.services.formula import element_counts
 from app.services.jvm_bridge import (
     _run_jvm_subtask,
     run_in_jvm_thread,
@@ -97,8 +97,6 @@ _MAX_INCHI_HEAVY_ATOMS = 100
 # very long SMILES (polymers/cages) for the same reason.
 _MAX_INCHI_SMILES_LEN = 1500
 
-_ELEMENT_COUNT_RE = re.compile(r"([A-Z][a-z]?)(\d*)")
-
 
 def _heavy_atom_count(formula: str) -> int:
     """Sum of non-hydrogen atom counts parsed from a molecular formula string.
@@ -107,12 +105,9 @@ def _heavy_atom_count(formula: str) -> int:
     SMILES-length guard). Charge suffixes and brackets are ignored — only
     ``Element[count]`` runs contribute.
     """
-    total = 0
-    for element, count in _ELEMENT_COUNT_RE.findall(formula or ""):
-        if not element or element == "H":
-            continue
-        total += int(count) if count else 1
-    return total
+    return sum(
+        count for element, count in element_counts(formula).items() if element != "H"
+    )
 
 
 # CDK SmilesParser + DepictionGenerator can deadlock on polymer/dendrimer
