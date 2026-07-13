@@ -32,6 +32,7 @@ from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.services.db import get_scoped_db
 from app.services.extractor import extract_substances_with_svg
 from app.services.format_detector import check_extension_mismatch, detect_format
+from app.services.formula import formula_sort_key
 
 # Async single-file extraction reuses the batch worker task and the same
 # job-ownership records (an unguessable task_id bound to the caller's scope) so
@@ -322,21 +323,35 @@ async def get_substances_page(
         or 0
     )
 
-    order_col = (
-        Substance.molecular_formula.asc()
-        if sort == "formula"
-        else ExtractionSubstance.position.asc()
-    )
-
-    result = await db.execute(
+    base = (
         select(Substance)
         .join(ExtractionSubstance, Substance.id == ExtractionSubstance.substance_id)
         .where(ExtractionSubstance.extraction_id == extraction_id)
-        .order_by(order_col)
-        .offset((page - 1) * size)
-        .limit(size)
     )
-    substances = result.scalars().all()
+
+    if sort == "formula":
+        # Element-aware (Hill) ordering can't be expressed as a SQL ORDER BY
+        # over the raw formula string — that gives a lexical sort where
+        # "C41" < "C7". Load the extraction's substances (in a deterministic
+        # position order so equal-formula ties page stably), sort in Python by
+        # the Hill key, then slice the page. An extraction's substance count is
+        # bounded per file, so the full load per request is acceptable.
+        # ponytail: full-load + in-memory sort; add a persisted formula-sort-key
+        # column if a single extraction ever holds enough rows to matter.
+        all_rows = (
+            (await db.execute(base.order_by(ExtractionSubstance.position.asc())))
+            .scalars()
+            .all()
+        )
+        all_rows.sort(key=lambda s: formula_sort_key(s.molecular_formula or ""))
+        substances = all_rows[(page - 1) * size : page * size]
+    else:
+        result = await db.execute(
+            base.order_by(ExtractionSubstance.position.asc())
+            .offset((page - 1) * size)
+            .limit(size)
+        )
+        substances = result.scalars().all()
 
     items = [
         SubstanceResponse(

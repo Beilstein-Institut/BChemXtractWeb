@@ -32,6 +32,7 @@ from app.models.orm import (
 from app.services.db import get_scoped_db
 from app.services.export import generate_export, generate_reactions_export
 from app.services.filenames import build_content_disposition
+from app.services.formula import formula_sort_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -103,6 +104,14 @@ async def _fetch_substances(payload: ExportRequest, db: AsyncSession) -> list[di
         raise HTTPException(
             status_code=400,
             detail="Provide substance_ids or extraction_id",
+        )
+
+    # Element-aware (Hill) ordering to match the browse view's formula sort.
+    # Stable over the position order the extraction_id branch loads in, so
+    # equal-formula ties preserve original order — same as the browse endpoint.
+    if payload.sort == "formula":
+        substances = sorted(
+            substances, key=lambda s: formula_sort_key(s.molecular_formula or "")
         )
 
     if not substances:

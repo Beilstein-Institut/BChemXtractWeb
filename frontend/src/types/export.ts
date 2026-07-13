@@ -44,4 +44,10 @@ export interface ExportRequest {
    * what is displayed. Ignored by the non-image formats.
    */
   depiction?: Depiction;
+  /**
+   * Substance ordering for the exported file. Mirrors the browse toolbar's
+   * sort so a downloaded file matches what the user sees. Backend defaults to
+   * "extraction_order" when omitted. Ignored for reaction (RXN) exports.
+   */
+  sort?: "extraction_order" | "formula";
 }
