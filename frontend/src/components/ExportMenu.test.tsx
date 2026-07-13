@@ -247,7 +247,7 @@ describe("ExportMenu", () => {
     expect(onExport).not.toHaveBeenCalledWith("rxn");
   });
 
-  it("icon variant renders DownloadIcon button without text label", () => {
+  it("icon variant renders the export icon button without text label", () => {
     render(<ExportMenu onExport={vi.fn()} triggerVariant="icon" />);
     expect(screen.getByRole("button", { name: "Export structure" })).toBeInTheDocument();
     // No standalone "Export" text button visible

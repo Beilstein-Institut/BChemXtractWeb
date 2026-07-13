@@ -226,6 +226,36 @@ describe("BrowseToolbar", () => {
     expect(screen.queryByText(/selected/)).toBeNull();
   });
 
+  describe("select-all control", () => {
+    const selectionProps = {
+      ...defaultProps,
+      selectedIds: new Set<number>(),
+      extractionId: 42,
+      pageItemCount: 11,
+      allSelected: false,
+      onToggleSelectAll: vi.fn(),
+    };
+
+    it("renders 'Select all (N)' when an extraction has structures", () => {
+      render(<BrowseToolbar {...selectionProps} />);
+      const checkbox = screen.getByLabelText("Select all structures on this page");
+      expect(checkbox).toBeTruthy();
+      expect(screen.getByText("Select all (11)")).toBeTruthy();
+    });
+
+    it("is hidden when the page has no structures", () => {
+      render(<BrowseToolbar {...selectionProps} pageItemCount={0} />);
+      expect(screen.queryByLabelText("Select all structures on this page")).toBeNull();
+    });
+
+    it("fires onToggleSelectAll when clicked", () => {
+      const onToggleSelectAll = vi.fn();
+      render(<BrowseToolbar {...selectionProps} onToggleSelectAll={onToggleSelectAll} />);
+      fireEvent.click(screen.getByLabelText("Select all structures on this page"));
+      expect(onToggleSelectAll).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("applies opacity and pointer-events-none when disabled", () => {
     const { container } = render(<BrowseToolbar {...defaultProps} disabled={true} />);
     const toolbar = container.firstChild as HTMLElement;

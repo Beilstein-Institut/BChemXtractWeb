@@ -6,31 +6,21 @@
  * Landing layout, top-down:
  *
  *   1. Page header (display title + sub-copy).
- *   2. `SearchFilter` composite (debounced 250 ms query + 3 chips).
- *   3. `BrowseBento` — a compact extraction receipt (filename, dedup, InChI
+ *   2. `BrowseBento` — a compact extraction receipt (filename, dedup, InChI
  *      usability, PubChem matches when enabled, reactions when present).
- *      Describes the whole extraction, not the filtered view. Export lives
- *      in the StructureBrowser toolbar below, so it is not duplicated here.
- *   4. `ExtractionTabs` wrapping `StructureBrowser` (full paginated
+ *      Describes the whole extraction. Export lives in the StructureBrowser
+ *      toolbar below, so it is not duplicated here.
+ *   3. `ExtractionTabs` wrapping `StructureBrowser` (full paginated
  *      grid/table view + Reactions tab).
  *
- * The StructureBrowser below keeps its paginated server-driven contract
- * (`useBrowse` unchanged); the `filters` prop reaches it so the grid
- * honours the same chip + query state on the current page slice
- * (client-side predicate — server pagination is unmodified).
+ * The header search (top bar) covers structure lookup; the browse page has
+ * no in-page search bar.
  */
 import { useMemo, useState } from "react";
 import { FileUpIcon, HistoryIcon } from "lucide-react";
 import { BrowseBento } from "@/components/browse/BrowseBento";
 import { ExtractionTabs } from "@/components/ExtractionTabs";
 import { PageContainer } from "@/components/layout/PageContainer";
-import { SearchFilter } from "@/components/SearchFilter";
-import {
-  EMPTY_FILTERS,
-  hasActiveFilters,
-  type BrowseFilters,
-} from "@/components/browse/browseFilters";
-import { filterSubstances } from "@/components/browse/filterSubstances";
 import { StructureBrowser } from "@/components/StructureBrowser";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -51,7 +41,6 @@ export interface BrowsePageProps {
   liveReactionCount: number;
   onReset: () => void;
   onBackToLatest: () => void;
-  onSearchWithin: () => void;
   onReactionsCountChange: (count: number) => void;
 }
 
@@ -64,12 +53,10 @@ export function BrowsePage({
   liveReactionCount,
   onReset,
   onBackToLatest,
-  onSearchWithin,
   onReactionsCountChange,
 }: BrowsePageProps) {
   const hasExtraction = activeExtractionId !== null && activeResult !== null;
 
-  const [filters, setFilters] = useState<BrowseFilters>({ ...EMPTY_FILTERS });
   // Page-wide 2D layout: CDK (canonical layout) by default, ChemDraw via
   // the toolbar toggle. Drives every structure render on this page plus
   // the depiction sent with image exports. Deliberately NOT persisted —
@@ -132,17 +119,6 @@ export function BrowsePage({
     };
   }, [substancesForEnrichment, pubchemStates, pubchemEnabled, pubchemAvailable]);
 
-  // Receipt is extraction-level, but the SearchFilter above narrows the grid
-  // below — surface a cue so the count never silently contradicts an empty grid.
-  const filtersActive = hasActiveFilters(filters);
-  const filteredCount = useMemo(
-    () =>
-      filtersActive
-        ? filterSubstances(substancesForEnrichment, filters).length
-        : substancesForEnrichment.length,
-    [substancesForEnrichment, filters, filtersActive],
-  );
-
   // Abbreviation count is a server-computed aggregate (persisted, so it also
   // survives reopening a historical extraction — the per-substance maps are
   // not stored). Metal count is a cheap client-side formula scan.
@@ -204,8 +180,6 @@ export function BrowsePage({
             </div>
           )}
 
-          <SearchFilter value={filters} onChange={setFilters} className="mt-6" />
-
           <section className="mt-6">
             <BrowseBento
               filename={activeResult.filename}
@@ -214,8 +188,6 @@ export function BrowsePage({
               extractionTimeMs={activeResult.extraction_time_ms}
               info={activeResult.info}
               structureCount={activeResult.substances.length}
-              filteredCount={filteredCount}
-              filtersActive={filtersActive}
               missingInchi={activeResult.substances
                 .filter((s) => !s.inchi?.trim())
                 .map((s) => s.molecular_formula ?? "")}
@@ -229,6 +201,12 @@ export function BrowsePage({
 
           <div className="mt-10">
             <ExtractionTabs
+              // Scope the tabs (and the on-demand reaction state they hold) to
+              // one extraction. Within an extraction this instance persists, so
+              // switching tabs keeps an already-extracted reaction; changing
+              // extraction remounts, resetting live reaction state so results
+              // from a prior file can't bleed into the new one.
+              key={activeExtractionId}
               // Use the actual substance array length so the tab count and the
               // receipt's headline count share one source and cannot disagree.
               substanceCount={activeResult.substances.length}
@@ -244,9 +222,7 @@ export function BrowsePage({
               <StructureBrowser
                 extractionId={activeExtractionId}
                 onReset={onReset}
-                onSearchWithin={onSearchWithin}
                 reactionsAvailable={liveReactionCount > 0}
-                filters={filters}
                 depiction={depiction}
                 onDepictionChange={setDepiction}
                 pubchem={pubchemStates}

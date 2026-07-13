@@ -136,6 +136,36 @@ describe("useSearchImpl — non-substructure unchanged", () => {
   });
 });
 
+describe("useSearchImpl — external URL sync (Search within / browser nav)", () => {
+  it("adopts scope written to the URL by a searchurlchange event", () => {
+    const { result } = renderHook(() => useSearchImpl());
+    expect(result.current.scope).toBe("global");
+    act(() => {
+      // Mirrors App.handleSearchWithin: it pokes the URL + fires the event
+      // rather than calling a context setter (App lives outside the provider).
+      window.history.replaceState(null, "", "/?q=&scope=extraction:7");
+      window.dispatchEvent(new CustomEvent("searchurlchange"));
+    });
+    expect(result.current.scope).toBe("extraction:7");
+  });
+
+  it("keeps the externally-set scope on the next keystroke so the fetch stays scoped", async () => {
+    const { postSearch } = await import("@/lib/apiClient");
+    const { result } = renderHook(() => useSearchImpl());
+    act(() => {
+      window.history.replaceState(null, "", "/?scope=extraction:7");
+      window.dispatchEvent(new CustomEvent("searchurlchange"));
+    });
+    act(() => result.current.setQuery("benzene"));
+    expect(window.location.search).toContain("scope=extraction%3A7");
+    await waitFor(() =>
+      expect(postSearch).toHaveBeenCalledWith(
+        expect.objectContaining({ query: "benzene", scope: "extraction:7" }),
+      ),
+    );
+  });
+});
+
 describe("useSearchImpl — clear", () => {
   it("clear() resets stereo along with other fields", () => {
     const { result } = renderHook(() => useSearchImpl());

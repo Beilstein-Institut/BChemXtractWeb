@@ -14,7 +14,6 @@ import { useExtract } from "@/hooks/useExtract";
 import { useHistory } from "@/hooks/useHistory";
 import { getExtractionReactions, getHistoryDetail } from "@/lib/apiClient";
 import { navigate, useRoute } from "@/lib/router";
-import { searchInputRef } from "@/lib/searchFocus";
 import { BrowsePage } from "@/pages/BrowsePage";
 import { ExtractPage } from "@/pages/ExtractPage";
 import { HistoryPage } from "@/pages/HistoryPage";
@@ -227,16 +226,6 @@ function App() {
     [handleReloadSuccess, getUploadedFile],
   );
 
-  const handleSearchWithin = useCallback(() => {
-    if (!activeExtractionId) return;
-    const params = new URLSearchParams(window.location.search);
-    params.set("q", "");
-    params.set("scope", `extraction:${activeExtractionId}`);
-    window.history.replaceState(null, "", `?${params.toString()}`);
-    window.dispatchEvent(new CustomEvent("searchurlchange"));
-    searchInputRef.current?.focus();
-  }, [activeExtractionId]);
-
   function renderRoute() {
     if (searchActive) return <SearchResults onViewExtraction={handleViewExtraction} />;
     switch (route) {
@@ -264,7 +253,6 @@ function App() {
             liveReactionCount={liveReactionCount}
             onReset={handleReset}
             onBackToLatest={handleBackToLatest}
-            onSearchWithin={handleSearchWithin}
             onReactionsCountChange={setLiveReactionCount}
           />
         );

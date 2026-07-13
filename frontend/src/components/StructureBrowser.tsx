@@ -51,13 +51,6 @@ export interface StructureBrowserProps {
    */
   onReset?: () => void;
   /**
-   * Callback fired when the BrowseToolbar "Search within" button is clicked.
-   * Forwarded to BrowseToolbar. When undefined, the button is hidden.
-   * Parent (App.tsx) writes `?q=&scope=extraction:{id}` to the URL and
-   * focuses the header SearchInput via `searchInputRef`.
-   */
-  onSearchWithin?: () => void;
-  /**
    * When true, the toolbar's ExportMenu enables the RXN/RDfile entry.
    * True when reactions exist for the active extraction — either freshly
    * extracted in the Reactions tab or hydrated from the cached
@@ -110,7 +103,6 @@ function buildPageNumbers(current: number, total: number): (number | "...")[] {
  */
 export function StructureBrowser({
   extractionId,
-  onSearchWithin,
   reactionsAvailable = false,
   filters,
   depiction = DEFAULT_DEPICTION,
@@ -173,7 +165,9 @@ export function StructureBrowser({
         selectedIds={selectedIds}
         extractionId={extractionId ?? null}
         disabled={browseState === "loading" && page === null}
-        onSearchWithin={onSearchWithin}
+        pageItemCount={substances.length}
+        allSelected={allSelected}
+        onToggleSelectAll={allSelected ? clearSelection : selectAll}
         reactionsAvailable={reactionsAvailable}
         depiction={depiction}
         onDepictionChange={onDepictionChange}

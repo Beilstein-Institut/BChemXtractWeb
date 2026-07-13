@@ -119,52 +119,94 @@ export function useSearchImpl(): UseSearchReturn {
 
   const fetchTimer = useRef<number | null>(null);
   const validateTimer = useRef<number | null>(null);
+  // Set while this hook is writing the URL itself, so the sync listener below
+  // can ignore the SEARCH_URL_EVENT its own writeUrlParams() fires. Without
+  // this the sync would re-read a URL that a same-tick setter left transiently
+  // stale (setters capture prior state via closure and each writes the whole
+  // param set) and clobber correct in-flight state. Plain ref: the event
+  // dispatch is synchronous, so the flag is reliably observed and reset around
+  // the write.
+  const suppressSyncRef = useRef(false);
+  const commitUrl = useCallback((p: SearchParams) => {
+    suppressSyncRef.current = true;
+    writeUrlParams(p);
+    suppressSyncRef.current = false;
+  }, []);
+
+  // Adopt EXTERNAL url changes into hook state. The URL is the single source
+  // of truth for search params, but two writers reach this hook only through
+  // the URL, never through a setter:
+  //   - BrowseToolbar "Search within" (App.handleSearchWithin) sets
+  //     ?scope=extraction:{id}; App renders SearchProvider, so it cannot call
+  //     setScope directly.
+  //   - browser back/forward (popstate).
+  // Without this, scope/query set that way never enter state, and the next
+  // setQuery rewrites the URL from the stale default ("global") — the
+  // "Search within" bug. Self-inflicted writes are skipped via suppressSyncRef.
+  useEffect(() => {
+    const sync = () => {
+      if (suppressSyncRef.current) return;
+      const p = readUrlParams();
+      setQueryState(p.q);
+      setTypeState(p.type);
+      setScopeState(p.scope);
+      setMatchState(p.match);
+      setPageState(p.page);
+      setStereoState(p.stereo);
+    };
+    window.addEventListener("popstate", sync);
+    window.addEventListener(SEARCH_URL_EVENT, sync);
+    return () => {
+      window.removeEventListener("popstate", sync);
+      window.removeEventListener(SEARCH_URL_EVENT, sync);
+    };
+  }, []);
 
   const setQuery = useCallback(
     (q: string) => {
       setQueryState(q);
       setPageState(1);
-      writeUrlParams({ q, type, scope, match, page: 1, stereo });
+      commitUrl({ q, type, scope, match, page: 1, stereo });
     },
-    [type, scope, match, stereo],
+    [type, scope, match, stereo, commitUrl],
   );
   const setType = useCallback(
     (t: SearchType) => {
       setTypeState(t);
       setPageState(1);
-      writeUrlParams({ q: query, type: t, scope, match, page: 1, stereo });
+      commitUrl({ q: query, type: t, scope, match, page: 1, stereo });
     },
-    [query, scope, match, stereo],
+    [query, scope, match, stereo, commitUrl],
   );
   const setScope = useCallback(
     (s: SearchScope) => {
       setScopeState(s);
       setPageState(1);
-      writeUrlParams({ q: query, type, scope: s, match, page: 1, stereo });
+      commitUrl({ q: query, type, scope: s, match, page: 1, stereo });
     },
-    [query, type, match, stereo],
+    [query, type, match, stereo, commitUrl],
   );
   const setMatch = useCallback(
     (m: SearchMatch) => {
       setMatchState(m);
       setPageState(1);
-      writeUrlParams({ q: query, type, scope, match: m, page: 1, stereo });
+      commitUrl({ q: query, type, scope, match: m, page: 1, stereo });
     },
-    [query, type, scope, stereo],
+    [query, type, scope, stereo, commitUrl],
   );
   const setStereo = useCallback(
     (v: boolean) => {
       setStereoState(v);
-      writeUrlParams({ q: query, type, scope, match, page, stereo: v });
+      commitUrl({ q: query, type, scope, match, page, stereo: v });
     },
-    [query, type, scope, match, page],
+    [query, type, scope, match, page, commitUrl],
   );
   const goToPage = useCallback(
     (n: number) => {
       setPageState(n);
-      writeUrlParams({ q: query, type, scope, match, page: n, stereo });
+      commitUrl({ q: query, type, scope, match, page: n, stereo });
     },
-    [query, type, scope, match, stereo],
+    [query, type, scope, match, stereo, commitUrl],
   );
   const clear = useCallback(() => {
     setQueryState("");
@@ -176,8 +218,10 @@ export function useSearchImpl(): UseSearchReturn {
     setResponse(null);
     setSearchState("idle");
     setQueryValidity({ state: "unknown" });
+    suppressSyncRef.current = true;
     window.history.replaceState(null, "", window.location.pathname);
     window.dispatchEvent(new CustomEvent(SEARCH_URL_EVENT));
+    suppressSyncRef.current = false;
   }, []);
 
   // --- Validation effect (substructure only) ---
