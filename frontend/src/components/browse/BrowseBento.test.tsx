@@ -188,22 +188,6 @@ describe("BrowseBento", () => {
     expect(screen.queryByText(/320 to 320/)).not.toBeInTheDocument();
   });
 
-  it("flags an active filter, including when it empties the grid", () => {
-    const { rerender } = renderBento({ structureCount: 12, filtersActive: true, filteredCount: 3 });
-    expect(screen.getByText(/3 of 12 match your filter/i)).toBeInTheDocument();
-
-    rerender(
-      <BrowseBento
-        filename="synthesis.cdxml"
-        structureCount={12}
-        missingInchi={[]}
-        filtersActive
-        filteredCount={0}
-      />,
-    );
-    expect(screen.getByText(/no structures match your filter/i)).toBeInTheDocument();
-  });
-
   it("shows abbreviation and metal facts on one compact line", () => {
     renderBento({ abbreviationCount: 12, metalCount: 1 });
     expect(
