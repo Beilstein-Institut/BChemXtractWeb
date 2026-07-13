@@ -29,7 +29,7 @@ export type QueryValidity =
 const VALIDATE_DEBOUNCE_MS = 150;
 const FETCH_DEBOUNCE_MS = 300;
 const DEFAULT_SIZE = 24;
-const SEARCH_URL_EVENT = "searchurlchange";
+export const SEARCH_URL_EVENT = "searchurlchange";
 
 const VALID_TYPES: readonly SearchType[] = [
   "auto",
@@ -119,33 +119,14 @@ export function useSearchImpl(): UseSearchReturn {
 
   const fetchTimer = useRef<number | null>(null);
   const validateTimer = useRef<number | null>(null);
-  // Set while this hook is writing the URL itself, so the sync listener below
-  // can ignore the SEARCH_URL_EVENT its own writeUrlParams() fires. Without
-  // this the sync would re-read a URL that a same-tick setter left transiently
-  // stale (setters capture prior state via closure and each writes the whole
-  // param set) and clobber correct in-flight state. Plain ref: the event
-  // dispatch is synchronous, so the flag is reliably observed and reset around
-  // the write.
-  const suppressSyncRef = useRef(false);
-  const commitUrl = useCallback((p: SearchParams) => {
-    suppressSyncRef.current = true;
-    writeUrlParams(p);
-    suppressSyncRef.current = false;
-  }, []);
-
-  // Adopt EXTERNAL url changes into hook state. The URL is the single source
-  // of truth for search params, but two writers reach this hook only through
-  // the URL, never through a setter:
-  //   - BrowseToolbar "Search within" (App.handleSearchWithin) sets
-  //     ?scope=extraction:{id}; App renders SearchProvider, so it cannot call
-  //     setScope directly.
-  //   - browser back/forward (popstate).
-  // Without this, scope/query set that way never enter state, and the next
-  // setQuery rewrites the URL from the stale default ("global") — the
-  // "Search within" bug. Self-inflicted writes are skipped via suppressSyncRef.
+  // Adopt browser back/forward into hook state. The URL is the single source
+  // of truth for search params, and this hook lives at the app root (never
+  // unmounts), so on popstate the query/scope can change out from under it —
+  // re-read the URL and mirror it into state. Self-writes go through the
+  // setters below via history.replaceState, which never fires popstate, so
+  // there is no self-trigger to guard against.
   useEffect(() => {
     const sync = () => {
-      if (suppressSyncRef.current) return;
       const p = readUrlParams();
       setQueryState(p.q);
       setTypeState(p.type);
@@ -155,58 +136,54 @@ export function useSearchImpl(): UseSearchReturn {
       setStereoState(p.stereo);
     };
     window.addEventListener("popstate", sync);
-    window.addEventListener(SEARCH_URL_EVENT, sync);
-    return () => {
-      window.removeEventListener("popstate", sync);
-      window.removeEventListener(SEARCH_URL_EVENT, sync);
-    };
+    return () => window.removeEventListener("popstate", sync);
   }, []);
 
   const setQuery = useCallback(
     (q: string) => {
       setQueryState(q);
       setPageState(1);
-      commitUrl({ q, type, scope, match, page: 1, stereo });
+      writeUrlParams({ q, type, scope, match, page: 1, stereo });
     },
-    [type, scope, match, stereo, commitUrl],
+    [type, scope, match, stereo],
   );
   const setType = useCallback(
     (t: SearchType) => {
       setTypeState(t);
       setPageState(1);
-      commitUrl({ q: query, type: t, scope, match, page: 1, stereo });
+      writeUrlParams({ q: query, type: t, scope, match, page: 1, stereo });
     },
-    [query, scope, match, stereo, commitUrl],
+    [query, scope, match, stereo],
   );
   const setScope = useCallback(
     (s: SearchScope) => {
       setScopeState(s);
       setPageState(1);
-      commitUrl({ q: query, type, scope: s, match, page: 1, stereo });
+      writeUrlParams({ q: query, type, scope: s, match, page: 1, stereo });
     },
-    [query, type, match, stereo, commitUrl],
+    [query, type, match, stereo],
   );
   const setMatch = useCallback(
     (m: SearchMatch) => {
       setMatchState(m);
       setPageState(1);
-      commitUrl({ q: query, type, scope, match: m, page: 1, stereo });
+      writeUrlParams({ q: query, type, scope, match: m, page: 1, stereo });
     },
-    [query, type, scope, stereo, commitUrl],
+    [query, type, scope, stereo],
   );
   const setStereo = useCallback(
     (v: boolean) => {
       setStereoState(v);
-      commitUrl({ q: query, type, scope, match, page, stereo: v });
+      writeUrlParams({ q: query, type, scope, match, page, stereo: v });
     },
-    [query, type, scope, match, page, commitUrl],
+    [query, type, scope, match, page],
   );
   const goToPage = useCallback(
     (n: number) => {
       setPageState(n);
-      commitUrl({ q: query, type, scope, match, page: n, stereo });
+      writeUrlParams({ q: query, type, scope, match, page: n, stereo });
     },
-    [query, type, scope, match, stereo, commitUrl],
+    [query, type, scope, match, stereo],
   );
   const clear = useCallback(() => {
     setQueryState("");
@@ -218,10 +195,9 @@ export function useSearchImpl(): UseSearchReturn {
     setResponse(null);
     setSearchState("idle");
     setQueryValidity({ state: "unknown" });
-    suppressSyncRef.current = true;
     window.history.replaceState(null, "", window.location.pathname);
+    // App listens for this to re-evaluate the ?q= → SearchResults routing gate.
     window.dispatchEvent(new CustomEvent(SEARCH_URL_EVENT));
-    suppressSyncRef.current = false;
   }, []);
 
   // --- Validation effect (substructure only) ---

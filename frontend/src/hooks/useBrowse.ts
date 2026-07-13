@@ -36,12 +36,14 @@ const VIEWS: readonly BrowseView[] = ["grid", "table"];
 const SORTS: readonly BrowseSort[] = ["extraction_order", "formula"];
 const DEFAULT_PAGE_SIZE: BrowsePageSize = 12;
 
-// Page size is a session-wide PREFERENCE, so it's mirrored to sessionStorage.
-// The URL query alone can't hold it: nav links are pathname-only
-// (navigate("/browse")), so leaving Browse for History drops ?size=… and
-// coming back would otherwise snap to the default. sessionStorage survives
-// that round-trip for the tab's lifetime. Precedence: explicit URL param
-// (shareable links win) > stored preference > default.
+// Page size is the one durable, session-wide viewing PREFERENCE (items per
+// page), so it's mirrored to sessionStorage. The URL query alone can't hold
+// it: nav links are pathname-only (navigate("/browse")), so leaving Browse for
+// History drops ?size=… and coming back would otherwise snap to the default.
+// sessionStorage survives that round-trip for the tab's lifetime. Precedence:
+// explicit URL param (shareable links win) > stored preference > default.
+// (view and sort are deliberately NOT persisted — they reset on that
+// round-trip; only items-per-page is treated as sticky.)
 const SIZE_STORAGE_KEY = "bchemxtract:browse:size";
 
 function readStoredSize(): BrowsePageSize | null {
@@ -72,17 +74,14 @@ interface UrlParams {
 function readUrlParams(): UrlParams {
   const params = new URLSearchParams(window.location.search);
   const rawPage = parseInt(params.get("page") ?? "1", 10);
-  const sizeParam = params.get("size");
-  const rawSize = parseInt(sizeParam ?? "", 10) as BrowsePageSize;
+  const rawSize = parseInt(params.get("size") ?? "", 10) as BrowsePageSize;
   const rawView = params.get("view") as BrowseView | null;
   const rawSort = params.get("sort") as BrowseSort | null;
 
-  // Explicit valid URL size wins (shareable links); else the stored
-  // session preference; else the default.
-  const size =
-    sizeParam !== null && PAGE_SIZES.includes(rawSize)
-      ? rawSize
-      : (readStoredSize() ?? DEFAULT_PAGE_SIZE);
+  // A valid URL size wins (shareable links); an absent or invalid one falls
+  // back to the stored session preference, then the default. (An absent size
+  // parses to NaN, which already fails the PAGE_SIZES check.)
+  const size = PAGE_SIZES.includes(rawSize) ? rawSize : (readStoredSize() ?? DEFAULT_PAGE_SIZE);
 
   return {
     page: isNaN(rawPage) || rawPage < 1 ? 1 : rawPage,

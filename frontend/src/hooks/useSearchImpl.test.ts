@@ -136,15 +136,15 @@ describe("useSearchImpl — non-substructure unchanged", () => {
   });
 });
 
-describe("useSearchImpl — external URL sync (Search within / browser nav)", () => {
-  it("adopts scope written to the URL by a searchurlchange event", () => {
+describe("useSearchImpl — external URL sync (browser back/forward)", () => {
+  it("adopts scope written to the URL on popstate", () => {
     const { result } = renderHook(() => useSearchImpl());
     expect(result.current.scope).toBe("global");
     act(() => {
-      // Mirrors App.handleSearchWithin: it pokes the URL + fires the event
-      // rather than calling a context setter (App lives outside the provider).
+      // Browser back/forward changes the URL then fires popstate; the hook
+      // re-reads the URL rather than being driven through a setter.
       window.history.replaceState(null, "", "/?q=&scope=extraction:7");
-      window.dispatchEvent(new CustomEvent("searchurlchange"));
+      window.dispatchEvent(new PopStateEvent("popstate"));
     });
     expect(result.current.scope).toBe("extraction:7");
   });
@@ -154,7 +154,7 @@ describe("useSearchImpl — external URL sync (Search within / browser nav)", ()
     const { result } = renderHook(() => useSearchImpl());
     act(() => {
       window.history.replaceState(null, "", "/?scope=extraction:7");
-      window.dispatchEvent(new CustomEvent("searchurlchange"));
+      window.dispatchEvent(new PopStateEvent("popstate"));
     });
     act(() => result.current.setQuery("benzene"));
     expect(window.location.search).toContain("scope=extraction%3A7");
