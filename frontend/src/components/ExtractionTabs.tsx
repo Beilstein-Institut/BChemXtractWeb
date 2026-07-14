@@ -74,7 +74,14 @@ export function ExtractionTabs({
       <TabsContent value="substances" className="mt-8">
         {children}
       </TabsContent>
-      <TabsContent value="reactions">
+      {/*
+        keepMounted: reaction extraction runs on demand and its result lives in
+        ReactionsTab's useReactions state. Without this the panel unmounts on
+        every switch to Structures, discarding an already-extracted reaction and
+        forcing the user to re-extract. Keeping it mounted (hidden) preserves
+        that state — and lets an in-flight extraction finish across tab switches.
+      */}
+      <TabsContent value="reactions" keepMounted>
         <ReactionsTab {...reactionsTabProps} />
       </TabsContent>
     </Tabs>

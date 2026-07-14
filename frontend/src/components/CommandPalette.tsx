@@ -36,7 +36,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   ChevronRightIcon,
   ClockIcon,
-  DownloadIcon,
+  FileOutputIcon,
   FlaskConicalIcon,
   InfoIcon,
   LayoutGridIcon,
@@ -342,11 +342,16 @@ export function CommandPalette({ initiallyOpen = false }: CommandPaletteProps = 
       action: () => setTheme("system"),
     },
     {
+      // Navigates to Browse (where the export controls live) rather than
+      // exporting inline — the palette has no active-extraction context. Kept
+      // as a discoverability entry; description names formats so typing "csv"
+      // or "export" still surfaces it. Mirrors the "Clear history" pattern
+      // below (a labelled action that routes to where the action happens).
       id: "cmd-export-csv",
       value: "action-export-csv",
-      label: "Export CSV",
-      description: "Download the current table as CSV",
-      icon: <DownloadIcon className="size-4" aria-hidden="true" />,
+      label: "Export structures",
+      description: "Go to Browse to export as CSV, SDF, and more",
+      icon: <FileOutputIcon className="size-4" aria-hidden="true" />,
       action: () => navigate("/browse"),
     },
     {

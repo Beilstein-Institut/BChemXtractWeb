@@ -26,7 +26,7 @@ import logging
 
 import jpype
 
-from app.services.jvm_bridge import run_in_jvm_thread
+from app.services.jvm_bridge import run_in_jvm_thread_abandonable
 
 logger = logging.getLogger(__name__)
 
@@ -123,18 +123,26 @@ def _canonicalize_smiles_sync(smiles: str) -> str:
 async def canonicalize_smiles(smiles: str) -> str:
     """Async wrapper: run :func:`_canonicalize_smiles_sync` in the JVM pool.
 
-    Use from FastAPI handlers and services. Returns ``""`` on any failure
-    (skip semantics).
+    Use from FastAPI handlers and services. Returns ``""`` on empty or
+    unparsable input (skip semantics). May raise :class:`TimeoutError` if the
+    JVM call hangs past the timeout or the in-flight subtask budget is full
+    (both map to 503); callers that must never propagate should guard the call
+    (e.g. :mod:`app.services.persistence` uses ``gather(return_exceptions=True)``).
 
     Args:
         smiles: Raw SMILES string (may be empty; may be unparsable).
 
     Returns:
         Canonical SMILES, or ``""`` on empty / unparsable input.
+
+    Raises:
+        TimeoutError: On JVM hang or in-flight budget exhaustion (-> 503).
     """
     if not smiles:
         return ""
-    return await run_in_jvm_thread(_canonicalize_smiles_sync, smiles)
+    return await run_in_jvm_thread_abandonable(
+        _canonicalize_smiles_sync, smiles, label="canonicalize"
+    )
 
 
 def canonicalize_smiles_blocking(smiles: str) -> str:

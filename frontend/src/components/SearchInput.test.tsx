@@ -3,9 +3,6 @@
  *
  * Captures required behaviors: type badge + override, substructure =
  * explicit submit, and the `/` keyboard shortcut.
- * Also verifies that the underlying <input> element is published to
- * `@/lib/searchFocus`'s `searchInputRef.current` on mount so the
- * BrowseToolbar "Search within" can focus without DOM queries.
  *
  * Mocks base-ui primitives used by shadcn wrappers to avoid portal/animation
  * complexity in jsdom (same pattern as BrowseToolbar.test.tsx).
@@ -147,7 +144,6 @@ vi.mock("@base-ui/react/merge-props", () => ({
 // Import AFTER the mocks so the module graph picks them up.
 import { SearchInput } from "@/components/SearchInput";
 import { SearchProvider } from "@/context/SearchContext";
-import { searchInputRef } from "@/lib/searchFocus";
 import { postSearch, postSearchValidate } from "@/lib/apiClient";
 
 /**
@@ -167,21 +163,17 @@ describe("SearchInput", () => {
 
   it("renders placeholder", () => {
     renderWithProvider(<SearchInput />);
-    expect(screen.getAllByPlaceholderText("Search structures…").length).toBeGreaterThan(0);
-  });
-
-  it("publishes its input element to searchInputRef on mount", () => {
-    // Drop any leftover pointer from a prior render (ref is module-scoped).
-    searchInputRef.current = null;
-    renderWithProvider(<SearchInput />);
-    expect(searchInputRef.current).not.toBeNull();
-    expect(searchInputRef.current?.tagName).toBe("INPUT");
+    expect(
+      screen.getAllByPlaceholderText("Search by formula, SMILES, or InChIKey…").length,
+    ).toBeGreaterThan(0);
   });
 
   it("focuses on `/` keydown from body", () => {
     renderWithProvider(<SearchInput />);
     // Desktop input is first; mobile sheet is hidden (md:hidden).
-    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
+    const input = screen.getAllByPlaceholderText(
+      "Search by formula, SMILES, or InChIKey…",
+    )[0] as HTMLInputElement;
     expect(document.activeElement).not.toBe(input);
     fireEvent.keyDown(window, { key: "/" });
     expect(document.activeElement).toBe(input);
@@ -202,7 +194,9 @@ describe("SearchInput", () => {
 
   it("clears + blurs on Escape", () => {
     renderWithProvider(<SearchInput />);
-    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
+    const input = screen.getAllByPlaceholderText(
+      "Search by formula, SMILES, or InChIKey…",
+    )[0] as HTMLInputElement;
     input.focus();
     fireEvent.change(input, { target: { value: "foo" } });
     expect(input.value).toBe("foo");
@@ -212,7 +206,9 @@ describe("SearchInput", () => {
 
   it("shows type badge after ≥ 2 chars are typed (Formula detection)", () => {
     renderWithProvider(<SearchInput />);
-    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
+    const input = screen.getAllByPlaceholderText(
+      "Search by formula, SMILES, or InChIKey…",
+    )[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "C6H6" } });
     expect(screen.getAllByText("Molecular formula").length).toBeGreaterThan(0);
   });
@@ -220,14 +216,18 @@ describe("SearchInput", () => {
   it("does not render an inline Submit button — search fires automatically as the user types", () => {
     renderWithProvider(<SearchInput />);
     expect(screen.queryByRole("button", { name: "Submit search" })).toBeNull();
-    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
+    const input = screen.getAllByPlaceholderText(
+      "Search by formula, SMILES, or InChIKey…",
+    )[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "C" } });
     expect(screen.queryByRole("button", { name: "Submit search" })).toBeNull();
   });
 
   it("detects a 14-char partial InChI key as type 'InChI key'", () => {
     renderWithProvider(<SearchInput />);
-    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
+    const input = screen.getAllByPlaceholderText(
+      "Search by formula, SMILES, or InChIKey…",
+    )[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "JVTAAEKCZFNVCJ" } });
     // The badge's trigger button exposes the detected type via aria-label.
     // This pins the badge specifically — the popover radio list always
@@ -242,7 +242,9 @@ describe("SearchInput", () => {
 
   it("detects a 14-10 partial InChI key as type 'InChI key'", () => {
     renderWithProvider(<SearchInput />);
-    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
+    const input = screen.getAllByPlaceholderText(
+      "Search by formula, SMILES, or InChIKey…",
+    )[0] as HTMLInputElement;
     fireEvent.change(input, {
       target: { value: "JVTAAEKCZFNVCJ-REOHCLBHSA" },
     });
@@ -256,7 +258,9 @@ describe("SearchInput", () => {
   it("pressing Enter inside the input fires a search request", () => {
     const mockPost = vi.mocked(postSearch);
     renderWithProvider(<SearchInput />);
-    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
+    const input = screen.getAllByPlaceholderText(
+      "Search by formula, SMILES, or InChIKey…",
+    )[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "C6H6" } });
     mockPost.mockClear();
     fireEvent.keyDown(input, { key: "Enter" });
@@ -300,7 +304,9 @@ describe("SearchInput — stereo + validity", () => {
     });
     window.history.replaceState(null, "", "/?type=substructure");
     renderWithProvider(<SearchInput />);
-    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
+    const input = screen.getAllByPlaceholderText(
+      "Search by formula, SMILES, or InChIKey…",
+    )[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "c1ccc(((" } });
     // Wait for the 150ms validate debounce + promise resolution.
     await waitFor(
@@ -326,7 +332,9 @@ describe("SearchInput — stereo + validity", () => {
     });
     window.history.replaceState(null, "", "/?type=substructure");
     renderWithProvider(<SearchInput />);
-    const input = screen.getAllByPlaceholderText("Search structures…")[0] as HTMLInputElement;
+    const input = screen.getAllByPlaceholderText(
+      "Search by formula, SMILES, or InChIKey…",
+    )[0] as HTMLInputElement;
     fireEvent.change(input, { target: { value: "[#6]=[#6]" } });
     await waitFor(
       () => {

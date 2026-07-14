@@ -64,6 +64,9 @@ describe("useBrowse hook", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     replaceStateSpy.mockClear();
+    // Page size persists in sessionStorage — clear it so one test's chosen
+    // size can't leak into another's default-size assertions.
+    sessionStorage.clear();
   });
 
   it("returns idle state when no extractionId provided", () => {
@@ -192,6 +195,27 @@ describe("useBrowse hook", () => {
     });
 
     expect(result.current.page).toBeNull();
+  });
+
+  it("persists page size across a remount (session preference survives navigation)", async () => {
+    mockGetSubstancesPage.mockResolvedValue(makeMockPage());
+
+    // First mount: change size to 24 (like the browse toolbar). This is the
+    // only thing that survives — a remount reads sessionStorage, not old state.
+    const first = renderHook(() => useBrowse(42));
+    await waitFor(() => expect(first.result.current.browseState).toBe("success"));
+    act(() => first.result.current.setPageSize(24));
+    expect(first.result.current.pageSize).toBe(24);
+    first.unmount();
+
+    // Remount with the URL query dropped (navigate("/browse") is pathname
+    // only) — the stored preference must restore 24, not snap back to 12.
+    mockGetSubstancesPage.mockClear();
+    const second = renderHook(() => useBrowse(42));
+    expect(second.result.current.pageSize).toBe(24);
+    await waitFor(() =>
+      expect(mockGetSubstancesPage).toHaveBeenCalledWith(42, 1, 24, "extraction_order"),
+    );
   });
 
   it("contains window.history.replaceState call (URL sync)", () => {

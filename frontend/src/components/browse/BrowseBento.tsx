@@ -44,13 +44,6 @@ export interface BrowseBentoProps {
   /** Structures shown (== `substances.length`). */
   structureCount: number;
   /**
-   * Count of structures matching the active SearchFilter above the receipt,
-   * and whether a filter is applied. Lets the receipt flag when the filter has
-   * narrowed or emptied the grid below, instead of contradicting it silently.
-   */
-  filteredCount?: number;
-  filtersActive?: boolean;
-  /**
    * Molecular formula (or "") for each structure with NO real InChI. Length
    * is the missing count; non-empty entries name the gaps in the status.
    */
@@ -233,8 +226,6 @@ export function BrowseBento({
   extractionTimeMs,
   info,
   structureCount,
-  filteredCount,
-  filtersActive,
   missingInchi,
   warnings,
   reactionCount,
@@ -324,21 +315,6 @@ export function BrowseBento({
               )}
             </span>
           </div>
-
-          {filtersActive && filteredCount != null && (
-            <p
-              className={cn(
-                "text-caption",
-                filteredCount === 0
-                  ? "text-amber-700 dark:text-amber-300"
-                  : "text-foreground-muted",
-              )}
-            >
-              {filteredCount === 0
-                ? "No structures match your filter."
-                : `${filteredCount.toLocaleString()} of ${structureCount.toLocaleString()} match your filter.`}
-            </p>
-          )}
 
           <InchiStatus total={structureCount} missing={missingInchi} />
 

@@ -66,7 +66,6 @@ vi.mock("./components/StructureBrowser", () => ({
   StructureBrowser: () => <div>StructureBrowser</div>,
 }));
 vi.mock("./components/browse/BrowseBento", () => ({ BrowseBento: () => <div>BrowseBento</div> }));
-vi.mock("./components/SearchFilter", () => ({ SearchFilter: () => <div>SearchFilter</div> }));
 vi.mock("./components/StructureSheet", () => ({ StructureSheet: () => null }));
 
 vi.mock("sonner", () => ({ Toaster: () => null, toast: { error: vi.fn(), success: vi.fn() } }));

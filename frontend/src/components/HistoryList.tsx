@@ -21,7 +21,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { format, formatDistanceToNow, differenceInDays } from "date-fns";
-import { ClockIcon, DownloadIcon, SearchIcon, Trash2Icon } from "lucide-react";
+import { ClockIcon, FileOutputIcon, SearchIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -393,10 +393,10 @@ function Toolbar({
           disabled={exportDisabled}
           data-slot="history-export-csv"
           aria-label="Export history to CSV"
-          icon={<DownloadIcon />}
+          icon={<FileOutputIcon />}
           className="shrink-0"
         >
-          {/* Icon-only on phones (the icon prop draws the download glyph); the
+          {/* Icon-only on phones (the icon prop draws the export glyph); the
               label returns at sm+ so the search field keeps room. */}
           <span className="hidden sm:inline">Export CSV</span>
         </Button>
