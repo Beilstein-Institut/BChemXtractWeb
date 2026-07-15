@@ -1,7 +1,11 @@
 /**
  * StructureTable — compact table view for extracted substances.
  *
- * Columns: [checkbox] [thumbnail] [formula] [SMILES] [InChI key] [copy]
+ * Columns: [checkbox] [thumbnail] [formula] [SMILES] [InChI key]
+ *
+ * Each string column (formula, SMILES, InChI key) carries its own inline
+ * CopyButton so the copy affordance sits with the value it copies — rather
+ * than one trailing button that ambiguously copied only the SMILES.
  *
  * SVG thumbnails are rendered via Blob URLs (same pattern as StructureCard).
  * Never set innerHTML with backend SVG strings, so a malicious SVG cannot
@@ -73,7 +77,6 @@ export function StructureTable({
             <TableHead>Molecular Formula</TableHead>
             <TableHead className="hidden sm:table-cell">SMILES</TableHead>
             <TableHead className="hidden md:table-cell">InChI Key</TableHead>
-            <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -95,9 +98,6 @@ export function StructureTable({
               </TableCell>
               <TableCell className="hidden md:table-cell">
                 <Skeleton className="h-4 w-32 rounded" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-8 w-8 rounded" />
               </TableCell>
             </TableRow>
           ))}
@@ -123,7 +123,6 @@ export function StructureTable({
           <TableHead>Molecular Formula</TableHead>
           <TableHead className="hidden sm:table-cell">SMILES</TableHead>
           <TableHead className="hidden md:table-cell">InChI Key</TableHead>
-          <TableHead className="w-10" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -210,40 +209,51 @@ function StructureTableRow({
         )}
       </TableCell>
 
-      {/* Molecular formula */}
+      {/* Molecular formula + its own copy button */}
       <TableCell>
-        <span className="text-xs font-semibold">
-          <MolecularFormula value={substance.molecular_formula} />
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="text-xs font-semibold">
+            <MolecularFormula value={substance.molecular_formula} />
+          </span>
+          <CopyButton
+            value={substance.molecular_formula}
+            label="molecular formula"
+            stopPropagation
+            mutedIcon
+          />
+        </div>
       </TableCell>
 
       {/* SMILES — truncated with Tooltip; hidden on phones (full value in detail sheet) */}
       <TableCell className="hidden sm:table-cell">
-        <Tooltip>
-          <TooltipTrigger
-            render={<span className="block max-w-[200px] truncate text-xs text-muted-foreground" />}
-          >
-            {smilesTruncated}
-          </TooltipTrigger>
-          <TooltipContent>{substance.smiles}</TooltipContent>
-        </Tooltip>
+        <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <span className="block max-w-[200px] truncate text-xs text-muted-foreground" />
+              }
+            >
+              {smilesTruncated}
+            </TooltipTrigger>
+            <TooltipContent>{substance.smiles}</TooltipContent>
+          </Tooltip>
+          <CopyButton value={substance.smiles} label="SMILES" stopPropagation mutedIcon />
+        </div>
       </TableCell>
 
       {/* InChI key — truncated to 27 chars, hidden on mobile */}
       <TableCell className="hidden md:table-cell">
-        <Tooltip>
-          <TooltipTrigger
-            render={<span className="block text-xs text-muted-foreground font-mono" />}
-          >
-            {inchiKeyTruncated}
-          </TooltipTrigger>
-          <TooltipContent>{substance.inchi_key}</TooltipContent>
-        </Tooltip>
-      </TableCell>
-
-      {/* Copy SMILES button — stop propagation to prevent row click */}
-      <TableCell onClick={(e) => e.stopPropagation()} className="w-10">
-        <CopyButton value={substance.smiles} label="SMILES" stopPropagation mutedIcon />
+        <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger
+              render={<span className="block text-xs text-muted-foreground font-mono" />}
+            >
+              {inchiKeyTruncated}
+            </TooltipTrigger>
+            <TooltipContent>{substance.inchi_key}</TooltipContent>
+          </Tooltip>
+          <CopyButton value={substance.inchi_key} label="InChIKey" stopPropagation mutedIcon />
+        </div>
       </TableCell>
     </TableRow>
   );

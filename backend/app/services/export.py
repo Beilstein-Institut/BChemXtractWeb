@@ -43,7 +43,7 @@ import cairosvg
 from fastapi import HTTPException
 
 from app.services.filenames import safe_filename
-from app.services.jvm_bridge import run_in_jvm_thread
+from app.services.jvm_bridge import run_in_jvm_thread_abandonable
 
 _logger = logging.getLogger(__name__)
 
@@ -598,7 +598,9 @@ async def generate_export(
     multi_name = _zip_filename(fmt)
 
     if fmt == "sdf":
-        content = await run_in_jvm_thread(_generate_sdf_sync, substances)
+        content = await run_in_jvm_thread_abandonable(
+            _generate_sdf_sync, substances, label="export-sdf"
+        )
         filename = (
             _single_filename(substances[0], "sdf")
             if len(substances) == 1
@@ -646,8 +648,8 @@ async def generate_export(
             if svg_markup:
                 png_bytes = await asyncio.to_thread(_rasterize_svg_sync, svg_markup)
             if not png_bytes:
-                png_bytes = await run_in_jvm_thread(
-                    _generate_png_sync, s.get("smiles", "")
+                png_bytes = await run_in_jvm_thread_abandonable(
+                    _generate_png_sync, s.get("smiles", ""), label="export-png"
                 )
             if png_bytes:
                 png_entries.append((_single_filename(s, "png"), png_bytes))
@@ -658,8 +660,8 @@ async def generate_export(
     if fmt == "v3000":
         v3000_entries: list[tuple[str, bytes]] = []
         for s in substances:
-            mol_bytes = await run_in_jvm_thread(
-                _generate_v3000_sync, s.get("smiles", "")
+            mol_bytes = await run_in_jvm_thread_abandonable(
+                _generate_v3000_sync, s.get("smiles", ""), label="export-v3000"
             )
             if mol_bytes:
                 v3000_entries.append((_single_filename(s, "v3000"), mol_bytes))
@@ -692,7 +694,9 @@ async def generate_reactions_export(
     to ``_generate_rxn_stub`` so clients always get a valid RDfile header.
     """
     if fmt == "rxn":
-        content = await run_in_jvm_thread(_generate_rxn_sync, reactions)
+        content = await run_in_jvm_thread_abandonable(
+            _generate_rxn_sync, reactions, label="export-rxn"
+        )
         if not content:
             # Fallback: zero eligible reactions -> original stub header
             content = _generate_rxn_stub()

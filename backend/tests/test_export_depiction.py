@@ -88,7 +88,11 @@ def _patch_jvm_and_db(substance_list: list[dict]):
 
     @contextlib.asynccontextmanager
     async def _ctx():
-        async def _fake_run_in_jvm_thread(fn, *args, **kwargs):
+        # label/timeout are wrapper-only kwargs -- absorb them so the fallback
+        # never forwards them to the sync generator (which doesn't accept them).
+        async def _fake_run_in_jvm_thread(
+            fn, *args, label=None, timeout=None, **kwargs
+        ):
             if fn.__name__ == "_generate_png_sync":
                 return _MOCK_JVM_PNG
             return fn(*args, **kwargs)
@@ -99,7 +103,7 @@ def _patch_jvm_and_db(substance_list: list[dict]):
                 new=AsyncMock(return_value=substance_list),
             ),
             patch(
-                "app.services.export.run_in_jvm_thread",
+                "app.services.export.run_in_jvm_thread_abandonable",
                 side_effect=_fake_run_in_jvm_thread,
             ),
         ):

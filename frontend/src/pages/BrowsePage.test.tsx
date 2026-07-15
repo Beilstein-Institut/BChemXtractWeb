@@ -3,9 +3,8 @@
  *
  * Covers:
  *   - empty-state render when no extraction is active
- *   - bento grid renders when an extraction is loaded
- *   - SearchFilter chip toggle narrows the visible structures in bento
- *   - filters prop flows into StructureBrowser
+ *   - bento grid + structure browser render when an extraction is loaded
+ *   - page-wide depiction default + toolbar toggle
  */
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { vi } from "vitest";
@@ -13,19 +12,16 @@ import { vi } from "vitest";
 import type { ExtractionResponse, SubstanceResponse } from "@/types/chemistry";
 
 // StructureBrowser talks to useBrowse / apiClient — mock it out so the
-// page-level test stays focused on the bento + SearchFilter wiring.
+// page-level test stays focused on the bento + tabs wiring.
 vi.mock("@/components/StructureBrowser", () => ({
   StructureBrowser: (props: {
     extractionId: number | null | undefined;
-    filters?: { q: string; hasName: boolean; hasSmiles: boolean; hasInchi: boolean };
     depiction?: string;
     onDepictionChange?: (d: "cdx" | "cdk") => void;
   }) => (
     <div
       data-testid="structure-browser"
       data-extraction-id={props.extractionId ?? ""}
-      data-filter-q={props.filters?.q ?? ""}
-      data-filter-has-name={String(props.filters?.hasName ?? false)}
       data-depiction={props.depiction ?? ""}
     >
       {/* Stand-in for the toolbar's ChemDraw/CDK toggle. */}
@@ -107,7 +103,7 @@ describe("BrowsePage", () => {
     expect(screen.queryByTestId("structure-browser")).toBeNull();
   });
 
-  it("renders the bento grid + SearchFilter when an extraction is active", () => {
+  it("renders the bento grid + structure browser when an extraction is active", () => {
     const substances = [
       makeSubstance({ id: 1, molecular_formula: "C6H6", iupac_name: "benzene" }),
       makeSubstance({ id: 2, molecular_formula: "H2O", iupac_name: "water" }),
@@ -122,33 +118,7 @@ describe("BrowsePage", () => {
     );
 
     expect(container.querySelector('[data-slot="browse-bento"]')).not.toBeNull();
-    expect(container.querySelector('[data-slot="browse-search-filter"]')).not.toBeNull();
     expect(screen.getByTestId("structure-browser")).toBeInTheDocument();
-  });
-
-  it("flows chip filters through to StructureBrowser via the filters prop", () => {
-    const substances = [
-      makeSubstance({ id: 1, iupac_name: "benzene" }),
-      makeSubstance({ id: 2, iupac_name: "" }),
-    ];
-    render(
-      <BrowsePage
-        {...makeProps({
-          activeExtractionId: 42,
-          activeResult: makeResponse(substances),
-        })}
-      />,
-    );
-
-    const browser = screen.getByTestId("structure-browser");
-    expect(browser.getAttribute("data-filter-has-name")).toBe("false");
-
-    const chip = screen.getByRole("button", { name: /has iupac name/i });
-    act(() => {
-      fireEvent.click(chip);
-    });
-
-    expect(browser.getAttribute("data-filter-has-name")).toBe("true");
   });
 
   it("defaults the page depiction to CDK (cdk)", () => {

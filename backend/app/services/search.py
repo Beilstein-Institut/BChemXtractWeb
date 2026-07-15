@@ -69,7 +69,7 @@ from app.models.chemistry import (
 from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.services.canonicalize import canonicalize_smiles
 from app.services.depiction import render_substance_svg_with_highlight
-from app.services.jvm_bridge import run_in_jvm_thread
+from app.services.jvm_bridge import run_in_jvm_thread_abandonable
 from app.services.persistence import SURROGATE_INCHI_KEY_RE
 
 logger = logging.getLogger(__name__)
@@ -497,8 +497,8 @@ async def _search_substructure(
 
     id_smi = [(int(s.id), s.smiles or "") for s in candidate_rows]
 
-    hits, skipped = await run_in_jvm_thread(
-        _substructure_sync, raw_query, stereo, id_smi
+    hits, skipped = await run_in_jvm_thread_abandonable(
+        _substructure_sync, raw_query, stereo, id_smi, label="substructure-search"
     )
     hit_ids = {sid for sid, _, _, _, _ in hits}
     atom_map: dict[int, list[int]] = {sid: atoms for sid, atoms, _, _, _ in hits}

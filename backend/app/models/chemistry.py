@@ -235,6 +235,10 @@ class ExportRequest(BaseModel):
         "cdk" so pre-existing API clients keep their current output;
         the web UI sends its active depiction toggle explicitly.
         Ignored by the non-image formats.
+    sort: substance ordering for the exported file. "extraction_order"
+        (default, preserves pre-existing API output) keeps original position
+        order; "formula" applies the same element-aware Hill ordering the
+        browse view uses, so an exported file matches what the user sees.
     """
 
     format: ExportFormatLiteral
@@ -242,6 +246,7 @@ class ExportRequest(BaseModel):
     extraction_id: int | None = None
     reaction_ids: list[int] = Field(default_factory=list, max_length=500)
     depiction: DepictionLiteral = "cdk"
+    sort: Literal["extraction_order", "formula"] = "extraction_order"
 
 
 # ============================================================================

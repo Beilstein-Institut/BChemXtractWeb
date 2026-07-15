@@ -8,9 +8,6 @@
  *    override Popover with radio items
  *  - Mobile (< md): icon-only trigger; tap opens Sheet side="top" with the
  *    full input
- *  - Publishes its underlying <input> element to `@/lib/searchFocus`
- *    (searchInputRef.current) on mount so the BrowseToolbar
- *    "Search within" can focus it without DOM-querying by aria-label.
  *  - SVG rendering of results lives in SearchResults — this file
  *    only drives the useSearch hook
  */
@@ -24,7 +21,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetTrigger, SheetContent, SheetClose } from "@/components/ui/sheet";
 import { useSearch } from "@/context/SearchContext";
-import { searchInputRef } from "@/lib/searchFocus";
 import type { SearchType } from "@/types/search";
 import { cn } from "@/lib/utils";
 import { isRealInchiKey } from "@/lib/inchi";
@@ -48,10 +44,8 @@ function detectHint(raw: string): Exclude<SearchType, "auto"> {
 }
 
 interface RenderInputArgs {
-  /** Pass `true` for the header-inlined input so the shared searchInputRef
-   *  is published on mount. The mobile Sheet copy passes `false` — it does
-   *  NOT need ref sharing since "Search within" always focuses
-   *  the header (not a sheet instance). */
+  /** Pass `true` for the header-inlined input (desktop), `false` for the
+   *  mobile Sheet copy. Drives styling + which describedby id is used. */
   isHeader: boolean;
 }
 
@@ -106,20 +100,10 @@ export function SearchInput({ className }: { className?: string }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [focused, setFocused] = useState(false);
 
-  // Publish the HEADER <input> element to the shared searchInputRef on
-  // mount so the BrowseToolbar "Search within" can focus without DOM
-  // queries. Clean up on unmount. Only the header instance
-  // publishes — the mobile Sheet input is ephemeral and shouldn't be a
-  // focus target across component boundaries.
-  useEffect(() => {
-    const node = headerInputRef.current;
-    searchInputRef.current = node;
-    return () => {
-      if (searchInputRef.current === node) {
-        searchInputRef.current = null;
-      }
-    };
-  }, []);
+  // Name the query types so the box guides the user on WHAT to search by.
+  // Auto-detect covers formula / SMILES / InChIKey; substructure is a manual
+  // type toggle, so it's omitted here to avoid implying you can just type it.
+  const placeholder = "Search by formula, SMILES, or InChIKey…";
 
   // Global `/` shortcut — focus + prevent the character. Focuses whichever
   // input is currently live: mobile sheet input if open, else header input.
@@ -216,7 +200,10 @@ export function SearchInput({ className }: { className?: string }) {
             type="search"
             aria-label="Search structures across all extractions"
             aria-describedby={describedById}
-            placeholder="Search structures…"
+            placeholder={placeholder}
+            // The header pill is width-capped (280px), so the placeholder
+            // truncates. Native title = full text on hover, no tooltip lib.
+            title={placeholder}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -235,7 +222,7 @@ export function SearchInput({ className }: { className?: string }) {
             type="search"
             aria-label="Search structures across all extractions"
             aria-describedby={describedById}
-            placeholder="Search structures…"
+            placeholder={placeholder}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -327,7 +314,7 @@ export function SearchInput({ className }: { className?: string }) {
 
   return (
     <>
-      {/* Desktop header-inlined input (md+) — owns searchInputRef */}
+      {/* Desktop header-inlined input (md+) */}
       <div className="hidden md:flex">{renderInput({ isHeader: true })}</div>
       {/* Mobile: SearchIcon trigger + top Sheet with an independent input */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>

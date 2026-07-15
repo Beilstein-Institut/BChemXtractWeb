@@ -29,7 +29,7 @@ export type QueryValidity =
 const VALIDATE_DEBOUNCE_MS = 150;
 const FETCH_DEBOUNCE_MS = 300;
 const DEFAULT_SIZE = 24;
-const SEARCH_URL_EVENT = "searchurlchange";
+export const SEARCH_URL_EVENT = "searchurlchange";
 
 const VALID_TYPES: readonly SearchType[] = [
   "auto",
@@ -119,6 +119,25 @@ export function useSearchImpl(): UseSearchReturn {
 
   const fetchTimer = useRef<number | null>(null);
   const validateTimer = useRef<number | null>(null);
+  // Adopt browser back/forward into hook state. The URL is the single source
+  // of truth for search params, and this hook lives at the app root (never
+  // unmounts), so on popstate the query/scope can change out from under it —
+  // re-read the URL and mirror it into state. Self-writes go through the
+  // setters below via history.replaceState, which never fires popstate, so
+  // there is no self-trigger to guard against.
+  useEffect(() => {
+    const sync = () => {
+      const p = readUrlParams();
+      setQueryState(p.q);
+      setTypeState(p.type);
+      setScopeState(p.scope);
+      setMatchState(p.match);
+      setPageState(p.page);
+      setStereoState(p.stereo);
+    };
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
 
   const setQuery = useCallback(
     (q: string) => {
@@ -177,6 +196,7 @@ export function useSearchImpl(): UseSearchReturn {
     setSearchState("idle");
     setQueryValidity({ state: "unknown" });
     window.history.replaceState(null, "", window.location.pathname);
+    // App listens for this to re-evaluate the ?q= → SearchResults routing gate.
     window.dispatchEvent(new CustomEvent(SEARCH_URL_EVENT));
   }, []);
 

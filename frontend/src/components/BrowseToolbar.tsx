@@ -6,8 +6,9 @@
  * Mobile: Sort + page size collapse into an "Options" Popover.
  */
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
-import { LayoutGridIcon, ListIcon, SearchIcon, SlidersHorizontalIcon } from "lucide-react";
+import { LayoutGridIcon, ListIcon, SlidersHorizontalIcon } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -43,13 +44,12 @@ export interface BrowseToolbarProps {
   selectedIds: Set<number>;
   /** Current extraction ID — used for Export All. Null when no extraction active. */
   extractionId: number | null;
-  /**
-   * Callback fired when "Search within this extraction" is clicked.
-   * The button is hidden when this is undefined or `extractionId` is null.
-   * Parent writes `?scope=extraction:{id}` to the URL and focuses the
-   * header SearchInput (via `searchInputRef` from `@/lib/searchFocus`).
-   */
-  onSearchWithin?: () => void;
+  /** Number of selectable substances on the current page (label for Select all). */
+  pageItemCount: number;
+  /** True when every substance on the current page is selected. */
+  allSelected: boolean;
+  /** Toggle the whole current page: select all when none/some, else clear. */
+  onToggleSelectAll: () => void;
   /**
    * When true, the ExportMenu enables the RXN/RDfile entry. True when
    * reactions exist for the active extraction. Defaults to false (RXN
@@ -88,7 +88,9 @@ export function BrowseToolbar({
   disabled = false,
   selectedIds,
   extractionId,
-  onSearchWithin,
+  pageItemCount,
+  allSelected,
+  onToggleSelectAll,
   reactionsAvailable = false,
   depiction = DEFAULT_DEPICTION,
   onDepictionChange,
@@ -123,6 +125,7 @@ export function BrowseToolbar({
       format,
       substance_ids: Array.from(selectedIds),
       depiction,
+      sort,
     });
   }
 
@@ -133,6 +136,7 @@ export function BrowseToolbar({
       substance_ids: [],
       extraction_id: extractionId,
       depiction,
+      sort,
     });
   }
 
@@ -171,21 +175,21 @@ export function BrowseToolbar({
         </ToggleGroupItem>
       </ToggleGroup>
 
-      {/* Search within this extraction — immediately right of the view
-          toggle. Hidden when no extraction is active or when the parent did
-          not provide a handler. Focuses the header SearchInput via the shared
-          `searchInputRef` rather than a brittle DOM query. */}
-      {extractionId !== null && onSearchWithin && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-9 gap-1.5"
-          onClick={onSearchWithin}
-          aria-label="Search within this extraction"
-        >
-          <SearchIcon className="size-4 text-muted-foreground" aria-hidden="true" />
-          <span className="hidden sm:inline text-caption">Search within</span>
-        </Button>
+      {/* Select all on the current page — immediately right of the view
+          toggle. Indeterminate when a partial selection exists. Feeds the
+          existing "N selected" badge + Export-selected flow on the right. */}
+      {extractionId !== null && pageItemCount > 0 && (
+        <label className="flex h-9 shrink-0 cursor-pointer items-center gap-2 select-none">
+          <Checkbox
+            checked={allSelected}
+            indeterminate={selectedCount > 0 && !allSelected}
+            onCheckedChange={onToggleSelectAll}
+            aria-label="Select all structures on this page"
+          />
+          <span className="hidden text-caption text-muted-foreground sm:inline">
+            Select all ({pageItemCount})
+          </span>
+        </label>
       )}
 
       {/* Sort dropdown — hidden on mobile, shown in Options popover */}

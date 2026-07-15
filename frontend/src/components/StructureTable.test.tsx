@@ -337,6 +337,38 @@ describe("StructureTable", () => {
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith("C1");
   });
 
+  it("copy button copies the molecular formula", async () => {
+    render(
+      <StructureTable
+        substances={[makeSubstance(1)]}
+        selectedIds={new Set()}
+        onToggleSelect={noop}
+        onSelectAll={noop}
+        allSelected={false}
+        onOpen={noop}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Copy molecular formula to clipboard"));
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith("C1H2");
+  });
+
+  it("copy button copies the InChIKey", async () => {
+    render(
+      <StructureTable
+        substances={[makeSubstance(1)]}
+        selectedIds={new Set()}
+        onToggleSelect={noop}
+        onSelectAll={noop}
+        allSelected={false}
+        onOpen={noop}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Copy InChIKey to clipboard"));
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith("TESTINCHIKEY001-UHFFFAOYSA-N");
+  });
+
   it("omits the checkbox column when no selection handler is given", () => {
     render(
       <StructureTable

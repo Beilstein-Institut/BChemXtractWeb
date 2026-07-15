@@ -32,8 +32,6 @@ import { BrowseToolbar } from "@/components/BrowseToolbar";
 import { StructureCard } from "@/components/StructureCard";
 import { StructureTable } from "@/components/StructureTable";
 import { StructureSheet } from "@/components/StructureSheet";
-import { filterSubstances } from "@/components/browse/filterSubstances";
-import { hasActiveFilters, type BrowseFilters } from "@/components/browse/browseFilters";
 import { DEFAULT_DEPICTION } from "@/lib/depiction";
 import type { Depiction, PubChemCardState } from "@/types/chemistry";
 
@@ -51,27 +49,12 @@ export interface StructureBrowserProps {
    */
   onReset?: () => void;
   /**
-   * Callback fired when the BrowseToolbar "Search within" button is clicked.
-   * Forwarded to BrowseToolbar. When undefined, the button is hidden.
-   * Parent (App.tsx) writes `?q=&scope=extraction:{id}` to the URL and
-   * focuses the header SearchInput via `searchInputRef`.
-   */
-  onSearchWithin?: () => void;
-  /**
    * When true, the toolbar's ExportMenu enables the RXN/RDfile entry.
    * True when reactions exist for the active extraction — either freshly
    * extracted in the Reactions tab or hydrated from the cached
    * reactions path. Defaults to false.
    */
   reactionsAvailable?: boolean;
-  /**
-   * Optional `BrowseFilters` surfaced by the `SearchFilter`
-   * composite. When provided, the current-page substance slice is filtered
-   * client-side using `filterSubstances` so the grid/table views honour
-   * the same chip + query state as the bento landing. Server pagination
-   * itself is unchanged — useBrowse still drives `page` / `size` / `sort`.
-   */
-  filters?: BrowseFilters;
   /**
    * Active 2D layout for all structure renders (cards, table, sheet) and
    * for image exports. Defaults to CDK ("cdk").
@@ -110,9 +93,7 @@ function buildPageNumbers(current: number, total: number): (number | "...")[] {
  */
 export function StructureBrowser({
   extractionId,
-  onSearchWithin,
   reactionsAvailable = false,
-  filters,
   depiction = DEFAULT_DEPICTION,
   onDepictionChange,
   pubchem = EMPTY_PUBCHEM,
@@ -143,19 +124,13 @@ export function StructureBrowser({
     setSheetOpen(true);
   }
 
-  // Narrow the current server page to the browse filters. Server
-  // pagination / sort still drive which slice we see — filters only hide
-  // non-matches within that slice. Pulling `page?.items` inside the useMemo
-  // keeps the dep array stable across renders (outside the memo the fallback
-  // `??` would produce a new array literal every render).
-  const substances = useMemo(() => {
-    const items = page?.items ?? [];
-    return filters ? filterSubstances(items, filters) : items;
-  }, [page, filters]);
+  // Current server page slice. Pulling `page?.items` inside the useMemo keeps
+  // the dep array stable across renders (outside the memo the fallback `??`
+  // would produce a new array literal every render).
+  const substances = useMemo(() => page?.items ?? [], [page]);
   const activeSubstance = substances[sheetIndex] ?? null;
   const allSelected = substances.length > 0 && substances.every((s) => selectedIds.has(s.id));
   const totalPages = page?.pages ?? 0;
-  const filtersActive = filters ? hasActiveFilters(filters) : false;
 
   return (
     <div data-slot="structure-browser">
@@ -173,7 +148,9 @@ export function StructureBrowser({
         selectedIds={selectedIds}
         extractionId={extractionId ?? null}
         disabled={browseState === "loading" && page === null}
-        onSearchWithin={onSearchWithin}
+        pageItemCount={substances.length}
+        allSelected={allSelected}
+        onToggleSelectAll={allSelected ? clearSelection : selectAll}
         reactionsAvailable={reactionsAvailable}
         depiction={depiction}
         onDepictionChange={onDepictionChange}
@@ -211,19 +188,12 @@ export function StructureBrowser({
         />
       )}
 
-      {/* Empty state. When filters are active but the current page
-          happens to contain zero matches, the copy switches from the
-          default "nothing to browse" to a filter-aware prompt so the user
-          understands why the grid is blank. */}
+      {/* Empty state — no structures for this extraction. */}
       {browseState === "success" && substances.length === 0 && (
         <EmptyState
           icon={LayoutGridIcon}
-          title={filtersActive ? "No structures match these filters" : "Nothing to browse yet"}
-          message={
-            filtersActive
-              ? "Remove a filter or broaden your search to see more results."
-              : "Upload a ChemDraw file or open a past extraction from your history to see its structures here."
-          }
+          title="Nothing to browse yet"
+          message="Upload a ChemDraw file or open a past extraction from your history to see its structures here."
           size="large"
         />
       )}

@@ -13,8 +13,8 @@ import { useCsrfToken } from "@/hooks/useCsrfToken";
 import { useExtract } from "@/hooks/useExtract";
 import { useHistory } from "@/hooks/useHistory";
 import { getExtractionReactions, getHistoryDetail } from "@/lib/apiClient";
-import { navigate, useRoute } from "@/lib/router";
-import { searchInputRef } from "@/lib/searchFocus";
+import { navigate, ROUTE_CHANGE_EVENT, useRoute } from "@/lib/router";
+import { SEARCH_URL_EVENT } from "@/hooks/useSearchImpl";
 import { BrowsePage } from "@/pages/BrowsePage";
 import { ExtractPage } from "@/pages/ExtractPage";
 import { HistoryPage } from "@/pages/HistoryPage";
@@ -44,7 +44,7 @@ const BatchViewPage = lazy(() =>
 );
 
 /** Events that can change whether `?q=` is present in the URL. */
-const SEARCH_URL_EVENTS = ["popstate", "searchurlchange", "routechange"] as const;
+const SEARCH_URL_EVENTS = ["popstate", SEARCH_URL_EVENT, ROUTE_CHANGE_EVENT] as const;
 
 function hasSearchQuery(): boolean {
   return new URLSearchParams(window.location.search).has("q");
@@ -227,16 +227,6 @@ function App() {
     [handleReloadSuccess, getUploadedFile],
   );
 
-  const handleSearchWithin = useCallback(() => {
-    if (!activeExtractionId) return;
-    const params = new URLSearchParams(window.location.search);
-    params.set("q", "");
-    params.set("scope", `extraction:${activeExtractionId}`);
-    window.history.replaceState(null, "", `?${params.toString()}`);
-    window.dispatchEvent(new CustomEvent("searchurlchange"));
-    searchInputRef.current?.focus();
-  }, [activeExtractionId]);
-
   function renderRoute() {
     if (searchActive) return <SearchResults onViewExtraction={handleViewExtraction} />;
     switch (route) {
@@ -264,7 +254,6 @@ function App() {
             liveReactionCount={liveReactionCount}
             onReset={handleReset}
             onBackToLatest={handleBackToLatest}
-            onSearchWithin={handleSearchWithin}
             onReactionsCountChange={setLiveReactionCount}
           />
         );

@@ -13,7 +13,7 @@
  * The RXN item is aria-disabled to prevent accidental action.
  */
 import {
-  DownloadIcon,
+  FileOutputIcon,
   FileCode2Icon,
   BracesIcon,
   TableIcon,
@@ -46,7 +46,7 @@ export interface ExportMenuProps {
   /**
    * Trigger button appearance.
    * "label" — text button (used in toolbar and sheet).
-   * "icon" — icon-only DownloadIcon (used on StructureCard).
+   * "icon" — icon-only export glyph (used on StructureCard).
    */
   triggerVariant?: "label" | "icon";
   /** Text shown on the trigger button when triggerVariant="label". */
@@ -134,7 +134,7 @@ export function ExportMenu({
               />
             }
           >
-            <DownloadIcon className="size-4" />
+            <FileOutputIcon className="size-4" />
           </TooltipTrigger>
           <TooltipContent>Export structure</TooltipContent>
         </Tooltip>
@@ -150,7 +150,7 @@ export function ExportMenu({
             />
           }
         >
-          <DownloadIcon className={cn("size-4", compactLabel ? "sm:mr-1.5" : "mr-1.5")} />
+          <FileOutputIcon className={cn("size-4", compactLabel ? "sm:mr-1.5" : "mr-1.5")} />
           <span className={compactLabel ? "hidden sm:inline" : undefined}>{triggerLabel}</span>
         </DropdownMenuTrigger>
       )}

@@ -23,7 +23,7 @@ from app.services.depiction import (
     render_substance_svg,
     render_substance_svg_cdk_layout,
 )
-from app.services.jvm_bridge import run_in_jvm_thread
+from app.services.jvm_bridge import run_in_jvm_thread_abandonable
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,9 @@ async def render_svgs_from_mdlv3000(sub: _SubstanceLike) -> BackfilledSvgs:
         return new_svg, new_svg_cdx
 
     try:
-        new_svg, new_svg_cdx = await run_in_jvm_thread(_do_render)
+        new_svg, new_svg_cdx = await run_in_jvm_thread_abandonable(
+            _do_render, label="svg-backfill"
+        )
     except Exception as exc:  # noqa: BLE001 — contract: never raise
         logger.warning("SVG backfill failed for substance: %s", exc)
         return BackfilledSvgs(svg=sub.svg, svg_cdx=sub.svg_cdx, changed=False)
