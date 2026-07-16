@@ -157,9 +157,9 @@ def test_backfill_populates_canonical_smiles(fresh_alembic_db: str) -> None:
         conn.execute(
             text(
                 "INSERT INTO substances "
-                "(inchi_key, smiles, inchi, extended_smiles, "
+                "(dedup_key, inchi_key, smiles, inchi, extended_smiles, "
                 "molecular_formula, svg, svg_cdx, mdlv3000) VALUES "
-                "(:k, :s, '', '', 'C6H6', '', '', '')"
+                "(:k, :k, :s, '', '', 'C6H6', '', '', '')"
             ),
             {"k": "TESTBENZENEAAA-UHFFFAOYSA-N", "s": "C1=CC=CC=C1"},
         )
@@ -191,9 +191,9 @@ def test_backfill_is_idempotent(fresh_alembic_db: str) -> None:
         conn.execute(
             text(
                 "INSERT INTO substances "
-                "(inchi_key, smiles, inchi, extended_smiles, "
+                "(dedup_key, inchi_key, smiles, inchi, extended_smiles, "
                 "molecular_formula, svg, svg_cdx, mdlv3000) VALUES "
-                "(:k, :s, '', '', 'C6H6', '', '', '')"
+                "(:k, :k, :s, '', '', 'C6H6', '', '', '')"
             ),
             {"k": "TESTBENZENEAAA-UHFFFAOYSA-N", "s": "C1=CC=CC=C1"},
         )
@@ -214,9 +214,9 @@ def test_backfill_leaves_unparsable_as_null(fresh_alembic_db: str) -> None:
         conn.execute(
             text(
                 "INSERT INTO substances "
-                "(inchi_key, smiles, inchi, extended_smiles, "
+                "(dedup_key, inchi_key, smiles, inchi, extended_smiles, "
                 "molecular_formula, svg, svg_cdx, mdlv3000) VALUES "
-                "(:k, :s, '', '', 'X', '', '', '')"
+                "(:k, :k, :s, '', '', 'X', '', '', '')"
             ),
             {
                 "k": "BADSMILESKEYAA-UHFFFAOYSA-N",

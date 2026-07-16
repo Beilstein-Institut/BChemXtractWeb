@@ -20,9 +20,10 @@ async def test_history_detail_returns_svg_cdx(client, db_session):
     await db_session.execute(
         text(
             "INSERT INTO substances "
-            "(id, inchi_key, inchi, smiles, extended_smiles, molecular_formula, "
-            " svg, svg_cdx, mdlv3000, first_seen_at) "
-            "VALUES (9001, 'AAAAAAAAAAAAAA-AAAAAAAAAA-N', 'InChI=1S/Cl/q-1', "
+            "(id, dedup_key, inchi_key, inchi, smiles, extended_smiles, "
+            " molecular_formula, svg, svg_cdx, mdlv3000, first_seen_at) "
+            "VALUES (9001, 'AAAAAAAAAAAAAA-AAAAAAAAAA-N', "
+            "'AAAAAAAAAAAAAA-AAAAAAAAAA-N', 'InChI=1S/Cl/q-1', "
             "'[Cl-]', '', '[Cl]-', '<svg>cdk</svg>', '<svg>cdx</svg>', "
             "'MOLBLOCK', NOW())"
         )

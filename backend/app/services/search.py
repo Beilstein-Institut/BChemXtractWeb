@@ -70,7 +70,6 @@ from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.services.canonicalize import canonicalize_smiles
 from app.services.depiction import render_substance_svg_with_highlight
 from app.services.jvm_bridge import run_in_jvm_thread_abandonable
-from app.services.persistence import SURROGATE_INCHI_KEY_RE
 
 logger = logging.getLogger(__name__)
 
@@ -94,9 +93,9 @@ logger = logging.getLogger(__name__)
 _INCHI_KEY_RE = re.compile(INCHI_KEY_PATTERN)
 _FORMULA_RE = re.compile(r"\A(?:[A-Z][a-z]?\d{0,5}){1,60}\Z")
 
-# Surrogate keys (S-prefixed SMILES hashes) fail _INCHI_KEY_RE but are a stable
-# per-substance identifier; the share/deep-link path resolves one by exact
-# match. The format is owned by persistence (SURROGATE_INCHI_KEY_RE).
+# InChIKey search matches only real InChIKeys — inchi_key is empty for
+# InChI-less substances, which are reached by SMILES/formula (share links to
+# them fall back to a SMILES query on the frontend).
 
 # Polymer-SMILES deadlock ceiling. Same threshold applied inside
 # :func:`canonicalize._canonicalize_smiles_sync` — CDK's ``SmartsPattern``
@@ -230,9 +229,9 @@ async def _search_inchi_key(
     * ``<14>`` — returns every stored key sharing the skeleton (any
       stereo / isotope / protonation).
 
-    A surrogate key (``S…``, minted for InChI-less fragment substances) is
-    matched exactly — it is a SMILES hash, so prefix matching is meaningless.
-    This is what lets a share/deep-link to such a structure resolve.
+    Only real InChIKeys are matched. InChI-less substances store an empty
+    ``inchi_key`` (never a fabricated one), so they are unreachable here — a
+    share/deep-link to such a structure resolves via a SMILES query instead.
 
     Malformed input raises :class:`InvalidInchiKeyError` (422 /
     INVALID_INCHI_KEY). The LIKE branch is safe: the regex restricts
@@ -240,13 +239,6 @@ async def _search_inchi_key(
     (``%``, ``_``) can enter the pattern.
     """
     normalized = q.strip().upper()
-    # Surrogate keys (digits present) fail the real-InChIKey regex but are a
-    # valid stable identifier — match them exactly (bound param, injection-safe).
-    if SURROGATE_INCHI_KEY_RE.match(normalized):
-        stmt = _base_substance_select(scope_eid).where(
-            Substance.inchi_key == normalized
-        )
-        return list((await db.execute(stmt)).scalars().all())
     if not _INCHI_KEY_RE.match(normalized):
         raise InvalidInchiKeyError(
             "InChI key must be 14 letters, optionally followed by "
