@@ -353,28 +353,86 @@ class TestCoerceRoleRecovery:
         assert len(result) == 1
         assert result[0]["inchi_key"] == "X"
 
-    def test_cdk_unavailable_falls_back_to_dropping(self):
-        """cdk=None (no JVM) keeps the legacy drop-the-null behavior."""
+    def test_cdk_unavailable_preserves_count_with_empty_placeholder(self):
+        """cdk=None (no JVM) can't enrich the null, but the count is preserved:
+        the dropped molecule becomes an empty placeholder, not a vanished row."""
         comp = _make_mock_reaction_component(inchiKey="X")
         result = _coerce_role([comp, None], ["a", "b"], None)
-        assert len(result) == 1  # null dropped, nothing recovered
+        assert len(result) == 2  # count preserved (populated + placeholder)
+        assert {c["inchi_key"] for c in result} == {"X", ""}
 
-    def test_unresolvable_fragment_aborts_recovery(self):
-        """If any fragment can't be keyed, don't risk a wrong count."""
+    def test_unresolvable_fragment_preserves_count(self):
+        """If any fragment can't be keyed we can't map it, but we still keep the
+        count: the null becomes an empty placeholder."""
         comp = _make_mock_reaction_component(inchiKey="BENZENE-KEY")
         cdk = _fake_cdk(
             {"c1ccccc1": ("InChI=benzene", "BENZENE-KEY")}
         )  # 2nd frag missing
         result = _coerce_role([None, comp], ["c1ccccc1", "??bad??"], cdk)
-        assert len(result) == 1  # reconciliation failed -> legacy behavior
+        assert len(result) == 2
+        assert {c["inchi_key"] for c in result} == {"BENZENE-KEY", ""}
 
-    def test_count_mismatch_aborts_recovery(self):
-        """Leftover fragments != null slots (e.g. salt) -> leave unchanged."""
-        comp = _make_mock_reaction_component(inchiKey="A-KEY")
-        # One null slot, but two unmatched fragments -> can't reconcile.
-        cdk = _fake_cdk({"a": ("i", "A-KEY"), "b": ("i", "B-KEY"), "c": ("i", "C-KEY")})
-        result = _coerce_role([None, comp], ["a", "b", "c"], cdk)
+    def test_salt_count_mismatch_preserves_count_with_placeholders(self):
+        """A salt writes its ions as separate `.`-fragments, so fragment count
+        exceeds molecule count and clean recovery is impossible. The role's
+        molecule count must still be preserved via empty placeholders — this is
+        the reagent-salt agent case that regressed to '1 agent'."""
+        # 1 populated + 3 nulls (as BChemXtract returns for a 4-agent role where
+        # 3 InChI builds failed), and the SMILES splits into 6 salt fragments.
+        comp = _make_mock_reaction_component(inchiKey="DBU-KEY")
+        cdk = _fake_cdk(
+            {
+                "C1CCC2=NCCCN2CC1": ("i", "DBU-KEY"),
+                "C=CS(=O)(=O)C": ("i", "MVS-KEY"),
+                "BrBr": ("i", "BR2-KEY"),
+                "[K+]": ("i", "K-KEY"),
+                "O=S(=O)([O-])OOS(=O)(=O)[O-]": ("i", "PS-KEY"),
+            }
+        )
+        frags = [
+            "C1CCC2=NCCCN2CC1",
+            "C=CS(=O)(=O)C",
+            "BrBr",
+            "[K+]",
+            "[K+]",
+            "O=S(=O)([O-])OOS(=O)(=O)[O-]",
+        ]
+        result = _coerce_role([comp, None, None, None], frags, cdk)
+        assert len(result) == 4  # molecule count preserved (was 1 before the fix)
+        assert sum(1 for c in result if c["inchi_key"]) == 1  # only the populated one
+        assert sum(1 for c in result if not c["inchi_key"]) == 3  # empty placeholders
+
+    def test_empty_smiles_section_adds_no_placeholders(self):
+        """A degenerate reaction whose SMILES section has NO fragments must not
+        sprout phantom components from null slots — a role can't hold more
+        molecules than its SMILES has fragments. (Regression: '>>' surfaced as
+        '2 reactants · 1 products'.)"""
+        result = _coerce_role([None, None], [], None)
+        assert result == []  # no fragments -> nothing to count, nulls dropped
+
+    def test_recovery_bails_when_populated_key_absent_from_fragments(self):
+        """If a populated component's key isn't among the SMILES fragments the
+        fragment→molecule mapping is unsound: recovery must NOT fabricate
+        components from the unmatched fragments or overshoot the fragment count.
+        It falls back to a budget-capped empty placeholder instead."""
+        comp = _make_mock_reaction_component(inchiKey="AAAA")  # not in fragments
+        cdk = _fake_cdk({"X": ("iX", "XXXX"), "Y": ("iY", "YYYY")})
+        # raw java [comp, None, None] -> null_count 2; only 2 fragments (X, Y).
+        result = _coerce_role([comp, None, None], ["X", "Y"], cdk)
+        assert len(result) == 2  # capped at fragment count, NOT 3
+        # No fabricated chemistry: the extra slot is an empty placeholder.
+        assert {c["inchi_key"] for c in result} == {"AAAA", ""}
+
+    def test_no_smiles_fragments_counts_only_populated(self):
+        """With no reaction-SMILES fragments to corroborate the role (malformed
+        or missing reaction SMILES -> role_frags is None), we can't tell real
+        molecules from spurious null slots, so we count only the populated
+        components. Padding here would risk the phantom-count bug degenerate
+        reactions exhibit."""
+        comp = _make_mock_reaction_component(inchiKey="X")
+        result = _coerce_role([comp, None, None], None, None)
         assert len(result) == 1
+        assert result[0]["inchi_key"] == "X"
 
 
 class TestCoerceReactionRecovery:
@@ -400,3 +458,54 @@ class TestCoerceReactionRecovery:
 
         assert len(result["agents"]) == 2
         assert {c["inchi_key"] for c in result["agents"]} == {"BENZENE-KEY", "THF-KEY"}
+
+    def test_empty_reaction_smiles_yields_no_components(self):
+        """The m30520404 regression: a degenerate reaction with an empty SMILES
+        ('>>') but null-filled Java role lists must coerce to empty roles, not
+        phantom reactants/products. Exercises the real _coerce_reaction wiring
+        (has_null / _cdk_inchi_tools / _reaction_smiles_roles), not just
+        _coerce_role."""
+        mock = _make_mock_reaction(
+            reactionSmiles=">>",
+            reactants=[None, None],
+            products=[None],
+            agents=[],
+        )
+        result = _coerce_reaction(mock)
+        assert result["reactants"] == []
+        assert result["products"] == []
+        assert result["agents"] == []
+
+    def test_salt_agents_preserve_count_end_to_end(self, monkeypatch):
+        """End-to-end through _coerce_reaction: a 4-agent reagent list (1
+        populated + 3 nulls) whose agent SMILES is a 6-fragment salt keeps its
+        count of 4 — the potassium-persulfate case, driven through the full
+        has_null/_reaction_smiles_roles path rather than _coerce_role alone."""
+        monkeypatch.setattr(
+            extractor,
+            "_cdk_inchi_tools",
+            lambda: _fake_cdk(
+                {
+                    "C1CCC2=NCCCN2CC1": ("i", "DBU-KEY"),
+                    "C=CS(=O)(=O)C": ("i", "MVS-KEY"),
+                    "BrBr": ("i", "BR2-KEY"),
+                    "[K+]": ("i", "K-KEY"),
+                    "O=S(=O)([O-])OOS(=O)(=O)[O-]": ("i", "PS-KEY"),
+                }
+            ),
+        )
+        agents_smiles = (
+            "C1CCC2=NCCCN2CC1.C=CS(=O)(=O)C.BrBr.[K+].[K+].O=S(=O)([O-])OOS(=O)(=O)[O-]"
+        )
+        dbu = _make_mock_reaction_component(inchiKey="DBU-KEY")
+        mock = _make_mock_reaction(
+            reactionSmiles=f"CCO>{agents_smiles}>CCO",
+            reactants=[_make_mock_reaction_component(inchiKey="R-KEY")],
+            products=[_make_mock_reaction_component(inchiKey="P-KEY")],
+            agents=[dbu, None, None, None],
+        )
+        result = _coerce_reaction(mock)
+        assert len(result["reactants"]) == 1
+        assert len(result["products"]) == 1
+        assert len(result["agents"]) == 4  # count preserved (was 1 before the fix)
+        assert sum(1 for c in result["agents"] if c["inchi_key"]) == 1
