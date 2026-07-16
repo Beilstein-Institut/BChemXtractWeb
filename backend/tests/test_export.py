@@ -199,22 +199,27 @@ async def test_json_export(client: AsyncClient) -> None:
         assert key in row, f"Missing key {key!r} in JSON export row"
 
 
-async def test_csv_export(client: AsyncClient) -> None:
-    """POST /api/export format=csv returns text/csv with correct header line."""
+async def test_tsv_export(client: AsyncClient) -> None:
+    """POST /api/export format=tsv returns a tab-separated file with the header."""
     async with _patch_jvm_and_db():
         resp = await client.post(
             "/api/export",
-            json={"format": "csv", "substance_ids": [1]},
+            json={"format": "tsv", "substance_ids": [1]},
         )
 
     assert resp.status_code == 200, resp.text
-    assert "text/csv" in resp.headers["content-type"]
+    assert "text/tab-separated-values" in resp.headers["content-type"]
     text = resp.content.decode("utf-8")
     first_line = text.splitlines()[0]
-    assert (
-        first_line
-        == "id,inchi_key,smiles,molecular_formula,inchi,iupac_name,extended_smiles"
-    )
+    assert first_line.split("\t") == [
+        "id",
+        "inchi_key",
+        "smiles",
+        "molecular_formula",
+        "inchi",
+        "iupac_name",
+        "extended_smiles",
+    ]
 
 
 async def test_svg_export_single_returns_svg(client: AsyncClient) -> None:
@@ -376,8 +381,8 @@ def test_neutralize_csv_formula_prefixes_triggers() -> None:
     assert _neutralize_csv_formula("") == ""
 
 
-def test_generate_csv_neutralizes_formula_fields() -> None:
-    from app.services.export import _generate_csv
+def test_generate_tsv_neutralizes_formula_fields() -> None:
+    from app.services.export import _generate_tsv
 
     rows = [
         {
@@ -390,8 +395,34 @@ def test_generate_csv_neutralizes_formula_fields() -> None:
             "extended_smiles": "",
         }
     ]
-    text = _generate_csv(rows).decode("utf-8")
+    text = _generate_tsv(rows).decode("utf-8")
     # The dangerous SMILES cell must be neutralized (leading single quote)
     # and never start a bare formula.
     assert "'=cmd" in text
-    assert ",=cmd" not in text
+    assert "\t=cmd" not in text
+
+
+def test_generate_tsv_keeps_commas_in_extended_smiles_unquoted() -> None:
+    """The reason for TSV: commas in extended SMILES (CXSMILES) must survive
+    verbatim, not be wrapped/split — a comma is not a TSV delimiter."""
+    from app.services.export import _generate_tsv
+
+    cxsmiles = "CC |(1.2,3.4,;5.6,7.8,)|"  # commas in the coordinate block
+    rows = [
+        {
+            "id": 1,
+            "inchi_key": "K",
+            "smiles": "CC",
+            "molecular_formula": "C2H6",
+            "inchi": "",
+            "iupac_name": "",
+            "extended_smiles": cxsmiles,
+        }
+    ]
+    text = _generate_tsv(rows).decode("utf-8")
+    data_line = text.splitlines()[1]
+    # Comma-bearing value is present verbatim and unquoted; tab is the only
+    # delimiter, so the row still splits into exactly the 7 columns.
+    assert cxsmiles in text
+    assert '"' not in data_line
+    assert len(data_line.split("\t")) == 7

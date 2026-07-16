@@ -3,7 +3,7 @@
 All six export formats are implemented here:
   - SDF: CDK SDFWriter (JVM thread required)
   - JSON: pure Python dict serialization
-  - CSV: pure Python csv stdlib
+  - TSV: pure Python csv stdlib, tab-delimited (extended SMILES contain commas)
   - PNG: rasterized from the stored SVG of the requested depiction via
     cairosvg; falls back per structure to CDK DepictionGenerator.toImg()
     when no stored SVG exists (JVM thread required for the fallback only)
@@ -12,7 +12,7 @@ All six export formats are implemented here:
   - RXN: empty RDF stub (reaction data populated separately)
 
 A single unified generate_export() function dispatches to per-format helpers.
-CDK/Java handles SDF, V3000. Python handles JSON, CSV, SVG, PNG.
+CDK/Java handles SDF, V3000. Python handles JSON, TSV, SVG, PNG.
 
 Depiction contract (image formats): exports must match what the UI
 displays. ``depiction="cdk"`` selects the stored ``svg`` column (fresh
@@ -82,7 +82,7 @@ def _single_filename(substance: dict, fmt: str) -> str:
     exts = {
         "sdf": "sdf",
         "json": "json",
-        "csv": "csv",
+        "tsv": "tsv",
         "png": "png",
         "svg": "svg",
         "v3000": "mol",
@@ -489,8 +489,13 @@ def _neutralize_csv_formula(value: str) -> str:
     return value
 
 
-def _generate_csv(substances: list[dict]) -> bytes:
-    """CSV with header row. Pure Python — no JVM thread needed.
+def _generate_tsv(substances: list[dict]) -> bytes:
+    """Tab-separated values with header row. Pure Python — no JVM thread needed.
+
+    Tab-delimited (not comma) because extended SMILES (CXSMILES) routinely
+    contain commas, which break downstream tools that split naively on ``,``;
+    SMILES never contain tabs, so a TSV needs no quoting for them. The stdlib
+    writer still quotes any field that does contain a tab / quote / newline.
 
     Each field is passed through :func:`_neutralize_csv_formula` so a value
     crafted to start with ``= + - @`` cannot execute as a spreadsheet formula
@@ -500,10 +505,12 @@ def _generate_csv(substances: list[dict]) -> bytes:
         substances: List of substance dicts.
 
     Returns:
-        UTF-8 encoded CSV bytes with header line.
+        UTF-8 encoded TSV bytes with header line.
     """
     buf = io.StringIO()
-    writer = csv.DictWriter(buf, fieldnames=CSV_COLUMNS, extrasaction="ignore")
+    writer = csv.DictWriter(
+        buf, fieldnames=CSV_COLUMNS, extrasaction="ignore", delimiter="\t"
+    )
     writer.writeheader()
     for s in substances:
         row = {}
@@ -578,7 +585,7 @@ async def generate_export(
 
     Dispatches to the appropriate format generator. JVM-dependent formats
     (sdf, v3000, and the PNG fallback path) are dispatched via
-    run_in_jvm_thread. Pure Python formats (json, csv, svg, rxn) and the
+    run_in_jvm_thread. Pure Python formats (json, tsv, svg, rxn) and the
     primary PNG rasterization run on a worker thread or directly.
 
     Args:
@@ -615,11 +622,11 @@ async def generate_export(
             multi_name.replace(".zip", ".json"),
         )
 
-    if fmt == "csv":
+    if fmt == "tsv":
         return (
-            _generate_csv(substances),
-            "text/csv",
-            multi_name.replace(".zip", ".csv"),
+            _generate_tsv(substances),
+            "text/tab-separated-values",
+            multi_name.replace(".zip", ".tsv"),
         )
 
     if fmt == "svg":

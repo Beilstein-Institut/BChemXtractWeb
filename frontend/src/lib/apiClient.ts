@@ -432,7 +432,7 @@ export async function getBatchExtractions(batchId: string): Promise<BatchExtract
 /**
  * POST /api/export — trigger chemical format export and download.
  *
- * POSTs JSON payload, receives a file blob (SDF, ZIP, JSON, CSV, etc.),
+ * POSTs JSON payload, receives a file blob (SDF, ZIP, JSON, TSV, etc.),
  * and triggers a browser download via temporary anchor element.
  *
  * The server is the single source of truth for the download filename:
