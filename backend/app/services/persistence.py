@@ -224,7 +224,18 @@ async def save_extraction(
 
     # Step 5: Store raw file bytes (if provided) — best-effort, no-op on empty.
     if file_bytes:
-        await store_extraction_file(db, extraction.id, file_bytes, scope)
+        # Best-effort + isolated: a byte-store failure must never lose the
+        # extraction. The SAVEPOINT keeps a failed file insert from poisoning
+        # the outer transaction, so Steps 1-4 still commit below.
+        try:
+            async with db.begin_nested():
+                await store_extraction_file(db, extraction.id, file_bytes, scope)
+        except Exception:
+            logger.exception(
+                "Storing uploaded file for extraction %s failed; "
+                "extraction persisted without it",
+                extraction.id,
+            )
 
     await db.commit()
     await db.refresh(extraction)
