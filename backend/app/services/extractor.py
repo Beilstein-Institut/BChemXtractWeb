@@ -300,8 +300,9 @@ def _enrich_inchi_from_smiles_sync(substances: list[dict]) -> list[dict]:
     InChI generation blows up on exactly those molecules — it is what made
     xtractUnique time out — and JPype cannot interrupt a running InChI call, so
     the size cap (which never starts the call) is the only reliable guard.
-    Skipped molecules keep an empty InChI (and get a SMILES-hash surrogate key
-    at persistence). Returns a NEW list of dict copies; the input is never
+    Skipped molecules keep an empty InChI and empty InChIKey (persistence
+    assigns them a SMILES-hash dedup_key, never a fabricated inchi_key).
+    Returns a NEW list of dict copies; the input is never
     mutated, so if this call times out and is abandoned, the still-running
     daemon can't race the main thread's returned/persisted result. Run via
     :func:`_run_jvm_subtask` (which owns the JVM attach/detach); when CDK isn't

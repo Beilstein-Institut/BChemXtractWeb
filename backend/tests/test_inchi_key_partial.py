@@ -32,11 +32,11 @@ async def _seed_partial_corpus() -> None:
             await session.execute(
                 text(
                     "INSERT INTO substances "
-                    "(inchi_key, smiles, inchi, extended_smiles, "
+                    "(dedup_key, inchi_key, smiles, inchi, extended_smiles, "
                     " molecular_formula, svg, svg_cdx, mdlv3000, "
                     " canonical_smiles) VALUES "
-                    "(:k, '', '', '', '', '', '', '', '') "
-                    "ON CONFLICT (inchi_key) DO NOTHING"
+                    "(:k, :k, '', '', '', '', '', '', '', '') "
+                    "ON CONFLICT (dedup_key) DO NOTHING"
                 ),
                 {"k": key},
             )

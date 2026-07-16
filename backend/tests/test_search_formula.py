@@ -16,11 +16,11 @@ async def test_formula_match(client_csrf: AsyncClient) -> None:
     async with AsyncSessionLocal() as session:
         await session.execute(
             text(
-                "INSERT INTO substances (inchi_key, smiles, inchi, "
+                "INSERT INTO substances (dedup_key, inchi_key, smiles, inchi, "
                 "extended_smiles, molecular_formula, svg, svg_cdx, "
                 "mdlv3000, canonical_smiles) VALUES "
-                "(:k, 'c1ccccc1', '', '', 'C6H6', '', '', '', 'c1ccccc1') "
-                "ON CONFLICT (inchi_key) DO NOTHING"
+                "(:k, :k, 'c1ccccc1', '', '', 'C6H6', '', '', '', 'c1ccccc1') "
+                "ON CONFLICT (dedup_key) DO NOTHING"
             ),
             {"k": "UHOVQNZJYSORNB-UHFFFAOYSA-N"},
         )

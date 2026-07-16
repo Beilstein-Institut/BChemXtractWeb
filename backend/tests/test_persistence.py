@@ -4,7 +4,7 @@ Run: conda run -n cheminformatics pytest tests/test_persistence.py -x -q
 """
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.models.chemistry import (
     ExtractionResponse,
@@ -15,6 +15,7 @@ from app.models.orm import Extraction, Substance
 from app.services.persistence import (
     delete_extraction_by_id,
     enforce_cap,
+    make_dedup_key,
     save_extraction,
 )
 
@@ -85,16 +86,35 @@ async def test_save_extraction_deduplicates_substances(db_session):
 
 
 @pytest.mark.asyncio
-async def test_save_extraction_skips_empty_inchi_key(db_session):
-    """HIST-03: substance with empty inchi_key is not inserted."""
-    response = _make_response("empty_key.cdx", inchi_keys=[""])
-    extraction = await save_extraction(db_session, response)
+async def test_save_extraction_stores_inchi_less_substance_with_empty_key(db_session):
+    """An InChI-less substance (real InChIKey skipped) is still stored, keyed by
+    a SMILES-derived dedup_key — but its inchi_key stays "" (never fabricated)."""
+    # _make_response gives smiles="C0" and inchi_key="" -> InChI-less path.
+    response = _make_response("no_inchi.cdx", inchi_keys=[""])
+    await save_extraction(db_session, response)
 
-    result = await db_session.execute(
-        select(Substance).where(Substance.inchi_key == "")
-    )
-    rows = result.scalars().all()
-    assert len(rows) == 0, "Empty inchi_key must not create a Substance row"
+    rows = (
+        await db_session.scalars(
+            select(Substance).where(Substance.dedup_key == make_dedup_key("C0"))
+        )
+    ).all()
+    assert len(rows) == 1, "InChI-less substance with a SMILES must be stored"
+    assert rows[0].inchi_key == "", "inchi_key must never carry a fabricated value"
+
+
+@pytest.mark.asyncio
+async def test_save_extraction_skips_substance_with_no_identity(db_session):
+    """A substance with neither an InChIKey nor a SMILES has no identity and is
+    dropped (nothing to deduplicate on)."""
+    response = _make_response("empty.cdx", inchi_keys=[""])
+    response.substances[0].smiles = ""  # no key AND no smiles
+    # save_extraction commits to a session-scoped DB, so count the delta
+    # rather than asserting an absolute (order-independent).
+    before = await db_session.scalar(select(func.count()).select_from(Substance))
+    extraction = await save_extraction(db_session, response)
+    after = await db_session.scalar(select(func.count()).select_from(Substance))
+
+    assert after == before, "A substance with no identity must not be inserted"
     assert extraction.id is not None
 
 
@@ -189,7 +209,7 @@ async def test_reextraction_heals_a_blank_svg_row(db_session):
     Before the fix, ON CONFLICT DO NOTHING kept the blank row and discarded the
     good SVG on every re-upload; the row served a blank image forever.
     """
-    key = _make_key("H")  # surrogate-style stand-in; dedup is by inchi_key
+    key = _make_key("H")  # real key -> dedup_key == inchi_key here
     # 1st upload: render failed -> persisted blank.
     await save_extraction(db_session, _response_with_svg("blank.cdx", key, "", ""))
     assert await _stored_svgs(db_session, key) == ("", "")

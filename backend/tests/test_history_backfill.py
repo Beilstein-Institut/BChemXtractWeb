@@ -22,10 +22,11 @@ async def test_history_detail_backfills_missing_svg_cdx(
     # INSERT matches schema constraints while keeping the fixture minimal.
     await db_session.execute(
         text(
-            "INSERT INTO substances (id, inchi_key, inchi, smiles, "
+            "INSERT INTO substances (id, dedup_key, inchi_key, inchi, smiles, "
             "  extended_smiles, molecular_formula, svg, svg_cdx, mdlv3000, "
             "  first_seen_at) "
-            "VALUES (9100, 'BBBBBBBBBBBBBB-BBBBBBBBBB-N', '', '', '', '', "
+            "VALUES (9100, 'BBBBBBBBBBBBBB-BBBBBBBBBB-N', "
+            "  'BBBBBBBBBBBBBB-BBBBBBBBBB-N', '', '', '', '', "
             "  '<svg>existing-cdk</svg>', '', :molblock, NOW())"
         ),
         {"molblock": simple_v3000_block},
@@ -79,10 +80,11 @@ async def test_history_detail_skips_backfill_when_already_populated(
     )
     await db_session.execute(
         text(
-            "INSERT INTO substances (id, inchi_key, inchi, smiles, "
+            "INSERT INTO substances (id, dedup_key, inchi_key, inchi, smiles, "
             "  extended_smiles, molecular_formula, svg, svg_cdx, mdlv3000, "
             "  first_seen_at) "
-            "VALUES (9101, 'CCCCCCCCCCCCCC-CCCCCCCCCC-N', '', '', '', '', "
+            "VALUES (9101, 'CCCCCCCCCCCCCC-CCCCCCCCCC-N', "
+            "  'CCCCCCCCCCCCCC-CCCCCCCCCC-N', '', '', '', '', "
             "  '<svg>cdk</svg>', '<svg>cdx</svg>', :mb, NOW())"
         ),
         {"mb": simple_v3000_block},

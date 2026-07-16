@@ -23,12 +23,12 @@ async def test_substructure_benzene_in_naphthalene(client_csrf: AsyncClient) -> 
     async with AsyncSessionLocal() as session:
         await session.execute(
             text(
-                "INSERT INTO substances (inchi_key, smiles, inchi, "
+                "INSERT INTO substances (dedup_key, inchi_key, smiles, inchi, "
                 "extended_smiles, molecular_formula, svg, svg_cdx, "
                 "mdlv3000, canonical_smiles) VALUES "
-                "(:k, 'c1ccc2ccccc2c1', '', '', 'C10H8', '', '', '', "
+                "(:k, :k, 'c1ccc2ccccc2c1', '', '', 'C10H8', '', '', '', "
                 "'c1ccc2ccccc2c1') "
-                "ON CONFLICT (inchi_key) DO NOTHING"
+                "ON CONFLICT (dedup_key) DO NOTHING"
             ),
             {"k": "UFWIBTONFRDIAS-UHFFFAOYSA-N"},
         )
@@ -91,12 +91,12 @@ async def test_substructure_match_svg_highlight(client_csrf: AsyncClient) -> Non
     async with AsyncSessionLocal() as session:
         await session.execute(
             text(
-                "INSERT INTO substances (inchi_key, smiles, inchi, "
+                "INSERT INTO substances (dedup_key, inchi_key, smiles, inchi, "
                 "extended_smiles, molecular_formula, svg, svg_cdx, "
                 "mdlv3000, canonical_smiles) VALUES "
-                "(:k, 'c1ccc2ccccc2c1', '', '', 'C10H8', '', '', '', "
+                "(:k, :k, 'c1ccc2ccccc2c1', '', '', 'C10H8', '', '', '', "
                 "'c1ccc2ccccc2c1') "
-                "ON CONFLICT (inchi_key) DO NOTHING"
+                "ON CONFLICT (dedup_key) DO NOTHING"
             ),
             {"k": "UFWIBTONFRDIAS-UHFFFAOYSA-N"},
         )
@@ -144,11 +144,11 @@ async def test_substructure_unparsable_skipped_with_warning(
     async with AsyncSessionLocal() as session:
         await session.execute(
             text(
-                "INSERT INTO substances (inchi_key, smiles, inchi, "
+                "INSERT INTO substances (dedup_key, inchi_key, smiles, inchi, "
                 "extended_smiles, molecular_formula, svg, svg_cdx, "
                 "mdlv3000, canonical_smiles) VALUES "
-                "(:k, 'totally-not-a-smiles-xyz', '', '', 'X', '', '', '', NULL) "
-                "ON CONFLICT (inchi_key) DO NOTHING"
+                "(:k, :k, 'totally-not-a-smiles-xyz', '', '', 'X', '', '', '', NULL) "
+                "ON CONFLICT (dedup_key) DO NOTHING"
             ),
             {"k": "BADSMILESSTUB1-UHFFFAOYSA-N"},
         )
@@ -189,11 +189,11 @@ async def test_attribution_aggregation(client_csrf: AsyncClient) -> None:
         ).scalar_one()
         await session.execute(
             text(
-                "INSERT INTO substances (inchi_key, smiles, inchi, "
+                "INSERT INTO substances (dedup_key, inchi_key, smiles, inchi, "
                 "extended_smiles, molecular_formula, svg, svg_cdx, "
                 "mdlv3000, canonical_smiles) VALUES "
-                "(:k, '', '', '', 'C999', '', '', '', NULL) "
-                "ON CONFLICT (inchi_key) DO NOTHING"
+                "(:k, :k, '', '', '', 'C999', '', '', '', NULL) "
+                "ON CONFLICT (dedup_key) DO NOTHING"
             ),
             {"k": "ATTRIBKEYZZAAA-UHFFFAOYSA-N"},
         )

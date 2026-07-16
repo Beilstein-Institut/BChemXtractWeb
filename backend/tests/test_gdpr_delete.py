@@ -56,6 +56,7 @@ async def _seed_extraction_with_substance(
             smiles=smiles,
             inchi=f"InChI=1S/{smiles}",
             inchi_key=f"X{smiles}YZ",
+            dedup_key=f"X{smiles}YZ",
         )
         db.add(substance)
         await db.flush()
