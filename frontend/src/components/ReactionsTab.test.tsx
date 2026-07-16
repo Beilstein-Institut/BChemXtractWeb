@@ -6,7 +6,8 @@
  * loading a historical extraction.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactionExtractionResponse } from "@/types/chemistry";
 import * as useReactionsModule from "@/hooks/useReactions";
 
@@ -233,6 +234,42 @@ describe("ReactionsTab", () => {
     render(<ReactionsTab file={mkFile()} />);
     fireEvent.click(screen.getByTestId("reaction-card-0"));
     expect(screen.getByTestId("reaction-sheet")).toBeInTheDocument();
+  });
+
+  it("extracts from the stored file for a history entry (no in-memory file)", async () => {
+    const spy = vi
+      .spyOn(await import("@/lib/apiClient"), "postExtractReactionsFromStored")
+      .mockResolvedValue({
+        reactions: [],
+        warnings: [],
+        format: "cdx",
+        filename: "h.cdx",
+        file_size: 1,
+        reaction_count: 0,
+        extraction_time_ms: 0,
+      } as never);
+    render(<ReactionsTab file={null} extractionId={99} />);
+    // CTA is the extract button, NOT the re-upload dead-end.
+    const btn = screen.getByRole("button", { name: /extract reactions from this file/i });
+    await userEvent.click(btn);
+    await waitFor(() => expect(spy).toHaveBeenCalledWith(99, expect.anything()));
+  });
+
+  it("falls back to re-upload when the stored file is gone (409)", async () => {
+    vi.spyOn(await import("@/lib/apiClient"), "postExtractReactionsFromStored").mockRejectedValue(
+      new (await import("@/lib/apiClient")).ApiError("x", { code: "FILE_NOT_STORED" }),
+    );
+    render(<ReactionsTab file={null} extractionId={99} />);
+    await userEvent.click(
+      screen.getByRole("button", { name: /extract reactions from this file/i }),
+    );
+    // Title and button both read "Re-upload to extract reactions" — match all,
+    // consistent with the other re-upload test above.
+    await waitFor(() =>
+      expect(screen.getAllByText(/re-upload to extract reactions/i).length).toBeGreaterThanOrEqual(
+        1,
+      ),
+    );
   });
 
   it("cachedReactions prop bypasses extract-trigger and renders list directly", () => {

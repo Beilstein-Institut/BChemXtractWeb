@@ -213,6 +213,7 @@ export function BrowsePage({
               reactionsTabProps={{
                 file: selectedFile,
                 filename: activeResult.filename,
+                extractionId: activeResult?.extraction_id ?? null,
                 cachedReactions: cachedReactionsData?.reactions ?? null,
                 cachedExtractionTimeMs: cachedReactionsData?.extraction_time_ms,
                 cachedFormat: cachedReactionsData?.format,
