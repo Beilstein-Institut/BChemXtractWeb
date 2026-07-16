@@ -88,15 +88,27 @@ class Extraction(Base):
 
 
 class Substance(Base):
-    """A unique chemical substance, deduplicated by inchi_key.
+    """A unique chemical substance, deduplicated by dedup_key.
 
-    INSERT ON CONFLICT (inchi_key) DO NOTHING — first-seen metadata wins.
+    ``dedup_key`` is the row's stable internal identity: the real InChIKey
+    when the molecule has one, else a SMILES-hash fallback ("S…") for
+    InChI-less substances (oversized molecules, fallback extractor path). It
+    is the UNIQUE / ``INSERT ON CONFLICT (dedup_key) DO NOTHING`` column —
+    first-seen metadata wins.
+
+    ``inchi_key`` holds ONLY a real, standard InChIKey, or "" when the
+    molecule has none — it never carries a fabricated identifier, so the API
+    and exports never report a fake InChIKey. Not unique (many InChI-less
+    rows share ""); indexed for exact/prefix InChIKey search.
     """
 
     __tablename__ = "substances"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    inchi_key: Mapped[str] = mapped_column(String(27), unique=True, nullable=False)
+    dedup_key: Mapped[str] = mapped_column(String(27), unique=True, nullable=False)
+    inchi_key: Mapped[str] = mapped_column(
+        String(27), nullable=False, default="", server_default="", index=True
+    )
     inchi: Mapped[str] = mapped_column(Text, nullable=False, default="")
     smiles: Mapped[str] = mapped_column(Text, nullable=False, default="")
     extended_smiles: Mapped[str] = mapped_column(Text, nullable=False, default="")

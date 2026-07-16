@@ -117,19 +117,18 @@ export function StructureSheet({
   const [inchiLoading, setInchiLoading] = useState(false);
 
   // Effective InChI / InChIKey: prefer the stored values, fall back to a value
-  // computed on demand. The stored InChIKey is only trustworthy when a real
-  // InChI exists — without one it is a SMILES-hash surrogate (prefix "S"), so
-  // we treat both as absent and offer the Generate action instead.
+  // computed on demand. When no InChI was extracted, the stored inchi_key is
+  // empty (never a fabricated value), so we treat both as absent and offer the
+  // Generate action instead.
   const effectiveInchi = substance?.inchi || computedInchi?.inchi || "";
   const effectiveInchiKey = substance?.inchi
     ? substance.inchi_key
     : (computedInchi?.inchi_key ?? "");
 
-  // PubChem is keyed on the REAL InChIKey (stored, or just generated) — never
-  // the surrogate. A surrogate key 422s the lookup and surfaces a misleading
-  // "PubChem unavailable" error; an empty key keeps the hook idle (panel
-  // hidden) until the user generates a real one. So clicking "Generate InChI"
-  // computes the real key, which automatically drives the PubChem lookup.
+  // PubChem is keyed on the REAL InChIKey (stored, or just generated). An
+  // empty key (InChI-less substance) keeps the hook idle (panel hidden) until
+  // the user generates a real one. So clicking "Generate InChI" computes the
+  // real key, which automatically drives the PubChem lookup.
   const pubchem = usePubChemCompound(effectiveInchiKey || undefined);
 
   // Reset zoom and pick initial layout when substance changes. Follow the
@@ -432,8 +431,8 @@ export function StructureSheet({
             <div className="space-y-3 mt-4 px-4 pb-6">
               {substance.smiles && <MetadataRow label="SMILES" value={substance.smiles} />}
               {/* InChI / InChI Key shown only when a REAL InChI exists (stored
-                  or generated on demand). Without it the stored key is a
-                  SMILES-hash surrogate, so we hide both and offer Generate. */}
+                  or generated on demand). Without it there is no stored key
+                  (inchi_key is empty), so we hide both and offer Generate. */}
               {effectiveInchi ? (
                 <>
                   <MetadataRow label="InChI" value={effectiveInchi} />

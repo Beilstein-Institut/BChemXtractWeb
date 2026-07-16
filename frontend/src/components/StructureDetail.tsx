@@ -71,9 +71,9 @@ export function StructureDetail({
   depiction = DEFAULT_DEPICTION,
 }: StructureDetailProps) {
   const svgSrc = useSvgObjectUrl(pickSvg(substance, depiction));
-  // A surrogate key (SMILES hash, fails isRealInchiKey) is not a real
-  // identifier: it 422s the PubChem lookup and misleads anyone who copies it.
-  // One predicate gates both the PubChem query and the InChI/Key rows below.
+  // An InChI-less substance has an empty inchi_key (fails isRealInchiKey): it
+  // can't drive a PubChem lookup (422) and has no key to show. One predicate
+  // gates both the PubChem query and the InChI/Key rows below.
   const hasRealKey = isRealInchiKey(substance.inchi_key);
   const pubchem = usePubChemCompound(hasRealKey ? substance.inchi_key : undefined);
 
@@ -117,7 +117,7 @@ export function StructureDetail({
       <div className="space-y-3 mt-4">
         <MetadataRow label="SMILES" value={substance.smiles} />
         {/* Show InChI / InChI Key only for a real key (mirrors StructureSheet);
-            a surrogate key is hidden so it can't be mistaken for a real one. */}
+            an InChI-less substance has no key, so the rows are hidden. */}
         {hasRealKey && (
           <>
             {substance.inchi && <MetadataRow label="InChI" value={substance.inchi} />}

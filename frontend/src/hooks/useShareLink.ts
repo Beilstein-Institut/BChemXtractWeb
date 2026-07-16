@@ -8,8 +8,7 @@
  * resource any recipient can open:
  *
  *   - real InChIKey (exact, precise lookup) when the structure has a real
- *     InChI; the stored key is otherwise a SMILES-hash surrogate PubChem
- *     can't resolve, so
+ *     InChI; without one the stored inchi_key is empty, so
  *   - fall back to a SMILES structure search.
  *
  * The hook opens the link in a new tab, wraps the clipboard call, flips
@@ -47,8 +46,8 @@ const PUBCHEM_QUERY_BASE = "https://pubchem.ncbi.nlm.nih.gov/#query=";
  */
 export function buildPubChemShareUrl(target: ShareTarget): string | null {
   const { inchiKey, smiles } = target;
-  // Prefer a real InChIKey (exact lookup). A surrogate key (SMILES hash) fails
-  // isRealInchiKey, so fall back to a SMILES structure search.
+  // Prefer a real InChIKey (exact lookup). An InChI-less structure has an empty
+  // key (fails isRealInchiKey), so fall back to a SMILES structure search.
   if (inchiKey && isRealInchiKey(inchiKey)) {
     return `${PUBCHEM_QUERY_BASE}${encodeURIComponent(inchiKey)}`;
   }

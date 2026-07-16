@@ -148,11 +148,11 @@ async def test_global_search_hides_other_session_substances(started_app):
     async with AsyncSessionLocal() as db:
         await db.execute(
             text(
-                "INSERT INTO substances (inchi_key, smiles, inchi, "
+                "INSERT INTO substances (dedup_key, inchi_key, smiles, inchi, "
                 "extended_smiles, molecular_formula, svg, svg_cdx, mdlv3000, "
                 "canonical_smiles) VALUES "
-                "(:k, '', '', '', 'C13ISOLATE', '', '', '', '') "
-                "ON CONFLICT (inchi_key) DO NOTHING"
+                "(:k, :k, '', '', 'C13ISOLATE', '', '', '', '') "
+                "ON CONFLICT (dedup_key) DO NOTHING"
             ),
             {"k": key},
         )

@@ -8,7 +8,6 @@ enforce_cap() also commits internally as a housekeeping step.
 import asyncio
 import hashlib
 import logging
-import re
 
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -32,17 +31,16 @@ logger = logging.getLogger(__name__)
 
 MAX_EXTRACTIONS = 500
 
-# Surrogate InChIKey for fragment-path substances that have no real InChI:
-# "S" + 13 hex + "-" + 10 hex + "-N" (uppercase SHA-256 of the SMILES). Real
-# InChIKeys are letters-only, so a surrogate never collides with one. The
-# builder and the matcher live together so the byte layout is defined once;
-# search.py imports SURROGATE_INCHI_KEY_RE to resolve share/deep-links to such
-# structures.
-SURROGATE_INCHI_KEY_RE = re.compile(r"\AS[0-9A-F]{13}-[0-9A-F]{10}-N\Z")
 
+def make_dedup_key(smiles: str) -> str:
+    """Deterministic dedup identity for a substance that has no real InChIKey.
 
-def make_surrogate_inchi_key(smiles: str) -> str:
-    """Mint a deterministic surrogate InChIKey from a SMILES (see module note)."""
+    Format: "S" + 13 hex + "-" + 10 hex + "-N" (uppercase SHA-256 of the
+    SMILES). Real InChIKeys are letters-only, so this never collides with one.
+    It is stored ONLY in ``substances.dedup_key`` — never in ``inchi_key``,
+    which stays "" when the molecule has no real InChI, so no fabricated
+    InChIKey is ever reported to callers.
+    """
     h = hashlib.sha256(smiles.encode()).hexdigest().upper()
     return f"S{h[:13]}-{h[13:23]}-N"
 
@@ -66,8 +64,8 @@ async def save_extraction(
 
     Steps:
       1. Insert an Extraction row.
-      2. Upsert each Substance via ON CONFLICT (inchi_key) DO NOTHING.
-      3. Fetch IDs for all substances (new + existing) by inchi_key.
+      2. Upsert each Substance via ON CONFLICT (dedup_key) DO NOTHING.
+      3. Fetch IDs for all substances (new + existing) by dedup_key.
       4. Insert ExtractionSubstance join rows.
       5. Commit and refresh.
       6. Enforce 500-record cap.
@@ -107,33 +105,31 @@ async def save_extraction(
     await db.flush()  # get extraction.id without committing
 
     # Step 2: Build substance data.
-    # Substances from the fallback extractor have no InChI/InChIKey.
-    # Generate a synthetic key from SMILES so they can still be stored
-    # and deduplicated. Uses InChIKey format: 14 chars + hyphen + 10 chars
-    # + hyphen + 1 char = 27 chars total. Prefix "S" marks it as
-    # SMILES-derived (real InChIKeys never start with "S").
-    for s in response.substances:
-        if not s.inchi_key and s.smiles:
-            s.inchi_key = make_surrogate_inchi_key(s.smiles)
-
-    valid_substances = [s for s in response.substances if s.inchi_key]
-    if valid_substances:
-        substance_data = [
-            {
-                "inchi_key": s.inchi_key,
-                "inchi": s.inchi,
-                "smiles": s.smiles,
-                "extended_smiles": s.extended_smiles,
-                "molecular_formula": s.molecular_formula,
-                "svg": s.svg,
-                "svg_cdx": s.svg_cdx,
-                "mdlv3000": s.mdlv3000,
-                # placeholder — overwritten by the chunked gather below.
-                "canonical_smiles": None,
-            }
-            for s in valid_substances
-        ]
-
+    # Each row needs a stable dedup identity: the real InChIKey when present,
+    # else a SMILES-hash fallback for InChI-less substances (fallback extractor
+    # path / oversized molecules whose InChI was skipped). ``inchi_key`` itself
+    # stays exactly what extraction produced — "" when there is no real InChI —
+    # so a fabricated identifier is never persisted or reported.
+    # Substances with neither an InChIKey nor a SMILES have no identity and are
+    # dropped.
+    substance_data = [
+        {
+            "dedup_key": s.inchi_key or make_dedup_key(s.smiles),
+            "inchi_key": s.inchi_key,
+            "inchi": s.inchi,
+            "smiles": s.smiles,
+            "extended_smiles": s.extended_smiles,
+            "molecular_formula": s.molecular_formula,
+            "svg": s.svg,
+            "svg_cdx": s.svg_cdx,
+            "mdlv3000": s.mdlv3000,
+            # placeholder — overwritten by the chunked gather below.
+            "canonical_smiles": None,
+        }
+        for s in response.substances
+        if s.inchi_key or s.smiles
+    ]
+    if substance_data:
         # Canonical-SMILES write-through via CHUNKED asyncio.gather.
         # Per-substance canonicalization is I/O-bound on the JVM thread pool
         # (~30 ms each). Sequential awaits would add 30 ms × N seconds of
@@ -159,7 +155,7 @@ async def save_extraction(
                 # Per-item failure — log and leave NULL. Do NOT re-raise.
                 logger.exception(
                     "Canonicalization failed for substance %s; leaving NULL",
-                    (item.get("inchi_key") or "")[:20],
+                    (item.get("dedup_key") or "")[:20],
                 )
                 item["canonical_smiles"] = None
                 continue
@@ -171,15 +167,15 @@ async def save_extraction(
         await db.execute(
             pg_insert(Substance)
             .values(substance_data)
-            .on_conflict_do_nothing(index_elements=["inchi_key"])
+            .on_conflict_do_nothing(index_elements=["dedup_key"])
         )
 
         # Step 3: Fetch IDs for all substances (new + pre-existing), keyed by
-        # inchi_key so we can both build the join rows and heal blank SVGs.
-        inchi_keys = [s.inchi_key for s in valid_substances]
+        # dedup_key so we can both build the join rows and heal blank SVGs.
+        dedup_keys = [item["dedup_key"] for item in substance_data]
         result = await db.execute(
-            select(Substance.id, Substance.inchi_key).where(
-                Substance.inchi_key.in_(inchi_keys)
+            select(Substance.id, Substance.dedup_key).where(
+                Substance.dedup_key.in_(dedup_keys)
             )
         )
         id_by_key = {key: sid for sid, key in result.all()}
@@ -194,12 +190,12 @@ async def save_extraction(
         # only writes columns that are still '' (its CASE/WHERE guard), so this
         # heals blanks without ever clobbering a good existing render, and is a
         # no-op for the common case where the row was stored non-blank.
-        for s in valid_substances:
-            if not (s.svg or s.svg_cdx):
+        for item in substance_data:
+            if not (item["svg"] or item["svg_cdx"]):
                 continue
-            sid = id_by_key.get(s.inchi_key)
+            sid = id_by_key.get(item["dedup_key"])
             if sid is not None:
-                await update_substance_svgs(db, sid, s.svg, s.svg_cdx)
+                await update_substance_svgs(db, sid, item["svg"], item["svg_cdx"])
 
         # Step 4: Insert join rows (ignore duplicates — re-extracting same file)
         # Owner columns mirror the parent Extraction so RLS
