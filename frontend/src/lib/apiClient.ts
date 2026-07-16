@@ -18,6 +18,23 @@ import type {
 import type { CsrfTokenResponse, RestoreRequest, SessionInfoResponse } from "@/types/auth";
 
 /**
+ * Error carrying the backend's stable `code` (e.g. "FILE_NOT_STORED") from
+ * the unified `{ detail, code }` error envelope, alongside the HTTP status.
+ * Still an `Error` — `.message` keeps the same `"<prefix>: <detail>"` format
+ * every existing caller already relies on; `.code`/`.status` are additive.
+ */
+export class ApiError extends Error {
+  code?: string;
+  status?: number;
+  constructor(message: string, opts?: { code?: string; status?: number }) {
+    super(message);
+    this.name = "ApiError";
+    this.code = opts?.code;
+    this.status = opts?.status;
+  }
+}
+
+/**
  * Wrapper around ``fetch`` that centralises the patterns every endpoint
  * in this module needs:
  *
@@ -47,16 +64,6 @@ function isAbortError(err: unknown): err is DOMException {
   return err instanceof DOMException && err.name === "AbortError";
 }
 
-async function extractErrorDetail(response: Response): Promise<string> {
-  try {
-    const body = await response.json();
-    if (typeof body?.detail === "string") return body.detail;
-  } catch {
-    // Response wasn't JSON.
-  }
-  return "no detail returned";
-}
-
 /**
  * Detects the CSRF middleware's 403 + `{code: "CSRF_INVALID"}`
  * sentinel without consuming the original response body. The body is
@@ -71,9 +78,9 @@ async function isCsrfError(response: Response): Promise<boolean> {
   if (response.status !== 403) return false;
   // jsdom + the project's test doubles may stub the Response without a
   // `clone()` method. Fall back to reading the original body in that case
-  // — the only callers downstream are the retry path (cares about status
-  // only) and `extractErrorDetail` (consumes its own body, swallows
-  // already-consumed errors).
+  // — the only downstream callers are the retry path (cares about status
+  // only) and the `!response.ok` branch in `apiFetch` (reads its own clone,
+  // swallows already-consumed errors).
   const probe = typeof response.clone === "function" ? response.clone() : response;
   try {
     const body = await probe.json();
@@ -160,8 +167,21 @@ async function apiFetch(
   }
 
   if (!response.ok) {
-    const detail = await extractErrorDetail(response);
-    throw new Error(`${errorPrefix}: ${detail}`);
+    let detail = `HTTP ${response.status}`;
+    let code: string | undefined;
+    // Read from a clone (falling back to the original for test doubles that
+    // omit `clone()`, matching `isCsrfError` above) so a caller that inspects
+    // the same Response instance twice (e.g. re-running a failed request in
+    // a test) doesn't hit an already-consumed body.
+    const probe = typeof response.clone === "function" ? response.clone() : response;
+    try {
+      const body = await probe.json();
+      if (typeof body?.detail === "string") detail = body.detail;
+      if (typeof body?.code === "string") code = body.code;
+    } catch {
+      // Response wasn't JSON — keep the status-derived detail.
+    }
+    throw new ApiError(`${errorPrefix}: ${detail}`, { code, status: response.status });
   }
   return response;
 }
@@ -432,7 +452,7 @@ export async function getBatchExtractions(batchId: string): Promise<BatchExtract
 /**
  * POST /api/export — trigger chemical format export and download.
  *
- * POSTs JSON payload, receives a file blob (SDF, ZIP, JSON, CSV, etc.),
+ * POSTs JSON payload, receives a file blob (SDF, ZIP, JSON, TSV, etc.),
  * and triggers a browser download via temporary anchor element.
  *
  * The server is the single source of truth for the download filename:
@@ -549,6 +569,28 @@ export async function getExtractionReactions(
   return parseJsonEnvelope<ReactionExtractionResponse>(
     response,
     "Loading cached reactions failed",
+    (b) => Array.isArray((b as { reactions?: unknown }).reactions),
+  );
+}
+
+/**
+ * POST /api/extractions/{id}/reactions — extract reactions from the file the
+ * server stored for a prior extraction (no re-upload). Throws {@link ApiError}
+ * with `code === "FILE_NOT_STORED"` (409) when there is no stored file.
+ */
+export async function postExtractReactionsFromStored(
+  extractionId: number,
+  signal?: AbortSignal,
+): Promise<ReactionExtractionResponse> {
+  const response = await apiFetch(`/api/extractions/${extractionId}/reactions`, {
+    method: "POST",
+    signal,
+    connectionError: "Reaction server unreachable. Check your network and retry.",
+    errorPrefix: "Reaction extraction failed",
+  });
+  return parseJsonEnvelope<ReactionExtractionResponse>(
+    response,
+    "Reaction extraction failed",
     (b) => Array.isArray((b as { reactions?: unknown }).reactions),
   );
 }

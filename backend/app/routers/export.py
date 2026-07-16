@@ -141,7 +141,7 @@ async def _fetch_substances(payload: ExportRequest, db: AsyncSession) -> list[di
             # image formats when payload.depiction == "cdx".
             "svg_cdx": s.svg_cdx,
             "mdlv3000": s.mdlv3000,
-            # iupac_name is not stored on Substance; JSON/CSV get empty.
+            # iupac_name is not stored on Substance; JSON/TSV get empty.
             "iupac_name": "",
         }
         for s in substances
@@ -258,7 +258,7 @@ def _stream_export_response(
         "Supply either a `substance_ids` list (explicit selection) or an "
         "`extraction_id` (Export All); setting both restricts the selection "
         "to the intersection for IDOR safety. Supported formats: `sdf`, "
-        "`json`, `csv`, `png`, `svg`, `v3000`, and `rxn` (stub -- not yet "
+        "`json`, `tsv`, `png`, `svg`, `v3000`, and `rxn` (stub -- not yet "
         "implemented). The image "
         "formats (`png`, `svg`) honor `depiction`: `cdk` (default) exports "
         "the fresh CDK layout, `cdx` exports the original ChemDraw "

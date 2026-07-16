@@ -222,7 +222,7 @@ describe("ExportMenu", () => {
     render(<ExportMenu onExport={vi.fn()} />);
     expect(screen.getByText("SDF / MOL")).toBeInTheDocument();
     expect(screen.getByText("JSON")).toBeInTheDocument();
-    expect(screen.getByText("CSV")).toBeInTheDocument();
+    expect(screen.getByText("TSV")).toBeInTheDocument();
     expect(screen.getByText("PNG Images")).toBeInTheDocument();
     expect(screen.getByText("SVG Images")).toBeInTheDocument();
     expect(screen.getByText("MDL V3000")).toBeInTheDocument();

@@ -103,7 +103,7 @@ def test_extract_file_task_stashes_rls_scope_on_session():
         id = 99
         batch_id: str | None = None
 
-    async def _fake_save_extraction(db, response, scope):
+    async def _fake_save_extraction(db, response, scope, file_bytes=None):
         # The fix puts (session_id, akh) on db.info BEFORE this call.
         captured_scope.append(db.info.get("rls_scope"))
         return _FakeExtraction()

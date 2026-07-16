@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { postReactions } from "@/lib/apiClient";
+import { ApiError, postExtractReactionsFromStored, postReactions } from "@/lib/apiClient";
 import type { ReactionExtractionResponse } from "@/types/chemistry";
 
 export type ReactionsState = "idle" | "loading" | "success" | "error";
@@ -8,7 +8,9 @@ export interface UseReactionsReturn {
   state: ReactionsState;
   result: ReactionExtractionResponse | null;
   errorMessage: string | null;
+  fileUnavailable: boolean;
   extract: (file: File) => Promise<void>;
+  extractFromStored: (extractionId: number) => Promise<void>;
   reset: () => void;
 }
 
@@ -30,6 +32,7 @@ export function useReactions(): UseReactionsReturn {
   const [state, setState] = useState<ReactionsState>("idle");
   const [result, setResult] = useState<ReactionExtractionResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fileUnavailable, setFileUnavailable] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   // Abort any in-flight request on unmount so state doesn't settle
@@ -51,6 +54,7 @@ export function useReactions(): UseReactionsReturn {
     setState("loading");
     setResult(null);
     setErrorMessage(null);
+    setFileUnavailable(false);
     try {
       const data = await postReactions(file, controller.signal);
       if (abortRef.current !== controller) return;
@@ -66,13 +70,47 @@ export function useReactions(): UseReactionsReturn {
     }
   }, []);
 
+  const extractFromStored = useCallback(async (extractionId: number) => {
+    // Cancel any prior in-flight request so stale results never
+    // supersede the latest call.
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setState("loading");
+    setResult(null);
+    setErrorMessage(null);
+    setFileUnavailable(false);
+    try {
+      const data = await postExtractReactionsFromStored(extractionId, controller.signal);
+      if (abortRef.current !== controller) return;
+      setResult(data);
+      setState("success");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (abortRef.current !== controller) return;
+      if (err instanceof ApiError && err.code === "FILE_NOT_STORED") {
+        // Legacy entry with no stored file — return to idle so the tab shows
+        // the re-upload fallback.
+        setState("idle");
+        setFileUnavailable(true);
+        return;
+      }
+      setErrorMessage(
+        err instanceof Error ? err.message : "Reaction extraction failed for an unknown reason.",
+      );
+      setState("error");
+    }
+  }, []);
+
   const reset = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
     setState("idle");
     setResult(null);
     setErrorMessage(null);
+    setFileUnavailable(false);
   }, []);
 
-  return { state, result, errorMessage, extract, reset };
+  return { state, result, errorMessage, fileUnavailable, extract, extractFromStored, reset };
 }

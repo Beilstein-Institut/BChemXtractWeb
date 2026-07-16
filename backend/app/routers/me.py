@@ -1,9 +1,10 @@
 """GDPR Article 17 hard-delete endpoint.
 
 ``DELETE /api/me/data`` drops the caller's extractions, cascades to the
-join tables (FK CASCADE), inline orphan-sweeps substances + reactions,
-inserts an audit_log entry, clears the cookie, returns 204. All in one
-transaction — no soft-delete, no retention window.
+join tables + extraction_files (FK CASCADE), inline orphan-sweeps
+substances + reactions, inserts an audit_log entry, clears the cookie,
+returns 204. All in one transaction — no soft-delete, no retention
+window.
 
 The audit insert is in-transaction (not background): ``data.deleted``
 must land or the deletion must roll back. Routine audit events use
@@ -67,7 +68,8 @@ async def delete_my_data(
 
     Order of operations:
       1. DELETE FROM extractions WHERE session_id = :sid OR api_key_hash = :akh
-         (cascades to extraction_substances + extraction_reactions).
+         (cascades to extraction_substances + extraction_reactions +
+         extraction_files).
       2. Orphan-sweep substances + reactions.
       3. In-transaction ``data.deleted`` audit insert (if this fails,
          the deletion rolls back atomically).

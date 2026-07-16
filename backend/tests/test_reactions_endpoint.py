@@ -2,6 +2,8 @@
 
 from httpx import AsyncClient
 
+from app.models.chemistry import ReactionResponse
+
 
 async def test_upload_cdx_returns_reactions(
     client_csrf: AsyncClient, cdx_reaction_file_bytes: bytes
@@ -182,3 +184,58 @@ async def test_get_extraction_reactions_empty_when_no_reactions_saved(
     get_data = get_resp.json()
     assert get_data["reactions"] == []
     assert get_data["reaction_count"] == 0
+
+
+async def test_extraction_id_survives_file_store_failure(
+    client_no_jvm_csrf: AsyncClient,
+    cdx_reaction_file_bytes: bytes,
+    monkeypatch,
+) -> None:
+    """save_reactions durably commits *before* the best-effort file store
+    runs. If store_extraction_file (or its trailing db.commit()) raises,
+    the response must still carry extraction_id -- that's the whole point
+    of moving response.model_copy() to right after save_reactions instead
+    of after the file-store commit.
+
+    Without that reorder, this failure -- still inside the same best-effort
+    try/except -- would leave extraction_id at its default None on the
+    response even though the reactions were already committed, so the
+    client would lose the history-linkage id for no reason.
+
+    extract_reactions_with_svg is stubbed so this test needs no JVM
+    (client_no_jvm_csrf); store_extraction_file is monkeypatched on
+    app.routers.reactions -- the name the endpoint actually calls, since
+    it's imported directly into that module's namespace.
+    """
+    import app.routers.reactions as reactions_router
+
+    async def _boom_store(*args, **kwargs):
+        raise RuntimeError("simulated file-store failure")
+
+    async def _fake_extract(*args, **kwargs):
+        reaction = ReactionResponse(
+            long_rinchi_key="FAKE-LONG-KEY", reaction_smiles="CC>>CCO"
+        )
+        return [reaction], []
+
+    monkeypatch.setattr(reactions_router, "store_extraction_file", _boom_store)
+    monkeypatch.setattr(reactions_router, "extract_reactions_with_svg", _fake_extract)
+
+    resp = await client_no_jvm_csrf.post(
+        "/api/reactions",
+        files={
+            "file": ("simple_reaction.cdx", cdx_reaction_file_bytes, "chemical/x-cdx")
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert data["extraction_id"] is not None
+    assert data["reaction_count"] == 1
+
+    # Reactions were durably persisted despite the file-store failure --
+    # confirmed via the cached-reactions hydration endpoint.
+    get_resp = await client_no_jvm_csrf.get(
+        f"/api/extractions/{data['extraction_id']}/reactions"
+    )
+    assert get_resp.status_code == 200
+    assert get_resp.json()["reaction_count"] == 1

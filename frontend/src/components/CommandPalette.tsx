@@ -344,13 +344,14 @@ export function CommandPalette({ initiallyOpen = false }: CommandPaletteProps = 
     {
       // Navigates to Browse (where the export controls live) rather than
       // exporting inline — the palette has no active-extraction context. Kept
-      // as a discoverability entry; description names formats so typing "csv"
-      // or "export" still surfaces it. Mirrors the "Clear history" pattern
-      // below (a labelled action that routes to where the action happens).
+      // as a discoverability entry; the description names formats and the
+      // value keeps the legacy "csv" token so typing "tsv", "csv", or "export"
+      // all surface it. Mirrors the "Clear history" pattern below (a labelled
+      // action that routes to where the action happens).
       id: "cmd-export-csv",
       value: "action-export-csv",
       label: "Export structures",
-      description: "Go to Browse to export as CSV, SDF, and more",
+      description: "Go to Browse to export as TSV, SDF, and more",
       icon: <FileOutputIcon className="size-4" aria-hidden="true" />,
       action: () => navigate("/browse"),
     },

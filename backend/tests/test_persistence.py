@@ -154,6 +154,52 @@ async def test_delete_extraction_keeps_shared_substances(db_session):
 
 
 @pytest.mark.asyncio
+async def test_save_extraction_stores_file_bytes(db_session):
+    """save_extraction(file_bytes=...) persists the bytes; get_extraction_file
+    reads them back."""
+    from app.services.persistence import get_extraction_file
+
+    response = _make_response("with_file.cdx", inchi_keys=[_KEY_A])
+    saved = await save_extraction(
+        db_session, response, file_bytes=b"VjCD\x01\x02rawbytes"
+    )
+
+    got = await get_extraction_file(db_session, saved.id)
+    assert got == b"VjCD\x01\x02rawbytes"
+
+
+@pytest.mark.asyncio
+async def test_file_store_failure_does_not_lose_extraction(db_session, monkeypatch):
+    """A byte-store failure must not abort the extraction persist (best-effort)."""
+    from app.services import persistence
+    from app.services.persistence import get_extraction_file
+
+    async def _boom(*a, **k):
+        raise RuntimeError("simulated byte-store failure")
+
+    monkeypatch.setattr(persistence, "store_extraction_file", _boom)
+    response = _make_response("store_fails.cdx", inchi_keys=[_make_key("F")])
+    saved = await save_extraction(db_session, response, file_bytes=b"VjCDrawbytes")
+
+    # Extraction row persisted despite the store failure.
+    assert saved.id is not None
+    row = await db_session.get(Extraction, saved.id)
+    assert row is not None, "extraction must survive a byte-store failure"
+    # No file stored.
+    assert await get_extraction_file(db_session, saved.id) is None
+
+
+@pytest.mark.asyncio
+async def test_save_extraction_without_file_bytes_stores_nothing(db_session):
+    from app.services.persistence import get_extraction_file
+
+    response = _make_response("no_file.cdx", inchi_keys=[_KEY_B])
+    saved = await save_extraction(db_session, response)  # no file_bytes
+
+    assert await get_extraction_file(db_session, saved.id) is None
+
+
+@pytest.mark.asyncio
 async def test_enforce_cap_removes_oldest_extractions(db_session):
     """enforce_cap deletes oldest extractions when count exceeds max_count."""
     for i in range(5):

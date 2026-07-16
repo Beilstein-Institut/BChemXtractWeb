@@ -212,7 +212,7 @@ class ExtractJobStatusResponse(BaseModel):
     error: str | None = None
 
 
-ExportFormatLiteral = Literal["sdf", "json", "csv", "png", "svg", "v3000", "rxn"]
+ExportFormatLiteral = Literal["sdf", "json", "tsv", "png", "svg", "v3000", "rxn"]
 
 # Which 2D layout the image formats (png/svg) use:
 #   "cdk" — fresh CDK canonical layout (stored ``svg`` column)
