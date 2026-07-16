@@ -173,13 +173,13 @@ async def extract_reactions_endpoint(
             scope=scope,
         )
         await save_reactions(db, extraction_id, reactions, scope=scope)
+        response = response.model_copy(update={"extraction_id": extraction_id})
         # store_extraction_file() does not commit (caller owns the
         # transaction) -- save_reactions already committed its own unit of
         # work above, so this needs its own explicit commit or the INSERT
         # is rolled back when get_scoped_db closes the session.
         await store_extraction_file(db, extraction_id, file_bytes, scope)
         await db.commit()
-        response = response.model_copy(update={"extraction_id": extraction_id})
     except asyncio.CancelledError:
         raise
     except Exception:
