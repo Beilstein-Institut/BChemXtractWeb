@@ -3,9 +3,9 @@
  *
  * BChemXtractWeb is operated by / under the Beilstein-Institut zur Förderung
  * der Chemischen Wissenschaften (a German civil-law foundation). The content
- * below mirrors the institute's legal notice as published on its other sites
- * (cf. https://www.beilstein-strenda-db.org/strenda/legalNotice.xhtml) and
- * carries nothing beyond it. No VAT ID and no §18 MStV content-officer are
+ * below follows the institute's official Impressum
+ * (cf. https://www.beilstein-institut.de/en/impressum/) and carries nothing
+ * beyond it. No VAT ID and no §18 MStV content-officer are
  * listed: the institute has no VAT ID, and the site is not a journalistic /
  * editorial offering, so the Interstate Media Treaty responsibility notice
  * does not apply.
@@ -40,7 +40,7 @@ const DETAILS: LabelledEntry[] = [
     ),
   },
   { label: "Telephone", value: "+49 (0) 69 71673-20" },
-  { label: "Fax", value: "+49 (0) 69 71673-19" },
+  { label: "Fax", value: "+49 (0) 69 71673-219" },
   {
     label: "Email",
     value: (
@@ -114,24 +114,16 @@ export function ImprintPage() {
         </h2>
         <div className="mt-4 max-w-[70ch] space-y-3 text-sm leading-relaxed text-foreground-muted">
           <p>
-            The operator takes care to keep the information on this site accurate and up to date but
-            gives no warranty as to its completeness or correctness and accepts no liability for
-            errors or omissions, nor for any results arising from use of the information offered
-            here.
+            Despite careful checking of external links, we are not liable for the content of linked
+            websites. Responsibility for the content of a linked website rests exclusively with its
+            operator.
           </p>
           <p>
-            This site contains links to external resources over whose content the operator has no
-            control. Liability for such external content rests solely with its respective provider
-            or author. At the time the links were set, no illegal content was identifiable. Ongoing
-            monitoring of linked content is not reasonable without concrete evidence of
-            infringement; on notice of any such infringement the operator will remove the affected
-            link without delay.
-          </p>
-          <p>
-            All content produced by the operator on this site is protected by copyright.
-            Reproduction, adaptation, distribution, or any form of exploitation beyond the limits of
-            copyright law requires the written consent of the respective author or creator.
-            Downloads and copies of this page are permitted for private, non-commercial use only.
+            We have tried to ensure that all information provided through this website is complete
+            and accurate. However, in view of the possibility of human error or changes in
+            scientific knowledge, we do not warrant that the information included on the site is in
+            every respect accurate or complete, and we are not responsible for any errors or
+            omissions, or for the results obtained from the use of such information.
           </p>
         </div>
         <p

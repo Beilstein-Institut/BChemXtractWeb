@@ -19,6 +19,9 @@ describe("ImprintPage", () => {
     expect(text).toMatch(/Trakehner Stra.+7.+9/);
     expect(text).toMatch(/60487 Frankfurt am Main/);
     expect(text).toMatch(/\+49 \(0\) 69 71673-20/);
+    // Fax carries the full extension — regression guard against the earlier
+    // value that was missing a digit (71673-19).
+    expect(text).toMatch(/\+49 \(0\) 69 71673-219/);
   });
 
   it("omits the media-treaty content officer and VAT ID (not applicable)", () => {
