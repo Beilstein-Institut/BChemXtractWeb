@@ -20,6 +20,7 @@ from app.models.chemistry import (
 )
 from app.models.orm import (
     Extraction,
+    ExtractionFile,
     ExtractionReaction,
     ExtractionSubstance,
     Reaction,
@@ -59,6 +60,7 @@ async def save_extraction(
     db: AsyncSession,
     response: ExtractionResponse,
     scope: tuple[str | None, bytes | None] = (None, None),
+    file_bytes: bytes | None = None,
 ) -> Extraction:
     """Persist one extraction result and deduplicate its substances.
 
@@ -67,7 +69,7 @@ async def save_extraction(
       2. Upsert each Substance via ON CONFLICT (dedup_key) DO NOTHING.
       3. Fetch IDs for all substances (new + existing) by dedup_key.
       4. Insert ExtractionSubstance join rows.
-      5. Commit and refresh.
+      5. Store raw file bytes (if provided), commit, and refresh.
       6. Enforce 500-record cap.
 
     Args:
@@ -80,6 +82,9 @@ async def save_extraction(
             internal/non-runtime callers (migration helpers, ad-hoc tests).
             FORCE RLS is in effect — rows inserted with
             ``(None, None)`` are unreachable by any user request.
+        file_bytes: raw uploaded CDX/CDXML bytes to retain for this
+            extraction, so reactions can later be re-extracted from history
+            without a re-upload. Best-effort — see store_extraction_file.
 
     Returns:
         The newly created Extraction ORM instance with id populated.
@@ -217,6 +222,10 @@ async def save_extraction(
                 .on_conflict_do_nothing()
             )
 
+    # Step 5: Store raw file bytes (if provided) — best-effort, no-op on empty.
+    if file_bytes:
+        await store_extraction_file(db, extraction.id, file_bytes, scope)
+
     await db.commit()
     await db.refresh(extraction)
 
@@ -224,6 +233,47 @@ async def save_extraction(
     await enforce_cap(db)
 
     return extraction
+
+
+async def store_extraction_file(
+    db: AsyncSession,
+    extraction_id: int,
+    content: bytes,
+    scope: tuple[str | None, bytes | None] = (None, None),
+) -> None:
+    """Best-effort upsert of the raw uploaded bytes for an extraction.
+
+    No-op for empty content. Does NOT commit — the caller owns the
+    transaction. Owner columns mirror the parent extraction for RLS.
+    Failures are the caller's to swallow (auto-persist is best-effort).
+    """
+    if not content:
+        return
+    session_id, api_key_hash = scope
+    await db.execute(
+        pg_insert(ExtractionFile)
+        .values(
+            extraction_id=extraction_id,
+            content=content,
+            session_id=session_id,
+            api_key_hash=api_key_hash,
+        )
+        .on_conflict_do_nothing(index_elements=["extraction_id"])
+    )
+
+
+async def get_extraction_file(db: AsyncSession, extraction_id: int) -> bytes | None:
+    """Return the stored raw bytes for an extraction, or None if not stored.
+
+    RLS-scoped through the session/api_key context on the connection, so a
+    caller only reads its own files.
+    """
+    row = await db.execute(
+        select(ExtractionFile.content).where(
+            ExtractionFile.extraction_id == extraction_id
+        )
+    )
+    return row.scalar_one_or_none()
 
 
 async def enforce_cap(db: AsyncSession, max_count: int = MAX_EXTRACTIONS) -> None:

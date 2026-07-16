@@ -154,6 +154,31 @@ async def test_delete_extraction_keeps_shared_substances(db_session):
 
 
 @pytest.mark.asyncio
+async def test_save_extraction_stores_file_bytes(db_session):
+    """save_extraction(file_bytes=...) persists the bytes; get_extraction_file
+    reads them back."""
+    from app.services.persistence import get_extraction_file
+
+    response = _make_response("with_file.cdx", inchi_keys=[_KEY_A])
+    saved = await save_extraction(
+        db_session, response, file_bytes=b"VjCD\x01\x02rawbytes"
+    )
+
+    got = await get_extraction_file(db_session, saved.id)
+    assert got == b"VjCD\x01\x02rawbytes"
+
+
+@pytest.mark.asyncio
+async def test_save_extraction_without_file_bytes_stores_nothing(db_session):
+    from app.services.persistence import get_extraction_file
+
+    response = _make_response("no_file.cdx", inchi_keys=[_KEY_B])
+    saved = await save_extraction(db_session, response)  # no file_bytes
+
+    assert await get_extraction_file(db_session, saved.id) is None
+
+
+@pytest.mark.asyncio
 async def test_enforce_cap_removes_oldest_extractions(db_session):
     """enforce_cap deletes oldest extractions when count exceeds max_count."""
     for i in range(5):
