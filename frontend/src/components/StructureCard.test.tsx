@@ -9,7 +9,7 @@
  */
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { vi, beforeEach } from "vitest";
-import type { SubstanceResponse } from "@/types/chemistry";
+import type { PubChemEnrichment, SubstanceResponse } from "@/types/chemistry";
 
 // Mock navigator.clipboard
 Object.defineProperty(navigator, "clipboard", {
@@ -19,13 +19,15 @@ Object.defineProperty(navigator, "clipboard", {
   },
 });
 
-// Mock sonner so we can assert toast calls without a real Toaster in DOM
+// Mock sonner so we can assert toast calls without a real Toaster in DOM.
+// `toast` is callable (toast("msg")) with .error/.success/.loading helpers —
+// the PubChem "search similar" control uses the callable form.
 vi.mock("sonner", () => ({
-  toast: {
+  toast: Object.assign(vi.fn(), {
     error: vi.fn(),
     success: vi.fn(),
     loading: vi.fn(),
-  },
+  }),
 }));
 
 // Mock @base-ui/react/dialog to avoid portal/animation complexity in jsdom.
@@ -270,48 +272,9 @@ describe("StructureCard component", () => {
     });
   });
 
-  it("renders a share button with data-slot='structure-card-share'", () => {
+  it("no longer renders a share button (replaced by the PubChem control)", () => {
     render(<StructureCard substance={mockSubstance} />);
-    const shareBtns = document.querySelectorAll("[data-slot='structure-card-share']");
-    expect(shareBtns.length).toBeGreaterThan(0);
-    expect(shareBtns[0].getAttribute("aria-label")).toBe("Open in PubChem, copy link");
-  });
-
-  it("clicking share copies a PubChem InChIKey link to the clipboard", async () => {
-    render(<StructureCard substance={mockSubstance} />);
-    const shareBtn = document.querySelector("[data-slot='structure-card-share']") as HTMLElement;
-    fireEvent.click(shareBtn);
-    await waitFor(() => {
-      expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(1);
-    });
-    const call = (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    // mockSubstance has a real InChI, so the link uses the exact InChIKey.
-    expect(call).toBe(
-      `https://pubchem.ncbi.nlm.nih.gov/#query=${encodeURIComponent(mockSubstance.inchi_key)}`,
-    );
-  });
-
-  it("after share, the share button flips to the 'link copied' aria-label", async () => {
-    render(<StructureCard substance={mockSubstance} />);
-    const shareBtn = document.querySelector("[data-slot='structure-card-share']") as HTMLElement;
-    fireEvent.click(shareBtn);
-    await waitFor(() => {
-      const after = document.querySelector("[data-slot='structure-card-share']") as HTMLElement;
-      expect(after.getAttribute("aria-label")).toBe("Opened in PubChem, link copied");
-    });
-  });
-
-  it("shows a toast.error when the share clipboard write fails", async () => {
-    const { toast } = await import("sonner");
-    (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-      new Error("denied"),
-    );
-    render(<StructureCard substance={mockSubstance} />);
-    const shareBtn = document.querySelector("[data-slot='structure-card-share']") as HTMLElement;
-    fireEvent.click(shareBtn);
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith("Couldn't copy the PubChem link. Try again.");
-    });
+    expect(document.querySelector("[data-slot='structure-card-share']")).toBeNull();
   });
 
   it('the card div has role="button" and aria-label containing molecular_formula', () => {
@@ -334,18 +297,6 @@ describe("StructureCard component", () => {
     fireEvent.click(copyBtns[0]);
     expect(handleParentClick).not.toHaveBeenCalled();
   });
-
-  it("clicking the share button does NOT bubble to the parent div (stopPropagation)", () => {
-    const handleParentClick = vi.fn();
-    render(
-      <div onClick={handleParentClick} data-testid="parent-wrapper">
-        <StructureCard substance={mockSubstance} />
-      </div>,
-    );
-    const shareBtn = document.querySelector("[data-slot='structure-card-share']") as HTMLElement;
-    fireEvent.click(shareBtn);
-    expect(handleParentClick).not.toHaveBeenCalled();
-  });
 });
 
 describe("StructureCard PubChem badge", () => {
@@ -363,37 +314,100 @@ describe("StructureCard PubChem badge", () => {
     svg: "",
   };
 
-  it("renders the PubChem badge when enrichment is provided", () => {
+  function enrichment(over: Partial<PubChemEnrichment>): PubChemEnrichment {
+    return {
+      inchi_key: substance.inchi_key,
+      status: "exact",
+      cid: 241,
+      iupac_name: null,
+      molecular_formula: null,
+      molecular_weight: null,
+      canonical_smiles: null,
+      isomeric_smiles: null,
+      xlogp: null,
+      pubchem_url: "https://pubchem.ncbi.nlm.nih.gov/compound/241",
+      connectivity_cid_count: 0,
+      title: null,
+      synonyms: [],
+      description: null,
+      description_source: null,
+      ...over,
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(window, "open").mockReturnValue(null);
+  });
+
+  it("renders the PubChem control in the action row when enrichment is provided", () => {
+    render(
+      <StructureCard substance={substance} pubchem={{ state: "success", data: enrichment({}) }} />,
+    );
+    const control = document.querySelector("[data-slot='structure-card-pubchem']");
+    expect(control).not.toBeNull();
+    // 'In PubChem' opens the compound page directly.
+    const link = within(control as HTMLElement).getByRole("link", { name: /in pubchem/i });
+    expect(link).toHaveAttribute("href", "https://pubchem.ncbi.nlm.nih.gov/compound/241");
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("clicking the 'In PubChem' link does NOT bubble to the parent card", () => {
+    const handleParentClick = vi.fn();
+    render(
+      <div onClick={handleParentClick}>
+        <StructureCard substance={substance} pubchem={{ state: "success", data: enrichment({}) }} />
+      </div>,
+    );
+    const link = screen.getByRole("link", { name: /in pubchem/i });
+    // Suppress jsdom's unimplemented anchor navigation so the click stays quiet;
+    // stopPropagation (not preventDefault) is what we're asserting.
+    link.addEventListener("click", (e) => e.preventDefault());
+    fireEvent.click(link);
+    expect(handleParentClick).not.toHaveBeenCalled();
+  });
+
+  it("renders no PubChem control when enrichment is absent (opt-in off)", () => {
+    render(<StructureCard substance={substance} />);
+    expect(document.querySelector("[data-slot='structure-card-pubchem']")).toBeNull();
+    expect(screen.queryByText(/in pubchem/i)).toBeNull();
+  });
+
+  it("'Not in PubChem' opens a 2D-similarity search for the SMILES (new tab)", async () => {
+    const { toast } = await import("sonner");
     render(
       <StructureCard
         substance={substance}
         pubchem={{
           state: "success",
-          data: {
-            inchi_key: substance.inchi_key,
-            status: "exact",
-            cid: 241,
-            iupac_name: null,
-            molecular_formula: null,
-            molecular_weight: null,
-            canonical_smiles: null,
-            isomeric_smiles: null,
-            xlogp: null,
-            pubchem_url: "https://pubchem.ncbi.nlm.nih.gov/compound/241",
-            connectivity_cid_count: 0,
-            title: null,
-            synonyms: [],
-            description: null,
-            description_source: null,
-          },
+          data: enrichment({ status: "absent", cid: null, pubchem_url: null }),
         }}
       />,
     );
-    expect(screen.getByText(/in pubchem/i)).toBeInTheDocument();
+    const btn = screen.getByRole("button", { name: /search for similar molecules/i });
+    fireEvent.click(btn);
+    expect(toast).toHaveBeenCalledWith("Not on PubChem — searching for similar molecules");
+    expect(window.open).toHaveBeenCalledWith(
+      "https://pubchem.ncbi.nlm.nih.gov/#query=c1ccccc1&input_type=smiles&tab=similarity",
+      "_blank",
+      "noopener,noreferrer",
+    );
   });
 
-  it("renders no badge when enrichment is absent (opt-in off)", () => {
-    render(<StructureCard substance={substance} />);
-    expect(screen.queryByText(/in pubchem/i)).toBeNull();
+  it("clicking the PubChem search control does NOT bubble to the parent card", () => {
+    const handleParentClick = vi.fn();
+    render(
+      <div onClick={handleParentClick}>
+        <StructureCard
+          substance={substance}
+          pubchem={{
+            state: "success",
+            data: enrichment({ status: "absent", cid: null, pubchem_url: null }),
+          }}
+        />
+      </div>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /search for similar molecules/i }));
+    expect(handleParentClick).not.toHaveBeenCalled();
   });
 });

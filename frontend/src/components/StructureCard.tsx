@@ -11,8 +11,10 @@
  *       (The formula is shown only here; there is no separate formula row.)
  *       SMILES in Geist Mono 14 px, truncated with a native `title` tooltip
  *       for hover-reveal full.
- *   - Bottom action row: Copy-SMILES icon button, Share link icon button,
- *     optional per-card export menu, optional Details trigger.
+ *   - SMILES row: truncated SMILES + Copy-SMILES icon button.
+ *   - Bottom action row: PubChem status control (opens the compound, or
+ *     searches PubChem for similar molecules when the structure is absent) +
+ *     a Details cue. Per-card export menu overlays the top-right corner.
  *
  * Hover: crimson ring (`ring-2 ring-primary/20`) + a 1.02 scale on the SVG
  * thumbnail (group-hover). No neomorphic lift.
@@ -32,21 +34,19 @@
  *                                          or the molecular formula with
  *                                          subscripts when no name is present)
  *   data-slot="structure-card-smiles"     (Geist Mono truncated)
- *   data-slot="structure-card-share"      (share icon button)
+ *   data-slot="structure-card-pubchem"    (PubChem status control, when enriched)
  *   data-slot="structure-card-details"    (details/ExternalLink trigger)
  */
-import { useCallback, useState } from "react";
-import { FlaskConicalIcon, Share2, Check } from "lucide-react";
+import { useState } from "react";
+import { FlaskConicalIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/internal/CopyButton";
 import { ExportMenu } from "@/components/ExportMenu";
 import { PubChemBadge } from "@/components/PubChemBadge";
 import { StructureDetail } from "@/components/StructureDetail";
 import { MolecularFormula } from "@/components/internal/MolecularFormula";
-import { useShareLink } from "@/hooks/useShareLink";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { postExport } from "@/lib/apiClient";
 import { safeDownloadSlug } from "@/lib/safeStrings";
@@ -123,7 +123,6 @@ export function StructureCard({
   pubchem,
 }: StructureCardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { shared, share } = useShareLink();
 
   const svgSrc = useSvgObjectUrl(pickSvg(substance, depiction));
 
@@ -157,22 +156,6 @@ export function StructureCard({
       toast.error(`Export failed: ${reason}. Retry from the structure panel.`, { id: toastId });
     }
   }
-
-  // Delegate to useShareLink — it copies a public PubChem link (real InChIKey
-  // when available, else a SMILES structure search) so a recipient can open it
-  // without access to our per-session database. stopPropagation keeps the
-  // wrapping card's click/keyboard handlers from firing on the share tap.
-  const handleShare = useCallback(
-    async (e: React.MouseEvent) => {
-      e.stopPropagation();
-      try {
-        await share({ inchiKey: substance.inchi_key, smiles: substance.smiles });
-      } catch {
-        toast.error("Couldn't copy the PubChem link. Try again.");
-      }
-    },
-    [share, substance.inchi_key, substance.smiles],
-  );
 
   /** Shared card inner content (SVG + metadata) used in both render modes. */
   const cardInner = (
@@ -222,12 +205,6 @@ export function StructureCard({
           )}
         </h3>
 
-        {pubchem && (
-          <div data-slot="structure-card-pubchem">
-            <PubChemBadge state={pubchem} />
-          </div>
-        )}
-
         <div className="flex items-center gap-2">
           <span
             data-slot="structure-card-smiles"
@@ -239,33 +216,29 @@ export function StructureCard({
           <CopyButton value={substance.smiles} label="SMILES" stopPropagation mutedIcon />
         </div>
 
-        <div className="flex items-center justify-between border-t border-border pt-2">
-          <div className="flex items-center gap-1">
-            <Button
-              data-slot="structure-card-share"
-              variant="ghost"
-              size="icon-sm"
-              type="button"
-              aria-label={shared ? "Opened in PubChem, link copied" : "Open in PubChem, copy link"}
-              onClick={handleShare}
-            >
-              {shared ? (
-                <Check className="size-3.5 text-primary" aria-hidden="true" />
-              ) : (
-                <Share2 className="size-3.5 text-foreground-muted" aria-hidden="true" />
-              )}
-            </Button>
-            {/* Polite live region so screen readers announce the copy
-                confirmation. The visible state change is on the button icon;
-                this lets non-sighted users hear the same feedback. */}
-            <span data-slot="structure-card-share-status" aria-live="polite" className="sr-only">
-              {shared ? "Opened PubChem in a new tab and copied the link" : ""}
-            </span>
-          </div>
+        {/* Action row: PubChem status control (opens the compound, or searches
+            similar molecules when absent) on the left; Details cue on the right.
+            The PubChem control is present only when the user has opted into
+            enrichment (pubchem defined). */}
+        <div
+          className={cn(
+            "flex items-center gap-2",
+            // The divider only earns its keep when the row has persistent
+            // content. PubChem is opt-in, so on the default (enrichment-off)
+            // card the row holds just the hover-only "View details" cue — no
+            // border, so a card at rest never shows an empty divided strip.
+            pubchem && "border-t border-border pt-2",
+          )}
+        >
+          {pubchem && (
+            <div data-slot="structure-card-pubchem">
+              <PubChemBadge state={pubchem} smiles={substance.smiles} />
+            </div>
+          )}
           <span
             data-slot="structure-card-details"
             aria-hidden="true"
-            className="text-xs font-medium text-foreground-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+            className="ml-auto text-xs font-medium text-foreground-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100"
           >
             View details
           </span>
