@@ -5,6 +5,11 @@ The started_app fixture (conftest.py) triggers JVM startup via lifespan.
 """
 
 from httpx import AsyncClient
+from sqlalchemy import text
+
+from app.services.db import AsyncSessionLocal
+from app.services.persistence import get_extraction_file
+from tests.conftest import TEST_SESSION_COOKIE
 
 
 class TestUploadCDX:
@@ -359,3 +364,35 @@ class TestResponseShape:
         ]
         for field in info_fields:
             assert field in data["info"], f"Missing info field: {field}"
+
+
+class TestFilePersistence:
+    """The raw uploaded bytes are retained so reactions can later be
+    re-extracted from a history entry without a re-upload."""
+
+    async def test_extract_persists_file_bytes(
+        self, client_csrf: AsyncClient, cdx_reaction_file_bytes: bytes
+    ) -> None:
+        """POST /api/extract stores the exact uploaded bytes, readable back
+        via get_extraction_file keyed by the returned extraction_id."""
+        response = await client_csrf.post(
+            "/api/extract",
+            files={
+                "file": (
+                    "simple_reaction.cdx",
+                    cdx_reaction_file_bytes,
+                    "chemical/x-cdx",
+                )
+            },
+        )
+        assert response.status_code == 200, response.text
+        extraction_id = response.json()["extraction_id"]
+        assert extraction_id is not None
+
+        async with AsyncSessionLocal() as db:
+            await db.execute(
+                text("SELECT set_config('app.session_id', :sid, true)"),
+                {"sid": TEST_SESSION_COOKIE},
+            )
+            stored = await get_extraction_file(db, extraction_id)
+        assert stored == cdx_reaction_file_bytes
