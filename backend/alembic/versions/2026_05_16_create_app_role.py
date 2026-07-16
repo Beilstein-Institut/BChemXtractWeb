@@ -10,9 +10,15 @@ migration creates ``bchemxtract_app`` (NOSUPERUSER NOBYPASSRLS) for the
 runtime backend / celery services; the migrate service stays on the
 bootstrap superuser because it needs DDL privileges.
 
-Password is read from ``APP_DB_PASSWORD``. Re-running the migration
-ALTERs the existing role (idempotent rotation). Future tables auto-grant
-to the app role via ALTER DEFAULT PRIVILEGES.
+Password is read from ``APP_DB_PASSWORD`` and set ONLY when the role is
+first created. Re-running the migration ensures the role's attributes but
+never resets an existing role's password — a schema migration must not
+silently rotate a live credential. Because Postgres roles are
+cluster-wide, replaying this chain on another database in the same cluster
+(e.g. the alembic integration test's throwaway DB) would otherwise clobber
+the running ``bchemxtract_app`` password. Password rotation is the explicit
+job of ``deploy.sh --rotate-app-db``. Future tables auto-grant to the app
+role via ALTER DEFAULT PRIVILEGES.
 """
 
 from __future__ import annotations
@@ -53,15 +59,18 @@ def upgrade() -> None:
     # what SQL's quote_literal() emits).
     pwd_escaped = password.replace("'", "''")
 
-    # Idempotent CREATE-or-ALTER: re-running the migration rotates the
-    # password without raising.
+    # Idempotent + credential-safe: set the password ONLY on first creation.
+    # If the role already exists, ensure its attributes but do NOT touch the
+    # password — replaying this migration on a throwaway DB in a shared cluster
+    # (roles are cluster-wide) must never clobber the running role's password.
+    # Rotation is deploy.sh --rotate-app-db.
     op.execute(f"""
         DO $$
         BEGIN
             IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{APP_ROLE}') THEN
                 CREATE ROLE {APP_ROLE} WITH {_ROLE_ATTRS} PASSWORD '{pwd_escaped}';
             ELSE
-                ALTER ROLE {APP_ROLE} WITH {_ROLE_ATTRS} PASSWORD '{pwd_escaped}';
+                ALTER ROLE {APP_ROLE} WITH {_ROLE_ATTRS};
             END IF;
         END $$;
     """)
