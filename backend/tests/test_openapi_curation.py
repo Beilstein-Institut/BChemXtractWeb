@@ -14,6 +14,7 @@ APPROVED_OPERATION_IDS = {
     # extraction (experimental reactions)
     "extractReactions",
     "getExtractionReactions",
+    "extractReactionsFromStored",
     # history
     "listHistory",
     "getHistoryDetail",

@@ -25,15 +25,18 @@ from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.errors import FileNotStoredError
 from app.middleware.rate_limit import limiter
 from app.models.chemistry import ErrorResponse, ReactionExtractionResponse
 from app.services.db import get_scoped_db
 from app.services.extractor import extract_reactions_with_svg
 from app.services.format_detector import check_extension_mismatch, detect_format
 from app.services.persistence import (
+    get_extraction_file,
     get_extraction_reactions,
     get_or_create_extraction_row,
     save_reactions,
+    store_extraction_file,
 )
 from app.services.upload_guard import read_upload_bounded
 
@@ -170,6 +173,12 @@ async def extract_reactions_endpoint(
             scope=scope,
         )
         await save_reactions(db, extraction_id, reactions, scope=scope)
+        # store_extraction_file() does not commit (caller owns the
+        # transaction) -- save_reactions already committed its own unit of
+        # work above, so this needs its own explicit commit or the INSERT
+        # is rolled back when get_scoped_db closes the session.
+        await store_extraction_file(db, extraction_id, file_bytes, scope)
+        await db.commit()
         response = response.model_copy(update={"extraction_id": extraction_id})
     except asyncio.CancelledError:
         raise
@@ -225,4 +234,93 @@ async def get_extraction_reactions_endpoint(
         extraction_time_ms=0.0,  # DB read -- not a fresh extraction
         warnings=[],
         extraction_id=extraction.id,
+    )
+
+
+@router.post(
+    "/extractions/{extraction_id}/reactions",
+    response_model=ReactionExtractionResponse,
+    operation_id="extractReactionsFromStored",
+    summary="Extract reactions from a prior extraction's stored file",
+    description=(
+        "Runs reaction extraction against the CDX/CDXML bytes stored for a "
+        "prior extraction — no re-upload needed. Same timeout contract as "
+        "POST /api/reactions (timeout -> 200 + warning). Returns 409 "
+        "(FILE_NOT_STORED) when the extraction has no stored file (legacy "
+        "entries created before file storage), and 404 when the extraction "
+        "does not exist or is not the caller's."
+    ),
+    responses={
+        200: {"description": "Reaction extraction complete (may contain warnings)."},
+        404: {"model": ErrorResponse, "description": "Extraction not found."},
+        409: {
+            "model": ErrorResponse,
+            "description": "No stored file for this extraction.",
+        },
+        500: {"model": ErrorResponse, "description": "Internal server error."},
+    },
+    tags=["extraction"],
+)
+@limiter.limit(settings.rate_limit_upload)
+async def extract_reactions_from_stored_endpoint(
+    request: Request, extraction_id: int, db: DbDep
+) -> ReactionExtractionResponse:
+    """Extract reactions from the stored file for `extraction_id`."""
+    # RLS-scoped fetch of the extraction (for format/filename/file_size) —
+    # get_extraction_reactions returns (extraction, reactions); reuse it to
+    # both confirm ownership/existence and read metadata.
+    existing = await get_extraction_reactions(db, extraction_id)
+    if existing is None:
+        raise HTTPException(status_code=404, detail="Extraction not found")
+    extraction, _ = existing
+
+    content = await get_extraction_file(db, extraction_id)
+    if not content:
+        raise FileNotStoredError(
+            "The original file for this extraction is no longer stored. "
+            "Re-upload it to extract reactions."
+        )
+
+    start = time.perf_counter()
+    format_type = detect_format(content)  # stored bytes are already validated
+    warnings: list[str] = []
+    try:
+        reactions, extractor_warnings = await extract_reactions_with_svg(
+            content, format_type, timeout=settings.reaction_timeout_secs
+        )
+        warnings.extend(extractor_warnings)
+    except TimeoutError:
+        logger.warning(
+            "Reaction extraction (from stored) timed out after %.1fs for id=%d",
+            settings.reaction_timeout_secs,
+            extraction_id,
+        )
+        reactions = []
+        warnings.append(
+            f"Reaction extraction exceeded {settings.reaction_timeout_secs:.1f}s "
+            f"timeout and was aborted."
+        )
+    elapsed_ms = (time.perf_counter() - start) * 1000
+
+    scope = request.state.scope if hasattr(request.state, "scope") else (None, None)
+    try:
+        await save_reactions(db, extraction_id, reactions, scope=scope)
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        logger.exception(
+            "Reaction auto-persist (from stored) failed for id=%d "
+            "-- result still returned",
+            extraction_id,
+        )
+
+    return ReactionExtractionResponse(
+        reactions=reactions,
+        format=extraction.format,
+        filename=extraction.filename,
+        file_size=extraction.file_size,
+        reaction_count=len(reactions),
+        extraction_time_ms=round(elapsed_ms, 1),
+        warnings=warnings,
+        extraction_id=extraction_id,
     )
