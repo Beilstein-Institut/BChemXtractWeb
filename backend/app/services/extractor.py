@@ -372,52 +372,100 @@ def _has_inchi_oversized_molecule(substances: list[dict]) -> bool:
     return False
 
 
-def _coerce_role(java_list, role_frags: list[str] | None, cdk) -> list[dict]:
-    """Coerce one reaction role (reactants/products/agents) to component dicts.
+def _empty_reaction_component() -> dict:
+    """A placeholder for a role component that upstream returned as ``null`` and
+    that we could not enrich from the reaction SMILES (see :func:`_coerce_role`).
 
-    BChemXtract sometimes leaves a ``null`` in a role's component list even
-    though the reaction SMILES contains that component (its per-component InChI
-    build failed). Dropping the null undercounts the role. When that happens,
-    recover the missing component(s) from the reaction SMILES: the fragment
-    whose recomputed InChIKey isn't already covered by a populated component is
-    the dropped one. Recovered components carry InChI + InChIKey but zero
-    coordinates (upstream gave us none).
-
-    Recovery only runs when a null is present AND the fragments reconcile
-    cleanly against the populated components; otherwise the populated list is
-    returned unchanged, so the common (null-free) path is untouched.
+    Carries no InChI/InChIKey and no coordinates. The frontend suppresses the
+    detail block for such a dataless component but still counts it, so the
+    reported ``N reactants · M products · K agents`` stays accurate.
     """
-    raw = list(java_list or [])
-    coerced = [_coerce_reaction_component(c) for c in raw if c is not None]
-    null_count = len(raw) - len(coerced)
-    if null_count == 0 or not role_frags or cdk is None:
-        return coerced
+    return {
+        "inchi": "",
+        "inchi_key": "",
+        "cdx_top": 0.0,
+        "cdx_left": 0.0,
+        "cdx_bottom": 0.0,
+        "cdx_right": 0.0,
+    }
 
+
+def _recover_null_components(
+    coerced: list[dict], role_frags: list[str] | None, null_count: int, cdk
+) -> list[dict] | None:
+    """Rebuild the ``null_count`` dropped components from the reaction SMILES.
+
+    Matches each SMILES fragment to a populated component by recomputed
+    InChIKey; the leftover fragments are the dropped nulls and become recovered
+    components (InChI + InChIKey, no coordinates). Returns exactly
+    ``null_count`` recovered dicts when the fragments reconcile 1:1, else
+    ``None`` — which happens whenever the role contains a multi-fragment
+    molecule, because a salt writes its ions as separate ``.``-fragments so the
+    fragment count exceeds the molecule count (e.g. potassium persulfate
+    ``[K+].[K+].O=S(=O)([O-])OOS(=O)(=O)[O-]`` is one molecule, three fragments).
+    """
+    if not role_frags or cdk is None:
+        return None
     parser, igf = cdk
     resolved = [_inchi_from_smiles(f, parser, igf) for f in role_frags]
     if any(not key for _inchi, key in resolved):
-        return coerced  # a fragment didn't resolve — don't risk a wrong count
-
-    # Match each fragment to a populated component by InChIKey; the leftovers
-    # are the dropped nulls.
+        return None  # a fragment didn't resolve — can't map it safely
     populated = Counter(c["inchi_key"] for c in coerced)
     recovered: list[dict] = []
     for inchi, key in resolved:
         if populated[key] > 0:
             populated[key] -= 1
         else:
+            # A recovered component is an empty placeholder with the InChI it
+            # was matched to; upstream gave us no coordinates.
             recovered.append(
-                {
-                    "inchi": inchi,
-                    "inchi_key": key,
-                    "cdx_top": 0.0,
-                    "cdx_left": 0.0,
-                    "cdx_bottom": 0.0,
-                    "cdx_right": 0.0,
-                }
+                {**_empty_reaction_component(), "inchi": inchi, "inchi_key": key}
             )
-    if len(recovered) != null_count:
-        return coerced  # didn't reconcile (e.g. salt/normalization) — leave as-is
+    # Trust the mapping only when EVERY populated component was itself found
+    # among the fragments (all consumed) and the leftovers exactly fill the null
+    # slots. If a populated key is absent from the SMILES — the Java role list
+    # and the reaction SMILES disagree, or a populated salt's combined key
+    # doesn't match its split ions — bail rather than fabricate components or
+    # overshoot the fragment count; the caller then falls back to a
+    # budget-capped placeholder.
+    if any(remaining > 0 for remaining in populated.values()):
+        return None
+    return recovered if len(recovered) == null_count else None
+
+
+def _coerce_role(java_list, role_frags: list[str] | None, cdk) -> list[dict]:
+    """Coerce one reaction role (reactants/products/agents) to component dicts.
+
+    BChemXtract returns each role at molecule granularity but leaves a ``null``
+    in the list where a component's per-molecule InChI build failed. Those nulls
+    are real molecules — they count toward the role (reagent salts among the
+    agents are the common case) — so dropping them undercounts the role, which
+    is what collapsed "4 agents" to "1". We therefore preserve the molecule
+    count — enriching each dropped slot with InChI recovered from the reaction
+    SMILES (:func:`_recover_null_components`) when the fragments map cleanly,
+    else padding an empty placeholder — but never beyond what the SMILES
+    supports: a role reports no more molecules than its section has
+    ``.``-fragments, so a degenerate reaction (empty ``>>`` SMILES with a
+    null-filled Java list) stays at 0 rather than sprouting phantom components.
+    """
+    raw = list(java_list or [])
+    coerced = [_coerce_reaction_component(c) for c in raw if c is not None]
+    null_count = len(raw) - len(coerced)
+    if null_count == 0:
+        return coerced
+
+    recovered = _recover_null_components(coerced, role_frags, null_count, cdk)
+    if recovered is None:
+        # Pad placeholders, but never more molecules than the SMILES has
+        # fragments to back (see docstring — guards the degenerate `>>` case).
+        # `len(coerced)` is a proxy for fragments consumed by populated
+        # components (one each); it under-counts when a populated component is a
+        # multi-fragment salt, so this cap can still let through one phantom
+        # placeholder in that rare case. A tighter bound is blocked by the same
+        # fragment↔molecule ambiguity and would need molecule-level data upstream.
+        frag_budget = len(role_frags or []) - len(coerced)
+        pad = max(0, min(null_count, frag_budget))
+        recovered = [_empty_reaction_component() for _ in range(pad)]
     return coerced + recovered
 
 
