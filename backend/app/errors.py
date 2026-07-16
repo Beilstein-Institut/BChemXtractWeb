@@ -37,6 +37,8 @@ Exception tree:
     +-- InvalidAdminSecretError    (401 INVALID_ADMIN_SECRET)
     +-- ApiKeyExpiredError         (401 API_KEY_EXPIRED)
     +-- ApiKeyRevokedError         (401 API_KEY_REVOKED)
+    +-- PubChemDisabledError       (503 PUBCHEM_DISABLED)
+    +-- FileNotStoredError         (409 FILE_NOT_STORED)
 """
 
 import logging
@@ -142,6 +144,11 @@ class PubChemDisabledError(BridgeError):
     (503 / PUBCHEM_DISABLED)."""
 
 
+class FileNotStoredError(BridgeError):
+    """Extraction exists but its uploaded file was never stored / has been
+    pruned (409 / FILE_NOT_STORED). The client falls back to re-upload."""
+
+
 # ----------------------------------------------------------------------------
 # Unified ErrorResponse handlers.
 # ----------------------------------------------------------------------------
@@ -187,6 +194,7 @@ _BRIDGE_ERROR_MAP: list[tuple[type[BridgeError], int, str]] = [
     (ApiKeyExpiredError, 401, "API_KEY_EXPIRED"),
     (ApiKeyRevokedError, 401, "API_KEY_REVOKED"),
     (PubChemDisabledError, 503, "PUBCHEM_DISABLED"),
+    (FileNotStoredError, 409, "FILE_NOT_STORED"),
 ]
 
 

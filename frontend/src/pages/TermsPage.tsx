@@ -5,9 +5,8 @@
  * to cite (upstream BChemXtract).
  *
  * Sourced from:
- *   - Beilstein-Institut standard Terms & Conditions (adapted from
- *     https://www.beilstein-strenda-db.org/strenda/termsConditions.xhtml
- *     to fit BChemXtractWeb — no registration, no public datasets)
+ *   - Beilstein-Institut official BChemXtract Terms & Conditions
+ *     (no registration, no public datasets)
  *   - /LICENSE at the repo root (BChemXtractWeb MIT)
  *   - https://github.com/Beilstein-Institut/BChemXtract/blob/main/LICENSE (upstream BChemXtract MIT)
  *   - https://github.com/cdk/cdk/blob/main/LICENSE.txt (CDK 2.12 LGPL-2.1-or-later)

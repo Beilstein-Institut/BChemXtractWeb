@@ -1,9 +1,9 @@
 /**
  * PrivacyPage — GDPR privacy policy for BChemXtractWeb.
  *
- * Structure follows the Beilstein-Institut's standard § 1–§ 7 policy
- * format (cf. https://www.beilstein-strenda-db.org/strenda/privacyPolicy.xhtml),
- * adapted to the actual data flows in this codebase:
+ * Structure follows the Beilstein-Institut's standard § 1–§ 7 policy format
+ * (cf. https://www.beilstein-institut.de/en/privacy-policy/), adapted to the
+ * actual data flows in this codebase:
  *   - No user accounts. An anonymous session UUID in the `bcx_sid`
  *     cookie (backend/app/core/session.py: 30 days, HttpOnly, Secure,
  *     SameSite=Lax) scopes extraction history via Postgres RLS.
@@ -66,10 +66,13 @@ const TOPICS: Topic[] = [
           or via the postal address above with the addition "Der Datenschutzbeauftragte".
         </p>
         <p>
-          (3) If you contact us by e-mail, telephone, or mail, the data you provide is stored by us
-          in order to answer your questions. We delete the data arising in this context once storage
-          is no longer required, or restrict its processing where statutory retention obligations
-          apply. The legal basis is Art. 6 (1) lit. f GDPR.
+          (3) When you contact us by e-mail, telephone, or mail, the data you provide (e-mail
+          address, postal address, name, or telephone number) is stored by us in accordance with
+          Art. 6 (1) lit. c GDPR in order to answer your questions. We delete the data accruing in
+          this context once storage is no longer necessary. If the request is assigned to a
+          contract, we may also initially restrict processing in accordance with the contract terms
+          and then delete it. In the case of statutory retention obligations, deletion will only
+          take place when they expire.
         </p>
         <p>
           (4) This website is operated on infrastructure of the Beilstein-Institut. No external
@@ -355,7 +358,7 @@ export function PrivacyPage() {
       </div>
 
       <p className="mt-8 text-caption text-foreground-muted" data-slot="privacy-version">
-        Version 11.06.2026
+        Version 07.07.2026
       </p>
       <p className="mt-2 text-caption text-foreground-muted">
         Controller and supervisory-authority details reproduced from the{" "}

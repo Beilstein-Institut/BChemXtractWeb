@@ -2,8 +2,11 @@
  * ReactionsTab — orchestrator for the Reactions tab body.
  *
  * Decides between five sub-states:
- *   - idle (pre-extract): ExperimentalBanner + EmptyState + "Extract reactions" CTA
- *     (or a "Re-upload" variant when the browser doesn't still hold the File object).
+ *   - idle (pre-extract): ExperimentalBanner + EmptyState + "Extract reactions" CTA.
+ *     The CTA extracts from the in-memory `file` when present, or from the
+ *     server-stored file via `extractionId` for a history entry. Falls back
+ *     to a "Re-upload" variant when neither is available, or when a stored
+ *     file turned out to be gone (409 FILE_NOT_STORED → `fileUnavailable`).
  *   - loading: Spinner + "Extracting reactions from {filename}…"
  *   - success with reactions: metadata recap + list of ReactionCard + ReactionSheet
  *   - success with zero reactions: "No reactions detected" EmptyState
@@ -60,6 +63,13 @@ export interface ReactionsTabProps {
   /** Display filename override — used in the loading message. */
   filename?: string;
   /**
+   * The active extraction's id, used to extract reactions from the
+   * server-stored file (POST /api/extractions/{id}/reactions) when the
+   * browser no longer holds the original upload (e.g. a history entry).
+   * Null/undefined for a fresh upload where `file` is already in memory.
+   */
+  extractionId?: number | null;
+  /**
    * Fired whenever the visible reaction count changes (live extraction success,
    * cached hydration, or reset to zero). Lets the parent thread a
    * `reactionsAvailable` boolean down to siblings such as ExportMenu so the
@@ -74,9 +84,11 @@ export function ReactionsTab({
   cachedExtractionTimeMs,
   cachedFormat,
   filename,
+  extractionId = null,
   onReactionsCountChange,
 }: ReactionsTabProps) {
-  const { state, result, errorMessage, extract } = useReactions();
+  const { state, result, errorMessage, extract, extractFromStored, fileUnavailable } =
+    useReactions();
   const [sheetIndex, setSheetIndex] = useState<number | null>(null);
   const timeoutToastShown = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -108,8 +120,11 @@ export function ReactionsTab({
   const displayFilename = filename ?? file?.name ?? result?.filename ?? "this file";
 
   function handleExtract() {
-    if (!file) return;
-    extract(file);
+    if (file) {
+      extract(file);
+    } else if (extractionId != null) {
+      extractFromStored(extractionId);
+    }
   }
 
   function handleReupload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -138,8 +153,9 @@ export function ReactionsTab({
     <div className="mt-6 space-y-6">
       <ExperimentalBanner />
 
-      {/* Idle — pre-extract: file is in memory, user clicks CTA to trigger */}
-      {branch === "idle" && file && (
+      {/* Idle — pre-extract: file is in memory, or a stored file is
+          available for this extraction; user clicks CTA to trigger */}
+      {branch === "idle" && (file || (extractionId != null && !fileUnavailable)) && (
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -156,8 +172,10 @@ export function ReactionsTab({
         </Empty>
       )}
 
-      {/* Idle — re-upload: historical view, file bytes not in memory */}
-      {branch === "idle" && !file && (
+      {/* Idle — re-upload: historical view, file bytes not in memory and
+          either there's no stored file to fall back to, or the stored file
+          is gone (409 FILE_NOT_STORED) */}
+      {branch === "idle" && !file && (extractionId == null || fileUnavailable) && (
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -262,7 +280,11 @@ export function ReactionsTab({
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button variant="outline" onClick={handleExtract} disabled={!file}>
+            <Button
+              variant="outline"
+              onClick={handleExtract}
+              disabled={!file && extractionId == null}
+            >
               Try again
             </Button>
           </EmptyContent>

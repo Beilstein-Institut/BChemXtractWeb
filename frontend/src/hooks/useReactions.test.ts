@@ -11,15 +11,25 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { vi, beforeEach } from "vitest";
 import type { ReactionExtractionResponse } from "../types/chemistry";
 
-// Mock the apiClient module — control postReactions' behavior per test.
-vi.mock("../lib/apiClient", () => ({
-  postReactions: vi.fn(),
-}));
+// Mock the apiClient module — control postReactions'/postExtractReactionsFromStored's
+// behavior per test. ApiError is spread from the real module (via importOriginal) so
+// `new ApiError(...)` below stays a genuine ApiError instance the hook can `instanceof`-check.
+vi.mock("../lib/apiClient", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/apiClient")>();
+  return {
+    ...actual,
+    postReactions: vi.fn(),
+    postExtractReactionsFromStored: vi.fn(),
+  };
+});
 
 import { useReactions } from "./useReactions";
-import { postReactions } from "../lib/apiClient";
+import { postReactions, postExtractReactionsFromStored, ApiError } from "../lib/apiClient";
 
 const mockPostReactions = postReactions as ReturnType<typeof vi.fn>;
+const mockPostExtractReactionsFromStored = postExtractReactionsFromStored as ReturnType<
+  typeof vi.fn
+>;
 
 const buildResponse = (
   overrides: Partial<ReactionExtractionResponse> = {},
@@ -165,5 +175,39 @@ describe("useReactions hook", () => {
     unmount();
 
     expect(capturedSignal?.aborted).toBe(true);
+  });
+});
+
+describe("useReactions.extractFromStored", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("sets fileUnavailable on FILE_NOT_STORED and returns to idle", async () => {
+    mockPostExtractReactionsFromStored.mockRejectedValueOnce(
+      new ApiError("Reaction extraction failed: no file", { code: "FILE_NOT_STORED" }),
+    );
+    const { result } = renderHook(() => useReactions());
+
+    await act(async () => {
+      await result.current.extractFromStored(7);
+    });
+    await waitFor(() => expect(result.current.fileUnavailable).toBe(true));
+
+    expect(result.current.state).toBe("idle");
+    expect(result.current.errorMessage).toBeNull();
+  });
+
+  it("reaches success on a normal response and leaves fileUnavailable false", async () => {
+    mockPostExtractReactionsFromStored.mockResolvedValueOnce(buildResponse({ reaction_count: 3 }));
+    const { result } = renderHook(() => useReactions());
+
+    await act(async () => {
+      await result.current.extractFromStored(7);
+    });
+    await waitFor(() => expect(result.current.state).toBe("success"));
+
+    expect(result.current.result?.reaction_count).toBe(3);
+    expect(result.current.fileUnavailable).toBe(false);
   });
 });

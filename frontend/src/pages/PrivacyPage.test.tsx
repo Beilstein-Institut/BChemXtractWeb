@@ -37,6 +37,10 @@ describe("PrivacyPage", () => {
     const text = section!.textContent ?? "";
     expect(text).toMatch(/Beilstein-Institut zur Förderung der Chemischen Wissenschaften/);
     expect(text).toMatch(/datenschutz@beilstein-institut\.de/);
+    // § 1(3) legal basis intentionally follows the institute's official
+    // document (Art. 6(1) lit. c, not lit. f) — regression guard so it can't
+    // silently flip back.
+    expect(text).toMatch(/Art\. 6 \(1\) lit\. c GDPR/);
   });
 
   it("discloses that uploads are persisted and can be deleted from History or Settings", () => {
@@ -97,7 +101,9 @@ describe("PrivacyPage", () => {
     const { container } = render(<PrivacyPage />);
     const version = container.querySelector('[data-slot="privacy-version"]') as HTMLElement | null;
     expect(version).not.toBeNull();
-    expect(version!.textContent).toMatch(/Version \d{2}\.\d{2}\.\d{4}/);
+    // Literal value, not just shape — the version tracks the source document
+    // and a wrong date should fail the test.
+    expect(version!.textContent).toMatch(/Version 07\.07\.2026/);
   });
 
   it("links to the Beilstein-Institut full privacy policy", () => {

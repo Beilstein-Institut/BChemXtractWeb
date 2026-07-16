@@ -4,13 +4,13 @@
  */
 import type { Depiction } from "@/types/chemistry";
 
-export type ExportFormat = "sdf" | "json" | "csv" | "png" | "svg" | "v3000" | "rxn";
+export type ExportFormat = "sdf" | "json" | "tsv" | "png" | "svg" | "v3000" | "rxn";
 
 /** Human-readable labels for each format. Ordered as shown in the export dropdown. */
 export const FORMAT_LABELS: Record<ExportFormat, string> = {
   sdf: "SDF / MOL",
   json: "JSON",
-  csv: "CSV",
+  tsv: "TSV",
   png: "PNG Images",
   svg: "SVG Images",
   v3000: "MDL V3000",
@@ -21,7 +21,7 @@ export const FORMAT_LABELS: Record<ExportFormat, string> = {
 export const FORMAT_EXT: Record<ExportFormat, string> = {
   sdf: "sdf",
   json: "json",
-  csv: "csv",
+  tsv: "tsv",
   png: "png",
   svg: "svg",
   v3000: "mol",

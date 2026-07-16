@@ -83,7 +83,7 @@ export interface ExportMenuProps {
 const FORMAT_ICONS: Record<ExportFormat, React.ReactNode> = {
   sdf: <FileCode2Icon className="size-4" />,
   json: <BracesIcon className="size-4" />,
-  csv: <TableIcon className="size-4" />,
+  tsv: <TableIcon className="size-4" />,
   png: <ImageIcon className="size-4" />,
   svg: <FileImageIcon className="size-4" />,
   v3000: <FileCode2Icon className="size-4" />,
@@ -91,7 +91,7 @@ const FORMAT_ICONS: Record<ExportFormat, React.ReactNode> = {
 };
 
 /** Ordered format list as shown in dropdown. */
-const FORMAT_ORDER: ExportFormat[] = ["sdf", "json", "csv", "png", "svg", "v3000"];
+const FORMAT_ORDER: ExportFormat[] = ["sdf", "json", "tsv", "png", "svg", "v3000"];
 
 /**
  * ExportMenu — the shared format picker dropdown.

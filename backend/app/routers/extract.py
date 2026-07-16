@@ -149,7 +149,7 @@ async def extract_file(
         # handler runs; the fallback default is the un-scoped tuple so
         # routes still work in unit-test contexts that bypass the dep.
         scope = request.state.scope if hasattr(request.state, "scope") else (None, None)
-        saved = await save_extraction(db, response, scope=scope)
+        saved = await save_extraction(db, response, scope=scope, file_bytes=file_bytes)
         response = response.model_copy(update={"extraction_id": saved.id})
     except asyncio.CancelledError:
         raise

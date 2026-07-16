@@ -151,7 +151,7 @@ function HeroTile() {
           <BrandName suffix="Web" /> parses CDX and CDXML files, extracts structures and reactions,
           and enriches them with string representations — InChI, SMILES, RInChI, molecular formulas
           — all without installing Java or touching a command line. Drop a file, read the structures
-          back as JSON, SDF, or CSV.
+          back as JSON, SDF, or TSV.
         </p>
       </div>
       <div className="relative z-10 flex flex-wrap items-center gap-3">

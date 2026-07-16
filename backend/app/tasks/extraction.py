@@ -169,7 +169,7 @@ def extract_file_task(
             async with AsyncSessionLocal() as db:
                 db.info["rls_scope"] = (session_id, akh)
                 extraction = await save_extraction(
-                    db, response, scope=(session_id, akh)
+                    db, response, scope=(session_id, akh), file_bytes=file_bytes
                 )
                 extraction.batch_id = batch_id
                 await db.commit()

@@ -174,6 +174,34 @@ class ExtractionSubstance(Base):
     )
 
 
+class ExtractionFile(Base):
+    """Raw uploaded CDX/CDXML bytes for one extraction (1:1).
+
+    Kept so reactions can be extracted from a history entry without a
+    re-upload. CASCADE on extraction_id means single-delete, batch-delete,
+    and the retention sweep all remove the bytes with the extraction.
+    Owner columns + FORCE RLS mirror extraction_substances so a guessed
+    extraction_id from another session cannot read another user's file.
+    """
+
+    __tablename__ = "extraction_files"
+
+    extraction_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("extractions.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+
+    # Per-row ownership for Postgres RLS (mirrors extraction_substances).
+    session_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, index=True
+    )
+    api_key_hash: Mapped[bytes | None] = mapped_column(
+        LargeBinary, nullable=True, index=True
+    )
+
+
 class Reaction(Base):
     """A unique chemical reaction, deduplicated by long_rinchi_key.
 
