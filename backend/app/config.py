@@ -129,6 +129,9 @@ class Settings(BaseSettings):
     warning — NOT 408/503. Configurable via REACTION_TIMEOUT_SECS env var.
     """
 
+    cdx_render_timeout_secs: float = 30.0
+    """Hard timeout for the faithful CDX->SVG render JVM call (GET /api/extractions/{id}/render.svg)."""
+
     celery_broker_url: str = "redis://redis:6379/0"
     """Celery broker URL. Configurable via CELERY_BROKER_URL env var."""
 
