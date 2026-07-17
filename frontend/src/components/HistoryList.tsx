@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { CdxViewerDialog } from "@/components/CdxViewerDialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useCSVExport, type CSVColumn } from "@/hooks/useCSVExport";
@@ -176,6 +177,7 @@ function HistoryRow({
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >
+          <CdxViewerDialog extractionId={entry.id} />
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger
