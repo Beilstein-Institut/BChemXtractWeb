@@ -183,6 +183,7 @@ export function BrowsePage({
           <section className="mt-6">
             <BrowseBento
               filename={activeResult.filename}
+              extractionId={activeResult.extraction_id}
               format={activeResult.format}
               fileSize={activeResult.file_size}
               extractionTimeMs={activeResult.extraction_time_ms}

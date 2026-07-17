@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { CdxViewerDialog } from "@/components/CdxViewerDialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useCSVExport, type CSVColumn } from "@/hooks/useCSVExport";
@@ -175,7 +176,13 @@ function HistoryRow({
           // button doesn't also reload the row.
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
+          // Both triggers here must stay icon-only (size="icon", 44px) — the
+          // header's Actions column width in Header() is hand-matched to
+          // exactly this content (two icon buttons + gap-1 + this padding).
+          // Adding a label back or a third button desyncs the header/row
+          // grids again; see the Header() comment above the Actions span.
         >
+          <CdxViewerDialog extractionId={entry.id} iconOnly />
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger
@@ -430,7 +437,16 @@ function Header() {
         <span className="sm:hidden">Rxns</span>
         <span className="hidden sm:inline">Reactions</span>
       </span>
-      <span className="w-[72px] text-right text-caption font-semibold uppercase tracking-wide text-foreground-muted">
+      {/*
+        Width tracks the row's action cell content: two size="icon" buttons
+        (44px each) + gap-1 (4px) + the row's pr-3/pr-5 right padding — 104px
+        mobile, 112px sm+. The header and each row are independent CSS grid
+        containers, so this box must match the row's actual rendered content
+        width (not just look wide enough) or the shared 1fr "File" track
+        resolves to a different pixel width in the header vs. every row,
+        shifting the Date/Structures/Reactions boundaries out of alignment.
+      */}
+      <span className="w-[104px] text-right text-caption font-semibold uppercase tracking-wide text-foreground-muted sm:w-[112px]">
         Actions
       </span>
     </div>

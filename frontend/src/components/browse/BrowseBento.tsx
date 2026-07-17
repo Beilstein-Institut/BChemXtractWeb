@@ -27,12 +27,19 @@ import { AlertTriangleIcon, CheckIcon, DatabaseIcon, FileIcon, SparklesIcon } fr
 
 import { Card, CardContent } from "@/components/ui/card";
 import { MolecularFormula } from "@/components/internal/MolecularFormula";
+import { CdxViewerDialog } from "@/components/CdxViewerDialog";
 import { cn } from "@/lib/utils";
 import type { SubstanceInfoResponse } from "@/types/chemistry";
 
 export interface BrowseBentoProps {
   /** Source filename, headline of the receipt. */
   filename: string;
+  /**
+   * Extraction id of the file this receipt describes. When present, a
+   * "View as drawn" control renders the original ChemDraw page faithfully.
+   * Null for extractions whose original bytes were not stored.
+   */
+  extractionId?: number | null;
   /** ChemDraw format label, e.g. "cdxml". */
   format?: string;
   /** Uploaded file size in bytes. */
@@ -221,6 +228,7 @@ function InchiStatus({ total, missing }: { total: number; missing: readonly stri
 
 export function BrowseBento({
   filename,
+  extractionId,
   format,
   fileSize,
   extractionTimeMs,
@@ -291,6 +299,11 @@ export function BrowseBento({
             </h2>
             {provenance && (
               <p className="mt-0.5 font-mono text-sm text-foreground-muted">{provenance}</p>
+            )}
+            {extractionId != null && (
+              <div className="mt-2">
+                <CdxViewerDialog extractionId={extractionId} />
+              </div>
             )}
           </div>
         </section>

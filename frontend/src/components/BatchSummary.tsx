@@ -1,6 +1,7 @@
 import { CheckCircle2Icon, DownloadIcon, PlusIcon, XCircleIcon } from "lucide-react";
 import { toast } from "sonner";
 import { BatchFilePreview } from "@/components/BatchFilePreview";
+import { CdxViewerDialog } from "@/components/CdxViewerDialog";
 import { Button } from "@/components/ui/button";
 import { downloadBatchZip } from "@/lib/apiClient";
 import { navigate } from "@/lib/router";
@@ -192,14 +193,17 @@ export function BatchSummary({
                 </span>
               )}
               {f.state === "done" && f.extractionId != null && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => onViewExtraction(f.extractionId!)}
-                >
-                  View
-                </Button>
+                <>
+                  <CdxViewerDialog extractionId={f.extractionId} iconOnly />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => onViewExtraction(f.extractionId!)}
+                  >
+                    View
+                  </Button>
+                </>
               )}
             </li>
           );

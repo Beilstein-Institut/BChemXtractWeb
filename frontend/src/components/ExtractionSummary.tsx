@@ -9,6 +9,7 @@ import { useState } from "react";
 import { AlertTriangleIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription, AlertAction } from "@/components/ui/alert";
+import { CdxViewerDialog } from "@/components/CdxViewerDialog";
 import type { ExtractionResponse } from "@/types/chemistry";
 
 export interface ExtractionSummaryProps {
@@ -54,9 +55,17 @@ export function ExtractionSummary({ response, onReset }: ExtractionSummaryProps)
           {" · "}
           {formatExtractionTime(response.extraction_time_ms)}
         </p>
-        <Button variant="default" className="rounded-full" onClick={onReset}>
-          Upload another file
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* extraction_id is optional on ExtractionResponse (nullable in the
+              wire contract elsewhere in the app) — only render the trigger
+              when there's an id to render from. */}
+          {response.extraction_id != null && (
+            <CdxViewerDialog extractionId={response.extraction_id} />
+          )}
+          <Button variant="default" className="rounded-full" onClick={onReset}>
+            Upload another file
+          </Button>
+        </div>
       </div>
 
       {/* Amber warning Alert — only shown when warnings exist and not dismissed */}

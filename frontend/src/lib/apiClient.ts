@@ -205,7 +205,7 @@ async function parseJsonEnvelope<T>(
 }
 
 /** Trigger a browser download for a binary blob via a hidden anchor. */
-function triggerDownload(blob: Blob, filename: string): void {
+export function triggerDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -344,6 +344,20 @@ export async function getHistoryDetail(id: number): Promise<ExtractionResponse> 
     errorPrefix: "Failed to load extraction",
   });
   return response.json() as Promise<ExtractionResponse>;
+}
+
+/**
+ * Fetch the faithful whole-page SVG for an extraction's stored CDX.
+ * Returns raw SVG markup (already sanitized server-side). apiFetch throws a
+ * typed ApiError (code "FILE_NOT_STORED" on 409) for non-2xx before we read.
+ */
+export async function getRenderedCdx(extractionId: number): Promise<string> {
+  const res = await apiFetch(`/api/extractions/${extractionId}/render.svg`, {
+    method: "GET",
+    errorPrefix: "Could not render the original file",
+    headers: { Accept: "image/svg+xml" },
+  });
+  return res.text();
 }
 
 /**

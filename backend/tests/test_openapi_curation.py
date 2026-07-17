@@ -11,6 +11,7 @@ APPROVED_OPERATION_IDS = {
     "submitExtractJob",
     "getExtractJobStatus",
     "getExtractionSubstances",
+    "renderExtractionSvg",
     # extraction (experimental reactions)
     "extractReactions",
     "getExtractionReactions",
