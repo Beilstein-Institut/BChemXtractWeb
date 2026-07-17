@@ -41,6 +41,14 @@ T = TypeVar("T")
 _executor: ThreadPoolExecutor | None = None
 _pool_size: int = 0
 
+# Whether the faithful CDX/CDXML renderer's entry class loaded successfully at
+# JVM startup. cdx-render is optional at import time (see initialize_jvm), so
+# this is a feature-availability flag, not a per-call check: the render route
+# probes it once up front (via is_cdx_renderer_available()) instead of letting
+# every render attempt discover the outage as a JClass-not-found exception
+# that would otherwise be mislabeled as a per-file 422.
+_cdx_renderer_available: bool = False
+
 # Cap on concurrent in-flight JVM daemon subtasks, INCLUDING ones abandoned
 # after a timeout that are still draining a native call. JPype cannot interrupt
 # a native call, so a flood of pathological inputs would otherwise spawn
@@ -73,7 +81,7 @@ def initialize_jvm(settings: Settings) -> None:
     Raises:
         JVMStartupError: If no JAR is found or the JVM fails to start.
     """
-    global _executor, _pool_size  # noqa: PLW0603
+    global _executor, _pool_size, _cdx_renderer_available  # noqa: PLW0603
 
     if jpype.isJVMStarted():
         logger.warning("JVM is already started -- skipping initialization")
@@ -87,7 +95,20 @@ def initialize_jvm(settings: Settings) -> None:
             detail="Run 'bash scripts/build_jar.sh' to build the JAR",
         )
     # cdx-render is optional at import time but required for the render endpoint.
-    render_jars = glob.glob(f"{settings.jar_path}/cdx-render-*.jar")
+    # Exactly ONE render jar goes on the classpath: if a stale version lingers
+    # alongside the current one, loading both risks the classloader binding the
+    # old class. Sort deterministically and take the last (highest-sorting,
+    # typically newest-versioned) match; warn loudly when more than one is
+    # found so operators notice the stale jar and clean it up.
+    render_jar_matches = sorted(glob.glob(f"{settings.jar_path}/cdx-render-*.jar"))
+    if len(render_jar_matches) > 1:
+        logger.warning(
+            "Multiple cdx-render jars found in %s: %s -- using %s, ignoring the rest",
+            settings.jar_path,
+            render_jar_matches,
+            render_jar_matches[-1],
+        )
+    render_jars = render_jar_matches[-1:]
     classpath = [jars[0], *render_jars]
 
     # Build JVM arguments
@@ -125,6 +146,27 @@ def initialize_jvm(settings: Settings) -> None:
         jpype.JClass("org.beilstein.chemxtract.render.pdf.PDFFontUtils")
     except Exception as exc:  # noqa: BLE001 -- warmup is optional
         logger.warning("cdx-render font warmup skipped: %s", exc)
+
+    # Probe the faithful renderer's entry class so its availability is known
+    # up front rather than discovered per-request. If the cdx-render jar
+    # wasn't found above (or failed to load), every render call would
+    # otherwise throw inside the JVM and get caught by the route's broad
+    # exception handler -- mislabeling a total feature outage (deploy fault)
+    # as a per-file 422. is_cdx_renderer_available() lets the route fail
+    # fast with a 503 instead.
+    try:
+        jpype.JClass("org.beilstein.chemxtract.render.CdxSvgRenderer")
+        _cdx_renderer_available = True
+    except Exception as exc:  # noqa: BLE001 -- availability probe, not fatal
+        _cdx_renderer_available = False
+        logger.warning(
+            "Faithful CDX renderer (CdxSvgRenderer) is NOT available -- "
+            "the cdx-render jar is likely missing from %s. "
+            "GET /api/extractions/{id}/render.svg will return 503 "
+            "RENDER_UNAVAILABLE until this is fixed. Cause: %s",
+            settings.jar_path,
+            exc,
+        )
 
     # Create bounded thread pool for JPype calls
     _pool_size = settings.jpype_workers
@@ -165,6 +207,23 @@ def get_executor() -> ThreadPoolExecutor:
         msg = "JPype thread pool is not initialized -- was initialize_jvm() called?"
         raise RuntimeError(msg)
     return _executor
+
+
+def is_cdx_renderer_available() -> bool:
+    """Return whether the faithful CDX/CDXML renderer is usable.
+
+    True only if the JVM is started AND ``CdxSvgRenderer`` loaded
+    successfully during :func:`initialize_jvm`'s startup probe. Callers
+    (the render route) should check this before invoking ``render_cdx_svg``
+    and raise a 503 rather than let a missing-class error surface as a
+    per-file 422.
+
+    Returns:
+        False if the JVM hasn't started or the probe failed; True otherwise.
+    """
+    if not jpype.isJVMStarted():
+        return False
+    return _cdx_renderer_available
 
 
 def get_pool_stats() -> dict[str, int]:

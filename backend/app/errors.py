@@ -41,6 +41,7 @@ Exception tree:
     +-- FileNotStoredError         (409 FILE_NOT_STORED)
     +-- RenderTimeoutError         (503 RENDER_TIMEOUT)
     +-- RenderFailedError          (422 RENDER_FAILED)
+    +-- RenderUnavailableError     (503 RENDER_UNAVAILABLE)
 """
 
 import logging
@@ -164,6 +165,14 @@ class RenderFailedError(BridgeError):
     (422 / RENDER_FAILED)."""
 
 
+class RenderUnavailableError(BridgeError):
+    """The faithful CDX/CDXML renderer is not available on this deployment
+    (cdx-render jar missing/failed to load at JVM startup) (503 /
+    RENDER_UNAVAILABLE). Distinct from :class:`RenderFailedError` -- this is
+    a deploy-wide feature outage, not a per-file failure, so it must not be
+    mistaken for a client error."""
+
+
 # ----------------------------------------------------------------------------
 # Unified ErrorResponse handlers.
 # ----------------------------------------------------------------------------
@@ -212,6 +221,7 @@ _BRIDGE_ERROR_MAP: list[tuple[type[BridgeError], int, str]] = [
     (FileNotStoredError, 409, "FILE_NOT_STORED"),
     (RenderTimeoutError, 503, "RENDER_TIMEOUT"),
     (RenderFailedError, 422, "RENDER_FAILED"),
+    (RenderUnavailableError, 503, "RENDER_UNAVAILABLE"),
 ]
 
 

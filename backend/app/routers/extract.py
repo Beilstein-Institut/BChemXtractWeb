@@ -27,7 +27,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.celery_app import celery_app
 from app.config import settings
-from app.errors import FileNotStoredError, RenderFailedError, RenderTimeoutError
+from app.errors import (
+    FileNotStoredError,
+    RenderFailedError,
+    RenderTimeoutError,
+    RenderUnavailableError,
+)
 from app.middleware.rate_limit import limiter
 from app.models.chemistry import (
     ErrorResponse,
@@ -52,6 +57,7 @@ from app.services.job_ownership import (
     require_job_owner,
     scope_owner_token,
 )
+from app.services.jvm_bridge import is_cdx_renderer_available
 from app.services.persistence import get_extraction_file, save_extraction
 from app.services.upload_guard import read_upload_bounded
 from app.tasks.extraction import extract_file_task
@@ -396,26 +402,35 @@ async def get_substances_page(
         "drawn (faithful ChemDraw layout, not the per-substance CDK "
         "depiction) to SVG. 409 FILE_NOT_STORED when the original bytes "
         "were not persisted (legacy extractions predating file storage); "
-        "422 RENDER_FAILED when the renderer raises; 503 RENDER_TIMEOUT "
-        "when the render is aborted after exceeding the JVM timeout."
+        "422 RENDER_FAILED when the renderer raises for a per-file reason; "
+        "503 RENDER_UNAVAILABLE when the faithful renderer isn't available "
+        "on this deployment; 503 RENDER_TIMEOUT when the render is aborted "
+        "after exceeding the JVM timeout."
     ),
     responses={
         200: {"content": {"image/svg+xml": {}}, "description": "Faithful SVG."},
         404: {"model": ErrorResponse, "description": "Extraction not found."},
         409: {"model": ErrorResponse, "description": "Original file not stored."},
         422: {"model": ErrorResponse, "description": "Render failed."},
-        503: {"model": ErrorResponse, "description": "Render timed out."},
+        503: {
+            "model": ErrorResponse,
+            "description": "Render timed out, or the renderer is unavailable.",
+        },
     },
     tags=["extraction"],
 )
-async def render_extraction_svg(extraction_id: int, db: DbDep) -> Response:
+@limiter.limit(settings.rate_limit_render)
+async def render_extraction_svg(
+    request: Request, extraction_id: int, db: DbDep
+) -> Response:
     """Faithful (whole-page, original-layout) SVG for a stored CDX/CDXML.
 
     Existence/ownership check is RLS-scoped, so an id that exists but isn't
     the caller's is invisible and 404s exactly like an unknown id
-    (IDOR-safe). FILE_NOT_STORED / RENDER_FAILED / RENDER_TIMEOUT are
-    BridgeError subclasses (app.errors) so the response carries the same
-    top-level ``code`` convention as the rest of the API.
+    (IDOR-safe). FILE_NOT_STORED / RENDER_FAILED / RENDER_TIMEOUT /
+    RenderUnavailableError are BridgeError subclasses (app.errors) so the
+    response carries the same top-level ``code`` convention as the rest of
+    the API.
     """
     exists = await db.scalar(
         select(func.count())
@@ -430,6 +445,16 @@ async def render_extraction_svg(extraction_id: int, db: DbDep) -> Response:
         raise FileNotStoredError(
             "The original file for this extraction is no longer stored. "
             "Re-upload it to render the faithful view."
+        )
+
+    # Feature-availability probe, not per-file guessing: if the cdx-render
+    # jar wasn't on the classpath at JVM startup, every render would
+    # otherwise hit a JClass-not-found error inside the JVM, get caught by
+    # the broad except below, and get mislabeled as a per-file 422 instead
+    # of the deploy-wide 503 outage it actually is.
+    if not is_cdx_renderer_available():
+        raise RenderUnavailableError(
+            "The faithful CDX renderer is not available on this deployment."
         )
 
     try:
