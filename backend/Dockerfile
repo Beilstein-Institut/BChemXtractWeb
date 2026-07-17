@@ -23,6 +23,13 @@ RUN set -eu; \
 # so we bypass Javadoc generation entirely.
 RUN cd bchemxtract && mvn clean package -DskipTests -Dmaven.javadoc.skip=true -q
 
+# Build the first-party faithful CDX->SVG renderer against the fat jar just built.
+COPY backend/cdx-render /build/cdx-render
+RUN FAT=$(ls /build/bchemxtract/target/*-jar-with-dependencies.jar | head -1) && \
+    mvn -q install:install-file -Dfile="$FAT" \
+        -DgroupId=org.beilstein -DartifactId=bchemxtract -Dversion=runtime -Dpackaging=jar && \
+    cd /build/cdx-render && mvn -q clean package -DskipTests
+
 # Stage 2: Install Python dependencies with uv
 FROM python:3.12-slim AS python-builder
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -48,6 +55,7 @@ COPY --from=python-builder /app/.venv /app/.venv
 
 # Copy built JAR from Maven stage
 COPY --from=jar-builder /build/bchemxtract/target/*-jar-with-dependencies.jar /app/jars/
+COPY --from=jar-builder /build/cdx-render/target/cdx-render-*.jar /app/jars/
 
 # Copy application code
 COPY backend/app /app/app

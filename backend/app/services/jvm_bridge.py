@@ -79,13 +79,16 @@ def initialize_jvm(settings: Settings) -> None:
         logger.warning("JVM is already started -- skipping initialization")
         return
 
-    # Locate the BChemXtract fat JAR
+    # Locate the BChemXtract fat JAR plus the first-party cdx-render jar.
     jars = glob.glob(f"{settings.jar_path}/bchemxtract-*-jar-with-dependencies.jar")
     if not jars:
         raise JVMStartupError(
             f"No BChemXtract JAR found in {settings.jar_path}",
             detail="Run 'bash scripts/build_jar.sh' to build the JAR",
         )
+    # cdx-render is optional at import time but required for the render endpoint.
+    render_jars = glob.glob(f"{settings.jar_path}/cdx-render-*.jar")
+    classpath = [jars[0], *render_jars]
 
     # Build JVM arguments
     jvm_args: list[str] = [
@@ -99,7 +102,7 @@ def initialize_jvm(settings: Settings) -> None:
     try:
         jpype.startJVM(
             *jvm_args,
-            classpath=[jars[0]],
+            classpath=classpath,
             convertStrings=True,
         )
     except Exception as exc:
@@ -109,8 +112,8 @@ def initialize_jvm(settings: Settings) -> None:
         ) from exc
 
     logger.info(
-        "JVM started successfully (JAR=%s, heap=%s)",
-        jars[0],
+        "JVM started successfully (classpath=%s, heap=%s)",
+        classpath,
         settings.jvm_max_heap,
     )
 
