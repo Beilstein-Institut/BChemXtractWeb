@@ -86,7 +86,7 @@ describe("useCdxRender", () => {
     vi.spyOn(api, "getRenderedCdx").mockReturnValue(
       new Promise<string>((r) => {
         resolve = r;
-      })
+      }),
     );
 
     const { result } = renderHook(() => useCdxRender());

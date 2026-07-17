@@ -97,8 +97,16 @@ export function CdxViewer({ svg, title = "ChemDraw structure", className }: CdxV
         <Button variant="ghost" size="icon" aria-label="Zoom in" onClick={() => stepZoom(1)}>
           <ZoomInIcon className="size-4" />
         </Button>
-        <span className="ml-1 text-xs text-foreground-muted tabular-nums">{Math.round(zoom * 100)}%</span>
-        <Button variant="ghost" size="icon" aria-label="Download SVG" className="ml-auto" onClick={download}>
+        <span className="ml-1 text-xs text-foreground-muted tabular-nums">
+          {Math.round(zoom * 100)}%
+        </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Download SVG"
+          className="ml-auto"
+          onClick={download}
+        >
           <DownloadIcon className="size-4" />
         </Button>
       </div>
