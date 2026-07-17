@@ -11,7 +11,6 @@ Covers:
 from __future__ import annotations
 
 import os
-import time
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -94,9 +93,10 @@ async def test_revoked_key_returns_401(started_app):
 
 
 async def test_lru_cache_warm_vs_cold(started_app):
-    """First call performs PBKDF2 (~100ms at 600k iters); subsequent calls
-    benefit from lru_cache on the hash-lookup helper. Warm must be at least
-    5× faster than cold (very loose to tolerate CI variance).
+    """hash_api_key_for_lookup runs PBKDF2 (600k iters); lru_cache memoises it
+    so validating the same key twice recomputes the hash only once. Assert the
+    cache's hit/miss counters directly -- wall-clock timing was too flaky on
+    shared CI runners.
     """
     from app.core.security import hash_api_key_for_lookup, validate_api_key
 
@@ -113,16 +113,11 @@ async def test_lru_cache_warm_vs_cold(started_app):
         hash_api_key_for_lookup.cache_clear()
 
         async with AsyncSessionLocal() as db:
-            t0 = time.perf_counter()
             await validate_api_key(plaintext, db)
-            t_cold = time.perf_counter() - t0
+        cold = hash_api_key_for_lookup.cache_info()
+        assert (cold.misses, cold.hits) == (1, 0), f"expected cold miss: {cold}"
 
         async with AsyncSessionLocal() as db:
-            t1 = time.perf_counter()
             await validate_api_key(plaintext, db)
-            t_warm = time.perf_counter() - t1
-
-        assert t_warm * 5 < t_cold, (
-            f"lru_cache not effective: cold={t_cold * 1000:.1f}ms "
-            f"warm={t_warm * 1000:.1f}ms"
-        )
+        warm = hash_api_key_for_lookup.cache_info()
+        assert (warm.misses, warm.hits) == (1, 1), f"lru_cache not effective: {warm}"
