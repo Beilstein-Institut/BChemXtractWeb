@@ -36,6 +36,15 @@
       <artifactId>batik-svggen</artifactId>
       <version>${batik.version}</version>
     </dependency>
+    <!-- Registers the ImageWriter SPI impls (PNG/JPEG/TIFF) that ImageHandlerBase64Encoder
+         needs to inline embedded raster figures as base64 <image> hrefs; without it
+         ImageWriterRegistry.getWriterFor(...) returns null and SVG generation NPEs.
+         The original org.beilstein.boa module (oa/boa/pom.xml) depends on this too. -->
+    <dependency>
+      <groupId>org.apache.xmlgraphics</groupId>
+      <artifactId>batik-codec</artifactId>
+      <version>${batik.version}</version>
+    </dependency>
     <dependency>
       <groupId>org.apache.xmlgraphics</groupId>
       <artifactId>batik-dom</artifactId>
