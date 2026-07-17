@@ -95,6 +95,30 @@ describe("CdxViewerDialog", () => {
     expect(toast.error).toHaveBeenCalledWith("Could not render the original file.");
   });
 
+  it('shows an inline error + "Try again" for a non-FILE_NOT_STORED error, and retries on click', () => {
+    mockHookState = { state: "error", svg: null, errorCode: "RENDER_FAILED" };
+    render(<CdxViewerDialog extractionId={11} />);
+    fireEvent.click(screen.getByRole("button", { name: /view as drawn/i }));
+
+    expect(screen.getByText(/couldn't render the original file/i)).toBeInTheDocument();
+
+    expect(mockRender).toHaveBeenCalledTimes(1); // from opening the dialog
+
+    const retry = screen.getByRole("button", { name: /try again/i });
+    fireEvent.click(retry);
+    expect(mockRender).toHaveBeenCalledTimes(2);
+    expect(mockRender).toHaveBeenLastCalledWith(11);
+  });
+
+  it('shows the inline error + "Try again" when errorCode is null (e.g. network error)', () => {
+    mockHookState = { state: "error", svg: null, errorCode: null };
+    render(<CdxViewerDialog extractionId={12} />);
+    fireEvent.click(screen.getByRole("button", { name: /view as drawn/i }));
+
+    expect(screen.getByText(/couldn't render the original file/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument();
+  });
+
   it("calls reset() when the dialog is closed", () => {
     mockHookState = { state: "success", svg: "<svg/>", errorCode: null };
     render(<CdxViewerDialog extractionId={3} />);

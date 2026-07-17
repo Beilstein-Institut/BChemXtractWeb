@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DownloadIcon, MaximizeIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { triggerDownload } from "@/lib/apiClient";
@@ -33,6 +33,7 @@ export function CdxViewer({ svg, title = "ChemDraw structure", className }: CdxV
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const drag = useRef<{ x: number; y: number } | null>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
 
   const clampZoom = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
   const stepZoom = (dir: 1 | -1) => setZoom((z) => clampZoom(dir > 0 ? z * STEP : z / STEP));
@@ -41,10 +42,27 @@ export function CdxViewer({ svg, title = "ChemDraw structure", className }: CdxV
     setPan({ x: 0, y: 0 });
   };
 
-  const onWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    stepZoom(e.deltaY < 0 ? 1 : -1);
-  };
+  // Mouse-wheel zoom needs a NON-passive listener: React 19 attaches its
+  // synthetic `wheel` handler at the root as passive, so an onWheel prop's
+  // e.preventDefault() is silently ignored (console warning + the page
+  // scrolls while the image zooms). Wiring the DOM listener directly with
+  // { passive: false } makes preventDefault effective. The handler computes
+  // the clamp inline (closing only over the module-level MIN_ZOOM/MAX_ZOOM/
+  // STEP constants and the stable setZoom setter) so it needs no dependency
+  // array entries and the effect can run exactly once.
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      setZoom((z) => {
+        const next = e.deltaY < 0 ? z * STEP : z / STEP;
+        return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
+      });
+    };
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleWheel);
+  }, []);
 
   const onPointerDown = (e: React.PointerEvent) => {
     drag.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
@@ -86,9 +104,9 @@ export function CdxViewer({ svg, title = "ChemDraw structure", className }: CdxV
       </div>
 
       <div
+        ref={viewportRef}
         data-slot="cdx-viewport"
         data-testid="cdx-viewport"
-        onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

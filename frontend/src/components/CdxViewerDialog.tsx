@@ -99,6 +99,20 @@ export function CdxViewerDialog({ extractionId, iconOnly }: CdxViewerDialogProps
           </div>
         )}
 
+        {state === "error" && errorCode !== "FILE_NOT_STORED" && (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-sm text-foreground-muted">
+            <span data-slot="cdx-render-error">Couldn't render the original file.</span>
+            <Button
+              variant="outline"
+              size="sm"
+              data-slot="cdx-render-retry"
+              onClick={() => render(extractionId)}
+            >
+              Try again
+            </Button>
+          </div>
+        )}
+
         {state === "success" && svg && (
           <div className="min-h-0 flex-1">
             <CdxViewer svg={svg} title="Original ChemDraw" />
