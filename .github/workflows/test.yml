@@ -66,6 +66,13 @@ jobs:
         working-directory: backend
         run: bash scripts/build_jar.sh
 
+      # Build the first-party faithful renderer jar too, so the render.svg
+      # endpoint tests run for real instead of hitting 503 RENDER_UNAVAILABLE.
+      # Mirrors the Dockerfile's cdx-render build step.
+      - name: Build cdx-render JAR
+        working-directory: backend
+        run: bash scripts/build_cdx_render.sh
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
