@@ -102,7 +102,10 @@ export function CdxViewer({ svg, title = "ChemDraw structure", className }: CdxV
             src={url}
             alt={title}
             draggable={false}
-            className="absolute left-1/2 top-1/2 max-w-none select-none"
+            // max-h/max-w-full (not max-w-none) makes the structure fit-to-fill
+            // the viewport at zoom=1 (contain), so a wide reaction fills the box
+            // instead of sitting tiny at its natural pixel size; zoom scales from there.
+            className="absolute left-1/2 top-1/2 max-h-full max-w-full select-none"
             style={{
               transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
               transformOrigin: "center",

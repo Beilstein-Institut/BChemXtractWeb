@@ -91,7 +91,10 @@ export function CdxViewerDialog({ extractionId, iconOnly }: CdxViewerDialogProps
           }
         />
       )}
-      <DialogContent className="flex h-[85vh] w-[92vw] max-w-5xl flex-col">
+      {/* sm:max-w-5xl (responsive) is required to beat DialogContent's base
+          `sm:max-w-sm` — a plain `max-w-5xl` loses to it at >=sm widths and the
+          dialog collapses to a ~384px-wide strip. */}
+      <DialogContent className="flex h-[85vh] w-[92vw] max-w-[95vw] flex-col sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>Original ChemDraw (as drawn)</DialogTitle>
         </DialogHeader>
