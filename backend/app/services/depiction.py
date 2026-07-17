@@ -74,20 +74,30 @@ _CDK_WHITE_BACKGROUND_RECT_RE = re.compile(
 )
 
 
-def sanitize_svg(svg: str) -> str:
-    """Strip scriptable constructs + CDK's white backdrop.
+def sanitize_svg(svg: str, *, strip_backdrop: bool = True) -> str:
+    """Strip scriptable constructs, optionally also CDK's white backdrop.
 
-    Removes:
+    Removes (always, regardless of ``strip_backdrop``):
       * ``<script>...</script>`` tags
       * ``<foreignObject>...</foreignObject>`` blocks (they host HTML)
       * ``on*="..."`` event-handler attributes
       * ``href``/``xlink:href``/``src`` values with a ``javascript:`` scheme
+
+    Removes additionally when ``strip_backdrop`` is True (the default):
       * CDK DepictionGenerator's opaque white background ``<rect/>`` so the
         parent container's own background shows through (matches the theme
         instead of clashing as a white patch on dark / tinted backgrounds).
 
+    ``strip_backdrop=False`` is for faithful (non-CDK) renderers -- e.g. the
+    Batik-backed cdx-render output -- where a white, unstroked ``<rect/>`` can
+    be a legitimate occlusion mask in the original ChemDraw drawing rather
+    than CDK's synthetic canvas backdrop. Stripping it there would silently
+    corrupt the faithful layout.
+
     Args:
-        svg: Raw SVG markup as produced by CDK.
+        svg: Raw SVG markup as produced by CDK or the faithful renderer.
+        strip_backdrop: When True, also strip CDK's white background rect.
+            Set False for non-CDK/faithful renderers. Keyword-only.
 
     Returns:
         Sanitised SVG markup. Empty string if ``svg`` is empty or None.
@@ -99,7 +109,8 @@ def sanitize_svg(svg: str) -> str:
     raw = _FOREIGN_OBJECT_RE.sub(b"", raw)
     raw = _ON_EVENT_ATTR_RE.sub(b"", raw)
     raw = _JAVASCRIPT_URL_RE.sub(rb"\1=\2#\2", raw)
-    raw = _CDK_WHITE_BACKGROUND_RECT_RE.sub(b"", raw)
+    if strip_backdrop:
+        raw = _CDK_WHITE_BACKGROUND_RECT_RE.sub(b"", raw)
     return raw.decode("utf-8", errors="replace")
 
 

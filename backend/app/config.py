@@ -28,6 +28,10 @@ class Settings(BaseSettings):
         rate_limit_search: Per-IP rate limit for ``/api/search`` (substructure
             search can hold the JVM for up to 30 s).
         rate_limit_export: Per-IP rate limit for ``/api/export`` (bulk data).
+        rate_limit_render: Per-IP rate limit for
+            ``/api/extractions/{id}/render.svg`` (faithful CDX/CDXML render).
+            Shares the 16-slot in-flight JVM semaphore with extract/search, so
+            it needs its own cap rather than relying on the generic default.
         rate_limit_storage_uri: Backing store for slowapi. ``memory://`` (default,
             single-instance) or ``redis://...`` when scaling out.
         expose_openapi_docs: When False, ``/docs``, ``/redoc`` and
@@ -97,6 +101,7 @@ class Settings(BaseSettings):
     rate_limit_batch: str = "3/minute"
     rate_limit_search: str = "30/minute"
     rate_limit_export: str = "30/minute"
+    rate_limit_render: str = "30/minute"
     # Async extraction status poll: the frontend polls ~1/s for up to ~3 min, so
     # this needs its own generous bucket (override_defaults=True) — the 120/min
     # default would 429 a long or concurrent extraction into a spurious failure.
@@ -127,6 +132,13 @@ class Settings(BaseSettings):
 
     On timeout, the endpoint returns HTTP 200 with reactions=[] and a
     warning — NOT 408/503. Configurable via REACTION_TIMEOUT_SECS env var.
+    """
+
+    cdx_render_timeout_secs: float = 30.0
+    """Hard timeout for the faithful CDX->SVG render JVM call.
+
+    Guards GET /api/extractions/{id}/render.svg. Configurable via
+    CDX_RENDER_TIMEOUT_SECS env var.
     """
 
     celery_broker_url: str = "redis://redis:6379/0"
