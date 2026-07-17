@@ -130,7 +130,11 @@ class Settings(BaseSettings):
     """
 
     cdx_render_timeout_secs: float = 30.0
-    """Hard timeout for the faithful CDX->SVG render JVM call (GET /api/extractions/{id}/render.svg)."""
+    """Hard timeout for the faithful CDX->SVG render JVM call.
+
+    Guards GET /api/extractions/{id}/render.svg. Configurable via
+    CDX_RENDER_TIMEOUT_SECS env var.
+    """
 
     celery_broker_url: str = "redis://redis:6379/0"
     """Celery broker URL. Configurable via CELERY_BROKER_URL env var."""

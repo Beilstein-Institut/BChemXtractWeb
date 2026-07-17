@@ -68,33 +68,21 @@ export function CdxViewerDialog({ extractionId, iconOnly }: CdxViewerDialogProps
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      {iconOnly ? (
-        <DialogTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="View as drawn"
-              data-slot="view-as-drawn"
-              className="text-foreground-muted hover:text-foreground"
-            />
-          }
-        >
-          <EyeIcon className="size-4" />
-        </DialogTrigger>
-      ) : (
-        <DialogTrigger
-          render={
-            <Button variant="outline" size="sm" data-slot="view-as-drawn">
-              <EyeIcon className="size-4" /> View as drawn
-            </Button>
-          }
-        />
-      )}
-      {/* sm:max-w-5xl (responsive) is required to beat DialogContent's base
-          `sm:max-w-sm` — a plain `max-w-5xl` loses to it at >=sm widths and the
-          dialog collapses to a ~384px-wide strip. */}
-      <DialogContent className="flex h-[85vh] w-[92vw] max-w-[95vw] flex-col sm:max-w-5xl">
+      <DialogTrigger
+        render={
+          <Button
+            variant={iconOnly ? "ghost" : "outline"}
+            size={iconOnly ? "icon" : "sm"}
+            aria-label="View as drawn"
+            data-slot="view-as-drawn"
+            className={iconOnly ? "text-foreground-muted hover:text-foreground" : undefined}
+          />
+        }
+      >
+        <EyeIcon className="size-4" />
+        {!iconOnly && " View as drawn"}
+      </DialogTrigger>
+      <DialogContent size="lg" className="flex h-[85vh] w-[92vw] max-w-[95vw] flex-col">
         <DialogHeader>
           <DialogTitle>Original ChemDraw (as drawn)</DialogTitle>
         </DialogHeader>

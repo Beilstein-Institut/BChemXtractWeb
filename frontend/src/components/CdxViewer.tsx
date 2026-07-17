@@ -1,6 +1,7 @@
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { DownloadIcon, MaximizeIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { triggerDownload } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 
@@ -34,17 +35,16 @@ export function CdxViewer({ svg, title = "ChemDraw structure", className }: CdxV
   const drag = useRef<{ x: number; y: number } | null>(null);
 
   const clampZoom = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
-  const zoomIn = () => setZoom((z) => clampZoom(z * STEP));
-  const zoomOut = () => setZoom((z) => clampZoom(z / STEP));
+  const stepZoom = (dir: 1 | -1) => setZoom((z) => clampZoom(dir > 0 ? z * STEP : z / STEP));
   const reset = () => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
   };
 
-  const onWheel = useCallback((e: React.WheelEvent) => {
+  const onWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    setZoom((z) => clampZoom(z * (e.deltaY < 0 ? STEP : 1 / STEP)));
-  }, []);
+    stepZoom(e.deltaY < 0 ? 1 : -1);
+  };
 
   const onPointerDown = (e: React.PointerEvent) => {
     drag.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
@@ -59,23 +59,24 @@ export function CdxViewer({ svg, title = "ChemDraw structure", className }: CdxV
   };
 
   const download = () => {
-    if (!url) return;
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${title.replace(/[^\w.-]+/g, "_")}.svg`;
-    a.click();
+    // Reuse the shared download helper (appends the anchor to the document
+    // before clicking — required by Firefox) rather than hand-rolling one.
+    triggerDownload(
+      new Blob([svg], { type: "image/svg+xml" }),
+      `${title.replace(/[^\w.-]+/g, "_")}.svg`,
+    );
   };
 
   return (
     <div data-slot="cdx-viewer" className={cn("flex h-full flex-col gap-2", className)}>
       <div data-slot="cdx-toolbar" className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" aria-label="Zoom out" onClick={zoomOut}>
+        <Button variant="ghost" size="icon" aria-label="Zoom out" onClick={() => stepZoom(-1)}>
           <ZoomOutIcon className="size-4" />
         </Button>
         <Button variant="ghost" size="icon" aria-label="Fit / reset" onClick={reset}>
           <MaximizeIcon className="size-4" />
         </Button>
-        <Button variant="ghost" size="icon" aria-label="Zoom in" onClick={zoomIn}>
+        <Button variant="ghost" size="icon" aria-label="Zoom in" onClick={() => stepZoom(1)}>
           <ZoomInIcon className="size-4" />
         </Button>
         <span className="ml-1 text-xs text-foreground-muted tabular-nums">{Math.round(zoom * 100)}%</span>

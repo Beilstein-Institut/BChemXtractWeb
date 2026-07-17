@@ -117,6 +117,15 @@ def initialize_jvm(settings: Settings) -> None:
         settings.jvm_max_heap,
     )
 
+    # Warm up the faithful CDX renderer's fonts at startup instead of inside the
+    # first user render: force-loading PDFFontUtils runs its static block, which
+    # reads + registers the 25 embedded ChemDraw fonts (one-time cost). Best
+    # effort — a missing cdx-render jar or font-load hiccup must not fail startup.
+    try:
+        jpype.JClass("org.beilstein.chemxtract.render.pdf.PDFFontUtils")
+    except Exception as exc:  # noqa: BLE001 -- warmup is optional
+        logger.warning("cdx-render font warmup skipped: %s", exc)
+
     # Create bounded thread pool for JPype calls
     _pool_size = settings.jpype_workers
     _executor = ThreadPoolExecutor(

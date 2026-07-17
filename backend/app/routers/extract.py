@@ -40,7 +40,6 @@ from app.models.chemistry import (
 from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.services.cdx_render import render_cdx_svg
 from app.services.db import get_scoped_db
-from app.services.depiction import sanitize_svg
 from app.services.extractor import extract_substances_with_svg
 from app.services.format_detector import check_extension_mismatch, detect_format
 from app.services.formula import formula_sort_key
@@ -441,4 +440,12 @@ async def render_extraction_svg(extraction_id: int, db: DbDep) -> Response:
         logger.exception("CDX render failed for extraction %s", extraction_id)
         raise RenderFailedError("Could not render the CDX file.") from exc
 
-    return Response(content=sanitize_svg(svg), media_type="image/svg+xml")
+    # A stored extraction's original bytes are immutable, so the faithful render
+    # is content-stable: let the browser cache it (private, per-user via RLS) so
+    # reopening the dialog doesn't re-run the JVM render. svg is sanitized by
+    # render_cdx_svg.
+    return Response(
+        content=svg,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "private, max-age=31536000, immutable"},
+    )
