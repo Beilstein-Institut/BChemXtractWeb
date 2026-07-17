@@ -32,9 +32,20 @@ import { useCdxRender } from "@/hooks/useCdxRender";
 export interface CdxViewerDialogProps {
   /** Extraction whose stored .cdx should be rendered faithfully. */
   extractionId: number;
+  /**
+   * Render the trigger as an icon-only button (no visible label) instead of
+   * the default icon + text. Used in HistoryList rows, where the action
+   * cell's CSS grid track must stay aligned with the header's fixed-width
+   * "Actions" column — a wide icon+text trigger there desyncs every column
+   * boundary against the header. The accessible name stays "View as drawn"
+   * via `aria-label` either way. Defaults to false (icon + visible text),
+   * used on the extraction-result trigger in ExtractionSummary, which has
+   * room for the label.
+   */
+  iconOnly?: boolean;
 }
 
-export function CdxViewerDialog({ extractionId }: CdxViewerDialogProps) {
+export function CdxViewerDialog({ extractionId, iconOnly }: CdxViewerDialogProps) {
   const [open, setOpen] = useState(false);
   const { state, svg, errorCode, render, reset } = useCdxRender();
 
@@ -57,13 +68,29 @@ export function CdxViewerDialog({ extractionId }: CdxViewerDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={
-          <Button variant="outline" size="sm" data-slot="view-as-drawn">
-            <EyeIcon className="size-4" /> View as drawn
-          </Button>
-        }
-      />
+      {iconOnly ? (
+        <DialogTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="View as drawn"
+              data-slot="view-as-drawn"
+              className="text-foreground-muted hover:text-foreground"
+            />
+          }
+        >
+          <EyeIcon className="size-4" />
+        </DialogTrigger>
+      ) : (
+        <DialogTrigger
+          render={
+            <Button variant="outline" size="sm" data-slot="view-as-drawn">
+              <EyeIcon className="size-4" /> View as drawn
+            </Button>
+          }
+        />
+      )}
       <DialogContent className="flex h-[85vh] w-[92vw] max-w-5xl flex-col">
         <DialogHeader>
           <DialogTitle>Original ChemDraw (as drawn)</DialogTitle>
