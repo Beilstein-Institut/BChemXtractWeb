@@ -13,12 +13,21 @@ import time
 from typing import Annotated
 
 from celery.result import AsyncResult
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+)
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.celery_app import celery_app
 from app.config import settings
+from app.errors import FileNotStoredError, RenderFailedError, RenderTimeoutError
 from app.middleware.rate_limit import limiter
 from app.models.chemistry import (
     ErrorResponse,
@@ -29,7 +38,9 @@ from app.models.chemistry import (
     SubstanceResponse,
 )
 from app.models.orm import Extraction, ExtractionSubstance, Substance
+from app.services.cdx_render import render_cdx_svg
 from app.services.db import get_scoped_db
+from app.services.depiction import sanitize_svg
 from app.services.extractor import extract_substances_with_svg
 from app.services.format_detector import check_extension_mismatch, detect_format
 from app.services.formula import formula_sort_key
@@ -42,7 +53,7 @@ from app.services.job_ownership import (
     require_job_owner,
     scope_owner_token,
 )
-from app.services.persistence import save_extraction
+from app.services.persistence import get_extraction_file, save_extraction
 from app.services.upload_guard import read_upload_bounded
 from app.tasks.extraction import extract_file_task
 
@@ -375,3 +386,59 @@ async def get_substances_page(
         size=size,
         pages=math.ceil(total / size) if total > 0 else 0,
     )
+
+
+@router.get(
+    "/extractions/{extraction_id}/render.svg",
+    operation_id="renderExtractionSvg",
+    summary="Faithful whole-page SVG of the stored ChemDraw file",
+    description=(
+        "Render the extraction's original stored .cdx/.cdxml exactly as "
+        "drawn (faithful ChemDraw layout, not the per-substance CDK "
+        "depiction) to SVG. 409 FILE_NOT_STORED when the original bytes "
+        "were not persisted (legacy extractions predating file storage); "
+        "422 RENDER_FAILED when the renderer raises; 503 RENDER_TIMEOUT "
+        "when the render is aborted after exceeding the JVM timeout."
+    ),
+    responses={
+        200: {"content": {"image/svg+xml": {}}, "description": "Faithful SVG."},
+        404: {"model": ErrorResponse, "description": "Extraction not found."},
+        409: {"model": ErrorResponse, "description": "Original file not stored."},
+        422: {"model": ErrorResponse, "description": "Render failed."},
+        503: {"model": ErrorResponse, "description": "Render timed out."},
+    },
+    tags=["extraction"],
+)
+async def render_extraction_svg(extraction_id: int, db: DbDep) -> Response:
+    """Faithful (whole-page, original-layout) SVG for a stored CDX/CDXML.
+
+    Existence/ownership check is RLS-scoped, so an id that exists but isn't
+    the caller's is invisible and 404s exactly like an unknown id
+    (IDOR-safe). FILE_NOT_STORED / RENDER_FAILED / RENDER_TIMEOUT are
+    BridgeError subclasses (app.errors) so the response carries the same
+    top-level ``code`` convention as the rest of the API.
+    """
+    exists = await db.scalar(
+        select(func.count())
+        .select_from(Extraction)
+        .where(Extraction.id == extraction_id)
+    )
+    if not exists:
+        raise HTTPException(status_code=404, detail="Extraction not found")
+
+    content = await get_extraction_file(db, extraction_id)
+    if not content:
+        raise FileNotStoredError(
+            "The original file for this extraction is no longer stored. "
+            "Re-upload it to render the faithful view."
+        )
+
+    try:
+        svg = await render_cdx_svg(content)
+    except TimeoutError as exc:
+        raise RenderTimeoutError("Rendering the CDX file timed out.") from exc
+    except Exception as exc:  # noqa: BLE001 — renderer failure surfaces as 422
+        logger.exception("CDX render failed for extraction %s", extraction_id)
+        raise RenderFailedError("Could not render the CDX file.") from exc
+
+    return Response(content=sanitize_svg(svg), media_type="image/svg+xml")

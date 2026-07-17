@@ -39,6 +39,8 @@ Exception tree:
     +-- ApiKeyRevokedError         (401 API_KEY_REVOKED)
     +-- PubChemDisabledError       (503 PUBCHEM_DISABLED)
     +-- FileNotStoredError         (409 FILE_NOT_STORED)
+    +-- RenderTimeoutError         (503 RENDER_TIMEOUT)
+    +-- RenderFailedError          (422 RENDER_FAILED)
 """
 
 import logging
@@ -149,6 +151,19 @@ class FileNotStoredError(BridgeError):
     pruned (409 / FILE_NOT_STORED). The client falls back to re-upload."""
 
 
+class RenderTimeoutError(BridgeError):
+    """Faithful CDX/CDXML -> SVG render (render_cdx_svg, on an abandonable
+    JVM thread) exceeded its timeout (503 / RENDER_TIMEOUT). Distinct from
+    the generic JVM_TIMEOUT mapping in unhandled_exception_handler so the
+    render route's timeout carries a stable, route-specific code."""
+
+
+class RenderFailedError(BridgeError):
+    """Faithful CDX/CDXML -> SVG render raised inside the JVM for a reason
+    other than a timeout -- malformed stored bytes, renderer bug, etc.
+    (422 / RENDER_FAILED)."""
+
+
 # ----------------------------------------------------------------------------
 # Unified ErrorResponse handlers.
 # ----------------------------------------------------------------------------
@@ -195,6 +210,8 @@ _BRIDGE_ERROR_MAP: list[tuple[type[BridgeError], int, str]] = [
     (ApiKeyRevokedError, 401, "API_KEY_REVOKED"),
     (PubChemDisabledError, 503, "PUBCHEM_DISABLED"),
     (FileNotStoredError, 409, "FILE_NOT_STORED"),
+    (RenderTimeoutError, 503, "RENDER_TIMEOUT"),
+    (RenderFailedError, 422, "RENDER_FAILED"),
 ]
 
 
