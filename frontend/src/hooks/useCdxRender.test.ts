@@ -80,4 +80,31 @@ describe("useCdxRender", () => {
     });
     expect(result.current.svg).toBe("<svg>second</svg>");
   });
+
+  it("reset() invalidates an in-flight render() request, so a stale response doesn't land", async () => {
+    let resolve!: (v: string) => void;
+    vi.spyOn(api, "getRenderedCdx").mockReturnValue(
+      new Promise<string>((r) => {
+        resolve = r;
+      })
+    );
+
+    const { result } = renderHook(() => useCdxRender());
+
+    act(() => result.current.render(1));
+    expect(result.current.state).toBe("loading");
+
+    act(() => result.current.reset());
+    expect(result.current.state).toBe("idle");
+    expect(result.current.svg).toBeNull();
+
+    // The in-flight promise resolves after reset — it must not land.
+    await act(async () => {
+      resolve("<svg/>");
+      await Promise.resolve();
+    });
+
+    expect(result.current.state).toBe("idle");
+    expect(result.current.svg).toBeNull();
+  });
 });
