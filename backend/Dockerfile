@@ -28,7 +28,7 @@ COPY backend/cdx-render /build/cdx-render
 RUN FAT=$(ls /build/bchemxtract/target/*-jar-with-dependencies.jar | head -1) && \
     mvn -q install:install-file -Dfile="$FAT" \
         -DgroupId=org.beilstein -DartifactId=bchemxtract -Dversion=runtime -Dpackaging=jar && \
-    cd /build/cdx-render && mvn -q clean package -DskipTests
+    cd /build/cdx-render && mvn -q clean package
 
 # Stage 2: Install Python dependencies with uv
 FROM python:3.12-slim AS python-builder

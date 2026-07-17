@@ -16,7 +16,9 @@ mvn -q install:install-file -Dfile="$FAT_JAR" \
   -DgroupId=org.beilstein -DartifactId=bchemxtract -Dversion=runtime -Dpackaging=jar
 
 echo "Building cdx-render..."
-( cd "$MODULE_DIR" && mvn -q clean package -DskipTests )
+( cd "$MODULE_DIR" && mvn -q clean package )
 
+# Copy the jar to the jars directory, replacing any previous build.
+rm -f "$JARS_DIR"/cdx-render-*.jar
 cp "$MODULE_DIR"/target/cdx-render-*.jar "$JARS_DIR/"
 echo "Build complete: $(ls "$JARS_DIR"/cdx-render-*.jar)"
