@@ -28,9 +28,11 @@ public class CdxSvgRendererTest {
 
   @Test
   public void noLicensedClassesOnClasspath() {
-    // iText and Aspose must not be resolvable from the shaded jar.
+    // iText, Aspose, and JAI (the decoder TIFFGraphicReader used before switching to ImageIO)
+    // must not be resolvable from the shaded jar.
     for (String cls : new String[] {
-        "com.lowagie.text.FontFactory", "com.aspose.metafiles.Image" }) {
+        "com.lowagie.text.FontFactory", "com.aspose.metafiles.Image",
+        "javax.media.jai.JAI", "com.sun.media.jai.codec.MemoryCacheSeekableStream" }) {
       try {
         Class.forName(cls);
         throw new AssertionError("licensed class present: " + cls);
