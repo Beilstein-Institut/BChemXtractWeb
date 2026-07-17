@@ -1,87 +1,32 @@
 package org.beilstein.chemxtract.render.graphic;
 
-import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.awt.Transparency;
 import java.awt.image.BufferedImage;
 
-import org.imgscalr.Scalr;
-
-import com.mortennobel.imagescaling.MultiStepRescaleOp;
-import com.mortennobel.imagescaling.ResampleFilters;
-import com.mortennobel.imagescaling.ResampleOp;
-
-import net.coobird.thumbnailator.makers.FixedSizeThumbnailMaker;
-import net.coobird.thumbnailator.resizers.DefaultResizerFactory;
-import net.coobird.thumbnailator.resizers.Resizer;
-
+/**
+ * Scales a {@link BufferedImage} using Java2D bilinear resampling.
+ *
+ * <p>Ported to drop the thumbnailator / imagescaling / imgscalr dependencies;
+ * embedded raster images in a CDX are scaled with the JDK's own pipeline.
+ */
 public class ImageScaler {
-  
+
   public BufferedImage scale(BufferedImage image, int width, int height, int newWidth, int newHeight) {
-    return progressiveJDKScale(image, width, height, newWidth, newHeight);
-    //return lanczosResample(image, width, height, newWidth, newHeight);
-    //return thumbnailate(image, width, height, newWidth, newHeight);
-    //return imgscalr(image, width, height, newWidth, newHeight);
-    //return progressiveNobelScale(image, width, height, newWidth, newHeight);
+    if (newWidth <= 0 || newHeight <= 0) {
+      return image;
+    }
+    int type = image.getType() == 0 ? BufferedImage.TYPE_INT_ARGB : image.getType();
+    BufferedImage scaled = new BufferedImage(newWidth, newHeight, type);
+    Graphics2D g = scaled.createGraphics();
+    try {
+      g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+      g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+      g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+      g.drawImage(image, 0, 0, newWidth, newHeight, null);
+    } finally {
+      g.dispose();
+    }
+    return scaled;
   }
-  
-  private BufferedImage lanczosResample(BufferedImage image, int width, int height, int newWidth, int newHeight) {
-    ResampleOp resizeOp = new ResampleOp(newWidth, newHeight);
-    resizeOp.setFilter(ResampleFilters.getLanczos3Filter());
-    return resizeOp.filter(image, null);
-  }
-  
-  private BufferedImage thumbnailate(BufferedImage image, int width, int height, int newWidth, int newHeight) {
-    Resizer resizer = DefaultResizerFactory.getInstance().getResizer(new Dimension(image.getWidth(), image.getHeight()), new Dimension(newWidth, newHeight));
-    return new FixedSizeThumbnailMaker(newWidth, newHeight, false, true).resizer(resizer).make(image);  
-  }
-  
-  private BufferedImage imgscalr(BufferedImage image, int width, int height, int newWidth, int newHeight) {
-    return Scalr.resize(image, Scalr.Method.ULTRA_QUALITY, Scalr.Mode.FIT_EXACT, newWidth, newHeight);
-  }
-  
-  private BufferedImage progressiveNobelScale(BufferedImage image, int width, int heigth, int newWidth, int newHeight) {
-    return new MultiStepRescaleOp(newWidth, newHeight, RenderingHints.VALUE_INTERPOLATION_BILINEAR).filter(image, null);
-  }
-  
-  private BufferedImage progressiveJDKScale(BufferedImage image, int width, int height, int newWidth, int newHeight) {
-    int type = (image.getTransparency() == Transparency.OPAQUE) ? BufferedImage.TYPE_INT_RGB : BufferedImage.TYPE_INT_ARGB;
-
-    BufferedImage scaledImage = image;
-
-    do {
-      if (width <= newWidth) {
-        // ignore
-      } else if (width > newWidth) {
-        width /= 2;
-        if (width < newWidth) {
-          width = newWidth;
-        }
-      }
-
-      if (height <= newHeight) {
-        // ignore
-      } else if (height > newHeight) {
-        height /= 2;
-        if (height < newHeight) {
-          height = newHeight;
-        }
-      }
-
-      BufferedImage temp = new BufferedImage(width, height, type);
-      Graphics2D g2 = temp.createGraphics();
-
-      g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-      
-      g2.drawImage(scaledImage, 0, 0, temp.getWidth(), temp.getHeight(), null);
-      g2.dispose();
-
-      scaledImage = temp;
-    } while (width != newWidth || height != newHeight);
-
-    return scaledImage;
-
-  }
-
 }

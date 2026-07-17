@@ -1,32 +1,24 @@
 package org.beilstein.chemxtract.render.graphic;
 
-import java.io.InputStream;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
-import javax.media.jai.*;
+import java.io.InputStream;
 
-import com.sun.media.jai.codec.MemoryCacheSeekableStream;
+import javax.imageio.ImageIO;
 
 /**
- * Graphic reader for the TIFF graphic format.
- * 
- * @author stephan
- * @version $Id: TIFFGraphicReader.java,v 1.5 2014-06-12 11:32:56 bsnie Exp $
+ * Reads an embedded TIFF via {@link ImageIO} (JDK 9+ bundles a TIFF plugin),
+ * replacing the JAI ({@code com.sun.media.jai.codec}) decoder.
  */
-public class TIFFGraphicReader {
-  /**
-   * Reads the graphic from an {@link InputStream}
-   * 
-   * @param in {@link InputStream} from which the graphic should be read
-   * @return Graphic
-   * @throws IOException Occurs if an exception occur during the generation of the graphic
-   */
+public final class TIFFGraphicReader {
+
+  private TIFFGraphicReader() {}
+
   public static Graphic readGraphic(InputStream in) throws IOException {
-    RenderedOp image = JAI.create("tiff", new MemoryCacheSeekableStream(in));
-
+    BufferedImage image = ImageIO.read(in);
     if (image == null) {
-      throw new IOException("Could not read image");
+      throw new IOException("Unsupported or corrupt TIFF stream");
     }
-
-    return new ImageGraphic(GraphicUtils.convertRenderedImage(image), GraphicType.TIFF);
+    return new ImageGraphic(image, GraphicType.TIFF);
   }
 }
