@@ -23,12 +23,17 @@
       <version>runtime</version>
       <scope>provided</scope>
     </dependency>
-    <!-- Already bundled in the fat jar -> provided, do not shade -->
+    <!-- The ported renderer classes use org.apache.commons.logging.LogFactory in
+         their static initializers, so it must be SHADED IN (compile scope). The
+         bchemxtract fat jar is NOT a reliable source: upstream 1.1.3 happened to
+         bundle it, but 1.2.0 (built fresh in the Docker image from the latest
+         upstream tag) does not. A `provided` scope therefore caused a runtime
+         NoClassDefFoundError (org/apache/commons/logging/LogFactory) in the
+         deployed backend. Bundling makes this jar self-contained for logging. -->
     <dependency>
       <groupId>commons-logging</groupId>
       <artifactId>commons-logging</artifactId>
       <version>1.3.4</version>
-      <scope>provided</scope>
     </dependency>
     <!-- Faithful SVG generation; NOT in the fat jar -> shaded in -->
     <dependency>
