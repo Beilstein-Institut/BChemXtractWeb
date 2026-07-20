@@ -340,7 +340,7 @@ async def get_substances_page(
     )
 
     base = (
-        select(Substance)
+        select(Substance, ExtractionSubstance.occurrences)
         .join(ExtractionSubstance, Substance.id == ExtractionSubstance.substance_id)
         .where(ExtractionSubstance.extraction_id == extraction_id)
     )
@@ -355,19 +355,18 @@ async def get_substances_page(
         # ponytail: full-load + in-memory sort; add a persisted formula-sort-key
         # column if a single extraction ever holds enough rows to matter.
         all_rows = (
-            (await db.execute(base.order_by(ExtractionSubstance.position.asc())))
-            .scalars()
-            .all()
-        )
-        all_rows.sort(key=lambda s: formula_sort_key(s.molecular_formula or ""))
-        substances = all_rows[(page - 1) * size : page * size]
+            await db.execute(base.order_by(ExtractionSubstance.position.asc()))
+        ).all()
+        all_rows.sort(key=lambda row: formula_sort_key(row[0].molecular_formula or ""))
+        rows = all_rows[(page - 1) * size : page * size]
     else:
-        result = await db.execute(
-            base.order_by(ExtractionSubstance.position.asc())
-            .offset((page - 1) * size)
-            .limit(size)
-        )
-        substances = result.scalars().all()
+        rows = (
+            await db.execute(
+                base.order_by(ExtractionSubstance.position.asc())
+                .offset((page - 1) * size)
+                .limit(size)
+            )
+        ).all()
 
     items = [
         SubstanceResponse(
@@ -380,8 +379,9 @@ async def get_substances_page(
             svg=s.svg,
             svg_cdx=s.svg_cdx,
             mdlv3000=s.mdlv3000,
+            occurrences=occ or [],
         )
-        for s in substances
+        for s, occ in rows
     ]
 
     return PagedSubstancesResponse(

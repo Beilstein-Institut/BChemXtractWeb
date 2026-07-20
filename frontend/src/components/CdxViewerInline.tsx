@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { CdxViewer } from "@/components/CdxViewer";
 import { useCdxRender } from "@/hooks/useCdxRender";
+import type { Rect } from "@/types/chemistry";
 
 export interface CdxViewerInlineProps {
   /** Extraction whose stored .cdx should be rendered faithfully. */
@@ -26,9 +27,11 @@ export interface CdxViewerInlineProps {
   open: boolean;
   /** DOM id of the panel region, matched by the trigger's `aria-controls`. */
   id?: string;
+  /** CDX-space rects to highlight over the drawing, forwarded to CdxViewer. */
+  highlights?: Rect[];
 }
 
-export function CdxViewerInline({ extractionId, open, id }: CdxViewerInlineProps) {
+export function CdxViewerInline({ extractionId, open, id, highlights }: CdxViewerInlineProps) {
   const { state, svg, errorCode, render, reset } = useCdxRender();
 
   // Render when opened; reset when closed or when the extraction changes so a
@@ -52,7 +55,7 @@ export function CdxViewerInline({ extractionId, open, id }: CdxViewerInlineProps
     <div
       id={id}
       data-slot="cdx-viewer-inline"
-      className="mt-4 flex h-[60vh] flex-col overflow-hidden rounded-2xl border border-border bg-surface p-3 duration-300 animate-in fade-in slide-in-from-top-2 motion-reduce:animate-none"
+      className="sticky top-2 z-20 mt-4 flex h-[45vh] flex-col overflow-hidden rounded-2xl border border-border bg-surface p-3 shadow-lg duration-300 animate-in fade-in slide-in-from-top-2 motion-reduce:animate-none"
     >
       {state === "loading" && (
         <div className="flex flex-1 items-center justify-center">
@@ -82,7 +85,7 @@ export function CdxViewerInline({ extractionId, open, id }: CdxViewerInlineProps
 
       {state === "success" && svg && (
         <div className="min-h-0 flex-1">
-          <CdxViewer svg={svg} title="Original ChemDraw" />
+          <CdxViewer svg={svg} title="Original ChemDraw" highlights={highlights} />
         </div>
       )}
     </div>

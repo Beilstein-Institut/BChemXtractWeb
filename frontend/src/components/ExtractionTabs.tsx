@@ -44,7 +44,11 @@ export function ExtractionTabs({
       onValueChange={(v) => setValue(v as "substances" | "reactions")}
       className="mt-6"
     >
-      <TabsList className="h-9 w-full overflow-x-auto sm:w-fit">
+      {/* min-h-9 (not h-9): a fixed height with overflow-x-auto makes the
+          browser promote overflow-y to auto too, showing a spurious vertical
+          scrollbar when content is a hair taller than 36px. min-height keeps
+          the touch target without clipping, so no scrollbar appears. */}
+      <TabsList className="min-h-9 w-full overflow-x-auto sm:w-fit">
         <TabsTrigger value="substances">
           <span className="flex items-center gap-2">
             Structures

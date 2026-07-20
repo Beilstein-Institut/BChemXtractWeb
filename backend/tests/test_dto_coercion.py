@@ -162,6 +162,61 @@ class TestCoerceSubstance:
         assert result["mdlv3000"] == ""  # null -> empty
 
 
+def test_coerce_substance_reads_occurrences():
+    """_coerce_substance surfaces each BCXSubstanceOccurrence as an l/t/r/b dict."""
+    from app.services.extractor import _coerce_substance
+
+    # Method/param names mirror the CDK/BChemXtract Java API these fakes stand
+    # in for, so they keep Java camelCase (noqa: N802) and the l/t/r/b wire
+    # contract (noqa: E741) rather than PEP8 snake_case.
+    class _Occ:
+        def __init__(self, l, t, r, b):  # noqa: E741
+            self._v = (l, t, r, b)
+
+        def getCdxLeft(self):  # noqa: N802
+            return self._v[0]
+
+        def getCdxTop(self):  # noqa: N802
+            return self._v[1]
+
+        def getCdxRight(self):  # noqa: N802
+            return self._v[2]
+
+        def getCdxBottom(self):  # noqa: N802
+            return self._v[3]
+
+    class _Sub:
+        def getAbbreviations(self):  # noqa: N802
+            return {}
+
+        def getInchi(self):  # noqa: N802
+            return "InChI=1S/CH4/h1H4"
+
+        def getInchiKey(self):  # noqa: N802
+            return "VNWKTOKETHGBQD-UHFFFAOYSA-N"
+
+        def getSmiles(self):  # noqa: N802
+            return "C"
+
+        def getExtendedSmiles(self):  # noqa: N802
+            return "C"
+
+        def getIupacName(self):  # noqa: N802
+            return "methane"
+
+        def getMolecularFormula(self):  # noqa: N802
+            return "CH4"
+
+        def getAuxInfo(self):  # noqa: N802
+            return ""
+
+        def getOccurrences(self):  # noqa: N802
+            return [_Occ(1.0, 2.0, 3.0, 4.0)]
+
+    d = _coerce_substance(_Sub())
+    assert d["occurrences"] == [{"l": 1.0, "t": 2.0, "r": 3.0, "b": 4.0}]
+
+
 class TestCoerceReaction:
     """Tests for _coerce_reaction null-coercion."""
 

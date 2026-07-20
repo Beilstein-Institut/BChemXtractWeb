@@ -15,6 +15,15 @@ from pydantic import BaseModel, Field
 # user A submitted a molecule before user B did.
 
 
+class Occurrence(BaseModel):
+    """One on-page bounding box (CDX coords) where a substance appears."""
+
+    l: float = 0.0  # noqa: E741 (l/t/r/b mirror the frontend Rect wire contract)
+    t: float = 0.0
+    r: float = 0.0
+    b: float = 0.0
+
+
 class SubstanceResponse(BaseModel):
     """Extracted chemical substance with all fields guaranteed non-null."""
 
@@ -30,6 +39,7 @@ class SubstanceResponse(BaseModel):
     abbreviations: dict[str, str] = Field(default_factory=dict)
     svg: str = ""
     svg_cdx: str = ""
+    occurrences: list[Occurrence] = Field(default_factory=list)
 
 
 class ReactionComponentResponse(BaseModel):

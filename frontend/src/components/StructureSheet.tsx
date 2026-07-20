@@ -16,6 +16,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  CrosshairIcon,
   FlaskConicalIcon,
   Loader2Icon,
   SparklesIcon,
@@ -41,7 +42,7 @@ import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { postComputeInchi, postExport } from "@/lib/apiClient";
 import { DEFAULT_DEPICTION } from "@/lib/depiction";
 import { safeDownloadSlug } from "@/lib/safeStrings";
-import type { Depiction, InchiResult, SubstanceResponse } from "@/types/chemistry";
+import type { Depiction, InchiResult, Rect, SubstanceResponse } from "@/types/chemistry";
 import type { ExportFormat } from "@/types/export";
 import { FORMAT_EXT } from "@/types/export";
 
@@ -60,6 +61,9 @@ export interface StructureSheetProps {
    * can still override it locally for the structure on screen.
    */
   depiction?: Depiction;
+  /** When set and the active substance has occurrences, show a "Show on
+   *  drawing" button that reports its occurrence rects to the page. */
+  onLocate?: (occurrences: Rect[]) => void;
 }
 
 /** Labeled metadata field + CopyButton, rendered inside the side-sheet. */
@@ -107,6 +111,7 @@ export function StructureSheet({
   onPrev,
   onNext,
   depiction = DEFAULT_DEPICTION,
+  onLocate,
 }: StructureSheetProps) {
   const [zoom, setZoom] = useState(1);
   const [useCdxCoords, setUseCdxCoords] = useState(depiction === "cdx");
@@ -284,15 +289,32 @@ export function StructureSheet({
             </Button>
           </div>
 
-          {/* Single-structure export */}
+          {/* Locate-on-drawing + single-structure export. The locate button
+              only appears when the parent wired onLocate and this substance
+              has recorded occurrences; the export menu wrapper keeps its
+              ml-auto push so it stays right-aligned whether or not the
+              locate button is present. */}
           {substance && (
-            <div className="flex justify-end mb-2">
-              <ExportMenu
-                onExport={handleExport}
-                triggerLabel="Export"
-                triggerVariant="label"
-                align="end"
-              />
+            <div className="flex items-center gap-2 mb-2">
+              {onLocate && substance.occurrences && substance.occurrences.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-slot="locate-on-drawing"
+                  onClick={() => onLocate(substance.occurrences!)}
+                >
+                  <CrosshairIcon className="size-4" />
+                  Show on drawing
+                </Button>
+              )}
+              <div className="ml-auto">
+                <ExportMenu
+                  onExport={handleExport}
+                  triggerLabel="Export"
+                  triggerVariant="label"
+                  align="end"
+                />
+              </div>
             </div>
           )}
 
