@@ -85,4 +85,16 @@ describe("CdxViewerInline", () => {
     ).toBeInTheDocument();
     expect(toast.error).not.toHaveBeenCalled();
   });
+
+  it("forwards highlights to the viewer on success", () => {
+    mockHookState = {
+      state: "success",
+      svg: '<svg data-cdx-scale="3" data-cdx-origin-x="0" data-cdx-origin-y="0" viewBox="0 0 300 300"></svg>',
+      errorCode: null,
+    };
+    const { container } = render(
+      <CdxViewerInline extractionId={7} open highlights={[{ l: 10, t: 20, r: 30, b: 50 }]} />,
+    );
+    expect(container.querySelector('[data-slot="cdx-highlight-overlay"] rect')).not.toBeNull();
+  });
 });

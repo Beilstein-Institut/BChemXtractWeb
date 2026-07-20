@@ -16,7 +16,7 @@
  * The header search (top bar) covers structure lookup; the browse page has
  * no in-page search bar.
  */
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { FileUpIcon, HistoryIcon } from "lucide-react";
 import { BrowseBento } from "@/components/browse/BrowseBento";
 import { CdxViewerInline } from "@/components/CdxViewerInline";
@@ -31,7 +31,12 @@ import { isRealInchiKey } from "@/lib/inchi";
 import { formulaHasMetal } from "@/lib/elements";
 import { usePubChemEnrichment } from "@/hooks/usePubChemEnrichment";
 import { usePubChemPreferences } from "@/hooks/usePubChemPreferences";
-import type { Depiction, ExtractionResponse, ReactionExtractionResponse } from "@/types/chemistry";
+import type {
+  Depiction,
+  ExtractionResponse,
+  ReactionExtractionResponse,
+  Rect,
+} from "@/types/chemistry";
 
 export interface BrowsePageProps {
   activeExtractionId: number | null;
@@ -71,10 +76,28 @@ export function BrowsePage({
   // adjust during render, no effect) so a prior file's drawing can't linger.
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerForId, setViewerForId] = useState(activeExtractionId);
+  // Highlight rects for the "locate" flow (Task 9 wires the buttons that call
+  // handleLocate): held here so both the panel (CdxViewerInline) and the
+  // trigger (a card/sheet button, threaded to StructureBrowser via onLocate)
+  // share one source of truth. viewerRef lets handleLocate scroll the panel
+  // into view after opening it. Declared before the reset-on-prop-change
+  // block below, which calls setHighlightRects.
+  const [highlightRects, setHighlightRects] = useState<Rect[]>([]);
+  const viewerRef = useRef<HTMLDivElement>(null);
   if (activeExtractionId !== viewerForId) {
     setViewerForId(activeExtractionId);
     setViewerOpen(false);
+    setHighlightRects([]);
   }
+
+  const handleLocate = useCallback((occurrences: Rect[]) => {
+    setHighlightRects(occurrences);
+    setViewerOpen(true);
+    // Wait a frame so a freshly-opened panel exists before scrolling to it.
+    requestAnimationFrame(() =>
+      viewerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
+  }, []);
 
   // Reactions are known eagerly only for a persisted extraction (App
   // prefetches them). For a fresh upload the count stays unknown until the
@@ -215,11 +238,14 @@ export function BrowsePage({
               viewerPanelId="cdx-drawn-panel"
             />
             {activeResult.extraction_id != null && (
-              <CdxViewerInline
-                id="cdx-drawn-panel"
-                extractionId={activeResult.extraction_id}
-                open={viewerOpen}
-              />
+              <div ref={viewerRef}>
+                <CdxViewerInline
+                  id="cdx-drawn-panel"
+                  extractionId={activeResult.extraction_id}
+                  open={viewerOpen}
+                  highlights={highlightRects}
+                />
+              </div>
             )}
           </section>
 
@@ -251,6 +277,7 @@ export function BrowsePage({
                 depiction={depiction}
                 onDepictionChange={setDepiction}
                 pubchem={pubchemStates}
+                onLocate={handleLocate}
               />
             </ExtractionTabs>
           </div>

@@ -33,7 +33,7 @@ import { StructureCard } from "@/components/StructureCard";
 import { StructureTable } from "@/components/StructureTable";
 import { StructureSheet } from "@/components/StructureSheet";
 import { DEFAULT_DEPICTION } from "@/lib/depiction";
-import type { Depiction, PubChemCardState } from "@/types/chemistry";
+import type { Depiction, PubChemCardState, Rect } from "@/types/chemistry";
 
 // Stable empty map so the default prop value doesn't change identity across
 // renders (avoids needless work in memoized children).
@@ -69,6 +69,8 @@ export interface StructureBrowserProps {
    * not opted in. Missing keys render no PubChem chrome.
    */
   pubchem?: ReadonlyMap<string, PubChemCardState>;
+  /** threaded to cards/sheet in the locate-button task */
+  onLocate?: (occurrences: Rect[]) => void;
 }
 
 /**
