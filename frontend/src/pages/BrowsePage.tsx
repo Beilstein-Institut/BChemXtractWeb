@@ -16,7 +16,7 @@
  * The header search (top bar) covers structure lookup; the browse page has
  * no in-page search bar.
  */
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { FileUpIcon, HistoryIcon } from "lucide-react";
 import { BrowseBento } from "@/components/browse/BrowseBento";
 import { CdxViewerInline } from "@/components/CdxViewerInline";
@@ -69,22 +69,22 @@ export function BrowsePage({
   // the product default is CDK on every visit.
   const [depiction, setDepiction] = useState<Depiction>(DEFAULT_DEPICTION);
 
-  // "View as drawn" now expands an inline panel above the tabs instead of a
-  // popup. The trigger lives in the card (BrowseBento); its open state is here
-  // so the panel can sit between the card and the tabs. Collapse it whenever
+  // "View as drawn" expands an inline panel that stays pinned (sticky) while
+  // the structure grid scrolls beneath it. The trigger lives in the card
+  // (BrowseBento); its open state is here because the panel renders in the
+  // same tall container as the tabs/grid below — sticky only pins within its
+  // own containing block, so the panel MUST be a sibling of the grid (not
+  // boxed in the short receipt section) to hover over it. Collapse it whenever
   // the active extraction changes (React's reset-on-prop-change pattern —
   // adjust during render, no effect) so a prior file's drawing can't linger.
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerForId, setViewerForId] = useState(activeExtractionId);
-  // Occurrence rects to highlight on the pinned drawing; the card/sheet
-  // locate buttons set this via handleLocate. Held here so both the panel
-  // (CdxViewerInline) and the trigger (a card/sheet button, threaded to
-  // StructureBrowser via onLocate) share one source of truth. viewerRef lets
-  // handleLocate scroll the panel into view after opening it. Declared
-  // before the reset-on-prop-change block below, which calls
+  // Occurrence rects to highlight on the pinned drawing; the card/sheet locate
+  // buttons set this via handleLocate, so the panel (CdxViewerInline) and the
+  // triggers (threaded to StructureBrowser via onLocate) share one source of
+  // truth. Declared before the reset-on-prop-change block below, which calls
   // setHighlightRects.
   const [highlightRects, setHighlightRects] = useState<Rect[]>([]);
-  const viewerRef = useRef<HTMLDivElement>(null);
   if (activeExtractionId !== viewerForId) {
     setViewerForId(activeExtractionId);
     setViewerOpen(false);
@@ -95,8 +95,12 @@ export function BrowsePage({
     setHighlightRects(occurrences);
     setViewerOpen(true);
     // Wait a frame so a freshly-opened panel exists before scrolling to it.
+    // Scroll by the panel's own id — the panel is a direct child of the tall
+    // tabs container (for sticky to work), so there is no wrapper ref to hold.
     requestAnimationFrame(() =>
-      viewerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      document
+        .getElementById("cdx-drawn-panel")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" }),
     );
   }, []);
 
@@ -238,19 +242,20 @@ export function BrowsePage({
               onToggleViewer={() => setViewerOpen((o) => !o)}
               viewerPanelId="cdx-drawn-panel"
             />
-            {activeResult.extraction_id != null && (
-              <div ref={viewerRef}>
-                <CdxViewerInline
-                  id="cdx-drawn-panel"
-                  extractionId={activeResult.extraction_id}
-                  open={viewerOpen}
-                  highlights={highlightRects}
-                />
-              </div>
-            )}
           </section>
 
           <div className="mt-10">
+            {/* Pinned drawing: a DIRECT child of this tall container (not the
+                short receipt section above) so its `sticky` positioning can
+                hover over the scrolling grid below. */}
+            {activeResult.extraction_id != null && (
+              <CdxViewerInline
+                id="cdx-drawn-panel"
+                extractionId={activeResult.extraction_id}
+                open={viewerOpen}
+                highlights={highlightRects}
+              />
+            )}
             <ExtractionTabs
               // Scope the tabs (and the on-demand reaction state they hold) to
               // one extraction. Within an extraction this instance persists, so
