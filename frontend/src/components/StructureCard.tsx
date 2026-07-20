@@ -50,6 +50,7 @@ import { CopyButton } from "@/components/internal/CopyButton";
 import { ExportMenu } from "@/components/ExportMenu";
 import { PubChemBadge } from "@/components/PubChemBadge";
 import { StructureDetail } from "@/components/StructureDetail";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MolecularFormula } from "@/components/internal/MolecularFormula";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { postExport } from "@/lib/apiClient";
@@ -225,9 +226,9 @@ export function StructureCard({
         </div>
 
         {/* Action row: PubChem status control (opens the compound, or searches
-            similar molecules when absent) on the left; Details cue on the right.
-            The PubChem control is present only when the user has opted into
-            enrichment (pubchem defined). */}
+            similar molecules when absent) on the left; the "View details" cue
+            and the locate button sit together on the right. The PubChem control
+            is present only when the user has opted into enrichment. */}
         <div
           className={cn(
             "flex items-center gap-2",
@@ -243,28 +244,36 @@ export function StructureCard({
               <PubChemBadge state={pubchem} smiles={substance.smiles} />
             </div>
           )}
-          {onLocate && substance.occurrences && substance.occurrences.length > 0 && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Locate on drawing"
-              data-slot="locate-on-drawing"
-              className={cn(!pubchem && "ml-auto")}
-              onClick={(e) => {
-                e.stopPropagation();
-                onLocate(substance.occurrences!);
-              }}
+          <div className="ml-auto flex items-center gap-2">
+            <span
+              data-slot="structure-card-details"
+              aria-hidden="true"
+              className="text-xs font-medium text-foreground-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100"
             >
-              <CrosshairIcon className="size-4" />
-            </Button>
-          )}
-          <span
-            data-slot="structure-card-details"
-            aria-hidden="true"
-            className="ml-auto text-xs font-medium text-foreground-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-          >
-            View details
-          </span>
+              View details
+            </span>
+            {onLocate && substance.occurrences && substance.occurrences.length > 0 && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Locate on drawing"
+                      data-slot="locate-on-drawing"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onLocate(substance.occurrences!);
+                      }}
+                    />
+                  }
+                >
+                  <CrosshairIcon className="size-4" />
+                </TooltipTrigger>
+                <TooltipContent>Show where this appears in the drawing</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
         </div>
       </div>
     </div>
