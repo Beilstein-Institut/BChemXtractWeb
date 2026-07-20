@@ -2,7 +2,10 @@
  * BrowseToolbar — grid/table toggle, sort dropdown, page size selector,
  * structure count, selection badge, and export action bar.
  *
- * Layout: flex row, 48px height, border-b.
+ * Layout: flex row (min 48px), border-b. Wraps to a second line when the
+ * controls don't fit — e.g. once a selection adds the "N selected" +
+ * "Export N selected" cluster — so the count label drops cleanly below
+ * instead of collapsing into a clipped multi-line mess.
  * Mobile: Sort + page size collapse into an "Options" Popover.
  */
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
@@ -154,7 +157,7 @@ export function BrowseToolbar({
   return (
     <div
       className={cn(
-        "flex items-center gap-1 px-2 py-3 h-12 border-b border-border sm:gap-4 sm:px-6",
+        "flex flex-wrap items-center gap-x-1 gap-y-2 px-2 py-3 min-h-12 border-b border-border sm:gap-x-4 sm:px-6",
         disabled && "opacity-50 pointer-events-none",
       )}
     >
@@ -286,7 +289,7 @@ export function BrowseToolbar({
       <span
         role="status"
         aria-live="polite"
-        className="text-xs text-muted-foreground font-semibold hidden sm:block"
+        className="ml-auto hidden shrink-0 whitespace-nowrap text-xs font-semibold text-muted-foreground sm:block"
       >
         {countLabel}
       </span>
