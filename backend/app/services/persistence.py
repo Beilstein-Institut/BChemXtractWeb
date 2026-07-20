@@ -184,7 +184,6 @@ async def save_extraction(
             )
         )
         id_by_key = {key: sid for sid, key in result.all()}
-        substance_ids = list(id_by_key.values())
 
         # Occurrences are per-extraction (a substance appears at different
         # positions in different files), so they live on the join row, never
@@ -220,7 +219,7 @@ async def save_extraction(
         # Step 4: Insert join rows (ignore duplicates — re-extracting same file)
         # Owner columns mirror the parent Extraction so RLS
         # filtering on the join table works even without JOIN propagation.
-        if substance_ids:
+        if id_by_key:
             join_data = [
                 {
                     "extraction_id": extraction.id,

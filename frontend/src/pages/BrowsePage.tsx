@@ -76,12 +76,13 @@ export function BrowsePage({
   // adjust during render, no effect) so a prior file's drawing can't linger.
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerForId, setViewerForId] = useState(activeExtractionId);
-  // Highlight rects for the "locate" flow (Task 9 wires the buttons that call
-  // handleLocate): held here so both the panel (CdxViewerInline) and the
-  // trigger (a card/sheet button, threaded to StructureBrowser via onLocate)
-  // share one source of truth. viewerRef lets handleLocate scroll the panel
-  // into view after opening it. Declared before the reset-on-prop-change
-  // block below, which calls setHighlightRects.
+  // Occurrence rects to highlight on the pinned drawing; the card/sheet
+  // locate buttons set this via handleLocate. Held here so both the panel
+  // (CdxViewerInline) and the trigger (a card/sheet button, threaded to
+  // StructureBrowser via onLocate) share one source of truth. viewerRef lets
+  // handleLocate scroll the panel into view after opening it. Declared
+  // before the reset-on-prop-change block below, which calls
+  // setHighlightRects.
   const [highlightRects, setHighlightRects] = useState<Rect[]>([]);
   const viewerRef = useRef<HTMLDivElement>(null);
   if (activeExtractionId !== viewerForId) {
