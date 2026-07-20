@@ -4,6 +4,13 @@
  * FastAPI's JSON serialization defaults.
  */
 
+export interface Rect {
+  l: number;
+  t: number;
+  r: number;
+  b: number;
+}
+
 export interface SubstanceResponse {
   id: number;
   inchi: string;
@@ -17,6 +24,8 @@ export interface SubstanceResponse {
   abbreviations: Record<string, string>;
   svg: string; // CDK-generated 2D layout (clean, no crossing bonds)
   svg_cdx?: string; // original ChemDraw coordinates (may have crossing bonds)
+  /** On-page bounding boxes (CDX coords) where this substance appears. */
+  occurrences?: Rect[];
 }
 
 /**
