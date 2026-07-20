@@ -33,7 +33,7 @@ import { StructureCard } from "@/components/StructureCard";
 import { StructureTable } from "@/components/StructureTable";
 import { StructureSheet } from "@/components/StructureSheet";
 import { DEFAULT_DEPICTION } from "@/lib/depiction";
-import type { Depiction, PubChemCardState } from "@/types/chemistry";
+import type { Depiction, PubChemCardState, Rect } from "@/types/chemistry";
 
 // Stable empty map so the default prop value doesn't change identity across
 // renders (avoids needless work in memoized children).
@@ -69,6 +69,12 @@ export interface StructureBrowserProps {
    * not opted in. Missing keys render no PubChem chrome.
    */
   pubchem?: ReadonlyMap<string, PubChemCardState>;
+  /**
+   * Reports occurrence rects for the "locate on drawing" flow: shown as a
+   * button on grid cards and the detail sheet whenever the substance has
+   * occurrences. Table view does not surface this control (v1 scope).
+   */
+  onLocate?: (occurrences: Rect[]) => void;
 }
 
 /**
@@ -97,6 +103,7 @@ export function StructureBrowser({
   depiction = DEFAULT_DEPICTION,
   onDepictionChange,
   pubchem = EMPTY_PUBCHEM,
+  onLocate,
 }: StructureBrowserProps) {
   const {
     browseState,
@@ -213,6 +220,7 @@ export function StructureBrowser({
               onSelect={toggleSelect}
               depiction={depiction}
               pubchem={pubchem.get(substance.inchi_key)}
+              onLocate={onLocate}
             />
           ))}
         </div>
@@ -286,6 +294,7 @@ export function StructureBrowser({
         onPrev={() => setSheetIndex((i) => Math.max(0, i - 1))}
         onNext={() => setSheetIndex((i) => Math.min(substances.length - 1, i + 1))}
         depiction={depiction}
+        onLocate={onLocate}
       />
     </div>
   );

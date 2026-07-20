@@ -20,6 +20,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -162,6 +163,14 @@ class ExtractionSubstance(Base):
         primary_key=True,
     )
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # Per-extraction on-page bounding boxes (CDX coords) for this substance in
+    # THIS file. List of {"l","t","r","b"} floats. Occurrences are per-extraction
+    # (a substance appears at different positions in different files), so they
+    # live on the join row, not the globally-deduplicated `substances` row.
+    occurrences: Mapped[list[dict]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'[]'::jsonb"), default=list
+    )
 
     # Per-row ownership for Postgres RLS. Nullable for legacy rows (wiped
     # by the ownership migration before RLS is forced).
