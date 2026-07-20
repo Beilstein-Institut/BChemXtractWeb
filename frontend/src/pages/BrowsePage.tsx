@@ -19,6 +19,7 @@
 import { useMemo, useState } from "react";
 import { FileUpIcon, HistoryIcon } from "lucide-react";
 import { BrowseBento } from "@/components/browse/BrowseBento";
+import { CdxViewerInline } from "@/components/CdxViewerInline";
 import { ExtractionTabs } from "@/components/ExtractionTabs";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { StructureBrowser } from "@/components/StructureBrowser";
@@ -62,6 +63,18 @@ export function BrowsePage({
   // the depiction sent with image exports. Deliberately NOT persisted —
   // the product default is CDK on every visit.
   const [depiction, setDepiction] = useState<Depiction>(DEFAULT_DEPICTION);
+
+  // "View as drawn" now expands an inline panel above the tabs instead of a
+  // popup. The trigger lives in the card (BrowseBento); its open state is here
+  // so the panel can sit between the card and the tabs. Collapse it whenever
+  // the active extraction changes (React's reset-on-prop-change pattern —
+  // adjust during render, no effect) so a prior file's drawing can't linger.
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerForId, setViewerForId] = useState(activeExtractionId);
+  if (activeExtractionId !== viewerForId) {
+    setViewerForId(activeExtractionId);
+    setViewerOpen(false);
+  }
 
   // Reactions are known eagerly only for a persisted extraction (App
   // prefetches them). For a fresh upload the count stays unknown until the
@@ -197,7 +210,17 @@ export function BrowsePage({
               pubchem={pubchem}
               abbreviationCount={abbreviationCount}
               metalCount={metalCount}
+              viewerOpen={viewerOpen}
+              onToggleViewer={() => setViewerOpen((o) => !o)}
+              viewerPanelId="cdx-drawn-panel"
             />
+            {activeResult.extraction_id != null && (
+              <CdxViewerInline
+                id="cdx-drawn-panel"
+                extractionId={activeResult.extraction_id}
+                open={viewerOpen}
+              />
+            )}
           </section>
 
           <div className="mt-10">
