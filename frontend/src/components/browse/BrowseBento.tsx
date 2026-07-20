@@ -23,11 +23,19 @@
  * specific one; the detail sheet's Generate InChI action does the rest (and
  * reports, per structure, when a molecule is too complex to compute).
  */
-import { AlertTriangleIcon, CheckIcon, DatabaseIcon, FileIcon, SparklesIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  DatabaseIcon,
+  EyeIcon,
+  FileIcon,
+  SparklesIcon,
+} from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MolecularFormula } from "@/components/internal/MolecularFormula";
-import { CdxViewerDialog } from "@/components/CdxViewerDialog";
 import { cn } from "@/lib/utils";
 import type { SubstanceInfoResponse } from "@/types/chemistry";
 
@@ -84,6 +92,16 @@ export interface BrowseBentoProps {
   abbreviationCount?: number;
   /** Structures whose formula contains a metal / metalloid. */
   metalCount?: number;
+  /**
+   * "View as drawn" is a controlled toggle: the faithful-render panel lives
+   * outside the card (above the tabs), so its open state is owned by the
+   * page. When `onToggleViewer` is provided and there's an `extractionId`,
+   * the card shows the toggle button; `viewerOpen` drives its chevron and
+   * `aria-expanded`, and `viewerPanelId` wires `aria-controls` to the panel.
+   */
+  viewerOpen?: boolean;
+  onToggleViewer?: () => void;
+  viewerPanelId?: string;
   className?: string;
 }
 
@@ -240,6 +258,9 @@ export function BrowseBento({
   pubchem,
   abbreviationCount,
   metalCount,
+  viewerOpen,
+  onToggleViewer,
+  viewerPanelId,
   className,
 }: BrowseBentoProps) {
   const fragments = info?.no_fragments;
@@ -300,9 +321,23 @@ export function BrowseBento({
             {provenance && (
               <p className="mt-0.5 font-mono text-sm text-foreground-muted">{provenance}</p>
             )}
-            {extractionId != null && (
+            {extractionId != null && onToggleViewer && (
               <div className="mt-2">
-                <CdxViewerDialog extractionId={extractionId} />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-slot="view-as-drawn"
+                  aria-expanded={viewerOpen}
+                  aria-controls={viewerPanelId}
+                  onClick={onToggleViewer}
+                >
+                  <EyeIcon className="size-4" />
+                  View as drawn
+                  <ChevronDownIcon
+                    className={cn("size-4 transition-transform", viewerOpen && "rotate-180")}
+                    aria-hidden="true"
+                  />
+                </Button>
               </div>
             )}
           </div>
