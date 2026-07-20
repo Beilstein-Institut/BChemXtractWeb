@@ -14,7 +14,9 @@
  *   - SMILES row: truncated SMILES + Copy-SMILES icon button.
  *   - Bottom action row: PubChem status control (opens the compound, or
  *     searches PubChem for similar molecules when the structure is absent) +
- *     a Details cue. Per-card export menu overlays the top-right corner.
+ *     an optional "Locate on drawing" icon button (only when onLocate is set
+ *     and the substance has occurrences) + a Details cue. Per-card export
+ *     menu overlays the top-right corner.
  *
  * Hover: crimson ring (`ring-2 ring-primary/20`) + a 1.02 scale on the SVG
  * thumbnail (group-hover). No neomorphic lift.
@@ -35,11 +37,13 @@
  *                                          subscripts when no name is present)
  *   data-slot="structure-card-smiles"     (Geist Mono truncated)
  *   data-slot="structure-card-pubchem"    (PubChem status control, when enriched)
+ *   data-slot="locate-on-drawing"         (locate button, when onLocate + occurrences)
  *   data-slot="structure-card-details"    (details/ExternalLink trigger)
  */
 import { useState } from "react";
-import { FlaskConicalIcon } from "lucide-react";
+import { CrosshairIcon, FlaskConicalIcon } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { CopyButton } from "@/components/internal/CopyButton";
@@ -52,7 +56,7 @@ import { postExport } from "@/lib/apiClient";
 import { safeDownloadSlug } from "@/lib/safeStrings";
 import { cn } from "@/lib/utils";
 import { DEFAULT_DEPICTION, pickSvg } from "@/lib/depiction";
-import type { Depiction, PubChemCardState, SubstanceResponse } from "@/types/chemistry";
+import type { Depiction, PubChemCardState, Rect, SubstanceResponse } from "@/types/chemistry";
 import type { ExportFormat } from "@/types/export";
 import type { SearchResult } from "@/types/search";
 import { FORMAT_EXT } from "@/types/export";
@@ -99,6 +103,9 @@ export interface StructureCardProps {
    * opted in — the card then renders no PubChem chrome.
    */
   pubchem?: PubChemCardState;
+  /** When set and the substance has occurrences, show a "locate on drawing"
+   *  button that reports this substance's occurrence rects to the page. */
+  onLocate?: (occurrences: Rect[]) => void;
 }
 
 /**
@@ -121,6 +128,7 @@ export function StructureCard({
   onViewExtraction,
   depiction = DEFAULT_DEPICTION,
   pubchem,
+  onLocate,
 }: StructureCardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -234,6 +242,21 @@ export function StructureCard({
             <div data-slot="structure-card-pubchem">
               <PubChemBadge state={pubchem} smiles={substance.smiles} />
             </div>
+          )}
+          {onLocate && substance.occurrences && substance.occurrences.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Locate on drawing"
+              data-slot="locate-on-drawing"
+              className={cn(!pubchem && "ml-auto")}
+              onClick={(e) => {
+                e.stopPropagation();
+                onLocate(substance.occurrences!);
+              }}
+            >
+              <CrosshairIcon className="size-4" />
+            </Button>
           )}
           <span
             data-slot="structure-card-details"
