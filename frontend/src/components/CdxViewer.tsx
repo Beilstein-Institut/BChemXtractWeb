@@ -161,6 +161,14 @@ export function CdxViewer({
           <svg
             data-slot="cdx-highlight-overlay"
             viewBox={`0 0 ${viewBox[1]} ${viewBox[2]}`}
+            // Explicit width/height give this inline <svg> the same intrinsic
+            // pixel size as the sibling <img> (which sizes from the blob's
+            // natural dimensions). Without them, a viewBox-only <svg> sizes
+            // via CSS replaced-element rules instead, so it can render at a
+            // different size/offset than the <img> and the highlight rects
+            // drift off the structure.
+            width={Number(viewBox[1])}
+            height={Number(viewBox[2])}
             className="pointer-events-none absolute left-1/2 top-1/2 max-h-full max-w-full"
             style={{
               transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
