@@ -7,7 +7,6 @@ import java.io.InputStream;
 import org.beilstein.chemxtract.cdx.CDDocument;
 import org.beilstein.chemxtract.cdx.reader.CDXMLReader;
 import org.beilstein.chemxtract.cdx.reader.CDXReader;
-import org.beilstein.chemxtract.render.graphic.AbstractGraphic;
 import org.beilstein.chemxtract.render.graphic.CDXGraphicReader;
 import org.beilstein.chemxtract.render.graphic.Graphic;
 import org.beilstein.chemxtract.render.graphic.GraphicUtils;
@@ -39,20 +38,16 @@ public final class CdxSvgRenderer {
     }
 
     Graphic graphic = CDXGraphicReader.readGraphic(doc);
-    // The occurrence bboxes (BCXSubstance.getOccurrences) live in the ORIGINAL
-    // CDX document frame. CDXGraphic normalizes its rendered bounds to origin
-    // (0,0) and scales them by an internal factor (72/70), so getBounds() is
-    // NOT the frame occurrences are in. Derive the true document->SVG transform
-    // from the graphic's own rectangles: origin = originalBounds.min (the doc
-    // frame), and the internal factor = normalizedBounds.width/originalBounds
-    // .width. The full doc->SVG scale is that internal factor times the render
-    // scale. Stamping these lets the frontend map an occurrence rect onto the
-    // render via svg = (cdx - origin) * scale.
-    java.awt.geom.Rectangle2D orig = ((AbstractGraphic) graphic).getOriginalBounds();
-    java.awt.geom.Rectangle2D norm = graphic.getBounds();
+    // Occurrence bboxes (BCXSubstance.getOccurrences) are in the source document
+    // frame, so stamp the document-frame origin and the full document->SVG scale
+    // for the frontend's svg = (cdx - origin) * scale. getOriginalBounds() is that
+    // document frame; getBounds() is the normalized render frame (see Graphic).
+    // The document->normalized factor is the width ratio (uniform, and crop-free
+    // for CDX graphics); times the render scale gives the full mapping.
+    java.awt.geom.Rectangle2D orig = graphic.getOriginalBounds();
     double originX = orig.getX();
     double originY = orig.getY();
-    double effectiveScale = scale * (norm.getWidth() / orig.getWidth());
+    double effectiveScale = scale * (graphic.getBounds().getWidth() / orig.getWidth());
     graphic = GraphicUtils.createScaledGraphic(graphic, -1.0, -1.0, -1.0, -1.0, scale);
 
     try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {

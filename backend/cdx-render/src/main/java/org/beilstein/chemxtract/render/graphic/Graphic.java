@@ -36,10 +36,23 @@ public interface Graphic {
   /**
    * Sets new bounds for the graphic. This means that the graphic will be scaled to follow the new
    * bounds.
-   * 
+   *
    * @param bounds new bounds
    */
   public void setBounds(Rectangle2D bounds);
+
+  /**
+   * Return the graphic's bounds in its ORIGINAL (pre-normalization) coordinate space — i.e. the
+   * source document frame. This differs from {@link #getBounds()}, which returns the normalized
+   * render bounds (origin translated to 0,0 and scaled). The pair together describes the
+   * document-frame vs. render-frame relationship, so a consumer that must map source-space
+   * coordinates onto the render (e.g. overlaying occurrence boxes on the SVG) uses
+   * {@code getOriginalBounds()} for the origin and {@code getBounds()/getOriginalBounds()} for the
+   * scale.
+   *
+   * @return original (document-frame) bounds
+   */
+  public Rectangle2D getOriginalBounds();
 
   /**
    * Return the type of graphic. This method will return null for combined graphics.
