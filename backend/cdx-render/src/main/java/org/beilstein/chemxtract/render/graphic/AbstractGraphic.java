@@ -165,7 +165,7 @@ public abstract class AbstractGraphic implements Graphic {
    * 
    * @return Original bounds
    */
-  final Rectangle2D getOriginalBounds() {
+  public final Rectangle2D getOriginalBounds() {
     return originalBounds;
   }
 
