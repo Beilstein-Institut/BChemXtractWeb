@@ -161,11 +161,10 @@ public abstract class AbstractGraphic implements Graphic {
   protected abstract void paintIntern(Graphics2D g) throws IOException;
 
   /**
-   * Returns the original bounds of the graphic.
-   * 
-   * @return Original bounds
+   * {@inheritDoc}
    */
-  final Rectangle2D getOriginalBounds() {
+  @Override
+  public final Rectangle2D getOriginalBounds() {
     return originalBounds;
   }
 

@@ -286,3 +286,37 @@ async def test_reextraction_never_clobbers_a_good_svg(db_session):
         "<svg>GOOD</svg>",
         "<svg>GOODC</svg>",
     )
+
+
+@pytest.mark.asyncio
+async def test_save_extraction_persists_occurrences_on_join_row(db_session):
+    """Occurrences from the coerced substance land on the extraction_substances row."""
+    from app.models.chemistry import Occurrence
+    from app.models.orm import ExtractionSubstance
+
+    sub = SubstanceResponse(
+        inchi_key="AAAAAAAAAAAAAA-UHFFFAOYSA-N",
+        inchi="InChI=1S/CH4/h1H4",
+        smiles="C",
+        molecular_formula="CH4",
+        occurrences=[Occurrence(l=1.0, t=2.0, r=3.0, b=4.0)],
+    )
+    response = ExtractionResponse(
+        substances=[sub],
+        info=SubstanceInfoResponse(no_substances=1),
+        format="cdx",
+        filename="occ.cdx",
+        file_size=100,
+        structure_count=1,
+        extraction_time_ms=50.0,
+        warnings=[],
+    )
+    extraction = await save_extraction(db_session, response)
+    row = (
+        await db_session.execute(
+            select(ExtractionSubstance).where(
+                ExtractionSubstance.extraction_id == extraction.id
+            )
+        )
+    ).scalar_one()
+    assert row.occurrences == [{"l": 1.0, "t": 2.0, "r": 3.0, "b": 4.0}]

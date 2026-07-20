@@ -53,4 +53,30 @@ describe("CdxViewer", () => {
     expect(after).not.toBe(before);
     expect(event.defaultPrevented).toBe(true);
   });
+
+  it("renders a highlight rect overlay when highlights are set", () => {
+    const svg =
+      '<svg data-cdx-scale="3" data-cdx-origin-x="0" data-cdx-origin-y="0" viewBox="0 0 300 300"></svg>';
+    const { container } = render(
+      <CdxViewer svg={svg} highlights={[{ l: 10, t: 20, r: 30, b: 50 }]} />,
+    );
+    const overlay = container.querySelector('[data-slot="cdx-highlight-overlay"]');
+    expect(overlay).not.toBeNull();
+    const rect = overlay!.querySelector("rect");
+    expect(rect).toHaveAttribute("width", "60");
+    expect(rect).toHaveAttribute("height", "90");
+
+    // Regression guard: the overlay <svg> must carry explicit width/height
+    // (matching the parsed viewBox) so it gets the same intrinsic pixel size
+    // as the sibling <img>. A viewBox-only inline <svg> sizes itself via a
+    // different (CSS replaced-element) algorithm than the <img> (which sizes
+    // from the blob's natural dimensions), so without these attributes the
+    // overlay can render at a different size/offset and the highlight rects
+    // drift off the structure. jsdom doesn't compute real layout/paint, so it
+    // can't verify the two elements are pixel-identical on screen — this
+    // attribute check is the unit-level guard; true pixel-parity is confirmed
+    // by the browser smoke check in the manual verification pass.
+    expect(overlay).toHaveAttribute("width", "300");
+    expect(overlay).toHaveAttribute("height", "300");
+  });
 });

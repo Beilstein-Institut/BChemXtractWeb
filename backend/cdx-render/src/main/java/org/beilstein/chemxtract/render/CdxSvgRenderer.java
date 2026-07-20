@@ -38,11 +38,27 @@ public final class CdxSvgRenderer {
     }
 
     Graphic graphic = CDXGraphicReader.readGraphic(doc);
+    // Occurrence bboxes (BCXSubstance.getOccurrences) are in the source document
+    // frame, so stamp the document-frame origin and the full document->SVG scale
+    // for the frontend's svg = (cdx - origin) * scale. getOriginalBounds() is that
+    // document frame; getBounds() is the normalized render frame (see Graphic).
+    // The document->normalized factor is the width ratio (uniform, and crop-free
+    // for CDX graphics); times the render scale gives the full mapping.
+    java.awt.geom.Rectangle2D orig = graphic.getOriginalBounds();
+    double originX = orig.getX();
+    double originY = orig.getY();
+    double effectiveScale = scale * (graphic.getBounds().getWidth() / orig.getWidth());
     graphic = GraphicUtils.createScaledGraphic(graphic, -1.0, -1.0, -1.0, -1.0, scale);
 
     try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
       SVGGraphicWriter.writeGraphic(graphic, out);
-      return out.toByteArray();
+      String svg = out.toString("UTF-8");
+      String attrs = " data-cdx-scale=\"" + effectiveScale
+          + "\" data-cdx-origin-x=\"" + originX
+          + "\" data-cdx-origin-y=\"" + originY + "\"";
+      // SVGGraphicWriter emits a single root "<svg " open tag.
+      svg = svg.replaceFirst("<svg ", "<svg" + java.util.regex.Matcher.quoteReplacement(attrs) + " ");
+      return svg.getBytes("UTF-8");
     }
   }
 }

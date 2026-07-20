@@ -184,7 +184,21 @@ async def save_extraction(
             )
         )
         id_by_key = {key: sid for sid, key in result.all()}
-        substance_ids = list(id_by_key.values())
+
+        # Occurrences are per-extraction (a substance appears at different
+        # positions in different files), so they live on the join row, never
+        # on the `substances` upsert payload above. Build the key->occurrences
+        # map straight from response.substances (mirroring the exact dedup_key
+        # expression and `if` filter used to build substance_data) rather than
+        # from substance_data itself, since substance_data IS the `substances`
+        # upsert payload and has no occurrences column.
+        occ_by_key = {
+            (s.inchi_key or make_dedup_key(s.smiles)): [
+                o.model_dump() for o in s.occurrences
+            ]
+            for s in response.substances
+            if s.inchi_key or s.smiles
+        }
 
         # Heal blank SVGs on pre-existing rows. ON CONFLICT DO NOTHING above
         # keeps first-seen metadata — so a substance first persisted with an
@@ -205,16 +219,17 @@ async def save_extraction(
         # Step 4: Insert join rows (ignore duplicates — re-extracting same file)
         # Owner columns mirror the parent Extraction so RLS
         # filtering on the join table works even without JOIN propagation.
-        if substance_ids:
+        if id_by_key:
             join_data = [
                 {
                     "extraction_id": extraction.id,
                     "substance_id": sid,
                     "position": index,
+                    "occurrences": occ_by_key.get(key, []),
                     "session_id": session_id,
                     "api_key_hash": api_key_hash,
                 }
-                for index, sid in enumerate(substance_ids)
+                for index, (key, sid) in enumerate(id_by_key.items())
             ]
             await db.execute(
                 pg_insert(ExtractionSubstance)

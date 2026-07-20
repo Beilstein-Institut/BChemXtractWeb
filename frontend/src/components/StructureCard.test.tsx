@@ -297,6 +297,59 @@ describe("StructureCard component", () => {
     fireEvent.click(copyBtns[0]);
     expect(handleParentClick).not.toHaveBeenCalled();
   });
+
+  it("shows a locate button and calls onLocate with the substance's occurrences", () => {
+    const onLocate = vi.fn();
+    const substance = {
+      ...mockSubstance,
+      occurrences: [{ l: 1, t: 2, r: 3, b: 4 }],
+    };
+    render(<StructureCard substance={substance} onLocate={onLocate} />);
+    fireEvent.click(screen.getByRole("button", { name: /locate on drawing/i }));
+    expect(onLocate).toHaveBeenCalledWith([{ l: 1, t: 2, r: 3, b: 4 }]);
+  });
+
+  it("hides the locate button when there are no occurrences", () => {
+    render(<StructureCard substance={{ ...mockSubstance, occurrences: [] }} onLocate={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /locate on drawing/i })).toBeNull();
+  });
+
+  it("hides the locate button when onLocate is not provided, even with occurrences", () => {
+    render(
+      <StructureCard substance={{ ...mockSubstance, occurrences: [{ l: 1, t: 2, r: 3, b: 4 }] }} />,
+    );
+    expect(screen.queryByRole("button", { name: /locate on drawing/i })).toBeNull();
+  });
+
+  it("clicking the locate button does NOT call onOpen (sheet mode stopPropagation)", () => {
+    const onLocate = vi.fn();
+    const onOpen = vi.fn();
+    const substance = {
+      ...mockSubstance,
+      occurrences: [{ l: 1, t: 2, r: 3, b: 4 }],
+    };
+    render(<StructureCard substance={substance} onOpen={onOpen} onLocate={onLocate} />);
+    fireEvent.click(screen.getByRole("button", { name: /locate on drawing/i }));
+    expect(onLocate).toHaveBeenCalledTimes(1);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("clicking the locate button does NOT bubble to a parent card click handler", () => {
+    const handleParentClick = vi.fn();
+    const onLocate = vi.fn();
+    const substance = {
+      ...mockSubstance,
+      occurrences: [{ l: 1, t: 2, r: 3, b: 4 }],
+    };
+    render(
+      <div onClick={handleParentClick}>
+        <StructureCard substance={substance} onLocate={onLocate} />
+      </div>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /locate on drawing/i }));
+    expect(handleParentClick).not.toHaveBeenCalled();
+    expect(onLocate).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("StructureCard PubChem badge", () => {
