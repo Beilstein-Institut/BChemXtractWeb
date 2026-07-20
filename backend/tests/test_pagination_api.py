@@ -116,3 +116,29 @@ async def test_extraction_response_includes_id(
     assert "extraction_id" in body
     assert isinstance(body["extraction_id"], int)
     assert body["extraction_id"] > 0
+
+
+async def test_substances_endpoint_returns_occurrences(
+    client_csrf: AsyncClient, cdx_multi_file_bytes: bytes
+):
+    """Substances page surfaces per-extraction occurrences (click-to-locate)."""
+    upload = await client_csrf.post(
+        "/api/extract",
+        files={"file": ("test_fixture.cdx", cdx_multi_file_bytes, "chemical/x-cdx")},
+    )
+    assert upload.status_code == 200, upload.text
+    extraction_id = upload.json()["extraction_id"]
+
+    resp = await client_csrf.get(
+        f"/api/extractions/{extraction_id}/substances?page=1&size=48"
+    )
+    assert resp.status_code == 200, resp.text
+    items = resp.json()["items"]
+
+    with_occurrences = [item for item in items if item["occurrences"]]
+    assert with_occurrences, "expected at least one substance with occurrences"
+
+    occ = with_occurrences[0]["occurrences"][0]
+    assert set(occ) == {"l", "t", "r", "b"}
+    assert occ["r"] >= occ["l"]
+    assert occ["b"] >= occ["t"]
