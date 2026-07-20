@@ -38,11 +38,20 @@ public final class CdxSvgRenderer {
     }
 
     Graphic graphic = CDXGraphicReader.readGraphic(doc);
+    java.awt.geom.Rectangle2D b = graphic.getBounds();
+    double originX = b.getX();
+    double originY = b.getY();
     graphic = GraphicUtils.createScaledGraphic(graphic, -1.0, -1.0, -1.0, -1.0, scale);
 
     try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
       SVGGraphicWriter.writeGraphic(graphic, out);
-      return out.toByteArray();
+      String svg = out.toString("UTF-8");
+      String attrs = " data-cdx-scale=\"" + scale
+          + "\" data-cdx-origin-x=\"" + originX
+          + "\" data-cdx-origin-y=\"" + originY + "\"";
+      // SVGGraphicWriter emits a single root "<svg " open tag.
+      svg = svg.replaceFirst("<svg ", "<svg" + java.util.regex.Matcher.quoteReplacement(attrs) + " ");
+      return svg.getBytes("UTF-8");
     }
   }
 }
