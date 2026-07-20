@@ -166,6 +166,16 @@ def _coerce_substance(java_sub) -> dict:
         sv = str(v)[:_MAX_ABBREV_VALUE_LEN]
         abbreviations[sk] = sv
 
+    occurrences = [
+        {
+            "l": float(o.getCdxLeft()),
+            "t": float(o.getCdxTop()),
+            "r": float(o.getCdxRight()),
+            "b": float(o.getCdxBottom()),
+        }
+        for o in (java_sub.getOccurrences() or [])
+    ]
+
     return {
         "inchi": str(java_sub.getInchi() or ""),
         "inchi_key": str(java_sub.getInchiKey() or ""),
@@ -176,6 +186,7 @@ def _coerce_substance(java_sub) -> dict:
         "aux_info": str(java_sub.getAuxInfo() or ""),
         "mdlv3000": "",
         "abbreviations": abbreviations,
+        "occurrences": occurrences,
     }
 
 
