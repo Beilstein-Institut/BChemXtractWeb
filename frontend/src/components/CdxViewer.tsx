@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DownloadIcon, MaximizeIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { triggerDownload } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
+import { cdxRectToSvg, parseCdxTransform } from "@/lib/cdxTransform";
+import type { Rect } from "@/types/chemistry";
 
 export interface CdxViewerProps {
   /** Faithful whole-page SVG markup (already sanitized server-side). */
@@ -11,6 +13,8 @@ export interface CdxViewerProps {
   /** Accessible label / download base name. */
   title?: string;
   className?: string;
+  /** CDX-space rects to highlight over the drawing (mapped via the stamped transform). */
+  highlights?: Rect[];
 }
 
 const MIN_ZOOM = 0.25;
@@ -28,12 +32,26 @@ const STEP = 1.2;
  *   data-slot="cdx-toolbar"   (zoom/reset/download controls)
  *   data-slot="cdx-viewport"  (pan/zoom surface, also data-testid="cdx-viewport")
  */
-export function CdxViewer({ svg, title = "ChemDraw structure", className }: CdxViewerProps) {
+export function CdxViewer({
+  svg,
+  title = "ChemDraw structure",
+  className,
+  highlights,
+}: CdxViewerProps) {
   const url = useSvgObjectUrl(svg);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const drag = useRef<{ x: number; y: number } | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+
+  // The highlight overlay rides the same viewBox/transform as the <img> so
+  // it stays pixel-locked to the rendered structure at any zoom/pan.
+  const transform = useMemo(() => parseCdxTransform(svg), [svg]);
+  const viewBox = useMemo(() => svg.match(/viewBox="0 0 (\d+) (\d+)"/), [svg]);
+  const overlayRects = useMemo(
+    () => (highlights && transform ? highlights.map((r) => cdxRectToSvg(r, transform)) : []),
+    [highlights, transform],
+  );
 
   const clampZoom = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
   const stepZoom = (dir: 1 | -1) => setZoom((z) => clampZoom(dir > 0 ? z * STEP : z / STEP));
@@ -138,6 +156,34 @@ export function CdxViewer({ svg, title = "ChemDraw structure", className }: CdxV
               transformOrigin: "center",
             }}
           />
+        )}
+        {overlayRects.length > 0 && viewBox && (
+          <svg
+            data-slot="cdx-highlight-overlay"
+            viewBox={`0 0 ${viewBox[1]} ${viewBox[2]}`}
+            className="pointer-events-none absolute left-1/2 top-1/2 max-h-full max-w-full"
+            style={{
+              transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transformOrigin: "center",
+            }}
+            preserveAspectRatio="xMidYMid meet"
+            aria-hidden="true"
+          >
+            {overlayRects.map((r, i) => (
+              <rect
+                key={i}
+                x={r.x}
+                y={r.y}
+                width={r.width}
+                height={r.height}
+                fill="var(--color-primary, magenta)"
+                fillOpacity="0.18"
+                stroke="var(--color-primary, magenta)"
+                strokeWidth={Math.max(2 / zoom, 1)}
+                rx={4}
+              />
+            ))}
+          </svg>
         )}
       </div>
     </div>

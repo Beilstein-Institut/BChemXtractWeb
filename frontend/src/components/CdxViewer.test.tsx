@@ -53,4 +53,17 @@ describe("CdxViewer", () => {
     expect(after).not.toBe(before);
     expect(event.defaultPrevented).toBe(true);
   });
+
+  it("renders a highlight rect overlay when highlights are set", () => {
+    const svg =
+      '<svg data-cdx-scale="3" data-cdx-origin-x="0" data-cdx-origin-y="0" viewBox="0 0 300 300"></svg>';
+    const { container } = render(
+      <CdxViewer svg={svg} highlights={[{ l: 10, t: 20, r: 30, b: 50 }]} />,
+    );
+    const overlay = container.querySelector('[data-slot="cdx-highlight-overlay"]');
+    expect(overlay).not.toBeNull();
+    const rect = overlay!.querySelector("rect");
+    expect(rect).toHaveAttribute("width", "60");
+    expect(rect).toHaveAttribute("height", "90");
+  });
 });
