@@ -38,7 +38,6 @@
  *   data-slot="structure-card-smiles"     (Geist Mono truncated)
  *   data-slot="structure-card-pubchem"    (PubChem status control, when enriched)
  *   data-slot="locate-on-drawing"         (locate button, when onLocate + occurrences)
- *   data-slot="structure-card-details"    (details/ExternalLink trigger)
  */
 import { useState } from "react";
 import { CrosshairIcon, FlaskConicalIcon } from "lucide-react";
@@ -50,7 +49,7 @@ import { CopyButton } from "@/components/internal/CopyButton";
 import { ExportMenu } from "@/components/ExportMenu";
 import { PubChemBadge } from "@/components/PubChemBadge";
 import { StructureDetail } from "@/components/StructureDetail";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MolecularFormula } from "@/components/internal/MolecularFormula";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { postExport } from "@/lib/apiClient";
@@ -226,16 +225,15 @@ export function StructureCard({
         </div>
 
         {/* Action row: PubChem status control (opens the compound, or searches
-            similar molecules when absent) on the left; the "View details" cue
-            and the locate button sit together on the right. The PubChem control
-            is present only when the user has opted into enrichment. */}
+            similar molecules when absent) on the left; the locate button sits
+            on the right. The PubChem control is present only when the user has
+            opted into enrichment. */}
         <div
           className={cn(
             "flex items-center gap-2",
-            // The divider only earns its keep when the row has persistent
-            // content. PubChem is opt-in, so on the default (enrichment-off)
-            // card the row holds just the hover-only "View details" cue — no
-            // border, so a card at rest never shows an empty divided strip.
+            // The divider only earns its keep when the row has PubChem
+            // content, so without it the row stays borderless — a card at
+            // rest never shows an empty divided strip.
             pubchem && "border-t border-border pt-2",
           )}
         >
@@ -245,33 +243,28 @@ export function StructureCard({
             </div>
           )}
           <div className="ml-auto flex items-center gap-2">
-            <span
-              data-slot="structure-card-details"
-              aria-hidden="true"
-              className="text-xs font-medium text-foreground-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-            >
-              View details
-            </span>
             {onLocate && substance.occurrences && substance.occurrences.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Locate on drawing"
-                      data-slot="locate-on-drawing"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onLocate(substance.occurrences!);
-                      }}
-                    />
-                  }
-                >
-                  <CrosshairIcon className="size-4" />
-                </TooltipTrigger>
-                <TooltipContent>Show where this appears in the drawing</TooltipContent>
-              </Tooltip>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="View this structure on the drawn file"
+                        data-slot="locate-on-drawing"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onLocate(substance.occurrences!);
+                        }}
+                      />
+                    }
+                  >
+                    <CrosshairIcon className="size-4" />
+                  </TooltipTrigger>
+                  <TooltipContent>View this structure on the drawn file</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
         </div>

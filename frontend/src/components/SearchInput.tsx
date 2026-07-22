@@ -181,7 +181,7 @@ export function SearchInput({ className }: { className?: string }) {
                 // theme switch leave no room for a wider pill (it used to
                 // leak 76px past the viewport). min-w-0 + shrink let the
                 // pill compress instead of overflowing if space runs out.
-                "w-[280px] min-w-0 shrink xl:w-[440px]",
+                "w-[280px] min-w-0 shrink xl:w-[480px]",
               ]
             : "h-9 w-full",
           className,
@@ -211,7 +211,7 @@ export function SearchInput({ className }: { className?: string }) {
             onBlur={() => setFocused(false)}
             data-slot="input"
             className={cn(
-              "min-w-0 flex-1 bg-transparent text-body text-foreground outline-none",
+              "min-w-0 flex-1 bg-transparent text-body-sm text-foreground outline-none",
               "placeholder:text-foreground-muted",
               hasContent ? "pr-20" : "pr-10",
             )}

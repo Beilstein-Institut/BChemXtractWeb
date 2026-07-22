@@ -1,4 +1,11 @@
-import { CheckCircle2Icon, DownloadIcon, PlusIcon, XCircleIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  ArrowRightIcon,
+  CheckCircle2Icon,
+  DownloadIcon,
+  PlusIcon,
+  XCircleIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { BatchFilePreview } from "@/components/BatchFilePreview";
 import { CdxViewerDialog } from "@/components/CdxViewerDialog";
@@ -22,6 +29,7 @@ import type { BatchFileStatus } from "@/types/batch";
  * React text children — escaped by React automatically.
  *
  * `data-slot` contract:
+ *   - `data-slot="batch-summary-callout"` (outcome banner + View-all CTA)
  *   - `data-slot="batch-summary-stats"` (4-up stat row)
  *   - `data-slot="batch-summary-stat"`  (individual stat cell)
  *   - `data-slot="batch-summary-list"`  (per-file results list)
@@ -99,6 +107,20 @@ export function BatchSummary({
     }
   }
 
+  // Outcome-adaptive callout: a slim strip that states the result and offers
+  // one compact action. Per the brand's "recover quiet" principle it stays
+  // restrained — the count lives in the message, so the button is just
+  // "View all" and appears only when there's something to view (>0 structures).
+  const allSucceeded = failedCount === 0;
+  const structuresNoun = totalStructures === 1 ? "structure" : "structures";
+  const calloutMessage = allSucceeded
+    ? totalStructures > 0
+      ? `All ${totalStructures} ${structuresNoun} extracted.`
+      : "Extraction complete. No structures found."
+    : succeededCount > 0
+      ? `${succeededCount} of ${totalFiles} files extracted.`
+      : `None of the ${totalFiles} files could be extracted.`;
+
   return (
     <div data-slot="results-step" className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -106,13 +128,6 @@ export function BatchSummary({
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={onReset} icon={<PlusIcon />}>
             New batch
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/batch?batch=${encodeURIComponent(batchId)}`)}
-          >
-            View all
           </Button>
           <Button
             variant="primary"
@@ -124,6 +139,37 @@ export function BatchSummary({
             Download ZIP
           </Button>
         </div>
+      </div>
+
+      <div
+        data-slot="batch-summary-callout"
+        className={cn(
+          "flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border px-3.5 py-2.5",
+          allSucceeded
+            ? "border-secondary/25 bg-secondary/10"
+            : "border-border bg-surface-elevated",
+        )}
+      >
+        {allSucceeded ? (
+          <CheckCircle2Icon className="size-4 shrink-0 text-secondary" aria-hidden="true" />
+        ) : (
+          <AlertTriangleIcon className="size-4 shrink-0 text-foreground-muted" aria-hidden="true" />
+        )}
+        <p className="min-w-0 flex-1 text-sm font-medium text-foreground">{calloutMessage}</p>
+        {totalStructures > 0 && (
+          <Button
+            variant="secondary"
+            size="sm"
+            aria-label={`View all ${totalStructures} ${structuresNoun}`}
+            className="shrink-0 rounded-full"
+            onClick={() => navigate(`/batch?batch=${encodeURIComponent(batchId)}`)}
+          >
+            View all
+            {/* Arrow glides on hover: a restrained completion "moment" that
+                honors the brand's no-celebration rule; disabled for reduced motion. */}
+            <ArrowRightIcon className="transition-transform duration-200 ease-out group-hover/button:translate-x-0.5 motion-reduce:transform-none" />
+          </Button>
+        )}
       </div>
 
       <dl

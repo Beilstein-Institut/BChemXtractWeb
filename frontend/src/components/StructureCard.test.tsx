@@ -305,20 +305,24 @@ describe("StructureCard component", () => {
       occurrences: [{ l: 1, t: 2, r: 3, b: 4 }],
     };
     render(<StructureCard substance={substance} onLocate={onLocate} />);
-    fireEvent.click(screen.getByRole("button", { name: /locate on drawing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /view this structure on the drawn file/i }));
     expect(onLocate).toHaveBeenCalledWith([{ l: 1, t: 2, r: 3, b: 4 }]);
   });
 
   it("hides the locate button when there are no occurrences", () => {
     render(<StructureCard substance={{ ...mockSubstance, occurrences: [] }} onLocate={vi.fn()} />);
-    expect(screen.queryByRole("button", { name: /locate on drawing/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /view this structure on the drawn file/i }),
+    ).toBeNull();
   });
 
   it("hides the locate button when onLocate is not provided, even with occurrences", () => {
     render(
       <StructureCard substance={{ ...mockSubstance, occurrences: [{ l: 1, t: 2, r: 3, b: 4 }] }} />,
     );
-    expect(screen.queryByRole("button", { name: /locate on drawing/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /view this structure on the drawn file/i }),
+    ).toBeNull();
   });
 
   it("clicking the locate button does NOT call onOpen (sheet mode stopPropagation)", () => {
@@ -329,7 +333,7 @@ describe("StructureCard component", () => {
       occurrences: [{ l: 1, t: 2, r: 3, b: 4 }],
     };
     render(<StructureCard substance={substance} onOpen={onOpen} onLocate={onLocate} />);
-    fireEvent.click(screen.getByRole("button", { name: /locate on drawing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /view this structure on the drawn file/i }));
     expect(onLocate).toHaveBeenCalledTimes(1);
     expect(onOpen).not.toHaveBeenCalled();
   });
@@ -346,7 +350,7 @@ describe("StructureCard component", () => {
         <StructureCard substance={substance} onLocate={onLocate} />
       </div>,
     );
-    fireEvent.click(screen.getByRole("button", { name: /locate on drawing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /view this structure on the drawn file/i }));
     expect(handleParentClick).not.toHaveBeenCalled();
     expect(onLocate).toHaveBeenCalledTimes(1);
   });
