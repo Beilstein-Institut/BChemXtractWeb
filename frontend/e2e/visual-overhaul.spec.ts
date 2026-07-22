@@ -138,8 +138,10 @@ test.describe("Mobile Navigation", () => {
 });
 
 test.describe("Typography and Spacing", () => {
+  // The Extract page (hero tagline, subtitle, generous top padding) lives at
+  // /extract; "/" is now the home landing.
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/extract");
   });
 
   test("hero h1 renders the Extract page tagline in the display scale", async ({ page }) => {
@@ -183,8 +185,9 @@ test.describe("Typography and Spacing", () => {
 });
 
 test.describe("FileUpload Styling", () => {
+  // The drop zone lives on the Extract page (/extract), not the home landing.
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/extract");
   });
 
   test("drop zone is visible with rounded corners", async ({ page }) => {
