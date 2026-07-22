@@ -138,8 +138,63 @@ describe("BatchSummary", () => {
     // Heading confirms the results step is mounted (not navigated away)
     expect(screen.getByText("Batch complete")).toBeDefined();
     // Per-file structure count in the file list — only present when the done
-    // row renders; "3 structures" comes from files[0] (a.cdx, structureCount=3)
-    expect(screen.getByText(/3 structures/i)).toBeDefined();
+    // row renders; "3 structures" comes from files[0] (a.cdx, structureCount=3).
+    // Scoped to the list slot because the callout's "View all 3 structures"
+    // button also contains that substring.
+    const list = document.querySelector("[data-slot='batch-summary-list']");
+    expect(list?.textContent).toMatch(/3 structures/i);
+  });
+
+  it("shows a positive callout when every file succeeded", () => {
+    render(
+      <BatchSummary
+        batchId="bid"
+        files={[files[0]]}
+        totalFiles={1}
+        totalStructures={3}
+        succeededCount={1}
+        failedCount={0}
+        onViewExtraction={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    );
+    const callout = document.querySelector("[data-slot='batch-summary-callout']");
+    expect(callout?.textContent).toMatch(/All 3 structures extracted/i);
+    // The full-width View-all CTA is present and counts the structures.
+    expect(screen.getByRole("button", { name: /view all 3 structures/i })).toBeDefined();
+  });
+
+  it("shows a neutral 'N of M files extracted' callout when some files failed", () => {
+    render(
+      <BatchSummary
+        batchId="bid"
+        files={files}
+        totalFiles={2}
+        totalStructures={3}
+        succeededCount={1}
+        failedCount={1}
+        onViewExtraction={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    );
+    const callout = document.querySelector("[data-slot='batch-summary-callout']");
+    expect(callout?.textContent).toMatch(/1 of 2 files extracted/i);
+  });
+
+  it("hides the View-all CTA when the batch produced no structures", () => {
+    render(
+      <BatchSummary
+        batchId="bid"
+        files={[{ state: "failed", filename: "b.cdx", fileSize: 512, error: "Parse error" }]}
+        totalFiles={1}
+        totalStructures={0}
+        succeededCount={0}
+        failedCount={1}
+        onViewExtraction={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /view all/i })).toBeNull();
   });
 
   it("navigates to the combined batch view when View all is clicked", () => {

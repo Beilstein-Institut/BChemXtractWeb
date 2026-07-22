@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 import { BatchViewPage } from "./BatchViewPage";
 import * as api from "@/lib/apiClient";
@@ -45,7 +45,7 @@ it("renders one section per file with filename header, table by default", async 
     id === 1 ? detail("a.cdx", ["C6H6"]) : detail("b.cdx", ["CH4O", "C2H6O"]),
   );
 
-  render(<BatchViewPage />);
+  render(<BatchViewPage onViewExtraction={vi.fn()} />);
 
   expect(await screen.findByText("a.cdx")).toBeTruthy();
   expect(screen.getByText("b.cdx")).toBeTruthy();
@@ -55,7 +55,7 @@ it("renders one section per file with filename header, table by default", async 
 
 it("shows an empty state when no batch id is in the URL", () => {
   setBatchParam(null);
-  render(<BatchViewPage />);
+  render(<BatchViewPage onViewExtraction={vi.fn()} />);
   expect(screen.getByText(/no batch/i)).toBeTruthy();
 });
 
@@ -73,7 +73,7 @@ it("isolates per-file failures: failed file shows inline error; other file still
     return detail("good.cdx", ["C6H6"]);
   });
 
-  render(<BatchViewPage />);
+  render(<BatchViewPage onViewExtraction={vi.fn()} />);
 
   // (a) failed file's section shows the inline error message
   expect(
@@ -82,4 +82,27 @@ it("isolates per-file failures: failed file shows inline error; other file still
 
   // (b) second file's section still renders its filename header
   expect(screen.getByText("good.cdx")).toBeTruthy();
+});
+
+it("opens a file directly in Browse via its section's 'Open in Browse' button", async () => {
+  setBatchParam("b3");
+  vi.spyOn(api, "getBatchExtractions").mockResolvedValue({
+    batch_id: "b3",
+    files: [
+      { extraction_id: 1, filename: "a.cdx", structure_count: 1 },
+      { extraction_id: 2, filename: "b.cdx", structure_count: 2 },
+    ],
+  });
+  vi.spyOn(api, "getHistoryDetail").mockImplementation(async (id: number) =>
+    id === 1 ? detail("a.cdx", ["C6H6"]) : detail("b.cdx", ["CH4O", "C2H6O"]),
+  );
+  const onViewExtraction = vi.fn();
+
+  render(<BatchViewPage onViewExtraction={onViewExtraction} />);
+
+  const buttons = await screen.findAllByRole("button", { name: /open in browse/i });
+  // One per successfully-loaded file section; the second opens extraction 2.
+  expect(buttons).toHaveLength(2);
+  fireEvent.click(buttons[1]);
+  expect(onViewExtraction).toHaveBeenCalledWith(2);
 });

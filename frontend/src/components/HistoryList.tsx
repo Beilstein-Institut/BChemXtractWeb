@@ -163,10 +163,10 @@ function HistoryRow({
           <span className="hidden whitespace-nowrap text-foreground-muted sm:block">
             {dateLabel}
           </span>
-          <span className="w-16 text-right tabular-nums text-foreground">
+          <span className="w-16 sm:w-24 text-right tabular-nums text-foreground">
             {entry.structure_count}
           </span>
-          <span className="w-16 text-right tabular-nums text-foreground">
+          <span className="w-16 sm:w-24 text-right tabular-nums text-foreground">
             {entry.reaction_count}
           </span>
         </button>
@@ -373,7 +373,7 @@ function Toolbar({
       <div className="flex flex-1 items-center gap-2 sm:flex-none sm:justify-end">
         <div
           className={cn(
-            "relative flex min-w-0 flex-1 items-center gap-2 sm:w-64 sm:flex-none",
+            "relative flex min-w-0 flex-1 items-center gap-2 sm:w-72 sm:flex-none",
             "h-10 rounded-full bg-surface px-4",
             "shadow-[var(--shadow-neu-inset)]",
             "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0",
@@ -388,7 +388,7 @@ function Toolbar({
             aria-label="Search history"
             data-slot="history-search"
             className={cn(
-              "min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none",
+              "min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none",
               "placeholder:text-foreground-muted",
             )}
           />
@@ -429,11 +429,11 @@ function Header() {
       <span className="hidden whitespace-nowrap text-caption font-semibold uppercase tracking-wide text-foreground-muted sm:block">
         Date
       </span>
-      <span className="w-16 text-right text-caption font-semibold uppercase tracking-wide text-foreground-muted">
+      <span className="w-16 sm:w-24 text-right text-caption font-semibold uppercase tracking-wide text-foreground-muted">
         <span className="sm:hidden">Struct</span>
         <span className="hidden sm:inline">Structures</span>
       </span>
-      <span className="w-16 text-right text-caption font-semibold uppercase tracking-wide text-foreground-muted">
+      <span className="w-16 sm:w-24 text-right text-caption font-semibold uppercase tracking-wide text-foreground-muted">
         <span className="sm:hidden">Rxns</span>
         <span className="hidden sm:inline">Reactions</span>
       </span>

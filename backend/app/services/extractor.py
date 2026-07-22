@@ -54,6 +54,12 @@ logger = logging.getLogger(__name__)
 # to the fragment-level extraction which bypasses InChI computation.
 _XTRACT_UNIQUE_TIMEOUT = 10.0
 
+# Expand Markush / R-group definitions into their concrete substances. The
+# 2-arg xtractUnique/xtract overloads default to False (no MarkushHandler); we
+# call the 3-arg overload with this flag so a MarkushHandler runs and R-groups
+# are resolved. Applies to SubstanceXtractor only (reactions are unaffected).
+_EXPAND_MARKUSH = True
+
 # Timeout for the whole fragment-first extraction (the outer
 # ``run_in_jvm_thread`` budget). Stage 1 + Stage 2 are individually bounded
 # below; this stays as a backstop.
@@ -604,7 +610,7 @@ def _extract_substances_sync(
 
         info = BCXSubstanceInfo()
         xtractor = SubstanceXtractor()
-        substances = xtractor.xtractUnique(document, info)
+        substances = xtractor.xtractUnique(document, info, _EXPAND_MARKUSH)
 
         return (
             [_coerce_substance(s) for s in substances],
@@ -912,7 +918,7 @@ def _extract_with_fallback_sync(
 
             info = BCXSubstanceInfo()
             xtractor = SubstanceXtractor()
-            substances = xtractor.xtractUnique(document, info)
+            substances = xtractor.xtractUnique(document, info, _EXPAND_MARKUSH)
 
             results = []
             for s in substances:

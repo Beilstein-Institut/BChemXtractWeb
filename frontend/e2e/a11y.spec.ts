@@ -10,7 +10,8 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 const ROUTES: ReadonlyArray<{ path: string; label: string }> = [
-  { path: "/", label: "Extract" },
+  { path: "/", label: "Home" },
+  { path: "/extract", label: "Extract" },
   { path: "/browse", label: "Browse" },
   { path: "/history", label: "History" },
   { path: "/about", label: "About" },

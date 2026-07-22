@@ -19,7 +19,8 @@ import { useRoute } from "@/lib/router";
 import { Link } from "@/lib/Link";
 
 const MOBILE_LINKS = [
-  { label: "Extract", to: "/" },
+  { label: "Home", to: "/" },
+  { label: "Extract", to: "/extract" },
   { label: "Browse", to: "/browse" },
   { label: "History", to: "/history" },
   { label: "Settings", to: "/settings" },
