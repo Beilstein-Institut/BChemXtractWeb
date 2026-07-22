@@ -14,17 +14,19 @@ import { useExtract } from "@/hooks/useExtract";
 import { useHistory } from "@/hooks/useHistory";
 import { getExtractionReactions, getHistoryDetail } from "@/lib/apiClient";
 import { navigate, ROUTE_CHANGE_EVENT, useRoute } from "@/lib/router";
+import { cn } from "@/lib/utils";
 import { SEARCH_URL_EVENT } from "@/hooks/useSearchImpl";
 import { BrowsePage } from "@/pages/BrowsePage";
 import { ExtractPage } from "@/pages/ExtractPage";
 import { HistoryPage } from "@/pages/HistoryPage";
+import { HomePage } from "@/pages/HomePage";
 import type { ExtractionResponse, ReactionExtractionResponse } from "@/types/chemistry";
 
 // Lazy-loaded routes: kept out of the initial bundle because they're
 // only rendered in response to explicit navigation (legal pages via
 // the footer, /about from nav, SearchResults only when ?q= is in the
-// URL). BrowsePage/ExtractPage/HistoryPage are eager — users hit them
-// on the default flow and lazy-loading would introduce a skeleton flash.
+// URL). HomePage/BrowsePage/ExtractPage/HistoryPage are eager — users hit
+// them on the default flow and lazy-loading would introduce a skeleton flash.
 const AboutPage = lazy(() => import("@/pages/AboutPage").then((m) => ({ default: m.AboutPage })));
 const ImprintPage = lazy(() =>
   import("@/pages/ImprintPage").then((m) => ({ default: m.ImprintPage })),
@@ -123,7 +125,7 @@ function App() {
     refreshHistory();
     if (result?.extraction_id) {
       setActiveExtractionId(result.extraction_id);
-      if (window.location.pathname === "/") navigate("/browse");
+      if (window.location.pathname === "/extract") navigate("/browse");
     }
   }, [state, result, refreshHistory]);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -185,15 +187,22 @@ function App() {
 
   const handleBackToLatest = useCallback(() => {
     setHistoricalResult(null);
-    // "Latest" is the live single-file extraction. When there isn't one — the
-    // user reached Browse by opening a file from a completed batch (or from
-    // History) — there's no single extraction to pin, so returning to Browse
-    // would strand them on the empty "No extraction loaded" state. Send them
-    // back to the Extract page instead, which still shows the batch results.
+    // A completed batch's full results live on the Extract page's summary, not
+    // in Browse, and there is no single "latest" extraction to restore. Always
+    // send the user back there, regardless of any stale single-file result.
+    if (batchState === "complete") {
+      setActiveExtractionId(null);
+      setSelectedFile(null);
+      navigate("/extract");
+      return;
+    }
+    // Otherwise "latest" is the live single-file extraction. When there isn't
+    // one (the user opened a file from History), there's nothing to pin, so go
+    // to the Extract page rather than strand them on the empty Browse state.
     const latestId = result?.extraction_id ?? null;
     setActiveExtractionId(latestId);
-    if (latestId === null) navigate("/");
-  }, [result?.extraction_id]);
+    if (latestId === null) navigate("/extract");
+  }, [batchState, result?.extraction_id]);
 
   // inMemoryFile: the original upload if we still hold its bytes (batch files
   // viewed in the same session). Setting selectedFile lets the Reactions tab
@@ -242,13 +251,14 @@ function App() {
       case "/settings":
         return <SettingsPage />;
       case "/batch":
-        return <BatchViewPage />;
+        return <BatchViewPage onViewExtraction={handleViewExtraction} />;
       case "/browse":
         return (
           <BrowsePage
             activeExtractionId={activeExtractionId}
             activeResult={activeResult}
             isHistoricalView={isHistoricalView}
+            backToExtractAll={batchState === "complete"}
             selectedFile={selectedFile}
             cachedReactionsData={cachedReactionsData}
             liveReactionCount={liveReactionCount}
@@ -272,7 +282,7 @@ function App() {
             onReloadSuccess={handleReloadSuccess}
           />
         );
-      default:
+      case "/extract":
         return (
           <ExtractPage
             state={state}
@@ -290,6 +300,8 @@ function App() {
             onViewExtraction={handleViewExtraction}
           />
         );
+      default:
+        return <HomePage />;
     }
   }
 
@@ -299,7 +311,19 @@ function App() {
         <SearchProvider>
           <div className="flex min-h-screen flex-col bg-background text-foreground">
             <AppHeader />
-            <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-20 pb-10 sm:px-6 sm:pt-24 sm:pb-12">
+            <main
+              className={cn(
+                "mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6",
+                // The home landing is a single-screen hero: center the content
+                // vertically in the space between header and footer, and trim the
+                // generous padding other routes use so header + hero + footer fit
+                // without scrolling. The sticky header is in-flow, so no top
+                // padding is needed to clear it.
+                route === "/" && !searchActive
+                  ? "flex flex-col justify-center py-3"
+                  : "pt-20 pb-10 sm:pt-24 sm:pb-12",
+              )}
+            >
               <Suspense fallback={<PageSuspenseFallback />}>{renderRoute()}</Suspense>
             </main>
             <SiteFooter />

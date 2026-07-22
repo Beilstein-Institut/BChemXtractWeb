@@ -96,18 +96,23 @@ describe("App", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders the hero tagline on /", () => {
+  it("renders the Home landing on / — hero tagline, a way in, and no upload surface", () => {
     render(<App />);
     const heading = screen.getByRole("heading", { level: 1 });
     expect(heading).toHaveTextContent(/ChemDraw, read back\./i);
+    // Home is a landing, not the tool: the drop zone lives on /extract.
+    expect(screen.getByRole("button", { name: /start extracting/i })).toBeInTheDocument();
+    expect(screen.queryByTestId("file-upload")).not.toBeInTheDocument();
   });
 
-  it("shows FileUpload in idle state on /", () => {
+  it("shows FileUpload in idle state on /extract", () => {
+    setPathname("/extract");
     render(<App />);
     expect(screen.getByTestId("file-upload")).toBeInTheDocument();
   });
 
-  it("advances the wizard to the Process step in loading state", () => {
+  it("advances the wizard to the Process step in loading state on /extract", () => {
+    setPathname("/extract");
     mockExtract({ state: "loading" });
     render(<App />);
     const stepper = document.querySelector("[data-slot='wizard-stepper']") as HTMLElement | null;
@@ -115,7 +120,8 @@ describe("App", () => {
     expect(stepper!.dataset.current).toBe("process");
   });
 
-  it("auto-navigates to /browse when extraction succeeds on /", () => {
+  it("auto-navigates to /browse when extraction succeeds on /extract", () => {
+    setPathname("/extract");
     const pushSpy = vi.spyOn(window.history, "pushState");
     mockExtract({ state: "success", result: SUCCESS_RESULT });
     render(<App />);

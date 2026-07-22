@@ -155,7 +155,7 @@ function HeroTile() {
         </p>
       </div>
       <div className="relative z-10 flex flex-wrap items-center gap-3">
-        <Link to="/" className={buttonVariants({ size: "lg" })}>
+        <Link to="/extract" className={buttonVariants({ size: "lg" })}>
           <span className="btn-clay__icon" aria-hidden="true">
             <FlaskConicalIcon />
           </span>

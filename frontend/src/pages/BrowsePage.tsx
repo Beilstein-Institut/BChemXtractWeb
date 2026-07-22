@@ -17,7 +17,7 @@
  * no in-page search bar.
  */
 import { useCallback, useMemo, useState } from "react";
-import { FileUpIcon, HistoryIcon } from "lucide-react";
+import { ArrowLeftIcon, FileUpIcon, HistoryIcon } from "lucide-react";
 import { BrowseBento } from "@/components/browse/BrowseBento";
 import { CdxViewerInline } from "@/components/CdxViewerInline";
 import { ExtractionTabs } from "@/components/ExtractionTabs";
@@ -42,6 +42,8 @@ export interface BrowsePageProps {
   activeExtractionId: number | null;
   activeResult: ExtractionResponse | null;
   isHistoricalView: boolean;
+  /** True when the "back" target is a completed batch's summary on /extract. */
+  backToExtractAll: boolean;
   selectedFile: File | null;
   cachedReactionsData: ReactionExtractionResponse | null;
   liveReactionCount: number;
@@ -54,6 +56,7 @@ export function BrowsePage({
   activeExtractionId,
   activeResult,
   isHistoricalView,
+  backToExtractAll,
   selectedFile,
   cachedReactionsData,
   liveReactionCount,
@@ -190,7 +193,7 @@ export function BrowsePage({
             message="Upload a ChemDraw file or open a past extraction from your history to start browsing."
             action={
               <div className="flex flex-wrap justify-center gap-3">
-                <Link to="/" className={buttonVariants({ size: "lg" }) + " gap-2"}>
+                <Link to="/extract" className={buttonVariants({ size: "lg" }) + " gap-2"}>
                   <FileUpIcon className="size-4" />
                   Upload a file
                 </Link>
@@ -208,15 +211,17 @@ export function BrowsePage({
       ) : (
         <>
           {isHistoricalView && (
-            <div className="mt-6 flex items-center gap-3">
+            <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
               <span className="text-caption text-foreground-muted">
                 Viewing past extraction: {activeResult.filename}
               </span>
               <button
+                type="button"
                 onClick={onBackToLatest}
-                className="text-caption text-primary underline-offset-2 hover:underline"
+                className={buttonVariants({ variant: "outline", size: "sm" }) + " gap-1.5"}
               >
-                Back to latest
+                <ArrowLeftIcon className="size-4" />
+                {backToExtractAll ? "Back to extract all" : "Back to latest"}
               </button>
             </div>
           )}

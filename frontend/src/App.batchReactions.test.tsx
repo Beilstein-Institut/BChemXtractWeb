@@ -84,7 +84,8 @@ vi.stubGlobal("EventSource", MockEventSource);
 describe("batch file → view → reactions (in-session)", () => {
   beforeEach(() => {
     sse = {};
-    window.history.replaceState(null, "", "/");
+    // The batch flow lives on /extract (the home landing has no upload surface).
+    window.history.replaceState(null, "", "/extract");
     vi.mocked(useExtract).mockReturnValue({
       state: "idle",
       result: null,
@@ -149,13 +150,14 @@ describe("batch file → view → reactions (in-session)", () => {
     expect(screen.queryByText(/Re-upload to extract reactions/i)).not.toBeInTheDocument();
   });
 
-  it("'Back to latest' from a batch file returns to the batch results, not an empty Browse", async () => {
+  it("'Back to extract all' from a batch file returns to the batch results, not an empty Browse", async () => {
     const user = userEvent.setup();
     render(<App />);
     await batchThenViewSecond(user);
 
-    // On the historical Browse view of a batch file.
-    await user.click(await screen.findByRole("button", { name: /Back to latest/i }));
+    // On the historical Browse view of a batch file, the control is labelled
+    // for the batch context and returns to the Extract page's summary.
+    await user.click(await screen.findByRole("button", { name: /Back to extract all/i }));
 
     // Must land back on the Extract page's batch results — NOT the empty
     // "No extraction loaded" void.
