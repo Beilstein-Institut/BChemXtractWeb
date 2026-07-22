@@ -22,7 +22,7 @@ function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
  * Wraps the generic <Footer /> primitive with BChemXtract branding:
  *   - No top-row brand mark (design choice — the AppHeader carries the logo)
  *   - Social: BChemXtractWeb GitHub + Beilstein-Institut website
- *   - Main links: Extract / Browse / History / About — routed through
+ *   - Main links: Home / Extract / Browse / History / About — routed through
  *     the internal <Link /> so clicks stay inside the SPA
  *   - Legal: Terms and conditions / Imprint / Privacy — all internal pages
  *   - Copyright: © 2026 Beilstein-Institut · Open source — the © line names
@@ -115,7 +115,8 @@ export function SiteFooter() {
         },
       ]}
       mainLinks={[
-        { href: "/", label: "Extract", internal: true },
+        { href: "/", label: "Home", internal: true },
+        { href: "/extract", label: "Extract", internal: true },
         { href: "/browse", label: "Browse", internal: true },
         { href: "/history", label: "History", internal: true },
         { href: "/about", label: "About", internal: true },

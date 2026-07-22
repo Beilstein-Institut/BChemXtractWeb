@@ -4,12 +4,14 @@
  *
  * Fetches the batch's extraction summaries (RLS-scoped), then each file's
  * full detail, and renders one grouped section per file (filename header +
- * divider) in a table (default) or thumbnail grid. Display-only: click a
- * structure to open its detail; export is the batch ZIP. Survives refresh
- * because the batch id lives in the URL.
+ * divider) in a table (default) or thumbnail grid. Click a structure to open
+ * its detail; each file section also offers "Open in Browse" to jump straight
+ * into that file's full Browse view (tabs, reactions, export) without routing
+ * back through Extract. Export is the batch ZIP. Survives refresh because the
+ * batch id lives in the URL.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DownloadIcon, FileUpIcon, LayoutGridIcon, ListIcon } from "lucide-react";
+import { ArrowUpRightIcon, DownloadIcon, FileUpIcon, LayoutGridIcon, ListIcon } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { StructureTable } from "@/components/StructureTable";
@@ -38,7 +40,12 @@ function batchIdFromUrl(): string | null {
   return new URLSearchParams(window.location.search).get("batch");
 }
 
-export function BatchViewPage() {
+export interface BatchViewPageProps {
+  /** Opens one file's extraction in the full Browse view (fetch + navigate). */
+  onViewExtraction: (extractionId: number) => void;
+}
+
+export function BatchViewPage({ onViewExtraction }: BatchViewPageProps) {
   const batchId = batchIdFromUrl();
   const [state, setState] = useState<LoadState>("loading");
   const [sections, setSections] = useState<FileSection[]>([]);
@@ -119,7 +126,7 @@ export function BatchViewPage() {
           title={state === "empty" ? "No batch selected" : "This batch is no longer available"}
           message="Upload files on the Extract page to create a batch, or open one from your history."
           action={
-            <Link to="/" className={buttonVariants({ size: "lg" }) + " gap-2"}>
+            <Link to="/extract" className={buttonVariants({ size: "lg" }) + " gap-2"}>
               <FileUpIcon className="size-4" />
               Go to Extract
             </Link>
@@ -178,13 +185,26 @@ export function BatchViewPage() {
         <div className="mt-8 space-y-10">
           {sections.map((s, sectionIdx) => (
             <section key={s.extractionId} data-slot="batch-view-section">
-              <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
-                <h2 className="truncate font-mono text-base font-semibold text-foreground">
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border pb-2">
+                <h2 className="min-w-0 flex-1 truncate font-mono text-base font-semibold text-foreground">
                   {s.filename}
                 </h2>
-                <span className="shrink-0 text-caption text-foreground-muted">
-                  {s.detail ? `${s.detail.substances.length} structures` : "failed to load"}
-                </span>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="text-caption text-foreground-muted">
+                    {s.detail ? `${s.detail.substances.length} structures` : "failed to load"}
+                  </span>
+                  {s.detail && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => onViewExtraction(s.extractionId)}
+                    >
+                      Open in Browse
+                      <ArrowUpRightIcon className="size-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {!s.detail ? (

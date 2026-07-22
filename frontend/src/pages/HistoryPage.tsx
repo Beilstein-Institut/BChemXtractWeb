@@ -109,7 +109,7 @@ export function HistoryPage({
             title="No extractions yet"
             message="Upload your first ChemDraw file to build up a searchable history."
             action={
-              <Link to="/" className={buttonVariants({ size: "lg" })}>
+              <Link to="/extract" className={buttonVariants({ size: "lg" })}>
                 Upload a file
               </Link>
             }

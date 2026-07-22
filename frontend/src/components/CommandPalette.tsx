@@ -259,7 +259,7 @@ export function CommandPalette({ initiallyOpen = false }: CommandPaletteProps = 
       value: "nav-extract",
       label: "Extract",
       icon: <FlaskConicalIcon className="size-5" aria-hidden="true" />,
-      action: () => navigate("/"),
+      action: () => navigate("/extract"),
     },
     {
       id: "sc-browse",
@@ -291,7 +291,7 @@ export function CommandPalette({ initiallyOpen = false }: CommandPaletteProps = 
       label: "Go to Extract",
       description: "Upload and extract structures",
       icon: <FlaskConicalIcon className="size-4" aria-hidden="true" />,
-      action: () => navigate("/"),
+      action: () => navigate("/extract"),
     },
     {
       id: "cmd-nav-browse",

@@ -1,9 +1,9 @@
 /**
  * NavLinks — tests for the Liquid Glass primary nav.
  *
- * Covers: 5-link render, `data-slot` contract, active-route styling
+ * Covers: 6-link render, `data-slot` contract, active-route styling
  * + aria-current, path-prefix detection (`/browse/123` → Browse active),
- * and root-only match for Extract (`/` must not match `/browse`).
+ * and root-only match for Home (`/` must not match `/browse`).
  *
  * The Settings link surfaces the recovery code + restore + delete-my-data
  * controls.
@@ -21,8 +21,9 @@ beforeEach(() => {
 });
 
 describe("NavLinks", () => {
-  it("renders all five routes", () => {
+  it("renders all six routes", () => {
     render(<NavLinks />);
+    expect(screen.getByText("Home")).toBeInTheDocument();
     expect(screen.getByText("Extract")).toBeInTheDocument();
     expect(screen.getByText("Browse")).toBeInTheDocument();
     expect(screen.getByText("History")).toBeInTheDocument();
@@ -38,22 +39,30 @@ describe("NavLinks", () => {
   it('stamps data-slot="nav-link" on each link', () => {
     render(<NavLinks />);
     const links = document.querySelectorAll('[data-slot="nav-link"]');
-    expect(links.length).toBe(5);
+    expect(links.length).toBe(6);
   });
 
-  it("marks Extract active on /", () => {
+  it("marks Home active on /", () => {
     setPathname("/");
+    render(<NavLinks />);
+    const home = screen.getByText("Home");
+    expect(home.getAttribute("data-active")).toBe("true");
+    expect(home.getAttribute("aria-current")).toBe("page");
+  });
+
+  it("does NOT mark Home active on /browse (root-only match)", () => {
+    setPathname("/browse");
+    render(<NavLinks />);
+    const home = screen.getByText("Home");
+    expect(home.getAttribute("data-active")).toBeNull();
+  });
+
+  it("marks Extract active on /extract", () => {
+    setPathname("/extract");
     render(<NavLinks />);
     const extract = screen.getByText("Extract");
     expect(extract.getAttribute("data-active")).toBe("true");
     expect(extract.getAttribute("aria-current")).toBe("page");
-  });
-
-  it("does NOT mark Extract active on /browse (root-only match)", () => {
-    setPathname("/browse");
-    render(<NavLinks />);
-    const extract = screen.getByText("Extract");
-    expect(extract.getAttribute("data-active")).toBeNull();
   });
 
   it("marks Browse active on /browse", () => {

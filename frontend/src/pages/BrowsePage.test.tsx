@@ -85,6 +85,7 @@ function makeProps(overrides: Partial<BrowsePageProps> = {}): BrowsePageProps {
     activeExtractionId: null,
     activeResult: null,
     isHistoricalView: false,
+    backToExtractAll: false,
     selectedFile: null,
     cachedReactionsData: null,
     liveReactionCount: 0,
@@ -161,5 +162,22 @@ describe("BrowsePage", () => {
       />,
     );
     expect(screen.getByText(/viewing past extraction: sample\.cdxml/i)).toBeInTheDocument();
+    // Default (single-extraction) context.
+    expect(screen.getByRole("button", { name: /back to latest/i })).toBeInTheDocument();
+  });
+
+  it("labels the back control 'Back to extract all' in a batch context", () => {
+    render(
+      <BrowsePage
+        {...makeProps({
+          activeExtractionId: 42,
+          activeResult: makeResponse([makeSubstance()]),
+          isHistoricalView: true,
+          backToExtractAll: true,
+        })}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /back to extract all/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /back to latest/i })).toBeNull();
   });
 });

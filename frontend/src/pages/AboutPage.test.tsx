@@ -49,9 +49,9 @@ describe("AboutPage", () => {
     render(<AboutPage />);
     // Mission blurb mentions InChI / SMILES to anchor on extractable copy.
     expect(screen.getByText(/InChI, SMILES, RInChI/i)).toBeInTheDocument();
-    // "Start extracting" routes to "/" via the internal Link.
+    // "Start extracting" routes to the Extract page via the internal Link.
     const start = screen.getByRole("link", { name: /start extracting/i });
-    expect(start).toHaveAttribute("href", "/");
+    expect(start).toHaveAttribute("href", "/extract");
     // GitHub CTA now points at the web wrapper repo (not the upstream Java lib).
     const github = screen.getByRole("link", { name: /view on github/i });
     expect(github).toHaveAttribute("href", "https://github.com/Beilstein-Institut/BChemXtractWeb");
