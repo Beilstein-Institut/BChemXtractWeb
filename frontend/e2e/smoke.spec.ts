@@ -63,7 +63,7 @@ test.describe("Extract page", () => {
       "Backend not reachable on http://localhost:8000 — skipping backend-dependent smoke.",
     );
 
-    await page.goto("/");
+    await page.goto("/extract");
     const fileInput = page.locator('input[type="file"]').first();
     await fileInput.setInputFiles(FIXTURE_CDX);
 
