@@ -259,6 +259,13 @@ export function BrowsePage({
                 extractionId={activeResult.extraction_id}
                 open={viewerOpen}
                 highlights={highlightRects}
+                onClose={() => {
+                  setViewerOpen(false);
+                  // Return focus to the "View as drawn" toggle (its aria-controls
+                  // points at this panel) so keyboard users don't get dropped to
+                  // <body> when the panel unmounts.
+                  document.querySelector<HTMLElement>('[aria-controls="cdx-drawn-panel"]')?.focus();
+                }}
               />
             )}
             <ExtractionTabs

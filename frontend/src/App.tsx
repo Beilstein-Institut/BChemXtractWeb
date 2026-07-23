@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { AppHeader } from "@/components/AppHeader";
+import { BackToTop } from "@/components/BackToTop";
 import { DeferredCommandPalette } from "@/components/DeferredCommandPalette";
 import { PageSuspenseFallback } from "@/components/PageSuspenseFallback";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -337,6 +338,7 @@ function App() {
              *  initial bundle — see DeferredCommandPalette.
              */}
             <DeferredCommandPalette />
+            <BackToTop />
           </div>
           <Toaster richColors />
         </SearchProvider>

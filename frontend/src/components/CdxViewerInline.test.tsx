@@ -14,6 +14,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 const mockRender = vi.fn();
 const mockReset = vi.fn();
@@ -84,6 +85,19 @@ describe("CdxViewerInline", () => {
       screen.getByText(/the original file was not stored for this extraction/i),
     ).toBeInTheDocument();
     expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("fires onClose when the close button is clicked", async () => {
+    mockHookState = { state: "success", svg: "<svg><g/></svg>", errorCode: null };
+    const onClose = vi.fn();
+    render(<CdxViewerInline extractionId={7} open onClose={onClose} />);
+    await userEvent.click(screen.getByRole("button", { name: /close drawing/i }));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("omits the close button when no onClose is given", () => {
+    render(<CdxViewerInline extractionId={7} open />);
+    expect(screen.queryByRole("button", { name: /close drawing/i })).toBeNull();
   });
 
   it("forwards highlights to the viewer on success", () => {
