@@ -344,7 +344,7 @@ export function PrivacyPage() {
             key={t.id}
             id={t.id}
             aria-labelledby={`${t.id}-heading`}
-            className="scroll-mt-28 rounded-lg border border-border bg-surface p-6 sm:p-8"
+            className="scroll-mt-[calc(var(--header-height)_+_3rem)] rounded-lg border border-border bg-surface p-6 sm:p-8"
             data-slot={`privacy-${t.id}`}
           >
             <h2 id={`${t.id}-heading`} className="text-lg font-semibold text-foreground">

@@ -13,6 +13,12 @@
  */
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+
+const mockTriggerDownload = vi.fn();
+vi.mock("@/lib/apiClient", () => ({
+  triggerDownload: (...a: unknown[]) => mockTriggerDownload(...a),
+}));
+
 import { CdxViewer } from "./CdxViewer";
 
 beforeAll(() => {
@@ -52,6 +58,31 @@ describe("CdxViewer", () => {
     const after = viewport.style.getPropertyValue("--cdx-zoom");
     expect(after).not.toBe(before);
     expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("keeps the download in the left control cluster (not pushed to the far-right corner)", () => {
+    // Regression guard: the download button used to carry `ml-auto`, pinning
+    // it to the toolbar's far-right corner where it collided with the inline
+    // panel's close button. It must stay grouped with the zoom controls.
+    render(<CdxViewer svg="<svg/>" title="x" />);
+    expect(screen.getByRole("button", { name: /download drawing/i }).className).not.toContain(
+      "ml-auto",
+    );
+  });
+
+  it("offers SVG and PNG in the download menu, and SVG downloads an svg blob", () => {
+    mockTriggerDownload.mockClear();
+    render(<CdxViewer svg="<svg/>" title="Scheme 1" />);
+    fireEvent.click(screen.getByRole("button", { name: /download drawing/i }));
+
+    const svgItem = screen.getByRole("menuitem", { name: /svg/i });
+    expect(screen.getByRole("menuitem", { name: /png/i })).toBeInTheDocument();
+
+    fireEvent.click(svgItem);
+    expect(mockTriggerDownload).toHaveBeenCalledTimes(1);
+    const [blob, filename] = mockTriggerDownload.mock.calls[0];
+    expect(blob.type).toBe("image/svg+xml");
+    expect(filename).toBe("Scheme_1.svg");
   });
 
   it("renders a highlight rect overlay when highlights are set", () => {

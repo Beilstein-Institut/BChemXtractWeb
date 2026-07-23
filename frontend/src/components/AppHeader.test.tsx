@@ -40,10 +40,12 @@ describe("AppHeader", () => {
     expect(header.className).toContain("top-0");
   });
 
-  it("has a 64px tall inner row (h-16)", () => {
+  it("sizes its inner row from the --header-height token", () => {
+    // Sticky panels and anchor scroll-margins derive their offsets from
+    // --header-height, so the header must be the one place that defines it.
     render(<AppHeader />);
     const inner = document.querySelector('header[data-slot="app-header"] > div') as HTMLElement;
-    expect(inner.className).toContain("h-16");
+    expect(inner.className).toContain("h-[var(--header-height)]");
   });
 
   it("renders the BChemXtract wordmark Logo", () => {

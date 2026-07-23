@@ -14,6 +14,7 @@
 import { ArrowRightIcon } from "lucide-react";
 import aspirinStructure from "@/assets/aspirin.svg";
 import { Button } from "@/components/ui/button";
+import { MolecularFormula } from "@/components/internal/MolecularFormula";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { navigate } from "@/lib/router";
 
@@ -74,7 +75,7 @@ export function HomePage() {
             <div>
               <dt className="text-foreground-muted">Formula</dt>
               <dd className="text-foreground">
-                C<sub>9</sub>H<sub>8</sub>O<sub>4</sub>
+                <MolecularFormula value="C9H8O4" />
               </dd>
             </div>
             <div>
