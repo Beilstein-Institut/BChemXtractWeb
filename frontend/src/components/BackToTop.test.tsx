@@ -2,7 +2,7 @@
  * BackToTop tests — reveal threshold (one viewport) and scroll-to-top action.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { render, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { BackToTop } from "./BackToTop";
