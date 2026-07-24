@@ -474,3 +474,61 @@ async def render_extraction_svg(
         media_type="image/svg+xml",
         headers={"Cache-Control": "private, max-age=31536000, immutable"},
     )
+
+
+@router.post(
+    "/render.svg",
+    operation_id="renderUploadSvg",
+    summary="Faithful whole-page SVG of an uploaded ChemDraw file (nothing stored)",
+    description=(
+        "Render an uploaded .cdx/.cdxml exactly as drawn, to SVG. Stateless: "
+        "the bytes are rendered in-memory and never persisted — no database "
+        "row, no file on disk. 413 when the upload exceeds the size cap; 415 "
+        "for a non-CDX/CDXML file; 422 RENDER_FAILED for a per-file renderer "
+        "error; 503 RENDER_UNAVAILABLE when the faithful renderer isn't "
+        "available on this deployment; 503 RENDER_TIMEOUT on abort."
+    ),
+    responses={
+        200: {"content": {"image/svg+xml": {}}, "description": "Faithful SVG."},
+        413: {"model": ErrorResponse, "description": "File too large."},
+        415: {"model": ErrorResponse, "description": "Unrecognized file format."},
+        422: {"model": ErrorResponse, "description": "Render failed."},
+        503: {
+            "model": ErrorResponse,
+            "description": "Render timed out, or the renderer is unavailable.",
+        },
+    },
+    tags=["extraction"],
+)
+@limiter.limit(settings.rate_limit_render)
+async def render_upload_svg(request: Request, file: UploadFile) -> Response:
+    """Faithful SVG for an uploaded CDX/CDXML — nothing is stored.
+
+    Mirrors the stored-extraction render route but takes the bytes straight
+    from the upload and never touches the DB or filesystem. detect_format
+    gives the 415 (and runs XXE guarding for CDXML); read_upload_bounded
+    gives the 413.
+    """
+    file_bytes = await read_upload_bounded(file, settings.max_upload_size)
+    detect_format(file_bytes)  # 415 for non-CDX/CDXML + XXE rejection for CDXML
+
+    if not is_cdx_renderer_available():
+        raise RenderUnavailableError(
+            "The faithful CDX renderer is not available on this deployment."
+        )
+
+    try:
+        svg = await render_cdx_svg(file_bytes)
+    except TimeoutError as exc:
+        raise RenderTimeoutError("Rendering the CDX file timed out.") from exc
+    except Exception as exc:  # noqa: BLE001 — renderer failure surfaces as 422
+        logger.exception("CDX render failed for uploaded file")
+        raise RenderFailedError("Could not render the CDX file.") from exc
+
+    # no-store: the feature's whole point is that we keep nothing. Don't let an
+    # intermediary cache the render of a file we deliberately never persisted.
+    return Response(
+        content=svg,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "no-store"},
+    )

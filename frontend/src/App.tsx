@@ -45,6 +45,7 @@ const SearchResults = lazy(() =>
 const BatchViewPage = lazy(() =>
   import("@/pages/BatchViewPage").then((m) => ({ default: m.BatchViewPage })),
 );
+const ViewPage = lazy(() => import("@/pages/ViewPage").then((m) => ({ default: m.ViewPage })));
 
 /** Events that can change whether `?q=` is present in the URL. */
 const SEARCH_URL_EVENTS = ["popstate", SEARCH_URL_EVENT, ROUTE_CHANGE_EVENT] as const;
@@ -254,6 +255,8 @@ function App() {
         return <ImprintPage />;
       case "/privacy":
         return <PrivacyPage />;
+      case "/view":
+        return <ViewPage />;
       case "/settings":
         return <SettingsPage />;
       case "/batch":

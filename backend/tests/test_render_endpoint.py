@@ -67,3 +67,29 @@ async def test_render_svg_unknown_extraction(client_csrf: AsyncClient) -> None:
     """GET for a non-existent extraction id -> 404."""
     resp = await client_csrf.get("/api/extractions/999999999/render.svg")
     assert resp.status_code == 404, resp.text
+
+
+async def test_render_upload_happy_path(
+    client_csrf: AsyncClient, cdx_file_bytes: bytes
+) -> None:
+    """POST /api/render.svg renders an uploaded file in-memory (nothing stored):
+    sanitized SVG back, and Cache-Control: no-store so no intermediary caches
+    a file we never persisted."""
+    resp = await client_csrf.post(
+        "/api/render.svg",
+        files={"file": ("L-lactic-acid.cdx", cdx_file_bytes, "chemical/x-cdx")},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.headers["content-type"].startswith("image/svg+xml")
+    assert resp.headers["cache-control"] == "no-store"
+    assert b"<svg" in resp.content
+    assert b"<script" not in resp.content
+
+
+async def test_render_upload_bad_format(client_csrf: AsyncClient) -> None:
+    """A non-CDX/CDXML upload is rejected at the format gate (415)."""
+    resp = await client_csrf.post(
+        "/api/render.svg",
+        files={"file": ("junk.cdx", b"not a chemdraw file", "chemical/x-cdx")},
+    )
+    assert resp.status_code == 415, resp.text
