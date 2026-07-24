@@ -43,15 +43,15 @@ export function ReactionCard({
   // SVG rendered via a Blob URL — never innerHTML.
   const svgSrc = useSvgObjectUrl(reaction.svg);
 
-  // Component summary chip — "2 reactants · 1 products" with optional
-  // "· N agent(s)" segment when agents.length > 0.
+  // Component summary chip — "2 reactants · 1 product" with optional
+  // "· N agent(s)" segment when agents.length > 0. Nouns are singular at count 1.
+  const pluralize = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
   const summarySegments: string[] = [
-    `${reaction.reactants.length} reactants`,
-    `${reaction.products.length} products`,
+    pluralize(reaction.reactants.length, "reactant"),
+    pluralize(reaction.products.length, "product"),
   ];
   if (reaction.agents.length > 0) {
-    const noun = reaction.agents.length === 1 ? "agent" : "agents";
-    summarySegments.push(`${reaction.agents.length} ${noun}`);
+    summarySegments.push(pluralize(reaction.agents.length, "agent"));
   }
   const componentSummary = summarySegments.join(" \u00b7 ");
 

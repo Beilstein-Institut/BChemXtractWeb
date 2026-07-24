@@ -21,6 +21,7 @@ import { Link } from "@/lib/Link";
 const MOBILE_LINKS = [
   { label: "Home", to: "/" },
   { label: "Extract", to: "/extract" },
+  { label: "View", to: "/view" },
   { label: "Browse", to: "/browse" },
   { label: "History", to: "/history" },
   { label: "Settings", to: "/settings" },
