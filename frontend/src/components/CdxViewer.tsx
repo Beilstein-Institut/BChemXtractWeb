@@ -1,8 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { DownloadIcon, MaximizeIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  DownloadIcon,
+  FileImageIcon,
+  ImageIcon,
+  MaximizeIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+} from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { triggerDownload } from "@/lib/apiClient";
+import { svgToBlob, svgToPng } from "@/lib/svgExport";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { useSvgObjectUrl } from "@/hooks/useSvgObjectUrl";
 import { cdxRectToSvg, parseCdxTransform } from "@/lib/cdxTransform";
 import type { Rect } from "@/types/chemistry";
@@ -15,6 +30,8 @@ export interface CdxViewerProps {
   className?: string;
   /** CDX-space rects to highlight over the drawing (mapped via the stamped transform). */
   highlights?: Rect[];
+  /** Optional control(s) pinned to the right end of the toolbar, level with the download menu. */
+  actions?: ReactNode;
 }
 
 const MIN_ZOOM = 0.25;
@@ -37,6 +54,7 @@ export function CdxViewer({
   title = "ChemDraw structure",
   className,
   highlights,
+  actions,
 }: CdxViewerProps) {
   const url = useSvgObjectUrl(svg);
   const [zoom, setZoom] = useState(1);
@@ -94,14 +112,19 @@ export function CdxViewer({
     drag.current = null;
   };
 
-  const download = () => {
-    // Reuse the shared download helper (appends the anchor to the document
-    // before clicking — required by Firefox) rather than hand-rolling one.
-    triggerDownload(
-      new Blob([svg], { type: "image/svg+xml" }),
-      `${title.replace(/[^\w.-]+/g, "_")}.svg`,
+  // triggerDownload is the shared helper (appends the anchor before clicking —
+  // required by Firefox); rasterization lives in lib/svgExport.
+  const baseName = title.replace(/[^\w.-]+/g, "_");
+
+  const downloadSvg = () => triggerDownload(svgToBlob(svg), `${baseName}.svg`);
+
+  const downloadPng = () =>
+    svgToPng(svg, {
+      fallbackWidth: viewBox ? Number(viewBox[1]) : undefined,
+      fallbackHeight: viewBox ? Number(viewBox[2]) : undefined,
+    }).then((png) =>
+      png ? triggerDownload(png, `${baseName}.png`) : toast.error("Could not export as PNG."),
     );
-  };
 
   return (
     <div data-slot="cdx-viewer" className={cn("flex h-full flex-col gap-2", className)}>
@@ -118,15 +141,30 @@ export function CdxViewer({
         <span className="ml-1 text-xs text-foreground-muted tabular-nums">
           {Math.round(zoom * 100)}%
         </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Download SVG"
-          className="ml-auto"
-          onClick={download}
-        >
-          <DownloadIcon className="size-4" />
-        </Button>
+        {/* Keep download in the left control cluster (a hairline groups it with
+            the zoom controls) so it never fights the top-right corner, which is
+            reserved for the panel/dialog close affordance. */}
+        <span aria-hidden className="mx-1 h-5 w-px bg-border" />
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<Button variant="ghost" size="icon" aria-label="Download drawing" />}
+          >
+            <DownloadIcon className="size-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-44">
+            <DropdownMenuItem className="cursor-pointer gap-2" onClick={downloadSvg}>
+              <FileImageIcon className="size-4" />
+              SVG
+              <span className="ml-auto text-xs text-foreground-muted">vector</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer gap-2" onClick={downloadPng}>
+              <ImageIcon className="size-4" />
+              PNG
+              <span className="ml-auto text-xs text-foreground-muted">2× raster</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {actions && <div className="ml-auto flex items-center gap-1">{actions}</div>}
       </div>
 
       <div

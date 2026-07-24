@@ -21,10 +21,11 @@ beforeEach(() => {
 });
 
 describe("NavLinks", () => {
-  it("renders all six routes", () => {
+  it("renders all routes", () => {
     render(<NavLinks />);
     expect(screen.getByText("Home")).toBeInTheDocument();
     expect(screen.getByText("Extract")).toBeInTheDocument();
+    expect(screen.getByText("View")).toBeInTheDocument();
     expect(screen.getByText("Browse")).toBeInTheDocument();
     expect(screen.getByText("History")).toBeInTheDocument();
     expect(screen.getByText("Settings")).toBeInTheDocument();
@@ -39,7 +40,7 @@ describe("NavLinks", () => {
   it('stamps data-slot="nav-link" on each link', () => {
     render(<NavLinks />);
     const links = document.querySelectorAll('[data-slot="nav-link"]');
-    expect(links.length).toBe(6);
+    expect(links.length).toBe(7);
   });
 
   it("marks Home active on /", () => {

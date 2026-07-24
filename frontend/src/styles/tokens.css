@@ -34,6 +34,13 @@
   --color-destructive: oklch(0.55 0.22 25);
   --color-ring: oklch(0.48 0.2 2 / 40%);
 
+  /* ---------- Layout ---------- */
+  /* AppHeader height (its inner bar). Sticky offsets and anchor
+     scroll-margins that must clear the fixed header derive from this via
+     calc(), so a header resize can't leave them stranded — see
+     CdxViewerInline `top` and PrivacyPage `scroll-mt`. */
+  --header-height: 4rem;
+
   /* ---------- Glass ---------- */
   --glass-blur: 16px;
   --glass-saturate: 140%;

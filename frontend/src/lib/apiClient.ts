@@ -361,6 +361,24 @@ export async function getRenderedCdx(extractionId: number): Promise<string> {
 }
 
 /**
+ * Render an uploaded CDX/CDXML to a faithful whole-page SVG WITHOUT storing it.
+ * POST /api/render.svg is stateless — no history entry, no persisted file.
+ * Returns raw SVG markup (sanitized server-side). Throws a typed ApiError
+ * (415 unsupported format, 413 too large, 503 renderer unavailable) on non-2xx.
+ */
+export async function postRenderUpload(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await apiFetch("/api/render.svg", {
+    method: "POST",
+    body: formData,
+    headers: { Accept: "image/svg+xml" },
+    errorPrefix: "Could not render the file",
+  });
+  return res.text();
+}
+
+/**
  * Delete one history entry by id.
  * Throws on non-204 response.
  *

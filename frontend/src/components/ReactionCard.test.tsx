@@ -157,9 +157,9 @@ describe("ReactionCard component", () => {
     expect(screen.getByRole("button", { name: /copy short RInChI key/i })).toBeInTheDocument();
   });
 
-  it("component chip reads '1 reactants · 1 products' (no agents segment when 0)", () => {
+  it("component chip singularizes at count 1 ('1 reactant · 1 product', no agents segment)", () => {
     render(<ReactionCard reaction={mkReaction()} reactionIndex={0} onOpen={vi.fn()} />);
-    expect(screen.getByText(/1 reactants · 1 products/)).toBeInTheDocument();
+    expect(screen.getByText(/1 reactant · 1 product/)).toBeInTheDocument();
   });
 
   it("component chip includes agent segment when agents > 0", () => {

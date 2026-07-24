@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { AppHeader } from "@/components/AppHeader";
+import { BackToTop } from "@/components/BackToTop";
 import { DeferredCommandPalette } from "@/components/DeferredCommandPalette";
 import { PageSuspenseFallback } from "@/components/PageSuspenseFallback";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -44,6 +45,7 @@ const SearchResults = lazy(() =>
 const BatchViewPage = lazy(() =>
   import("@/pages/BatchViewPage").then((m) => ({ default: m.BatchViewPage })),
 );
+const ViewPage = lazy(() => import("@/pages/ViewPage").then((m) => ({ default: m.ViewPage })));
 
 /** Events that can change whether `?q=` is present in the URL. */
 const SEARCH_URL_EVENTS = ["popstate", SEARCH_URL_EVENT, ROUTE_CHANGE_EVENT] as const;
@@ -185,24 +187,29 @@ function App() {
     reset();
   }, [reset]);
 
+  // The "back" target for a historical Browse view. A completed batch's full
+  // results live on the Extract page's summary, not in Browse, so route there;
+  // otherwise "latest" is the live single-file extraction. One source of truth
+  // so the button's label (backToExtractAll) and its destination can't drift.
+  const backToExtractSummary = batchState === "complete";
+
   const handleBackToLatest = useCallback(() => {
     setHistoricalResult(null);
-    // A completed batch's full results live on the Extract page's summary, not
-    // in Browse, and there is no single "latest" extraction to restore. Always
-    // send the user back there, regardless of any stale single-file result.
-    if (batchState === "complete") {
+    // Completed batch: always go back to its summary, regardless of any stale
+    // single-file result.
+    if (backToExtractSummary) {
       setActiveExtractionId(null);
       setSelectedFile(null);
       navigate("/extract");
       return;
     }
-    // Otherwise "latest" is the live single-file extraction. When there isn't
-    // one (the user opened a file from History), there's nothing to pin, so go
-    // to the Extract page rather than strand them on the empty Browse state.
+    // Otherwise pin the live single-file extraction. When there isn't one (the
+    // user opened a file from History), there's nothing to pin, so go to the
+    // Extract page rather than strand them on the empty Browse state.
     const latestId = result?.extraction_id ?? null;
     setActiveExtractionId(latestId);
     if (latestId === null) navigate("/extract");
-  }, [batchState, result?.extraction_id]);
+  }, [backToExtractSummary, result?.extraction_id]);
 
   // inMemoryFile: the original upload if we still hold its bytes (batch files
   // viewed in the same session). Setting selectedFile lets the Reactions tab
@@ -248,6 +255,8 @@ function App() {
         return <ImprintPage />;
       case "/privacy":
         return <PrivacyPage />;
+      case "/view":
+        return <ViewPage />;
       case "/settings":
         return <SettingsPage />;
       case "/batch":
@@ -258,7 +267,7 @@ function App() {
             activeExtractionId={activeExtractionId}
             activeResult={activeResult}
             isHistoricalView={isHistoricalView}
-            backToExtractAll={batchState === "complete"}
+            backToExtractAll={backToExtractSummary}
             selectedFile={selectedFile}
             cachedReactionsData={cachedReactionsData}
             liveReactionCount={liveReactionCount}
@@ -332,6 +341,7 @@ function App() {
              *  initial bundle — see DeferredCommandPalette.
              */}
             <DeferredCommandPalette />
+            <BackToTop />
           </div>
           <Toaster richColors />
         </SearchProvider>
