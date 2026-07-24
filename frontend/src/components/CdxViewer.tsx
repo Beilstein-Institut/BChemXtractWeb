@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   DownloadIcon,
   FileImageIcon,
@@ -30,6 +30,8 @@ export interface CdxViewerProps {
   className?: string;
   /** CDX-space rects to highlight over the drawing (mapped via the stamped transform). */
   highlights?: Rect[];
+  /** Optional control(s) pinned to the right end of the toolbar, level with the download menu. */
+  actions?: ReactNode;
 }
 
 const MIN_ZOOM = 0.25;
@@ -52,6 +54,7 @@ export function CdxViewer({
   title = "ChemDraw structure",
   className,
   highlights,
+  actions,
 }: CdxViewerProps) {
   const url = useSvgObjectUrl(svg);
   const [zoom, setZoom] = useState(1);
@@ -161,6 +164,7 @@ export function CdxViewer({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        {actions && <div className="ml-auto flex items-center gap-1">{actions}</div>}
       </div>
 
       <div

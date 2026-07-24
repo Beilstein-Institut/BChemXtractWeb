@@ -9,7 +9,7 @@
  * download menu.
  */
 import { useRef, useState } from "react";
-import { ShieldCheckIcon, UploadCloudIcon } from "lucide-react";
+import { RotateCcwIcon, ShieldCheckIcon, UploadCloudIcon } from "lucide-react";
 import { toast } from "sonner";
 import { CdxViewer } from "@/components/CdxViewer";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -69,11 +69,6 @@ export function ViewPage() {
     }
   }
 
-  function reset() {
-    setSvg(null);
-    setLoading(false);
-  }
-
   return (
     <PageContainer>
       <header className="mb-8 space-y-3">
@@ -87,23 +82,34 @@ export function ViewPage() {
         <PrivacyNotice />
       </header>
 
-      {svg ? (
-        <div className="space-y-4">
-          <div className="h-[70vh]">
-            <CdxViewer svg={svg} title={title} />
-          </div>
-          <Button variant="outline" className="rounded-full" onClick={reset}>
-            View another file
-          </Button>
+      {svg && (
+        <div className="h-[70vh] animate-in fade-in-0 slide-in-from-bottom-2 duration-300 ease-out motion-reduce:animate-none">
+          <CdxViewer
+            svg={svg}
+            title={title}
+            actions={
+              <Button variant="outline" size="sm" onClick={() => setSvg(null)}>
+                <RotateCcwIcon
+                  className="size-4 transition-transform duration-300 ease-out motion-safe:group-hover/button:-rotate-180"
+                  aria-hidden="true"
+                />
+                View another file
+              </Button>
+            }
+          />
         </div>
-      ) : loading ? (
+      )}
+
+      {!svg && loading && (
         <div className="flex flex-col items-center gap-4 py-24">
           <Spinner className="size-12 text-primary" />
           <p aria-live="polite" className="text-base text-foreground-muted">
             Rendering {title}…
           </p>
         </div>
-      ) : (
+      )}
+
+      {!svg && !loading && (
         <>
           <input
             ref={inputRef}
