@@ -1,7 +1,7 @@
 /**
  * NavLinks — primary nav for AppHeader (Liquid Glass).
  *
- * Home, Extract, View, Browse, History, Settings, About. The active route
+ * Home, Extract, Browse, History, View, About, Settings. The active route
  * gets an accent-tinted pill treatment driven by the `data-active` attribute
  * so CSS consumers (and Playwright assertions) can target it without
  * reaching for the string in className. Settings provides the recovery
@@ -16,11 +16,11 @@ import { isRouteActive } from "./navActive";
 const LINKS = [
   { to: "/", label: "Home" },
   { to: "/extract", label: "Extract" },
-  { to: "/view", label: "View" },
   { to: "/browse", label: "Browse" },
   { to: "/history", label: "History" },
-  { to: "/settings", label: "Settings" },
+  { to: "/view", label: "View" },
   { to: "/about", label: "About" },
+  { to: "/settings", label: "Settings" },
 ] as const;
 
 export function NavLinks({ className }: { className?: string }) {
