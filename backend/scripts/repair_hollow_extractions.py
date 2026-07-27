@@ -22,12 +22,12 @@ Dry-run by default; ``--apply`` writes. Idempotent — a repaired extraction
 is no longer hollow, so a second run skips it.
 
 Needs the JVM (it re-runs extraction) and a DB role that can see every
-caller's rows, so run it in the backend image with the bootstrap superuser
-URL, exactly like the migrate service::
+caller's rows — the runtime role cannot, RLS hides other sessions. Run it in
+the ``migrate`` service, the only one whose DATABASE_URL is the bootstrap
+superuser; JAR_PATH and JAVA_HOME come from the image::
 
-    SU_URL="postgresql+psycopg://$POSTGRES_USER:$POSTGRES_PASSWORD@db:5432/$POSTGRES_DB"
-    docker compose run --rm --no-deps -e DATABASE_URL="$SU_URL" \\
-      backend python -m scripts.repair_hollow_extractions --apply
+    docker compose run --rm --no-deps migrate \\
+      python -m scripts.repair_hollow_extractions --apply
 """
 
 from __future__ import annotations

@@ -61,6 +61,11 @@ COPY --from=jar-builder /build/cdx-render/target/cdx-render-*.jar /app/jars/
 COPY backend/app /app/app
 COPY backend/alembic /app/alembic
 COPY backend/alembic.ini /app/alembic.ini
+# Operational one-off scripts, documented as `python -m scripts.<name>` and
+# run via `docker compose run` (data backfills, hollow-extraction repair).
+# They need the JVM + the same DB config as the app, so they belong in this
+# image rather than a host checkout.
+COPY backend/scripts /app/scripts
 
 # Set PATH to use the virtual environment
 ENV PATH="/app/.venv/bin:$PATH"

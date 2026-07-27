@@ -268,12 +268,12 @@ violation instead of silently shredding join rows.
 **Repairing rows already hollowed.** Extractions whose original bytes are in
 `extraction_files` can be rebuilt in place — same id, `created_at`, and owner,
 so existing links keep working. Rows without stored bytes are unrecoverable and
-are deleted so History stops advertising structures it cannot show. Dry-run
-first (omit `--apply`):
+are deleted so History stops advertising structures it cannot show. Run it in
+the `migrate` service — the only one connecting as the bootstrap superuser, so
+it can see every caller's rows. Dry-run first (omit `--apply`):
 ```bash
-SU_URL="postgresql+psycopg://$POSTGRES_USER:$POSTGRES_PASSWORD@db:5432/$POSTGRES_DB"
-docker compose run --rm --no-deps -e DATABASE_URL="$SU_URL" \
-  backend python -m scripts.repair_hollow_extractions --apply
+docker compose run --rm --no-deps migrate \
+  python -m scripts.repair_hollow_extractions --apply
 ```
 Reactions are not rebuilt — the Reactions tab re-extracts from the stored bytes
 on demand.
