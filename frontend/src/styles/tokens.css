@@ -32,6 +32,7 @@
   --color-secondary-foreground: oklch(0.98 0 0);
   --color-accent: oklch(0.96 0.04 2);
   --color-destructive: oklch(0.55 0.22 25);
+  --color-destructive-foreground: oklch(0.98 0 0);
   --color-ring: oklch(0.48 0.2 2 / 40%);
 
   /* ---------- Layout ---------- */
@@ -111,11 +112,31 @@
   --color-foreground: oklch(0.96 0.01 75);
   --color-foreground-muted: oklch(0.72 0.03 75);
   --color-border: oklch(0.35 0.04 274);
-  --color-primary: oklch(0.62 0.22 2);
-  --color-secondary: oklch(0.6 0.12 217);
+
+  /* Accents carry two jobs that pull in opposite directions on a dark
+   * background: `text-primary` / `text-secondary` / `text-destructive` need a
+   * LIGHT accent to clear 4.5:1 against the surfaces, while `bg-primary` &c.
+   * need the label on the fill to clear 4.5:1 — and white-on-accent gets worse
+   * as the accent brightens (white on the old 0.62 crimson was only 2.8:1).
+   *
+   * So: lift each accent until it passes as text on every dark surface
+   * (background 0.18 → surface-muted 0.30, the binding one), and pair it with
+   * dark ink as its `-foreground` so fills read the other way round. Measured
+   * worst case as text: primary 4.64, secondary 5.32, destructive 4.57; ink on
+   * the fills: 6.41 / 7.35 / 6.31. Light mode already cleared AA with white
+   * foregrounds and is deliberately left alone.
+   *
+   * Chroma stays at the light-mode value; these lightnesses put pink/red just
+   * outside sRGB, so the channel clamp is intentional and its rendered result
+   * is what the numbers above were measured from. */
+  --color-primary: oklch(0.72 0.22 2);
+  --color-primary-foreground: oklch(0.18 0.06 274);
+  --color-secondary: oklch(0.7 0.12 217);
+  --color-secondary-foreground: oklch(0.18 0.06 274);
   --color-accent: oklch(0.32 0.1 2);
-  --color-destructive: oklch(0.62 0.22 25);
-  --color-ring: oklch(0.62 0.22 2 / 50%);
+  --color-destructive: oklch(0.73 0.22 25);
+  --color-destructive-foreground: oklch(0.18 0.06 274);
+  --color-ring: oklch(0.72 0.22 2 / 50%);
 
   /* Dark-mode neumorphism — drop the warm-white highlight (reads wrong on
    * a near-black surface) and let black shadows do the depth work. */
