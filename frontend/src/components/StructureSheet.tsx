@@ -372,7 +372,7 @@ export function StructureSheet({
                             aria-pressed={!useCdxCoords}
                             className={`text-micro px-2.5 py-1 rounded-full transition-colors ${
                               !useCdxCoords && substance?.svg
-                                ? "bg-primary text-white"
+                                ? "bg-primary text-primary-foreground"
                                 : "text-neutral-600 hover:text-neutral-900"
                             } disabled:opacity-50 disabled:hover:text-neutral-600 disabled:cursor-not-allowed`}
                           >
@@ -397,7 +397,7 @@ export function StructureSheet({
                             aria-pressed={useCdxCoords}
                             className={`text-micro px-2.5 py-1 rounded-full transition-colors ${
                               useCdxCoords && substance?.svg_cdx
-                                ? "bg-primary text-white"
+                                ? "bg-primary text-primary-foreground"
                                 : "text-neutral-600 hover:text-neutral-900"
                             } disabled:opacity-50 disabled:hover:text-neutral-600 disabled:cursor-not-allowed`}
                           >

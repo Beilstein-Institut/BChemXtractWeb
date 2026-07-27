@@ -245,7 +245,7 @@ export function BatchProgress({ files, totalCount, onCancel }: BatchProgressProp
             <AlertDialogFooter>
               <AlertDialogCancel>Keep running</AlertDialogCancel>
               <AlertDialogAction
-                className="bg-destructive text-white hover:opacity-90"
+                className="bg-destructive text-destructive-foreground hover:opacity-90"
                 onClick={() => {
                   setConfirmOpen(false);
                   onCancel();
