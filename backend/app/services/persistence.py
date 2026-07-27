@@ -17,6 +17,7 @@ from app.models.chemistry import (
     ExtractionResponse,
     ReactionComponentResponse,
     ReactionResponse,
+    SubstanceResponse,
 )
 from app.models.orm import (
     Extraction,
@@ -27,6 +28,7 @@ from app.models.orm import (
     Substance,
 )
 from app.services.canonicalize import canonicalize_smiles
+from app.services.orphan_sweep import sweep_orphan_chem_rows
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +111,56 @@ async def save_extraction(
     db.add(extraction)
     await db.flush()  # get extraction.id without committing
 
-    # Step 2: Build substance data.
+    # Steps 2-4: dedup the substances and link them to the extraction.
+    await upsert_and_link_substances(db, extraction.id, response.substances, scope)
+
+    # Step 5: Store raw file bytes (if provided) — best-effort, no-op on empty.
+    if file_bytes:
+        # Best-effort + isolated: a byte-store failure must never lose the
+        # extraction. The SAVEPOINT keeps a failed file insert from poisoning
+        # the outer transaction, so Steps 1-4 still commit below.
+        try:
+            async with db.begin_nested():
+                await store_extraction_file(db, extraction.id, file_bytes, scope)
+        except Exception:
+            logger.exception(
+                "Storing uploaded file for extraction %s failed; "
+                "extraction persisted without it",
+                extraction.id,
+            )
+
+    await db.commit()
+    await db.refresh(extraction)
+
+    # Step 6: Enforce retention cap — separate transaction
+    await enforce_cap(db)
+
+    return extraction
+
+
+async def upsert_and_link_substances(
+    db: AsyncSession,
+    extraction_id: int,
+    substances: list[SubstanceResponse],
+    scope: tuple[str | None, bytes | None] = (None, None),
+) -> None:
+    """Dedup-upsert substances and link them to an existing extraction row.
+
+    Steps 2-4 of ``save_extraction``, split out so the hollow-extraction
+    repair script can re-link a surviving extraction row without minting a
+    new one (``scripts/repair_hollow_extractions.py``). Does NOT commit —
+    the caller owns the transaction.
+
+    Args:
+        db: AsyncSession.
+        extraction_id: Parent extraction, already flushed so its id exists.
+        substances: Extracted substances; those with neither an InChIKey nor
+            a SMILES have no dedup identity and are skipped.
+        scope: ``(session_id, api_key_hash)`` stamped onto the join rows so
+            RLS filtering works on the join table without JOIN propagation.
+    """
+    session_id, api_key_hash = scope
+
     # Each row needs a stable dedup identity: the real InChIKey when present,
     # else a SMILES-hash fallback for InChI-less substances (fallback extractor
     # path / oversized molecules whose InChI was skipped). ``inchi_key`` itself
@@ -131,7 +182,7 @@ async def save_extraction(
             # placeholder — overwritten by the chunked gather below.
             "canonical_smiles": None,
         }
-        for s in response.substances
+        for s in substances
         if s.inchi_key or s.smiles
     ]
     if substance_data:
@@ -188,7 +239,7 @@ async def save_extraction(
         # Occurrences are per-extraction (a substance appears at different
         # positions in different files), so they live on the join row, never
         # on the `substances` upsert payload above. Build the key->occurrences
-        # map straight from response.substances (mirroring the exact dedup_key
+        # map straight from the substance list (mirroring the exact dedup_key
         # expression and `if` filter used to build substance_data) rather than
         # from substance_data itself, since substance_data IS the `substances`
         # upsert payload and has no occurrences column.
@@ -196,7 +247,7 @@ async def save_extraction(
             (s.inchi_key or make_dedup_key(s.smiles)): [
                 o.model_dump() for o in s.occurrences
             ]
-            for s in response.substances
+            for s in substances
             if s.inchi_key or s.smiles
         }
 
@@ -222,7 +273,7 @@ async def save_extraction(
         if id_by_key:
             join_data = [
                 {
-                    "extraction_id": extraction.id,
+                    "extraction_id": extraction_id,
                     "substance_id": sid,
                     "position": index,
                     "occurrences": occ_by_key.get(key, []),
@@ -236,29 +287,6 @@ async def save_extraction(
                 .values(join_data)
                 .on_conflict_do_nothing()
             )
-
-    # Step 5: Store raw file bytes (if provided) — best-effort, no-op on empty.
-    if file_bytes:
-        # Best-effort + isolated: a byte-store failure must never lose the
-        # extraction. The SAVEPOINT keeps a failed file insert from poisoning
-        # the outer transaction, so Steps 1-4 still commit below.
-        try:
-            async with db.begin_nested():
-                await store_extraction_file(db, extraction.id, file_bytes, scope)
-        except Exception:
-            logger.exception(
-                "Storing uploaded file for extraction %s failed; "
-                "extraction persisted without it",
-                extraction.id,
-            )
-
-    await db.commit()
-    await db.refresh(extraction)
-
-    # Step 6: Enforce retention cap — separate transaction
-    await enforce_cap(db)
-
-    return extraction
 
 
 async def store_extraction_file(
@@ -328,11 +356,7 @@ async def enforce_cap(db: AsyncSession, max_count: int = MAX_EXTRACTIONS) -> Non
     )
 
     # Delete orphaned substances (no remaining extraction_substances link)
-    await db.execute(
-        delete(Substance).where(
-            Substance.id.not_in(select(ExtractionSubstance.substance_id))
-        )
-    )
+    await sweep_orphan_chem_rows(db)
 
     await db.commit()
     logger.info(
@@ -362,19 +386,8 @@ async def delete_extraction_by_id(db: AsyncSession, extraction_id: int) -> bool:
     await db.delete(extraction)
     await db.flush()
 
-    # Remove orphaned substances (no remaining extraction_substances rows)
-    await db.execute(
-        delete(Substance).where(
-            Substance.id.not_in(select(ExtractionSubstance.substance_id))
-        )
-    )
-
-    # Orphan Reaction cleanup (mirror orphan-substance cleanup above).
-    await db.execute(
-        delete(Reaction).where(
-            Reaction.id.not_in(select(ExtractionReaction.reaction_id))
-        )
-    )
+    # Remove substances / reactions nothing references any more.
+    await sweep_orphan_chem_rows(db)
 
     await db.commit()
     return True
@@ -399,16 +412,7 @@ async def delete_extractions_by_batch_id(db: AsyncSession, batch_id: str) -> int
     deleted = result.rowcount or 0
     await db.flush()
 
-    await db.execute(
-        delete(Substance).where(
-            Substance.id.not_in(select(ExtractionSubstance.substance_id))
-        )
-    )
-    await db.execute(
-        delete(Reaction).where(
-            Reaction.id.not_in(select(ExtractionReaction.reaction_id))
-        )
-    )
+    await sweep_orphan_chem_rows(db)
     return deleted
 
 

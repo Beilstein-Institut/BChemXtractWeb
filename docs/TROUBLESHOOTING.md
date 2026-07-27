@@ -222,6 +222,64 @@ needed. Only rows with `svg_len = 0` are affected.
 
 ---
 
+## 4. History lists an extraction but opening it shows nothing
+
+**Symptom.** Recent extractions open fine; everything older than some point in
+time lists a structure count in History and opens empty. The cut is a single
+instant — every row created before it is affected, every row after it is fine.
+
+**Mechanism.** `substances` / `reactions` are global dedup pools with no owner
+columns and no RLS policy; only the join tables are RLS-scoped. The old orphan
+sweep ran inline as the NOBYPASSRLS runtime role:
+
+```sql
+DELETE FROM substances
+ WHERE id NOT IN (SELECT substance_id FROM extraction_substances)
+```
+
+That subquery only returned the *caller's* join rows, so any delete removed
+substances other callers still referenced, and the FK cascade took their join
+rows with it. `structure_count` lives on the extraction row, so History keeps
+reporting structures that no longer exist. A caller with an empty scope (an
+unscoped session, or one that owns nothing) made the subquery empty and the
+statement truncated the whole pool — which is what produces the single-instant
+cut. Triggering paths: `DELETE /api/history/{id}`, `DELETE /api/me/data`, batch
+cancel, and the retention cap.
+
+**Diagnose.** Count join rows per extraction as the bootstrap superuser (the
+runtime role cannot see other callers' rows, so it would report a false clean
+bill):
+```bash
+docker compose exec -T db psql -U bchemxtract -d bchemxtract -c \
+"select e.id, e.created_at::date d, e.filename, e.structure_count sc,
+        (select count(*) from extraction_substances x where x.extraction_id=e.id) join_rows
+   from extractions e order by e.created_at desc limit 20;"
+```
+`structure_count > 0` with `join_rows = 0` = this. The audit log names the
+delete that fired it: `select at, event, target_id from audit_log order by at`.
+
+**Fix (shipped).** The sweep moved into `public.sweep_orphan_chem_rows()`, a
+SECURITY DEFINER function owned by the NOLOGIN BYPASSRLS `bchemxtract_sweeper`
+role, so its reference check sees every caller's join rows
+(`backend/app/services/orphan_sweep.py`). The two pool FKs also went from
+`ON DELETE CASCADE` to `RESTRICT`, so a future regression raises a foreign-key
+violation instead of silently shredding join rows.
+
+**Repairing rows already hollowed.** Extractions whose original bytes are in
+`extraction_files` can be rebuilt in place — same id, `created_at`, and owner,
+so existing links keep working. Rows without stored bytes are unrecoverable and
+are deleted so History stops advertising structures it cannot show. Run it in
+the `migrate` service — the only one connecting as the bootstrap superuser, so
+it can see every caller's rows. Dry-run first (omit `--apply`):
+```bash
+docker compose run --rm --no-deps migrate \
+  python -m scripts.repair_hollow_extractions --apply
+```
+Reactions are not rebuilt — the Reactions tab re-extracts from the stored bytes
+on demand.
+
+---
+
 ## Quick reference: key knobs & limits
 
 | Thing | Value | Where |

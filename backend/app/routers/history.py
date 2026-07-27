@@ -12,7 +12,7 @@ import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -25,15 +25,10 @@ from app.models.chemistry import (
     SubstanceInfoResponse,
     SubstanceResponse,
 )
-from app.models.orm import (
-    Extraction,
-    ExtractionReaction,
-    ExtractionSubstance,
-    Reaction,
-    Substance,
-)
+from app.models.orm import Extraction, ExtractionSubstance, Substance
 from app.services.audit import audit_log_insert_in_session
 from app.services.db import get_scoped_db
+from app.services.orphan_sweep import sweep_orphan_chem_rows
 from app.services.persistence import update_substance_svgs
 from app.services.svg_backfill import render_svgs_from_mdlv3000
 
@@ -317,19 +312,10 @@ async def delete_history_entry(extraction_id: int, request: Request, db: DbDep) 
     await db.delete(extraction)
     await db.flush()
 
-    # Orphan sweep — same pattern as
-    # services.persistence.delete_extraction_by_id, inlined here so the
-    # audit row lands in the same transaction.
-    await db.execute(
-        delete(Substance).where(
-            Substance.id.not_in(select(ExtractionSubstance.substance_id))
-        )
-    )
-    await db.execute(
-        delete(Reaction).where(
-            Reaction.id.not_in(select(ExtractionReaction.reaction_id))
-        )
-    )
+    # Orphan sweep — same helper as
+    # services.persistence.delete_extraction_by_id. It runs in this
+    # transaction, so the audit row below stays atomic with the deletion.
+    await sweep_orphan_chem_rows(db)
 
     # In-transaction audit emit. If the audit insert fails, the entire
     # DELETE rolls back atomically so the row and its audit record stay
