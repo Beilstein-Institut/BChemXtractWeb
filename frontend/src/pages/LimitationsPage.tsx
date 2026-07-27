@@ -32,17 +32,12 @@ type Severity = "High" | "Medium-High" | "Medium" | "Low-Medium" | "Low";
 
 /**
  * Severity chips reuse existing Badge variants rather than introducing colour
- * tokens. Three visual tiers carry five labels — crimson default → filled
- * secondary → hairline outline — and the label text supplies the nuance.
- *
- * Badge's `warning` variant is deliberately avoided: its dark-mode text colour
- * is a `dark:` utility, and this project defines no `.dark` custom variant, so
- * that override only fires from the OS colour scheme. Picked dark mode in-app
- * would render the light-mode brown on amber over a dark card.
+ * tokens. Visual weight descends: crimson default → amber warning → filled
+ * secondary → hairline outline.
  */
-const SEVERITY_VARIANT: Record<Severity, "default" | "secondary" | "outline"> = {
+const SEVERITY_VARIANT: Record<Severity, "default" | "warning" | "secondary" | "outline"> = {
   High: "default",
-  "Medium-High": "secondary",
+  "Medium-High": "warning",
   Medium: "secondary",
   "Low-Medium": "outline",
   Low: "outline",

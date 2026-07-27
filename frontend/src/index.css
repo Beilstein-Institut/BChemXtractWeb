@@ -3,6 +3,20 @@
 @import "./styles/fonts.css";
 @import "./styles/tokens.css";
 
+/* Bind `dark:` to the `.dark` class instead of Tailwind 4's default
+ * `prefers-color-scheme` media query.
+ *
+ * The theme is class-driven end to end: public/theme-init.js stamps
+ * `.dark`/`.light` on <html> before first paint, theme-provider keeps it in
+ * sync (including resolving "system"), and tokens.css hangs the dark palette
+ * off `.dark`. Left on the media query, every `dark:` utility disagreed with
+ * the tokens whenever the OS and the in-app choice differed — dark-on-dark
+ * text for in-app dark on a light OS, pale-on-pale for in-app light on a dark
+ * OS. Keying the variant off the same class makes utilities and tokens flip
+ * together.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Re-export a curated slice of the token system into Tailwind's theme scope.
  * In Tailwind 4 only vars declared inside `@theme` become utility-generating
  * (`bg-primary`, `text-foreground`, `rounded-lg`, `font-display`, ...).
