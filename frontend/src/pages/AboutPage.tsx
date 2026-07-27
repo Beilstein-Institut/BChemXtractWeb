@@ -129,6 +129,33 @@ export function AboutPage() {
           <CreditsTile />
         </BentoCell>
       </BentoGrid>
+
+      {/* Limitations callout — deliberately outside the bento grid and outside
+          the "Resources" tile: that tile's links are all outbound, this one is
+          internal. Sits last because it qualifies everything above it. */}
+      <section
+        aria-labelledby="about-limitations-heading"
+        className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-surface-elevated p-6"
+        data-slot="about-limitations"
+      >
+        <div className="space-y-1">
+          <h2 id="about-limitations-heading" className="text-lg font-semibold text-foreground">
+            Limitations &amp; known gaps
+          </h2>
+          <p className="max-w-[70ch] text-sm leading-relaxed text-foreground-muted">
+            Single-structure extraction is mature. Reactions, very large molecules, Markush groups,
+            and some drawing constructs are experimental or silently dropped — read the honest
+            account before relying on them.
+          </p>
+        </div>
+        <Link
+          to="/limitations"
+          className={buttonVariants({ variant: "outline", size: "sm" }) + " gap-1.5"}
+        >
+          Read the limitations
+          <ArrowUpRightIcon className="size-3.5" />
+        </Link>
+      </section>
     </PageContainer>
   );
 }
