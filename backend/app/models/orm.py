@@ -142,7 +142,13 @@ class Substance(Base):
 class ExtractionSubstance(Base):
     """M-to-N join table linking extractions to substances.
 
-    CASCADE on both FKs: deleting an Extraction cascades join rows.
+    CASCADE on extraction_id: deleting an Extraction takes its join rows.
+
+    RESTRICT on substance_id: `substances` is a global dedup pool shared
+    across callers, so a substance may only be deleted once nothing points
+    at it. RESTRICT turns a buggy pool delete into a foreign-key violation
+    instead of silently cascading away another caller's join rows — see
+    app.services.orphan_sweep, the only sanctioned deleter.
     """
 
     __tablename__ = "extraction_substances"
@@ -159,7 +165,7 @@ class ExtractionSubstance(Base):
     )
     substance_id: Mapped[int] = mapped_column(
         BigInteger,
-        ForeignKey("substances.id", ondelete="CASCADE"),
+        ForeignKey("substances.id", ondelete="RESTRICT"),
         primary_key=True,
     )
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -259,8 +265,10 @@ class Reaction(Base):
 class ExtractionReaction(Base):
     """M-to-N join table linking extractions to reactions.
 
-    CASCADE on both FKs so deleting an Extraction removes its
-    reaction join rows. Orphan Reaction cleanup runs inline in persistence.
+    CASCADE on extraction_id so deleting an Extraction removes its reaction
+    join rows; RESTRICT on reaction_id for the same reason as
+    ExtractionSubstance.substance_id — `reactions` is a shared pool and
+    app.services.orphan_sweep is its only sanctioned deleter.
     """
 
     __tablename__ = "extraction_reactions"
@@ -275,7 +283,7 @@ class ExtractionReaction(Base):
     )
     reaction_id: Mapped[int] = mapped_column(
         BigInteger,
-        ForeignKey("reactions.id", ondelete="CASCADE"),
+        ForeignKey("reactions.id", ondelete="RESTRICT"),
         primary_key=True,
     )
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

@@ -62,6 +62,7 @@ import pytest  # noqa: E402
 import pytest_asyncio  # noqa: E402
 from asgi_lifespan import LifespanManager  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
+from sqlalchemy import text  # noqa: E402
 from sqlalchemy.ext.asyncio import (  # noqa: E402
     AsyncSession,
     async_sessionmaker,
@@ -72,6 +73,7 @@ from sqlalchemy.pool import NullPool  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.orm import Base  # noqa: E402
+from app.services.orphan_sweep import SWEEP_DDL  # noqa: E402
 
 # Canonical session-cookie value for the default test client.
 # Tests that need to probe the un-cookied surface use
@@ -177,12 +179,19 @@ async def _ensure_test_schema():
     ``Base.metadata.create_all`` against the same test DB the app points
     at. It is idempotent (``create_all`` ignores existing tables) and
     drops the schema at the end so the next run starts clean.
+
+    ``SWEEP_DDL`` is applied on top: the orphan sweep lives in a
+    SECURITY DEFINER function that create_all knows nothing about, and
+    every delete path calls it. Applying the same statements the migration
+    runs keeps the suite testing the function production actually uses.
     """
     # ``settings.database_url`` was set in module-init from DATABASE_URL;
     # conftest defaults that to the bchemxtract_test DB above.
     engine = create_async_engine(settings.database_url, poolclass=NullPool)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        for statement in SWEEP_DDL:
+            await conn.execute(text(statement))
     yield
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)

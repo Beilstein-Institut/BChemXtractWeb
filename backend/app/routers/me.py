@@ -17,20 +17,15 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
-from sqlalchemy import delete, select
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.session import SESSION_COOKIE
 from app.models.chemistry import ErrorResponse
-from app.models.orm import (
-    Extraction,
-    ExtractionReaction,
-    ExtractionSubstance,
-    Reaction,
-    Substance,
-)
+from app.models.orm import Extraction
 from app.services.audit import audit_log_insert_in_session
 from app.services.db import get_scoped_db
+from app.services.orphan_sweep import sweep_orphan_chem_rows
 
 logger = logging.getLogger(__name__)
 
@@ -93,18 +88,11 @@ async def delete_my_data(
     )
     await db.flush()
 
-    # 2. Inline orphan sweep — same pattern as
-    #    services/persistence.delete_extraction_by_id.
-    await db.execute(
-        delete(Substance).where(
-            Substance.id.not_in(select(ExtractionSubstance.substance_id))
-        )
-    )
-    await db.execute(
-        delete(Reaction).where(
-            Reaction.id.not_in(select(ExtractionReaction.reaction_id))
-        )
-    )
+    # 2. Orphan sweep — same helper as
+    #    services/persistence.delete_extraction_by_id. Deletes only pool rows
+    #    nothing references, so wiping this caller's data cannot take another
+    #    caller's structures with it.
+    await sweep_orphan_chem_rows(db)
 
     # 3. Audit log — IN-TRANSACTION (data.deleted must be atomic with
     #    the deletion; if the audit insert fails, the deletion rolls
