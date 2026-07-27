@@ -15,6 +15,7 @@ const ROUTES: ReadonlyArray<{ path: string; label: string }> = [
   { path: "/browse", label: "Browse" },
   { path: "/history", label: "History" },
   { path: "/about", label: "About" },
+  { path: "/limitations", label: "Limitations" },
   { path: "/license", label: "License" },
   { path: "/imprint", label: "Imprint" },
   { path: "/privacy", label: "Privacy" },
