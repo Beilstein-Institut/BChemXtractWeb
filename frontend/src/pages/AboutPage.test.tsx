@@ -45,6 +45,17 @@ describe("AboutPage", () => {
     }
   });
 
+  it("points at the limitations page from the callout", () => {
+    const { container } = render(<AboutPage />);
+    const callout = container.querySelector('[data-slot="about-limitations"]');
+    expect(callout).not.toBeNull();
+    // Internal Link — the callout deliberately sits outside the outbound-only
+    // resources tile.
+    const link = screen.getByRole("link", { name: /read the limitations/i });
+    expect(link).toHaveAttribute("href", "/limitations");
+    expect(link).not.toHaveAttribute("target");
+  });
+
   it("renders hero mission copy and CTA links", () => {
     render(<AboutPage />);
     // Mission blurb mentions InChI / SMILES to anchor on extractable copy.

@@ -36,6 +36,9 @@ const TermsPage = lazy(() => import("@/pages/TermsPage").then((m) => ({ default:
 const PrivacyPage = lazy(() =>
   import("@/pages/PrivacyPage").then((m) => ({ default: m.PrivacyPage })),
 );
+const LimitationsPage = lazy(() =>
+  import("@/pages/LimitationsPage").then((m) => ({ default: m.LimitationsPage })),
+);
 const SettingsPage = lazy(() =>
   import("@/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
 );
@@ -255,6 +258,8 @@ function App() {
         return <ImprintPage />;
       case "/privacy":
         return <PrivacyPage />;
+      case "/limitations":
+        return <LimitationsPage />;
       case "/view":
         return <ViewPage />;
       case "/settings":
