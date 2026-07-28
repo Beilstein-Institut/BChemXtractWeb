@@ -39,6 +39,10 @@
   --color-secondary-foreground: var(--color-secondary-foreground);
   --color-accent: var(--color-accent);
   --color-destructive: var(--color-destructive);
+  /* `text-destructive-foreground` was already used by DeleteConfirmDialog and
+   * SearchInput, but was never aliased here — so the utility did not exist and
+   * those labels silently inherited the ambient text colour. */
+  --color-destructive-foreground: var(--color-destructive-foreground);
   --color-ring: var(--color-ring);
 
   --radius-sm: var(--radius-sm);
