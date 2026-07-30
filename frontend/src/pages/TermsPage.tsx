@@ -140,8 +140,8 @@ export function TermsPage() {
           <img
             src="/beilstein-institut-logo.png"
             alt="Beilstein-Institut"
-            width={140}
-            height={64}
+            width={400}
+            height={183}
             className="h-21 w-auto shrink-0 self-start rounded-md bg-white px-4 py-3"
           />
         </div>
