@@ -1,9 +1,38 @@
 /**
  * PrivacyPage — GDPR privacy policy for BChemXtractWeb.
  *
- * Structure follows the Beilstein-Institut's standard § 1–§ 7 policy format
- * (cf. https://www.beilstein-institut.de/en/privacy-policy/), adapted to the
- * actual data flows in this codebase:
+ * Text and section order follow the institute's supplied document
+ * ("Privacy Policy BChemXtract 2026.docx", version 07.07.2026) word for
+ * word: § 1 collection · § 2 website visit · § 3 cookies · § 4 your rights
+ * · § 5 objection.
+ *
+ * Nothing is added to that text — the rights holder asked for its wording
+ * to stay identical across all its sites, so it can be maintained in one
+ * place. Do not reintroduce site-specific paragraphs here (an earlier
+ * revision carried a no-external-hosting statement, a no-web-analytics
+ * statement, GDPR article numbers and the supervisory authority's postal
+ * address; all were removed on request).
+ *
+ * The two departures that remain exist because the document would
+ * otherwise be false about this application:
+ *
+ *   1. § 3 replaces "we do not use Cookies or similar technical aids"
+ *      with what this app actually does — the bcx_sid session cookie, the
+ *      extraction records, the audit log and browser storage. A privacy
+ *      policy that understates processing is worse than none.
+ *   2. § 2(2) keeps one sentence on how the access logs really behave
+ *      (size-capped rotation, discarded on redeploy, transient rate-limiter
+ *      IP) because we cannot warrant the document's "delete them within 2
+ *      weeks" schedule.
+ *
+ * Both are reported to the rights holder for their master document.
+ *
+ * The controller's postcode is 60487, as in the Impressum — the privacy
+ * document says 60486, which is a typo for Trakehner Str. 7-9. Telephone
+ * and street are likewise spelled as on the Impressum page so the same
+ * address does not appear two ways on one site.
+ *
+ * What § 3 describes, in code:
  *   - No user accounts. An anonymous session UUID in the `bcx_sid`
  *     cookie (backend/app/core/session.py: 30 days, HttpOnly, Secure,
  *     SameSite=Lax) scopes extraction history via Postgres RLS.
@@ -23,10 +52,6 @@
  *   - Browser storage: localStorage "bchemxtract-theme",
  *     sessionStorage "bcx.reactions.experimentalBannerDismissed".
  *   - No web analytics, no third-party embeds, fonts self-hosted.
- *
- * Controller identification + supervisory-authority details come from
- * https://www.beilstein-institut.de/en/privacy-policy/ and are reproduced
- * with attribution at the foot of the page.
  */
 import { ArrowUpRightIcon, ShieldCheckIcon } from "lucide-react";
 
@@ -34,6 +59,8 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { Link } from "@/lib/Link";
 import { cn } from "@/lib/utils";
 import { LEGAL_LINK_CLASS, LegalPageHeader } from "@/pages/legalShared";
+
+const INSTITUTE_URL = "https://www.beilstein-institut.de/en/";
 
 interface Topic {
   id: string;
@@ -48,40 +75,61 @@ const TOPICS: Topic[] = [
     body: (
       <>
         <p>
-          (1) In the following, we inform you about the processing of personal data when you use
-          BChemXtractWeb. Personal data are all data that can be related to you personally, such as
-          your name, address, e-mail address, or user behaviour.
+          (1) In the following, we inform you about the processing of personal data when using this
+          website and our services as well as about further processing procedures by us. Personal
+          data are all data that can be related to you personally, such as name, address, e-mail
+          address or user behavior.
         </p>
         <p>
-          (2) The controller pursuant to Art. 4 (7) of the General Data Protection Regulation (GDPR)
-          is the Beilstein-Institut zur Förderung der Chemischen Wissenschaften, Trakehner Straße
-          7–9, 60487 Frankfurt am Main, Germany (telephone: +49 (0) 69 71673-20, email:{" "}
+          (2) The responsible party pursuant to Art. 4 (7) of the General Data Protection Regulation
+          (GDPR) is the
+        </p>
+        <p>
+          Beilstein-Institut zur Förderung der Chemischen Wissenschaften,
+          <br />
+          Trakehner Str. 7-9
+          <br />
+          60487 Frankfurt am Main
+          <br />
+          Germany
+          <br />
+          <br />
+          Telephone: +49 69 716732-0
+          <br />
+          Email:{" "}
           <a href="mailto:info@beilstein-institut.de" className={LEGAL_LINK_CLASS}>
             info@beilstein-institut.de
           </a>
-          ). The Beilstein-Institut's data protection officer can be reached at{" "}
+          <br />
+          Website:{" "}
+          <a
+            href="https://www.beilstein-institut.de"
+            target="_blank"
+            rel="noreferrer"
+            className={LEGAL_LINK_CLASS}
+          >
+            https://www.beilstein-institut.de
+          </a>
+        </p>
+        <p>
+          You can reach our data protection officer at{" "}
           <a href="mailto:datenschutz@beilstein-institut.de" className={LEGAL_LINK_CLASS}>
             datenschutz@beilstein-institut.de
           </a>{" "}
-          or via the postal address above with the addition "Der Datenschutzbeauftragte".
+          or at our postal address with the addition "Der Datenschutzbeauftragte".
         </p>
         <p>
-          (3) When you contact us by e-mail, telephone, or mail, the data you provide (e-mail
-          address, postal address, name, or telephone number) is stored by us in accordance with
-          Art. 6 (1) lit. c GDPR in order to answer your questions. We delete the data accruing in
-          this context once storage is no longer necessary. If the request is assigned to a
-          contract, we may also initially restrict processing in accordance with the contract terms
-          and then delete it. In the case of statutory retention obligations, deletion will only
-          take place when they expire.
+          (3) When you contact us by e-mail, telephone or mail, the data you provide (e-mail
+          address, postal address, name or telephone number) will be stored by us in accordance with
+          Art. 6 (1) lit. c GDPR in order to answer your questions.
         </p>
         <p>
-          (4) This website is operated on infrastructure of the Beilstein-Institut. No external
-          hosting service provider processes your personal data on our behalf.
+          We delete the data accruing in this context after the storage is no longer necessary. If
+          the request is assigned to a contract, we may also initially restrict processing in
+          accordance with the contract terms and then delete it. In the case of statutory retention
+          obligations, deletion will only take place when they expire.
         </p>
-        <p>
-          (5) Your personal data is not transferred to third parties within the meaning of Art. 4
-          (10) GDPR.
-        </p>
+        <p>(4) No data is transferred to third parties in the sense of Art. 4 (10) GDPR.</p>
       </>
     ),
   },
@@ -91,49 +139,59 @@ const TOPICS: Topic[] = [
     body: (
       <>
         <p>
-          (1) When you visit this website, your browser transmits data that is technically necessary
-          to display the website and to ensure its stability and security. This includes:
+          (1) When you visit our website without otherwise providing us with information, we process
+          the personal data that your browser transmits to our server. The data described below is
+          technically necessary for us to display our website to you and to ensure stability and
+          security and must therefore be processed by us:
         </p>
         <ul className="ml-5 list-disc space-y-1 marker:text-foreground-muted">
           <li>IP address</li>
           <li>Date and time of the request</li>
-          <li>Time-zone difference to GMT</li>
-          <li>Content of the request (the specific page)</li>
-          <li>Access status / HTTP status code</li>
-          <li>Amount of data transferred</li>
-          <li>The website the request came from (referrer)</li>
-          <li>Browser type and version</li>
-          <li>Operating system</li>
-          <li>Language settings of the browser software</li>
+          <li>Time zone difference to Greenwich Mean Time (GMT)</li>
+          <li>Content of the request (specific page)</li>
+          <li>Access status/HTTP status code (e.g. file found, file not found)</li>
+          <li>Amount of data transferred in each case</li>
+          <li>Website from which the request came to us</li>
+          <li>Browser</li>
+          <li>Operating system and its interface</li>
+          <li>Language and version of the browser software.</li>
         </ul>
         <p>
-          (2) This data is written to the access logs of our reverse proxy and application server
-          for stability and security reasons. The logs are size-capped and rotate automatically —
-          the oldest entries are overwritten first — and they are not archived; they are discarded
-          entirely when a service is redeployed. Log data whose continued storage is required for
-          evidentiary purposes (for example, to investigate a security incident) is retained until
-          the incident has been clarified. In addition, a rate limiter inspects the client IP
-          address transiently on each request to decide whether to permit or throttle it; this IP is
-          discarded at the end of the request and is not written to application tables.
+          (2) We use this data collected and stored in log files for stability and security reasons
+          and delete them within 2 weeks. Data that require further storage for evidentiary purposes
+          are exempt from deletion until the respective incident has been finally clarified. The
+          collection of data for the provision of the website and the storage of the data in log
+          files is absolutely necessary for the operation of the website. Therefore, the user has no
+          right to object.
         </p>
         <p>
-          (3) The processing is carried out in accordance with Art. 6 (1) lit. f GDPR (legitimate
-          interest in delivering a stable, secure service) and, with regard to our IT-security
-          obligations, Art. 6 (1) lit. c in conjunction with Art. 32 GDPR.
+          These log files are size-capped and rotate automatically — the oldest entries are
+          overwritten first — and they are not archived; they are discarded entirely when a service
+          is redeployed. In addition, a rate limiter inspects the client IP address transiently on
+          each request to decide whether to permit or throttle it; this IP is discarded at the end
+          of the request and is not written to application tables.
+        </p>
+        <p>
+          (3) Data processing is carried out on the basis of our legal obligation to guarantee IT
+          security in accordance with Art. 6 (1) lit. c in conjunction with Art. 32 GDPR and in
+          accordance with Art. 6 (1) lit. f GDPR, as otherwise we would not be able to provide our
+          offered services in a functional manner. Your visit to our website is based on your
+          autonomous decision. This wish can only be fulfilled by means of the described data
+          processing.
         </p>
       </>
     ),
   },
   {
-    id: "extractions",
-    title: "§ 3 Data processing when you extract ChemDraw files",
+    id: "cookies",
+    title: "§ 3 Cookies and data processing when you extract ChemDraw files",
     body: (
       <>
         <p>
           (1) BChemXtractWeb requires no registration and has no user accounts. Instead, a randomly
           generated anonymous session identifier (a UUID stored in the <code>bcx_sid</code> cookie,
-          see § 4) associates your extractions with your browser, so that only you can see your own
-          extraction history.
+          see (5) below) associates your extractions with your browser, so that only you can see
+          your own extraction history.
         </p>
         <p>
           (2) When you extract a file via the Extract page, your browser sends the selected ChemDraw
@@ -164,21 +222,11 @@ const TOPICS: Topic[] = [
           the service you requested); for the audit log it is Art. 6 (1) lit. f GDPR (legitimate
           interest in the security and abuse-resistance of the service).
         </p>
-      </>
-    ),
-  },
-  {
-    id: "cookies",
-    title: "§ 4 Processing of data from your terminal equipment (cookies and browser storage)",
-    body: (
-      <>
         <p>
-          (1) For functions of the website, technical aids — in particular cookies — may be stored
+          (5) For functions of the website, technical aids — in particular cookies — may be stored
           on your terminal equipment. We use only technically necessary cookies; no optional,
           marketing, or tracking cookies are set, which is why this website shows no consent banner.
-        </p>
-        <p>
-          (2) The single cookie used is set with the <code>HttpOnly</code>, <code>Secure</code>, and{" "}
+          The single cookie used is set with the <code>HttpOnly</code>, <code>Secure</code>, and{" "}
           <code>SameSite=Lax</code> attributes:
         </p>
         <div className="overflow-x-auto">
@@ -214,7 +262,7 @@ const TOPICS: Topic[] = [
           You can configure your browser to refuse or delete cookies at any time; in that case your
           extraction history can no longer be associated with your browser.
         </p>
-        <p>(3) In addition, two entries are stored in your browser's local storage:</p>
+        <p>(6) In addition, two entries are stored in your browser's local storage:</p>
         <ul className="ml-5 list-disc space-y-1 marker:text-foreground-muted">
           <li>
             <code>localStorage["bchemxtract-theme"]</code> — your chosen colour theme (
@@ -232,7 +280,7 @@ const TOPICS: Topic[] = [
           data. You can clear them at any time through your browser's site-data settings.
         </p>
         <p>
-          (4) The storage of and access to this information is carried out in accordance with
+          (7) The storage of and access to this information is carried out in accordance with
           Section 25 (2) of the German Telecommunications-Digital-Services-Data-Protection-Act
           (TDDDG) and Art. 6 (1) lit. f GDPR.
         </p>
@@ -240,73 +288,45 @@ const TOPICS: Topic[] = [
     ),
   },
   {
-    id: "analytics",
-    title: "§ 5 Web analytics",
-    body: (
-      <>
-        <p>
-          (1) BChemXtractWeb does not use any web-analytics service. No usage statistics are
-          collected, no advertising or social tracking pixels are loaded, and no third-party content
-          is embedded. The JetBrains Mono webfont used by the interface is self-hosted from our own
-          origin via the fontsource package.
-        </p>
-        <p>
-          (2) The only outbound requests your browser makes are to this site itself. External links
-          (for example on the About and Terms and conditions pages) are plain anchors that you
-          follow explicitly.
-        </p>
-      </>
-    ),
-  },
-  {
     id: "rights",
-    title: "§ 6 Your rights",
+    title: "§ 4 Your rights",
     body: (
       <>
-        <p>(1) You have the following rights with regard to your personal data:</p>
+        <p>(1) You have the following rights with regard to the personal data concerning you:</p>
         <ul className="ml-5 list-disc space-y-1 marker:text-foreground-muted">
-          <li>Right to information (Art. 15 GDPR)</li>
-          <li>Right to rectification of inaccurate data (Art. 16 GDPR)</li>
-          <li>
-            Right to erasure (Art. 17 GDPR) — extraction records can be deleted by you directly via
-            the History page or "Delete all my data" in Settings, or contact us
-          </li>
-          <li>Right to restriction of processing (Art. 18 GDPR)</li>
-          <li>Right to data portability (Art. 20 GDPR)</li>
-          <li>Right to object to processing (Art. 21 GDPR)</li>
+          <li>right to information,</li>
+          <li>right to correction or deletion,</li>
+          <li>right to restriction of processing,</li>
+          <li>right to object to processing,</li>
+          <li>right to data portability.</li>
         </ul>
         <p>
-          To exercise any of these rights, contact the controller or the data protection officer at
-          the addresses given in § 1.
-        </p>
-        <p>
-          (2) You also have the right to lodge a complaint with a data protection supervisory
-          authority if you believe the processing of your personal data infringes the GDPR. The
-          authority competent for the Beilstein-Institut is the Hessian Commissioner for Data
-          Protection and Freedom of Information (Der Hessische Beauftragte für Datenschutz und
-          Informationsfreiheit), Postfach 3163, 65021 Wiesbaden, Germany.
+          (2) You also have the right to complain to the competent data protection supervisory
+          authority about the processing of your personal data by us, for example the Hessian
+          Commissioner for Data Protection and Freedom of Information.
         </p>
       </>
     ),
   },
   {
     id: "objection",
-    title: "§ 7 Objection to or revocation of the processing of your data",
+    title: "§ 5 Objection to or revocation of the processing of your data",
     body: (
       <>
         <p>
-          (1) We do not currently base any processing on your consent. Should consent-based
-          processing be introduced in the future, you may revoke your consent at any time; such a
-          revocation affects the permissibility of the processing from that point forward, while
-          processing carried out before the revocation remains unaffected.
+          (1) Insofar as we base the processing of your personal data on the legal basis of the
+          exercise of a legitimate interest pursuant to Art. 6 (1) lit. f GDPR, you may object to
+          the processing. This is the case if the processing is not necessary, in particular, for
+          the fulfillment of a contract with you. When exercising such an objection, we ask you to
+          explain the reasons why we should not process your personal data in the way we have done.
+          In the event of your objection, we will review the situation and either discontinue or
+          adjust the data processing or show you our compelling legitimate grounds on the basis of
+          which we will continue the processing.
         </p>
         <p>
-          (2) Insofar as we base the processing of your personal data on legitimate interest
-          pursuant to Art. 6 (1) lit. f GDPR, you may object to the processing. Upon objection, we
-          will review the circumstances and either discontinue or adjust the processing, or
-          demonstrate compelling legitimate grounds for its continuation.
+          (2) Of course, you can object to the processing of your personal data for data analysis
+          purposes at any time.
         </p>
-        <p>(3) You can address an objection at any time using the contact details given in § 1.</p>
       </>
     ),
   },
@@ -315,12 +335,32 @@ const TOPICS: Topic[] = [
 export function PrivacyPage() {
   return (
     <PageContainer data-slot="privacy-page">
-      <LegalPageHeader
-        icon={<ShieldCheckIcon aria-hidden="true" className="size-3.5" />}
-        eyebrow="Privacy"
-        title="Privacy policy"
-        lede="How BChemXtractWeb handles personal data. This policy describes only what the web application itself does. The Beilstein-Institut publishes a broader privacy policy covering its other activities; see the link at the foot of this page."
-      />
+      {/* Title block left, the institute's mark right — the mark links to the
+          institute's site, as it does in the source document. Fixed white plate:
+          the artwork is dark navy on white and must not be recoloured for dark
+          mode. */}
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
+        <LegalPageHeader
+          icon={<ShieldCheckIcon aria-hidden="true" className="size-3.5" />}
+          eyebrow="Privacy"
+          title="Privacy Policy"
+          lede="How BChemXtractWeb handles personal data. This policy describes only what the web application itself does. The Beilstein-Institut publishes a broader privacy policy covering its other activities; see the link at the foot of this page."
+        />
+        <a
+          href={INSTITUTE_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="shrink-0 self-start rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <img
+            src="/beilstein-institut-logo-wide.png"
+            alt="Beilstein-Institut"
+            width={580}
+            height={120}
+            className="h-16 w-auto max-w-full rounded-md bg-white p-3 sm:h-24"
+          />
+        </a>
+      </div>
 
       <nav
         aria-label="Privacy policy contents"

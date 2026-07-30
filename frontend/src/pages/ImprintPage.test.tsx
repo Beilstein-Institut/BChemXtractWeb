@@ -15,13 +15,22 @@ describe("ImprintPage", () => {
     expect(section).not.toBeNull();
     const text = section!.textContent ?? "";
     expect(text).toMatch(/Beilstein-Institut zur Förderung der Chemischen Wissenschaften/);
-    expect(text).toMatch(/Stiftung/i);
-    expect(text).toMatch(/Trakehner Stra.+7.+9/);
+    expect(text).toMatch(/foundation established under civil law/i);
+    expect(text).toMatch(/Trakehner Str\. 7-9/);
     expect(text).toMatch(/60487 Frankfurt am Main/);
-    expect(text).toMatch(/\+49 \(0\) 69 71673-20/);
-    // Fax carries the full extension — regression guard against the earlier
-    // value that was missing a digit (71673-19).
-    expect(text).toMatch(/\+49 \(0\) 69 71673-219/);
+    // Contact numbers are grouped exactly as in the institute's Impressum.
+    expect(text).toMatch(/\+49 69 716732-0/);
+    expect(text).toMatch(/\+49 69 716732-19/);
+    expect(text).toMatch(/Olaf Beckmann-Haag, Dr\. Wendy Patterson/);
+    expect(text).toMatch(/\(AZ\): III 21-25d 04\/11-\(12\)-22/);
+  });
+
+  it("shows the institute logo", () => {
+    render(<ImprintPage />);
+    expect(screen.getByAltText("Beilstein-Institut")).toHaveAttribute(
+      "src",
+      "/beilstein-institut-logo.png",
+    );
   });
 
   it("omits the media-treaty content officer and VAT ID (not applicable)", () => {

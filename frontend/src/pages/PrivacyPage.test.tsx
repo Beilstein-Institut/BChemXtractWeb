@@ -11,15 +11,8 @@ describe("PrivacyPage", () => {
 
   it("renders every § section with an anchor target", () => {
     const { container } = render(<PrivacyPage />);
-    const topicIds = [
-      "collection",
-      "website-visit",
-      "extractions",
-      "cookies",
-      "analytics",
-      "rights",
-      "objection",
-    ];
+    // Five sections, in the order of the institute's source document.
+    const topicIds = ["collection", "website-visit", "cookies", "rights", "objection"];
     for (const id of topicIds) {
       const section = container.querySelector(`#${id}`);
       expect(section, `missing section #${id}`).not.toBeNull();
@@ -37,6 +30,8 @@ describe("PrivacyPage", () => {
     const text = section!.textContent ?? "";
     expect(text).toMatch(/Beilstein-Institut zur Förderung der Chemischen Wissenschaften/);
     expect(text).toMatch(/datenschutz@beilstein-institut\.de/);
+    // 60487, as on the Impressum — the source document's 60486 is a typo.
+    expect(text).toMatch(/60487 Frankfurt am Main/);
     // § 1(3) legal basis intentionally follows the institute's official
     // document (Art. 6(1) lit. c, not lit. f) — regression guard so it can't
     // silently flip back.
@@ -45,9 +40,7 @@ describe("PrivacyPage", () => {
 
   it("discloses that uploads are persisted and can be deleted from History or Settings", () => {
     const { container } = render(<PrivacyPage />);
-    const section = container.querySelector(
-      '[data-slot="privacy-extractions"]',
-    ) as HTMLElement | null;
+    const section = container.querySelector('[data-slot="privacy-cookies"]') as HTMLElement | null;
     expect(section).not.toBeNull();
     expect(section!.textContent).toMatch(/PostgreSQL/);
     expect(section!.textContent).toMatch(/InChIKey/);
@@ -58,9 +51,7 @@ describe("PrivacyPage", () => {
 
   it("discloses the audit log with its 12-month retention", () => {
     const { container } = render(<PrivacyPage />);
-    const section = container.querySelector(
-      '[data-slot="privacy-extractions"]',
-    ) as HTMLElement | null;
+    const section = container.querySelector('[data-slot="privacy-cookies"]') as HTMLElement | null;
     expect(section).not.toBeNull();
     const text = section!.textContent ?? "";
     expect(text).toMatch(/audit log/i);
@@ -80,13 +71,33 @@ describe("PrivacyPage", () => {
     expect(section!.querySelector('[data-slot="privacy-cookie-table"]')).not.toBeNull();
   });
 
-  it("states that no web analytics are used", () => {
+  // The institute's source document says "We do not use Cookies or similar
+  // technical aids" — untrue of this app, which sets bcx_sid. § 3 must never
+  // regress to that claim.
+  it("does not claim to be cookie-free", () => {
+    const { container } = render(<PrivacyPage />);
+    const section = container.querySelector('[data-slot="privacy-cookies"]') as HTMLElement | null;
+    expect(section).not.toBeNull();
+    expect(section!.textContent).not.toMatch(/do not use Cookies/i);
+  });
+
+  it("links the institute logo to the institute website", () => {
+    render(<PrivacyPage />);
+    const logo = screen.getByAltText("Beilstein-Institut");
+    expect(logo).toHaveAttribute("src", "/beilstein-institut-logo-wide.png");
+    expect(logo.closest("a")).toHaveAttribute("href", "https://www.beilstein-institut.de/en/");
+  });
+
+  // The rights holder asked for its text verbatim, with nothing added. This
+  // sentence is the one exception in § 2: we cannot warrant the document's
+  // "delete them within 2 weeks" because the logs rotate by size instead.
+  it("describes how the access logs really behave", () => {
     const { container } = render(<PrivacyPage />);
     const section = container.querySelector(
-      '[data-slot="privacy-analytics"]',
+      '[data-slot="privacy-website-visit"]',
     ) as HTMLElement | null;
     expect(section).not.toBeNull();
-    expect(section!.textContent).toMatch(/does not use any web-analytics service/i);
+    expect(section!.textContent).toMatch(/size-capped and rotate automatically/i);
   });
 
   it("states the competent supervisory authority", () => {
@@ -94,7 +105,6 @@ describe("PrivacyPage", () => {
     const section = document.querySelector('[data-slot="privacy-rights"]') as HTMLElement | null;
     expect(section).not.toBeNull();
     expect(section!.textContent).toMatch(/Hessian Commissioner for Data Protection/i);
-    expect(section!.textContent).toMatch(/Wiesbaden/);
   });
 
   it("renders a version date", () => {

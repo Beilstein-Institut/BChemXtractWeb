@@ -1,4 +1,4 @@
-import { Coffee, Globe } from "lucide-react";
+import { Globe } from "lucide-react";
 
 import { Footer, type FooterTextLink } from "@/components/ui/footer";
 import { Link } from "@/lib/Link";
@@ -24,11 +24,10 @@ function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
  *   - Social: BChemXtractWeb GitHub + Beilstein-Institut website
  *   - Main links: Home / Extract / Browse / History / About — routed through
  *     the internal <Link /> so clicks stay inside the SPA
- *   - Legal: Terms and conditions / Imprint / Privacy — all internal pages
+ *   - Legal: Terms & Conditions / Impressum / Privacy — all internal pages
  *   - Copyright: © 2026 Beilstein-Institut · Open source — the © line names
  *     the legal rights holder (industry standard); the logo beside it and
  *     the AppHeader carry the BChemXtract product branding
- *   - Centered band: "Built with [animated ☕] at the Beilstein-Institut"
  */
 
 /**
@@ -64,16 +63,6 @@ function LicenseLine() {
       >
         · CDK 2.12 · Java 21
       </span>
-    </span>
-  );
-}
-
-function SteamingCoffee() {
-  return (
-    <span className="coffee-steam relative inline-flex items-center" aria-hidden="true">
-      <span className="coffee-steam__puff coffee-steam__puff--1" />
-      <span className="coffee-steam__puff coffee-steam__puff--2" />
-      <Coffee className="size-4 text-primary" />
     </span>
   );
 }
@@ -122,8 +111,8 @@ export function SiteFooter() {
         { href: "/about", label: "About", internal: true },
       ]}
       legalLinks={[
-        { href: "/terms", label: "Terms and conditions", internal: true },
-        { href: "/imprint", label: "Imprint", internal: true },
+        { href: "/terms", label: "Terms & Conditions", internal: true },
+        { href: "/imprint", label: "Impressum", internal: true },
         { href: "/privacy", label: "Privacy", internal: true },
       ]}
       copyright={{
@@ -150,23 +139,6 @@ export function SiteFooter() {
         ),
         license: <LicenseLine />,
       }}
-      middleSlot={
-        <span className="inline-flex items-center gap-2">
-          <span>Built with</span>
-          <SteamingCoffee />
-          <span>
-            at the{" "}
-            <a
-              href="https://www.beilstein-institut.de/en/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-foreground underline-offset-4 hover:text-primary hover:underline"
-            >
-              Beilstein-Institut
-            </a>
-          </span>
-        </span>
-      }
     />
   );
 }
