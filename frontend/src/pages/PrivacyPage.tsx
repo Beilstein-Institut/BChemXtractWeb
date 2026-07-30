@@ -357,7 +357,7 @@ export function PrivacyPage() {
             alt="Beilstein-Institut"
             width={580}
             height={120}
-            className="h-14 w-auto max-w-full rounded-md bg-white p-2"
+            className="h-16 w-auto max-w-full rounded-md bg-white p-3 sm:h-24"
           />
         </a>
       </div>
