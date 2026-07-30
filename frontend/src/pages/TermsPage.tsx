@@ -4,9 +4,16 @@
  * components whose licenses require notice (CDK / LGPL) or are customary
  * to cite (upstream BChemXtract).
  *
+ * The heading, intro sentence and the eight numbered conditions are the
+ * institute's supplied text ("Terms and Conditions BChemXtract 2026.docx")
+ * word for word, bar two grammar slips in the source ("is provides for use",
+ * "damages of any nature result"). The Privacy Policy clause links to this
+ * site's own /privacy page — the source document still pointed at the
+ * STRENDA DB policy it was templated from.
+ *
  * Sourced from:
  *   - Beilstein-Institut official BChemXtract Terms & Conditions
- *     (no registration, no public datasets)
+ *     ("Terms and Conditions BChemXtract 2026.docx")
  *   - /LICENSE at the repo root (BChemXtractWeb MIT)
  *   - https://github.com/Beilstein-Institut/BChemXtract/blob/main/LICENSE (upstream BChemXtract MIT)
  *   - https://github.com/cdk/cdk/blob/main/LICENSE.txt (CDK 2.12 LGPL-2.1-or-later)
@@ -113,69 +120,76 @@ export function TermsPage() {
     <PageContainer data-slot="terms-page">
       <LegalPageHeader
         icon={<ScaleIcon aria-hidden="true" className="size-3.5" />}
-        eyebrow="Terms and conditions"
-        title="Terms and conditions"
-        lede="Use of BChemXtractWeb is subject to the terms below. The software itself is open source under the MIT License — the full notice and third-party attributions follow the terms."
+        eyebrow="Terms & Conditions"
+        title="Terms & Conditions"
+        lede="This Web Site and its content is protected by copyright law. Use of this Web Site is subject to these Terms and Conditions."
       />
 
+      {/* The institute's mark sits top-right of the terms card, mirroring the
+          Impressum. Fixed white plate — the wordmark is dark navy artwork that
+          must not be recoloured for dark mode. */}
       <section
         aria-labelledby="terms-conditions-heading"
         className="mt-10 rounded-lg border border-border bg-surface p-6 sm:p-8"
         data-slot="terms-conditions"
       >
-        <h2 id="terms-conditions-heading" className="text-lg font-semibold text-foreground">
-          Terms and conditions of use
-        </h2>
-        <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-foreground-muted">
-          This website and its content are protected by copyright law. Use of this website is
-          subject to these Terms and Conditions.
-        </p>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
+          <h2 id="terms-conditions-heading" className="text-lg font-semibold text-foreground">
+            Terms and conditions of use
+          </h2>
+          <img
+            src="/beilstein-institut-logo.png"
+            alt="Beilstein-Institut"
+            width={140}
+            height={64}
+            className="h-21 w-auto shrink-0 self-start rounded-md bg-white px-4 py-3"
+          />
+        </div>
         <ol
           className="mt-5 ml-5 max-w-[70ch] list-decimal space-y-3 text-sm leading-relaxed text-foreground-muted marker:text-foreground-muted"
           data-slot="terms-conditions-list"
         >
           <li>
+            BChemXtractWeb and the underlying BChemXtract library are Open Source Software under the
+            MIT License (see below). Bundled third-party components retain their own licenses, as
+            set out in the sections below.
+          </li>
+          <li>
             Everybody is free to use BChemXtractWeb to extract chemical structures and reactions
-            from ChemDraw (CDX/CDXML) files. No registration is required. Uploaded files and the
-            extracted results remain the property of the person who uploaded them.
+            from different chemical files.
           </li>
           <li>
-            The BChemXtractWeb software and the underlying BChemXtract library are open source under
-            the MIT License. Bundled third-party components retain their own licenses, as set out in
-            the sections below.
-          </li>
-          <li>
-            This website and its content are provided for use &ldquo;as is&rdquo;. The
-            Beilstein-Institut makes no representations or warranties with respect to this website
-            or its contents, including without limitation the quality, completeness, timeliness or
+            This Web Site and its content is provided for use &ldquo;as is&rdquo;. The
+            Beilstein-Institut makes no representations or warranties with respect to this Web Site
+            or its contents including without limitation quality, completeness, timeliness or
             accuracy of data. String representations (InChI, SMILES, molecular formulas, RInChI) are
             generated automatically and may contain errors.
           </li>
           <li>
-            The general terms and conditions of the{" "}
+            The general terms and conditions of our{" "}
             <Link to="/privacy" className={LEGAL_LINK_CLASS}>
               Privacy Policy
             </Link>{" "}
             apply.
           </li>
           <li>
-            The Beilstein-Institut reserves the right, in whole or in part, to change or delete this
-            website, suspend your access, or terminate this website at any time without notice.
+            The Beilstein-Institut reserves the right in whole or in part to change or delete this
+            Web Site or suspend your access or terminate this Web Site at any time without notice.
           </li>
           <li>
-            In no event shall the Beilstein-Institut be liable for any damages of any nature
-            resulting directly or indirectly from the use or non-use of the information provided on
-            this website, unless the damages were demonstrably caused deliberately or by gross
-            negligence of the Beilstein-Institut.
+            In no event shall Beilstein-Institut be liable for any damages of any nature resulting
+            directly or indirectly from use or disuse of the information provided on this Web Site
+            unless damages were demonstrably caused deliberately or caused by gross negligence of
+            the Beilstein-Institut.
           </li>
           <li>
-            The Beilstein-Institut shall not be held liable for the content of any third-party
-            websites linked from this website.
+            The Beilstein-Institut shall not be held liable for the content of any third-party web
+            sites this Web Site is linked to.
           </li>
           <li>
-            These terms shall be governed by the laws of the Federal Republic of Germany. The sole
-            place of jurisdiction for all disputes arising out of or in connection with the use of
-            this website and its contents shall be Frankfurt am Main.
+            These terms shall be governed by the laws of the Federal Republic of Germany. Sole place
+            of jurisdiction for all disputes arising out or in connection with the use of this Web
+            Site and its contents shall be Frankfurt am Main.
           </li>
         </ol>
       </section>

@@ -27,11 +27,20 @@ describe("TermsPage", () => {
     expect(list).not.toBeNull();
     expect(list!.querySelectorAll(":scope > li").length).toBe(8);
     const text = list!.textContent ?? "";
-    expect(text).toMatch(/No registration is required/);
+    expect(text).toMatch(/Open Source Software under the MIT License/);
+    expect(text).toMatch(/Everybody is free to use BChemXtractWeb/);
     expect(text).toMatch(/provided for use .as is./);
     expect(text).toMatch(/Privacy Policy/);
     expect(text).toMatch(/Federal Republic of Germany/);
     expect(text).toMatch(/Frankfurt am Main/);
+  });
+
+  it("shows the institute logo", () => {
+    render(<TermsPage />);
+    expect(screen.getByAltText("Beilstein-Institut")).toHaveAttribute(
+      "src",
+      "/beilstein-institut-logo.png",
+    );
   });
 
   it("links the privacy clause to the internal privacy page", () => {
