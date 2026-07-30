@@ -355,7 +355,7 @@ export function PrivacyPage() {
           <img
             src="/beilstein-institut-logo-wide.png"
             alt="Beilstein-Institut"
-            width={580}
+            width={507}
             height={120}
             className="h-16 w-auto max-w-full rounded-md bg-white p-3 sm:h-24"
           />
