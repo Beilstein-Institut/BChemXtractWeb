@@ -336,9 +336,9 @@ export function PrivacyPage() {
   return (
     <PageContainer data-slot="privacy-page">
       {/* Title block left, the institute's mark right — the mark links to the
-          institute's site, as it does in the source document. Fixed white plate:
-          the artwork is dark navy on white and must not be recoloured for dark
-          mode. */}
+          institute's site, as it does in the source document. Transparent
+          artwork; white plate in dark mode only, because the wordmark is dark
+          navy and must not be recoloured. */}
       <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
         <LegalPageHeader
           icon={<ShieldCheckIcon aria-hidden="true" className="size-3.5" />}
@@ -357,7 +357,7 @@ export function PrivacyPage() {
             alt="Beilstein-Institut"
             width={507}
             height={120}
-            className="h-16 w-auto max-w-full rounded-md bg-white p-3 sm:h-24"
+            className="h-16 w-auto max-w-full p-3 dark:rounded-md dark:bg-white sm:h-24"
           />
         </a>
       </div>
