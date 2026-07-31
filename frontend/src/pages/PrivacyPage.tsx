@@ -8,24 +8,20 @@
  *
  * Nothing is added to that text — the rights holder asked for its wording
  * to stay identical across all its sites, so it can be maintained in one
- * place. Do not reintroduce site-specific paragraphs here (an earlier
- * revision carried a no-external-hosting statement, a no-web-analytics
- * statement, GDPR article numbers and the supervisory authority's postal
- * address; all were removed on request).
+ * place. Do not reintroduce site-specific paragraphs here (earlier
+ * revisions carried a no-external-hosting statement, a no-web-analytics
+ * statement, GDPR article numbers, the supervisory authority's postal
+ * address, a page lede, a table of contents, a sourcing note linking the
+ * institute's full policy, and a § 2(2) paragraph describing log rotation
+ * mechanics; all were removed on request).
  *
- * The two departures that remain exist because the document would
- * otherwise be false about this application:
- *
- *   1. § 3 replaces "we do not use Cookies or similar technical aids"
- *      with what this app actually does — the bcx_sid session cookie, the
- *      extraction records, the audit log and browser storage. A privacy
- *      policy that understates processing is worse than none.
- *   2. § 2(2) keeps one sentence on how the access logs really behave
- *      (size-capped rotation, discarded on redeploy, transient rate-limiter
- *      IP) because we cannot warrant the document's "delete them within 2
- *      weeks" schedule.
- *
- * Both are reported to the rights holder for their master document.
+ * The single departure that remains exists because the document would
+ * otherwise be false about this application: § 3 replaces "we do not use
+ * Cookies or similar technical aids" with what this app actually does —
+ * the bcx_sid session cookie, the extraction records, the audit log and
+ * browser storage. A privacy policy that understates processing is worse
+ * than none. This is reported to the rights holder for their master
+ * document.
  *
  * The controller's postcode is 60487, as in the Impressum — the privacy
  * document says 60486, which is a typo for Trakehner Str. 7-9. Telephone
@@ -41,23 +37,25 @@
  *     History page or wholesale via Settings → Delete all my data
  *     (backend/app/routers/me.py — immediate hard delete).
  *   - Security-relevant events land in audit_log with hashed session
- *     id, raw IP, and user agent (backend/app/services/audit.py);
- *     pruned daily after 365 days (backend/app/tasks/audit_log.py).
+ *     id, raw IP, and user agent (backend/app/services/audit.py); pruned
+ *     daily after AUDIT_LOG_RETENTION_DAYS, default 14
+ *     (backend/app/tasks/audit_log.py). If that default is raised, § 3(3)
+ *     below must be edited to match.
  *   - Rate limiter inspects the client IP transiently
  *     (backend/app/middleware/rate_limit.py) — never persisted on
  *     application rows.
  *   - Access logs (nginx + Uvicorn) go to the container log stream,
- *     which is size-capped and rotates (docker-compose.yml x-logging) —
- *     no archival.
+ *     size-capped (docker-compose.yml x-logging) and pruned to a 14-day
+ *     window by scripts/prune-container-logs.sh on a host cron — that
+ *     cron is what makes § 2(2)'s "within 2 weeks" true.
  *   - Browser storage: localStorage "bchemxtract-theme",
  *     sessionStorage "bcx.reactions.experimentalBannerDismissed".
  *   - No web analytics, no third-party embeds, fonts self-hosted.
  */
-import { ArrowUpRightIcon, ShieldCheckIcon } from "lucide-react";
+import { ShieldCheckIcon } from "lucide-react";
 
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Link } from "@/lib/Link";
-import { cn } from "@/lib/utils";
 import { LEGAL_LINK_CLASS, LegalPageHeader } from "@/pages/legalShared";
 
 const INSTITUTE_URL = "https://www.beilstein-institut.de/en/";
@@ -165,13 +163,6 @@ const TOPICS: Topic[] = [
           right to object.
         </p>
         <p>
-          These log files are size-capped and rotate automatically — the oldest entries are
-          overwritten first — and they are not archived; they are discarded entirely when a service
-          is redeployed. In addition, a rate limiter inspects the client IP address transiently on
-          each request to decide whether to permit or throttle it; this IP is discarded at the end
-          of the request and is not written to application tables.
-        </p>
-        <p>
           (3) Data processing is carried out on the basis of our legal obligation to guarantee IT
           security in accordance with Art. 6 (1) lit. c in conjunction with Art. 32 GDPR and in
           accordance with Art. 6 (1) lit. f GDPR, as otherwise we would not be able to provide our
@@ -215,7 +206,7 @@ const TOPICS: Topic[] = [
           (3) Security-relevant events (for example session creation, session restore from a
           recovery code, and data deletion) are recorded in an audit log together with a hashed form
           of the session identifier, the IP address, and the browser user agent. Audit-log entries
-          are deleted automatically after 12 months.
+          are deleted automatically after two weeks.
         </p>
         <p>
           (4) The legal basis for processing your uploads is Art. 6 (1) lit. b GDPR (performance of
@@ -336,15 +327,14 @@ export function PrivacyPage() {
   return (
     <PageContainer data-slot="privacy-page">
       {/* Title block left, the institute's mark right — the mark links to the
-          institute's site, as it does in the source document. Fixed white plate:
-          the artwork is dark navy on white and must not be recoloured for dark
-          mode. */}
+          institute's site, as it does in the source document. Transparent
+          artwork; white plate in dark mode only, because the wordmark is dark
+          navy and must not be recoloured. */}
       <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
         <LegalPageHeader
           icon={<ShieldCheckIcon aria-hidden="true" className="size-3.5" />}
           eyebrow="Privacy"
           title="Privacy Policy"
-          lede="How BChemXtractWeb handles personal data. This policy describes only what the web application itself does. The Beilstein-Institut publishes a broader privacy policy covering its other activities; see the link at the foot of this page."
         />
         <a
           href={INSTITUTE_URL}
@@ -357,26 +347,10 @@ export function PrivacyPage() {
             alt="Beilstein-Institut"
             width={507}
             height={120}
-            className="h-16 w-auto max-w-full rounded-md bg-white p-3 sm:h-24"
+            className="h-16 w-auto max-w-full p-3 dark:rounded-md dark:bg-white sm:h-24"
           />
         </a>
       </div>
-
-      <nav
-        aria-label="Privacy policy contents"
-        className="mt-8 rounded-lg border border-border bg-surface-elevated p-4 sm:p-5"
-        data-slot="privacy-toc"
-      >
-        <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-          {TOPICS.map((t) => (
-            <li key={t.id}>
-              <a href={`#${t.id}`} className="text-primary underline-offset-4 hover:underline">
-                {t.title}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
 
       <div className="mt-10 flex flex-col gap-8">
         {TOPICS.map((t) => (
@@ -399,19 +373,6 @@ export function PrivacyPage() {
 
       <p className="mt-8 text-caption text-foreground-muted" data-slot="privacy-version">
         Version 07.07.2026
-      </p>
-      <p className="mt-2 text-caption text-foreground-muted">
-        Controller and supervisory-authority details reproduced from the{" "}
-        <a
-          href="https://www.beilstein-institut.de/en/privacy-policy/"
-          target="_blank"
-          rel="noreferrer"
-          className={cn("inline-flex items-center gap-1", LEGAL_LINK_CLASS)}
-        >
-          Beilstein-Institut's full privacy policy
-          <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
-        </a>
-        .
       </p>
     </PageContainer>
   );

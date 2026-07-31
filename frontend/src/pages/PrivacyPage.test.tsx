@@ -49,14 +49,15 @@ describe("PrivacyPage", () => {
     expect(section!.querySelector('a[href="/settings"]')).not.toBeNull();
   });
 
-  it("discloses the audit log with its 12-month retention", () => {
+  // Retention here must track AUDIT_LOG_RETENTION_DAYS (backend default 14).
+  it("discloses the audit log with its two-week retention", () => {
     const { container } = render(<PrivacyPage />);
     const section = container.querySelector('[data-slot="privacy-cookies"]') as HTMLElement | null;
     expect(section).not.toBeNull();
     const text = section!.textContent ?? "";
     expect(text).toMatch(/audit log/i);
     expect(text).toMatch(/IP address/);
-    expect(text).toMatch(/12 months/);
+    expect(text).toMatch(/two weeks/);
   });
 
   it("discloses the bcx_sid session cookie in a table plus browser storage", () => {
@@ -88,16 +89,23 @@ describe("PrivacyPage", () => {
     expect(logo.closest("a")).toHaveAttribute("href", "https://www.beilstein-institut.de/en/");
   });
 
-  // The rights holder asked for its text verbatim, with nothing added. This
-  // sentence is the one exception in § 2: we cannot warrant the document's
-  // "delete them within 2 weeks" because the logs rotate by size instead.
-  it("describes how the access logs really behave", () => {
+  // The rights holder asked for its § 2 text verbatim, with nothing added —
+  // an earlier revision appended a paragraph on log-rotation mechanics.
+  it("keeps § 2 free of added technical detail", () => {
     const { container } = render(<PrivacyPage />);
     const section = container.querySelector(
       '[data-slot="privacy-website-visit"]',
     ) as HTMLElement | null;
     expect(section).not.toBeNull();
-    expect(section!.textContent).toMatch(/size-capped and rotate automatically/i);
+    expect(section!.textContent).toMatch(/delete them within 2 weeks/);
+    expect(section!.textContent).not.toMatch(/size-capped/i);
+  });
+
+  // The policy text starts directly under the title: no lede, no contents nav.
+  it("renders no lede or table of contents", () => {
+    const { container } = render(<PrivacyPage />);
+    expect(container.querySelector('[data-slot="privacy-toc"]')).toBeNull();
+    expect(container.textContent).not.toMatch(/How BChemXtractWeb handles personal data/);
   });
 
   it("states the competent supervisory authority", () => {
@@ -114,13 +122,5 @@ describe("PrivacyPage", () => {
     // Literal value, not just shape — the version tracks the source document
     // and a wrong date should fail the test.
     expect(version!.textContent).toMatch(/Version 07\.07\.2026/);
-  });
-
-  it("links to the Beilstein-Institut full privacy policy", () => {
-    render(<PrivacyPage />);
-    const link = screen.getByRole("link", {
-      name: /full privacy policy/i,
-    });
-    expect(link).toHaveAttribute("href", "https://www.beilstein-institut.de/en/privacy-policy/");
   });
 });

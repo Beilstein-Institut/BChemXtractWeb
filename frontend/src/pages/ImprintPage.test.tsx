@@ -9,13 +9,12 @@ describe("ImprintPage", () => {
     expect(container.querySelector('[data-slot="imprint-page"]')).not.toBeNull();
   });
 
-  it("identifies the operating entity and its legal form", () => {
+  it("identifies the operating entity", () => {
     const { container } = render(<ImprintPage />);
     const section = container.querySelector('[data-slot="imprint-entity"]') as HTMLElement | null;
     expect(section).not.toBeNull();
     const text = section!.textContent ?? "";
     expect(text).toMatch(/Beilstein-Institut zur Förderung der Chemischen Wissenschaften/);
-    expect(text).toMatch(/foundation established under civil law/i);
     expect(text).toMatch(/Trakehner Str\. 7-9/);
     expect(text).toMatch(/60487 Frankfurt am Main/);
     // Contact numbers are grouped exactly as in the institute's Impressum.

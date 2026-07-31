@@ -91,9 +91,15 @@ class Settings(BaseSettings):
     api_key_max_expiry_days: int = 365
     """Hard cap on per-key expiry. Values above are clamped."""
 
-    audit_log_retention_days: int = 365
-    """Audit log retention (~12 months). The Celery beat
-    task deletes rows older than this daily at 03:00 UTC."""
+    audit_log_retention_days: int = 14
+    """Audit log retention in days. The Celery beat task deletes rows older
+    than this daily at 03:00 UTC.
+
+    Default 14 because audit rows carry the raw client IP, which counts as
+    personal data — /privacy § 3(3) promises deletion "after two weeks".
+    Raise it via AUDIT_LOG_RETENTION_DAYS (`./deploy.sh --audit-retention N`)
+    only alongside an edit to that sentence in
+    frontend/src/pages/PrivacyPage.tsx."""
 
     # --- Rate limiting (slowapi-backed) ---
     rate_limit_default: str = "120/minute"
