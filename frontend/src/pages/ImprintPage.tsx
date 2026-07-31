@@ -94,9 +94,6 @@ export function ImprintPage() {
             >
               {OPERATOR_NAME}
             </h2>
-            <p className="mt-1.5 text-sm text-foreground-muted">
-              The Beilstein-Institut is a foundation established under civil law.
-            </p>
           </div>
           <img
             src="/beilstein-institut-logo.png"

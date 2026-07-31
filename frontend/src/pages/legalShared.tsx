@@ -28,8 +28,9 @@ interface LegalPageHeaderProps {
   eyebrow: string;
   /** Page title. */
   title: string;
-  /** Short lede paragraph immediately below the title. */
-  lede: ReactNode;
+  /** Short lede paragraph immediately below the title. Omitted on the
+   *  Privacy page, where the policy text starts straight after the title. */
+  lede?: ReactNode;
   className?: string;
 }
 
@@ -45,7 +46,7 @@ export function LegalPageHeader({ icon, eyebrow, title, lede, className }: Legal
         <span>{eyebrow}</span>
       </div>
       <h1 className="text-4xl text-foreground sm:text-5xl">{title}</h1>
-      <p className="max-w-[70ch] text-base text-foreground-muted">{lede}</p>
+      {lede ? <p className="max-w-[70ch] text-base text-foreground-muted">{lede}</p> : null}
     </header>
   );
 }
