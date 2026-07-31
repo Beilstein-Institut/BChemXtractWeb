@@ -1,7 +1,8 @@
 """Audit-log prune Celery beat task.
 
 Daily at 03:00 UTC, delete ``audit_log`` rows older than
-``Settings.audit_log_retention_days`` (default 365 days).
+``Settings.audit_log_retention_days`` (default 14 days — the rows carry the
+raw client IP, and /privacy § 3(3) promises deletion after two weeks).
 
 Idempotent: re-running on the same day removes zero additional rows.
 A single beat scheduler in the deployment ensures the cron is not
