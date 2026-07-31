@@ -24,10 +24,10 @@ function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
  *   - Social: BChemXtractWeb GitHub + Beilstein-Institut website
  *   - Main links: Home / Extract / Browse / History / About — routed through
  *     the internal <Link /> so clicks stay inside the SPA
- *   - Legal: Terms & Conditions / Impressum / Privacy — all internal pages
- *   - Copyright: © 2026 Beilstein-Institut · Open source — the © line names
- *     the legal rights holder (industry standard); the logo beside it and
- *     the AppHeader carry the BChemXtract product branding
+ *   - Legal: Terms & Conditions / Impressum / Privacy Policy — internal pages
+ *   - Copyright: "© 2026" + the institute's mark · Open source — the © line
+ *     names the legal rights holder (industry standard) via its logo rather
+ *     than in words; the AppHeader carries the BChemXtract product branding
  */
 
 /**
@@ -113,28 +113,42 @@ export function SiteFooter() {
       legalLinks={[
         { href: "/terms", label: "Terms & Conditions", internal: true },
         { href: "/imprint", label: "Impressum", internal: true },
-        { href: "/privacy", label: "Privacy", internal: true },
+        { href: "/privacy", label: "Privacy Policy", internal: true },
       ]}
       copyright={{
+        // "© 2026" followed by the institute's mark, which now carries the
+        // name — hence real alt text, not a decorative empty string.
+        //
+        // No white plate behind it in dark mode: asked for explicitly, and
+        // consistent with the legal pages. Known and accepted consequence —
+        // the wordmark is navy #072563 on the dark theme's #0a0e2b, i.e.
+        // 1.31:1, so dark-theme readers see the crimson/teal swirl but not
+        // the lettering (the alt text still names it). Do not "fix" this with
+        // a plate or a recolour; the fix is a negative version of the
+        // artwork, if the institute supplies one.
+        //
+        // h-8 against 14px text: the wordmark's caps are a quarter of the
+        // artwork's height, so anything smaller stops being readable. The
+        // SVG's canvas was tightened to its ink (viewBox "0 48 876 202"; it
+        // shipped with ~23% empty margin on the right, which would otherwise
+        // open a gap between "© 2026" and the mark). Artwork untouched.
         text: (
           <span className="inline-flex items-center gap-2 whitespace-nowrap">
-            <img
-              src="/bchemxtract-logo.svg"
-              alt=""
-              aria-hidden="true"
-              className="h-5 w-5 shrink-0"
-            />
-            <span>
-              © 2026{" "}
-              <a
-                href="https://www.beilstein-institut.de/en/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-foreground underline-offset-4 hover:text-primary hover:underline"
-              >
-                Beilstein-Institut
-              </a>
-            </span>
+            <span>© 2026</span>
+            <a
+              href="https://www.beilstein-institut.de/en/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <img
+                src="/Logo_Beilstein_schmal_RGB.svg"
+                alt="Beilstein-Institut"
+                width={876}
+                height={202}
+                className="h-8 w-auto"
+              />
+            </a>
           </span>
         ),
         license: <LicenseLine />,

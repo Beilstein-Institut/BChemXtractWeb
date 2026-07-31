@@ -78,9 +78,9 @@ export function ImprintPage() {
 
       {/* Operator identity — the single structured block. The institute's mark
           leads, then the name as focal point; contact + governance details sit
-          below a hairline. The mark sits on a fixed white plate because the
-          wordmark is dark navy artwork that must not be recoloured for dark
-          mode. */}
+          below a hairline. The mark is transparent artwork; it gets a white
+          plate in dark mode only, because the wordmark is dark navy and a
+          protected trademark that must not be recoloured. */}
       <section
         aria-labelledby="imprint-operator-name"
         className="mt-10 rounded-lg border border-border bg-surface p-6 sm:p-8"
@@ -94,16 +94,13 @@ export function ImprintPage() {
             >
               {OPERATOR_NAME}
             </h2>
-            <p className="mt-1.5 text-sm text-foreground-muted">
-              The Beilstein-Institut is a foundation established under civil law.
-            </p>
           </div>
           <img
             src="/beilstein-institut-logo.png"
             alt="Beilstein-Institut"
             width={400}
             height={183}
-            className="h-21 w-auto shrink-0 self-start rounded-md bg-white px-4 py-3"
+            className="h-21 w-auto shrink-0 self-start px-4 py-3 dark:rounded-md dark:bg-white"
           />
         </div>
 

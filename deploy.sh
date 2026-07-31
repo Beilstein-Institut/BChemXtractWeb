@@ -7,6 +7,13 @@
 #   ./deploy.sh --change-port    # re-prompt for the public HTTP port
 #   ./deploy.sh --pubchem on|off # enable/disable PubChem enrichment, then
 #                                # recreate the backend (no image rebuild)
+#   ./deploy.sh --audit-retention N
+#                                # set AUDIT_LOG_RETENTION_DAYS (default 14).
+#                                # Raising it above 14 contradicts § 3(3) of
+#                                # /privacy — edit that page to match.
+#   sudo ./deploy.sh --install-log-cron
+#                                # install the root cron that prunes container
+#                                # logs to 14 days (/privacy § 2(2))
 #   ./deploy.sh --rotate-keys    # regenerate ADMIN_SECRET in existing .env
 #                                # (POSTGRES_PASSWORD + SECRET_KEY untouched)
 #   ./deploy.sh --rotate-app-db  # regenerate APP_DB_PASSWORD + ALTER ROLE
@@ -37,7 +44,7 @@ warn() { printf '%s ! %s %s\n' "$C_YELLOW" "$C_RESET" "$*"; }
 die()  { printf '%s ✗ %s %s\n' "$C_RED"    "$C_RESET" "$*" >&2; exit 1; }
 
 usage() {
-  sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 }
 
@@ -48,8 +55,13 @@ ROTATE_POSTGRES_PASSWORD=false
 CHANGE_PORT=false
 PORT_FLAG=""
 PUBCHEM_TOGGLE=""
+AUDIT_RETENTION=""
+INSTALL_LOG_CRON=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --install-log-cron)         INSTALL_LOG_CRON=true; shift ;;
+    --audit-retention)          [[ $# -ge 2 ]] || die "--audit-retention requires a value"; AUDIT_RETENTION="$2"; shift 2 ;;
+    --audit-retention=*)        AUDIT_RETENTION="${1#*=}"; shift ;;
     --rotate-keys)              ROTATE_KEYS=true; shift ;;
     --rotate-app-db)            ROTATE_APP_DB=true; shift ;;
     --rotate-postgres-password) ROTATE_POSTGRES_PASSWORD=true; shift ;;
@@ -87,9 +99,52 @@ if [[ -n "$PUBCHEM_TOGGLE" ]]; then
   esac
   if [[ "$ROTATE_KEYS" == true || "$ROTATE_APP_DB" == true \
         || "$ROTATE_POSTGRES_PASSWORD" == true || "$CHANGE_PORT" == true \
-        || -n "$PORT_FLAG" ]]; then
+        || -n "$PORT_FLAG" || -n "$AUDIT_RETENTION" || "$INSTALL_LOG_CRON" == true ]]; then
     die "--pubchem cannot be combined with other action flags"
   fi
+fi
+if [[ -n "$AUDIT_RETENTION" ]]; then
+  [[ "$AUDIT_RETENTION" =~ ^[1-9][0-9]*$ ]] \
+    || die "--audit-retention requires a positive whole number of days (got: $AUDIT_RETENTION)"
+  if [[ "$ROTATE_KEYS" == true || "$ROTATE_APP_DB" == true \
+        || "$ROTATE_POSTGRES_PASSWORD" == true || "$CHANGE_PORT" == true \
+        || -n "$PORT_FLAG" || "$INSTALL_LOG_CRON" == true ]]; then
+    die "--audit-retention cannot be combined with other action flags"
+  fi
+fi
+if [[ "$INSTALL_LOG_CRON" == true ]]; then
+  if [[ "$ROTATE_KEYS" == true || "$ROTATE_APP_DB" == true \
+        || "$ROTATE_POSTGRES_PASSWORD" == true || "$CHANGE_PORT" == true \
+        || -n "$PORT_FLAG" ]]; then
+    die "--install-log-cron cannot be combined with other action flags"
+  fi
+fi
+
+# --- container-log prune cron (quick standalone action) ---------------------
+# Docker's json-file driver rotates by size only, so nothing enforces the
+# "within 2 weeks" deletion that /privacy § 2(2) states for access-log data.
+# This installs the root cron that does. Runs before preflight: it writes one
+# file and needs no running stack.
+if [[ "$INSTALL_LOG_CRON" == true ]]; then
+  pruner="$SCRIPT_DIR/scripts/prune-container-logs.sh"
+  [[ -x "$pruner" ]] || die "$pruner not found or not executable"
+  [[ "$(id -u)" == "0" ]] || die "--install-log-cron writes /etc/cron.d — re-run with sudo"
+  [[ -d /etc/cron.d ]] || die "/etc/cron.d not present — install the cron by hand (see $pruner --help)"
+  cron_file=/etc/cron.d/bchemxtract-container-logs
+  info "Writing $cron_file"
+  cat >"$cron_file" <<EOF
+# BChemXtractWeb — prune container logs to a 14-day window so that the
+# deletion promised by /privacy § 2(2) actually happens. Managed by
+# \`sudo ./deploy.sh --install-log-cron\`; safe to delete.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+17 4 * * * root $pruner
+EOF
+  chmod 0644 "$cron_file"
+  ok "Installed: prunes container logs daily at 04:17 via $pruner"
+  info 'Verifying the pruner against the running stack (dry run)'
+  "$pruner" --dry-run || warn 'dry run failed — check the output above'
+  exit 0
 fi
 
 # --- preflight --------------------------------------------------------------
@@ -259,6 +314,26 @@ if [[ -n "$PUBCHEM_TOGGLE" ]]; then
   docker compose up -d backend \
     || die 'docker compose up -d backend failed — is the stack deployed? (run ./deploy.sh)'
   [[ "$pubchem_val" == true ]] && ok 'PubChem enrichment enabled.' || ok 'PubChem enrichment disabled.'
+  exit 0
+fi
+
+# --- audit_log retention (quick standalone action) --------------------------
+# `./deploy.sh --audit-retention N` sets AUDIT_LOG_RETENTION_DAYS in .env and
+# recreates the Celery pair that runs the daily prune. audit_log rows carry a
+# raw client IP, so the window is a privacy statement, not just housekeeping.
+if [[ -n "$AUDIT_RETENTION" ]]; then
+  [[ -f .env ]] || die ".env not found — run ./deploy.sh first"
+  info "Setting AUDIT_LOG_RETENTION_DAYS=$AUDIT_RETENTION in .env"
+  update_env_var AUDIT_LOG_RETENTION_DAYS "$AUDIT_RETENTION"
+  if (( AUDIT_RETENTION > 14 )); then
+    warn "§ 3(3) of /privacy states audit entries are deleted after two weeks."
+    warn "Keeping $AUDIT_RETENTION days means that sentence is now wrong — edit"
+    warn 'frontend/src/pages/PrivacyPage.tsx and redeploy the frontend.'
+  fi
+  info 'Recreating celery-worker + celery-beat to apply the new window'
+  docker compose up -d backend celery-worker celery-beat \
+    || die 'docker compose up failed — is the stack deployed? (run ./deploy.sh)'
+  ok "audit_log retention: $AUDIT_RETENTION days"
   exit 0
 fi
 
@@ -677,6 +752,17 @@ cat <<EOF
     Browser SPA flows use the bcx_sid cookie; programmatic callers
     use an admin-minted X-API-Key (see POST /api/admin/api-keys).
 EOF
+
+# --- container-log retention reminder ---------------------------------------
+# Without this cron the container logs (nginx/Uvicorn access lines, client IP
+# included) are only size-capped, never time-expired — which contradicts the
+# "within 2 weeks" deletion stated in § 2(2) of /privacy.
+if [[ ! -f /etc/cron.d/bchemxtract-container-logs ]]; then
+  echo
+  warn 'Container logs are not being time-expired. /privacy § 2(2) promises'
+  warn 'access-log deletion within 2 weeks; Docker only caps them by size.'
+  warn 'Install the prune cron once per host:  sudo ./deploy.sh --install-log-cron'
+fi
 
 # --- DEBUG posture warning --------------------------------------------------
 # In DEBUG mode the stack serves plain HTTP, so the bcx_sid session cookie is

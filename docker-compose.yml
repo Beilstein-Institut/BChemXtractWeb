@@ -19,6 +19,10 @@
 # produces a working stack):
 #   HTTP_PORT=3000        # public-facing nginx port (host)
 #   BACKEND_PORT=8000     # backend FastAPI port (host, loopback-bound only)
+#   AUDIT_LOG_RETENTION_DAYS=14
+#                         # audit_log prune window; raising it means editing
+#                         # § 3(3) of /privacy to match. `./deploy.sh
+#                         # --audit-retention N` sets it.
 
 # YAML anchors for env blocks shared across backend / celery-worker /
 # celery-beat / migrate. Docker Compose treats top-level keys with the
@@ -49,6 +53,9 @@ x-app-env: &app_env
   # PubChem enrichment (opt-in; default off). Toggle with `./deploy.sh --pubchem on|off`.
   PUBCHEM_ENABLED: ${PUBCHEM_ENABLED:-false}
   PUBCHEM_CONTACT_EMAIL: ${PUBCHEM_CONTACT_EMAIL:-}
+  # audit_log prune window (days). Kept short because the rows hold a raw
+  # client IP; /privacy § 3(3) states two weeks. celery-beat reads it.
+  AUDIT_LOG_RETENTION_DAYS: ${AUDIT_LOG_RETENTION_DAYS:-14}
 
 # Celery broker + result backend (Redis). Used by backend (publisher) and
 # both Celery containers (worker, beat).

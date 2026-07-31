@@ -126,8 +126,8 @@ export function TermsPage() {
       />
 
       {/* The institute's mark sits top-right of the terms card, mirroring the
-          Impressum. Fixed white plate — the wordmark is dark navy artwork that
-          must not be recoloured for dark mode. */}
+          Impressum. Transparent artwork; white plate in dark mode only, because
+          the wordmark is dark navy and must not be recoloured. */}
       <section
         aria-labelledby="terms-conditions-heading"
         className="mt-10 rounded-lg border border-border bg-surface p-6 sm:p-8"
@@ -142,7 +142,7 @@ export function TermsPage() {
             alt="Beilstein-Institut"
             width={400}
             height={183}
-            className="h-21 w-auto shrink-0 self-start rounded-md bg-white px-4 py-3"
+            className="h-21 w-auto shrink-0 self-start px-4 py-3 dark:rounded-md dark:bg-white"
           />
         </div>
         <ol
