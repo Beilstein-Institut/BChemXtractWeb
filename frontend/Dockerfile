@@ -9,6 +9,12 @@ COPY frontend/ ./
 # prefixed with VITE_ to client code (envPrefix default).
 ARG BCHEMXTRACT_VERSION=
 ENV VITE_BCHEMXTRACT_VERSION=$BCHEMXTRACT_VERSION
+# Deployment sub-path (e.g. /bchemxtract when a reverse proxy serves the app
+# below the origin root). Baked in at build time because Vite rewrites asset
+# URLs during the build — it cannot be changed on a prebuilt image. Empty
+# means "origin root". Must match the prefix the edge nginx strips.
+ARG BASE_PATH=
+ENV VITE_BASE_PATH=$BASE_PATH
 RUN npm run build
 
 # Stage 2: Serve with Nginx

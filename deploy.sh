@@ -5,6 +5,19 @@
 #   ./deploy.sh                  # full deploy: secrets + JAR + docker compose up
 #   ./deploy.sh --port N         # set public HTTP port (host) — default 3000
 #   ./deploy.sh --change-port    # re-prompt for the public HTTP port
+#   ./deploy.sh --base-path P    # serve the app below the origin root, e.g.
+#                                # --base-path /bchemxtract when a reverse
+#                                # proxy maps https://host/bchemxtract here.
+#                                # Baked into the SPA at build time; use
+#                                # --base-path / to reset to the root.
+#   ./deploy.sh --public-url U   # non-interactive PRODUCTION posture: sets
+#                                # DEBUG=false, CORS_ORIGINS to U's origin and
+#                                # BASE_PATH to U's path. U must be https://.
+#                                # e.g. --public-url https://host/bchemxtract
+#   ./deploy.sh --localhost      # non-interactive LOCALHOST posture: sets
+#                                # DEBUG=true + CORS_ORIGINS to the local port
+#                                # (plain HTTP, /docs exposed, cookie not
+#                                # Secure). The interactive default.
 #   ./deploy.sh --pubchem on|off # enable/disable PubChem enrichment, then
 #                                # recreate the backend (no image rebuild)
 #   ./deploy.sh --audit-retention N
@@ -44,7 +57,7 @@ warn() { printf '%s ! %s %s\n' "$C_YELLOW" "$C_RESET" "$*"; }
 die()  { printf '%s ✗ %s %s\n' "$C_RED"    "$C_RESET" "$*" >&2; exit 1; }
 
 usage() {
-  sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 }
 
@@ -54,6 +67,10 @@ ROTATE_APP_DB=false
 ROTATE_POSTGRES_PASSWORD=false
 CHANGE_PORT=false
 PORT_FLAG=""
+BASE_PATH_FLAG=""
+BASE_PATH_SET=false
+PUBLIC_URL_FLAG=""
+LOCALHOST_FLAG=false
 PUBCHEM_TOGGLE=""
 AUDIT_RETENTION=""
 INSTALL_LOG_CRON=false
@@ -68,6 +85,11 @@ while [[ $# -gt 0 ]]; do
     --change-port)              CHANGE_PORT=true; shift ;;
     --port)                     [[ $# -ge 2 ]] || die "--port requires a value"; PORT_FLAG="$2"; shift 2 ;;
     --port=*)                   PORT_FLAG="${1#*=}"; shift ;;
+    --base-path)                [[ $# -ge 2 ]] || die "--base-path requires a value"; BASE_PATH_FLAG="$2"; BASE_PATH_SET=true; shift 2 ;;
+    --base-path=*)              BASE_PATH_FLAG="${1#*=}"; BASE_PATH_SET=true; shift ;;
+    --public-url)               [[ $# -ge 2 ]] || die "--public-url requires a value"; PUBLIC_URL_FLAG="$2"; shift 2 ;;
+    --public-url=*)             PUBLIC_URL_FLAG="${1#*=}"; shift ;;
+    --localhost)                LOCALHOST_FLAG=true; shift ;;
     --pubchem)                  [[ $# -ge 2 ]] || die "--pubchem requires on|off"; PUBCHEM_TOGGLE="$2"; shift 2 ;;
     --pubchem=*)                PUBCHEM_TOGGLE="${1#*=}"; shift ;;
     -h|--help)                  usage ;;
@@ -92,6 +114,20 @@ n_rot=0
 if [[ -n "$PORT_FLAG" && "$CHANGE_PORT" == true ]]; then
   die "--port and --change-port are mutually exclusive"
 fi
+if [[ "$BASE_PATH_SET" == true ]]; then
+  # Normalise to either "" (origin root) or "/segment[/segment...]" — no
+  # trailing slash. Vite and the nginx rewrite both want that exact shape.
+  BASE_PATH_FLAG="/$(printf '%s' "$BASE_PATH_FLAG" | sed 's#^/*##; s#/*$##')"
+  [[ "$BASE_PATH_FLAG" == "/" ]] && BASE_PATH_FLAG=""
+  if [[ -n "$BASE_PATH_FLAG" && ! "$BASE_PATH_FLAG" =~ ^(/[A-Za-z0-9._~-]+)+$ ]]; then
+    die "--base-path must look like /bchemxtract (got: $BASE_PATH_FLAG)"
+  fi
+  # A ".." segment is normalised away by the browser, so it would never appear
+  # in a request path and the prefix could never match.
+  if [[ "$BASE_PATH_FLAG" == */../* || "$BASE_PATH_FLAG" == */.. ]]; then
+    die "--base-path may not contain a \"..\" segment (got: $BASE_PATH_FLAG)"
+  fi
+fi
 if [[ -n "$PUBCHEM_TOGGLE" ]]; then
   case "$PUBCHEM_TOGGLE" in
     on|off) ;;
@@ -99,7 +135,8 @@ if [[ -n "$PUBCHEM_TOGGLE" ]]; then
   esac
   if [[ "$ROTATE_KEYS" == true || "$ROTATE_APP_DB" == true \
         || "$ROTATE_POSTGRES_PASSWORD" == true || "$CHANGE_PORT" == true \
-        || -n "$PORT_FLAG" || -n "$AUDIT_RETENTION" || "$INSTALL_LOG_CRON" == true ]]; then
+        || -n "$PORT_FLAG" || -n "$AUDIT_RETENTION" || "$INSTALL_LOG_CRON" == true \
+        || "$BASE_PATH_SET" == true ]]; then
     die "--pubchem cannot be combined with other action flags"
   fi
 fi
@@ -108,7 +145,8 @@ if [[ -n "$AUDIT_RETENTION" ]]; then
     || die "--audit-retention requires a positive whole number of days (got: $AUDIT_RETENTION)"
   if [[ "$ROTATE_KEYS" == true || "$ROTATE_APP_DB" == true \
         || "$ROTATE_POSTGRES_PASSWORD" == true || "$CHANGE_PORT" == true \
-        || -n "$PORT_FLAG" || "$INSTALL_LOG_CRON" == true ]]; then
+        || -n "$PORT_FLAG" || "$INSTALL_LOG_CRON" == true \
+        || "$BASE_PATH_SET" == true ]]; then
     die "--audit-retention cannot be combined with other action flags"
   fi
 fi
@@ -225,7 +263,128 @@ select_http_port() {
       printf '%s' "$port"
       return 0
     fi
-    warn "invalid port: $port (must be 1-65535)"
+    # >&2 because this function's stdout is captured as the chosen port; without
+    # it the warning text would be prepended to HTTP_PORT in .env.
+    warn "invalid port: $port (must be 1-65535)" >&2
+  done
+}
+
+# --- public-URL helpers -----------------------------------------------------
+# A production posture is defined by ONE fact: the URL users type. Everything
+# else (CORS_ORIGINS, DEBUG, BASE_PATH, the cookie's Secure flag) is derived
+# from it, so the operator never has to keep three .env values consistent
+# by hand.
+
+validate_public_url() {
+  # $1 = candidate URL. Emits the reason on stderr and returns 1 when unusable.
+  local url="${1%/}"
+  if [[ ! "$url" =~ ^https?://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]+)?(/[A-Za-z0-9._~-]+)*$ ]]; then
+    warn "not a usable URL: $1"
+    warn 'expected something like https://cheminfo.beilstein.org/bchemxtract'
+    return 1
+  fi
+  if [[ "$url" == http://* ]]; then
+    # Not pedantry: with DEBUG=false the backend sets the bcx_sid cookie
+    # Secure, and a browser silently DISCARDS a Secure cookie over plain
+    # HTTP — every request would arrive session-less. Either terminate TLS
+    # or use the localhost posture.
+    warn 'production requires https:// — over plain HTTP the browser drops the'
+    warn 'Secure session cookie and nothing can hold a session.'
+    return 1
+  fi
+  if [[ "$url" == *localhost* || "$url" == *127.0.0.1* ]]; then
+    warn 'a localhost origin is the localhost posture — pick that instead.'
+    return 1
+  fi
+  if [[ "$url" == */../* || "$url" == */.. ]]; then
+    # Browsers normalise a ".." segment away before sending, so it can never
+    # appear in a request path — a BASE_PATH built from one would match nothing.
+    warn 'the path may not contain a ".." segment'
+    return 1
+  fi
+  return 0
+}
+
+url_origin() {
+  # scheme://host[:port] — the only shape CORS_ORIGINS accepts (never a path).
+  local url="${1%/}" rest
+  rest="${url#*://}"
+  printf '%s://%s' "${url%%://*}" "${rest%%/*}"
+}
+
+url_path() {
+  # "" or "/segment[/segment...]" — becomes BASE_PATH.
+  local url="${1%/}" rest host
+  rest="${url#*://}"
+  host="${rest%%/*}"
+  printf '%s' "${rest#"$host"}"
+}
+
+select_deployment_posture() {
+  # Outputs the chosen public URL on stdout, "" for the localhost posture, or
+  # "KEEP" when it must not touch .env. Prompt goes to stderr.
+  # Args: $1 = current posture (localhost|production), $2 = suggested URL,
+  #       $3 = host HTTP port.
+  local current="$1" suggested="$2" port="$3" ans url
+
+  # Non-TTY (CI, piped input) → never rewrite the operator's posture silently.
+  if ! [[ -t 0 ]]; then
+    printf 'KEEP'
+    return 0
+  fi
+
+  local default_choice=1
+  [[ "$current" == "production" ]] && default_choice=2
+
+  {
+    printf '\n%s==>%s Deployment posture\n\n' "$C_BLUE" "$C_RESET"
+    printf '  1) localhost — plain HTTP on this machine only\n'
+    printf '       DEBUG=true, CORS_ORIGINS=["http://localhost:%s"]\n' "$port"
+    printf '       /docs + /openapi.json exposed, session cookie NOT Secure\n\n'
+    printf '  2) production — reachable from a network, TLS terminated upstream\n'
+    printf '       DEBUG=false, CORS_ORIGINS + BASE_PATH derived from your URL\n'
+    printf '       /docs + /openapi.json disabled, session cookie Secure\n\n'
+    printf '  Whichever you pick, deploy.sh writes .env for you.\n\n'
+  } >&2
+
+  printf '  Posture [%s]: ' "$default_choice" >&2
+  if ! read -r ans; then
+    printf 'KEEP'
+    return 0
+  fi
+  [[ -z "$ans" ]] && ans="$default_choice"
+  case "$ans" in
+    1|localhost|local|dev) printf ''; return 0 ;;
+    2|production|prod) ;;
+    *) warn "unrecognised choice: $ans — keeping the current posture" >&2
+       printf 'KEEP'; return 0 ;;
+  esac
+
+  {
+    printf '\n  Public URL users will open, including any sub-path.\n'
+    printf '  Example: https://cheminfo.beilstein.org/bchemxtract\n\n'
+  } >&2
+  while true; do
+    if [[ -n "$suggested" ]]; then
+      printf '  Public URL [%s]: ' "$suggested" >&2
+    else
+      printf '  Public URL: ' >&2
+    fi
+    if ! read -r url; then
+      printf 'KEEP'
+      return 0
+    fi
+    [[ -z "$url" ]] && url="$suggested"
+    if [[ -z "$url" ]]; then
+      warn 'a URL is required for the production posture' >&2
+      continue
+    fi
+    # `warn` writes to stdout, and this function's stdout IS its return value —
+    # so the validator's output must be redirected to stderr, not its stderr.
+    if validate_public_url "$url" >&2; then
+      printf '%s' "${url%/}"
+      return 0
+    fi
   done
 }
 
@@ -672,29 +831,94 @@ if [[ -z "$(read_env_var BACKEND_PORT)" ]]; then
 fi
 ok "HTTP_PORT=$HTTP_PORT_VALUE ($PORT_SOURCE), BACKEND_PORT=$(read_env_var BACKEND_PORT)"
 
-# --- CORS / DEBUG coherence --------------------------------------------------
-# The backend's `_validate_prod_cors` guard refuses to start when DEBUG=false
-# AND CORS_ORIGINS contains a localhost / 127.0.0.1 origin (cookies served
-# over plain HTTP cannot carry the Secure flag, so a prod-mode deploy with
-# localhost CORS would silently leak the session cookie).
+# --- deployment posture (localhost vs production) ----------------------------
+# DEBUG, CORS_ORIGINS and BASE_PATH have to agree or the stack either refuses
+# to start (the backend's `_validate_prod_cors` guard) or breaks subtly (a
+# Secure cookie over plain HTTP is discarded by the browser; a wrong CORS
+# origin blocks the SPA). Rather than telling the operator to hand-edit three
+# values, derive all of them from one answer: where will users open this?
 #
-# Two distinct paths: bootstrap aligns CORS_ORIGINS to the chosen port and
-# keeps DEBUG=true (.env.example default); existing .env aborts on mismatch
-# rather than rewriting the operator's value.
-if [[ "$BOOTSTRAPPED_ENV" == true ]]; then
-  update_env_var CORS_ORIGINS "[\"http://localhost:${HTTP_PORT_VALUE}\"]"
-else
+# --public-url / --localhost make it non-interactive; a TTY prompts; a non-TTY
+# run without either flag leaves the existing posture untouched.
+POSTURE_URL="KEEP"
+if [[ -n "$PUBLIC_URL_FLAG" ]]; then
+  validate_public_url "$PUBLIC_URL_FLAG" || die "--public-url rejected: $PUBLIC_URL_FLAG"
+  POSTURE_URL="${PUBLIC_URL_FLAG%/}"
+elif [[ "$LOCALHOST_FLAG" == true ]]; then
+  POSTURE_URL=""
+elif [[ "$ROTATE_KEYS" == false && "$ROTATE_APP_DB" == false \
+        && "$ROTATE_POSTGRES_PASSWORD" == false && "$CHANGE_PORT" == false ]]; then
+  CURRENT_CORS="$(read_env_var CORS_ORIGINS)"
+  if [[ "$(read_env_var DEBUG)" == "false" ]]; then
+    CURRENT_POSTURE=production
+  else
+    CURRENT_POSTURE=localhost
+  fi
+  # Suggest the URL the current .env already describes, so a re-deploy is
+  # Enter-Enter and changes nothing.
+  SUGGESTED_URL=""
+  # Positive character class on purpose: the surrounding quotes and brackets of
+  # the JSON-ish CORS_ORIGINS value are simply not in it, so the match stops at
+  # them without this pattern needing a quote character of its own.
+  if [[ "$CURRENT_CORS" =~ (https?://[A-Za-z0-9._~:/-]+) ]]; then
+    SUGGESTED_URL="${BASH_REMATCH[1]}$(read_env_var BASE_PATH)"
+    [[ "$SUGGESTED_URL" == *localhost* || "$SUGGESTED_URL" == *127.0.0.1* ]] && SUGGESTED_URL=""
+  fi
+  POSTURE_URL="$(select_deployment_posture "$CURRENT_POSTURE" "$SUGGESTED_URL" "$HTTP_PORT_VALUE")"
+fi
+
+# A just-bootstrapped .env with no answer (non-TTY first run) IS the localhost
+# posture — .env.example ships DEBUG=true. Take that branch so CORS_ORIGINS
+# gets aligned to the chosen port instead of the template's hardcoded 3000.
+if [[ "$POSTURE_URL" == "KEEP" && "$BOOTSTRAPPED_ENV" == true ]]; then
+  POSTURE_URL=""
+fi
+
+if [[ "$POSTURE_URL" == "KEEP" ]]; then
+  # Posture untouched — still refuse to bring up a combination the backend
+  # will reject on import, so the failure surfaces here and not in a
+  # crash-looping container.
   CORS_VAL="$(read_env_var CORS_ORIGINS)"
   if [[ "$(read_env_var DEBUG)" == "false" && "$CORS_VAL" == *localhost* ]]; then
-    warn 'CORS / DEBUG mismatch detected in .env:'
+    warn 'CORS / DEBUG mismatch in .env:'
     warn "  DEBUG=false  + CORS_ORIGINS=$CORS_VAL"
-    warn 'The backend _validate_prod_cors guard will refuse to start.'
-    warn 'Pick one:'
-    warn '  - Local plain-HTTP dev:  set DEBUG=true in .env'
-    warn '  - Real HTTPS production: set CORS_ORIGINS=["https://your.real.origin"]'
-    warn 'Then re-run deploy.sh.'
-    die 'aborting before compose up — fix .env first'
+    warn 'The backend _validate_prod_cors guard will refuse to start. Fix with:'
+    warn '  ./deploy.sh --localhost                       # plain-HTTP dev'
+    warn '  ./deploy.sh --public-url https://your.origin  # real HTTPS deploy'
+    die 'aborting before compose up'
   fi
+elif [[ -z "$POSTURE_URL" ]]; then
+  update_env_var DEBUG true
+  update_env_var CORS_ORIGINS "[\"http://localhost:${HTTP_PORT_VALUE}\"]"
+  ok "Posture: localhost (DEBUG=true, CORS_ORIGINS=[\"http://localhost:${HTTP_PORT_VALUE}\"])"
+else
+  # DEBUG=false additionally enforces >=32-char secrets. deploy.sh mints those
+  # itself, but a hand-edited .env can be short — catch it before the backend
+  # does, since there the symptom is a crash-looping container.
+  for secret_key_name in SECRET_KEY ADMIN_SECRET; do
+    secret_val="$(read_env_var "$secret_key_name")"
+    if (( ${#secret_val} < 32 )); then
+      warn "$secret_key_name is ${#secret_val} chars; DEBUG=false requires >= 32."
+      warn 'Regenerate ADMIN_SECRET with: ./deploy.sh --rotate-keys'
+      die "aborting: $secret_key_name too short for a production posture"
+    fi
+  done
+  POSTURE_ORIGIN="$(url_origin "$POSTURE_URL")"
+  POSTURE_PATH="$(url_path "$POSTURE_URL")"
+  update_env_var DEBUG false
+  update_env_var CORS_ORIGINS "[\"$POSTURE_ORIGIN\"]"
+  # An explicit --base-path wins; the block further down writes it after this.
+  [[ "$BASE_PATH_SET" == false ]] && update_env_var BASE_PATH "$POSTURE_PATH"
+  ok "Posture: production ($POSTURE_URL)"
+  ok "  DEBUG=false, CORS_ORIGINS=[\"$POSTURE_ORIGIN\"]"
+  if [[ -n "$POSTURE_PATH" ]]; then
+    ok "  BASE_PATH=$POSTURE_PATH"
+    if ! grep -q "rewrite \^${POSTURE_PATH}\$" nginx/nginx.conf.template 2>/dev/null; then
+      warn "nginx/nginx.conf.template does not strip $POSTURE_PATH — update its"
+      warn 'two rewrite rules, or have the upstream proxy strip the prefix.'
+    fi
+  fi
+  warn 'Reminder: TLS must be terminated upstream (nginx here serves plain HTTP).'
 fi
 
 # --- PubChem enrichment (interactive on normal deploys) ---------------------
@@ -710,6 +934,23 @@ if [[ "$ROTATE_KEYS" == false && "$ROTATE_APP_DB" == false \
   update_env_var PUBCHEM_ENABLED "$PUBCHEM_VALUE"
   ok "PUBCHEM_ENABLED=$PUBCHEM_VALUE"
 fi
+
+# --- deployment base path ---------------------------------------------------
+# Only written when --base-path was passed, so a plain re-deploy preserves
+# whatever the operator set previously (same treatment as HTTP_PORT). The
+# frontend image bakes this into every asset / API / route URL at build time,
+# so a change only takes effect via the `compose build` below.
+if [[ "$BASE_PATH_SET" == true ]]; then
+  update_env_var BASE_PATH "$BASE_PATH_FLAG"
+  if [[ -n "$BASE_PATH_FLAG" ]]; then
+    ok "BASE_PATH=$BASE_PATH_FLAG"
+    warn "nginx/nginx.conf.template strips a hardcoded /bchemxtract prefix —"
+    warn "update its two rewrite rules if BASE_PATH is anything else."
+  else
+    ok 'BASE_PATH= (served from the origin root)'
+  fi
+fi
+BASE_PATH_VALUE="$(read_env_var BASE_PATH)"
 
 # --- BChemXtract version --------------------------------------------------
 # Always re-resolved on each deploy (unlike HTTP_PORT, which is a user
@@ -737,12 +978,28 @@ docker compose up -d
 
 echo
 ok 'Stack is up'
-cat <<EOF
+# In a production posture the loopback URL is not what users open, so lead with
+# the public one and label the local address as the origin behind the proxy.
+if [[ "$(read_env_var DEBUG)" == "false" ]]; then
+  PUBLIC_ORIGIN="$(read_env_var CORS_ORIGINS)"
+  [[ "$PUBLIC_ORIGIN" =~ (https?://[A-Za-z0-9._~:/-]+) ]] && PUBLIC_ORIGIN="${BASH_REMATCH[1]}"
+  cat <<EOF
 
   BChemXtract: $BCHEMXTRACT_VERSION
-  Frontend:    http://localhost:$HTTP_PORT_VALUE
-  API:         http://localhost:$HTTP_PORT_VALUE/api
+  Public URL:  $PUBLIC_ORIGIN$BASE_PATH_VALUE/
+  Behind it:   http://localhost:$HTTP_PORT_VALUE$BASE_PATH_VALUE/  (proxy to this)
+  Docs:        disabled (DEBUG=false)
+EOF
+else
+  cat <<EOF
+
+  BChemXtract: $BCHEMXTRACT_VERSION
+  Frontend:    http://localhost:$HTTP_PORT_VALUE$BASE_PATH_VALUE/
+  API:         http://localhost:$HTTP_PORT_VALUE$BASE_PATH_VALUE/api
   Docs:        http://localhost:$HTTP_PORT_VALUE/docs
+EOF
+fi
+cat <<EOF
 
   Tail logs:   docker compose logs -f
   Stop stack:  docker compose down
@@ -777,7 +1034,8 @@ if [[ "$(read_env_var DEBUG)" != "false" ]]; then
   warn 'and /docs + /openapi.json are exposed. Safe for localhost only.'
   warn 'Before exposing this to any network or the internet:'
   warn '  1. Terminate TLS in front of nginx (HTTPS).'
-  warn '  2. Set CORS_ORIGINS=["https://your.real.origin"] in .env.'
-  warn '  3. Set DEBUG=false in .env, then re-run ./deploy.sh.'
+  warn '  2. Re-run with the public URL — it writes .env for you:'
+  warn '       ./deploy.sh --public-url https://your.real.origin'
+  warn '     (or answer "2" at the posture prompt on an interactive run)'
   warn '────────────────────────────────────────────────────────────────'
 fi

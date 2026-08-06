@@ -55,6 +55,7 @@
 import { ShieldCheckIcon } from "lucide-react";
 
 import { PageContainer } from "@/components/layout/PageContainer";
+import { asset } from "@/lib/basePath";
 import { Link } from "@/lib/Link";
 import { LEGAL_LINK_CLASS, LegalPageHeader } from "@/pages/legalShared";
 
@@ -343,7 +344,7 @@ export function PrivacyPage() {
           className="shrink-0 self-start rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <img
-            src="/beilstein-institut-logo-wide.png"
+            src={asset("beilstein-institut-logo-wide.png")}
             alt="Beilstein-Institut"
             width={507}
             height={120}

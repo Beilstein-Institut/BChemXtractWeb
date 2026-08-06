@@ -14,7 +14,7 @@ import { useCsrfToken } from "@/hooks/useCsrfToken";
 import { useExtract } from "@/hooks/useExtract";
 import { useHistory } from "@/hooks/useHistory";
 import { getExtractionReactions, getHistoryDetail } from "@/lib/apiClient";
-import { navigate, ROUTE_CHANGE_EVENT, useRoute } from "@/lib/router";
+import { navigate, ROUTE_CHANGE_EVENT, routePath, useRoute } from "@/lib/router";
 import { cn } from "@/lib/utils";
 import { SEARCH_URL_EVENT } from "@/hooks/useSearchImpl";
 import { BrowsePage } from "@/pages/BrowsePage";
@@ -130,7 +130,7 @@ function App() {
     refreshHistory();
     if (result?.extraction_id) {
       setActiveExtractionId(result.extraction_id);
-      if (window.location.pathname === "/extract") navigate("/browse");
+      if (routePath() === "/extract") navigate("/browse");
     }
   }, [state, result, refreshHistory]);
   /* eslint-enable react-hooks/set-state-in-effect */
