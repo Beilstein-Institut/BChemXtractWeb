@@ -13,6 +13,7 @@
  */
 import { BuildingIcon } from "lucide-react";
 
+import { asset } from "@/lib/basePath";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { LEGAL_LINK_CLASS, LegalPageHeader } from "@/pages/legalShared";
 
@@ -96,7 +97,7 @@ export function ImprintPage() {
             </h2>
           </div>
           <img
-            src="/beilstein-institut-logo.png"
+            src={asset("beilstein-institut-logo.png")}
             alt="Beilstein-Institut"
             width={400}
             height={183}

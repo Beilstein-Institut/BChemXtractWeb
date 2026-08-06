@@ -191,6 +191,33 @@ Validation:
 
 The backend FastAPI is **bound to `127.0.0.1:8000` only**: curl and CLI scripts on the deploy host reach it at `http://127.0.0.1:8000`; other machines cannot. Like `db` and `redis` it is internal by design, so the only public surface is nginx on `HTTP_PORT`. Set `BACKEND_PORT=N` in `.env` to move the host port, or replace the `127.0.0.1` in `docker-compose.yml` with `0.0.0.0` if you really do want the raw API on the network.
 
+### Serving from a sub-path (behind a corporate reverse proxy)
+
+By default the app owns the origin root. To publish it below a prefix instead — e.g. `https://cheminfo.beilstein.org/bchemxtract` — set the prefix once and rebuild:
+
+```bash
+./deploy.sh --base-path /bchemxtract    # --base-path / resets to the root
+```
+
+Vite bakes the prefix into every asset, API, and route URL **at build time**, so changing it always requires the image rebuild that `deploy.sh` performs. A stale build is the classic symptom: the page serves, the boot splash paints, and then hangs forever because `/assets/index-*.js` resolved above the prefix, 404'd as HTML, and got rejected by `nosniff`.
+
+The Apache side can forward the prefix as-is — `nginx/nginx.conf.template` strips it before its own `location` blocks match:
+
+```apache
+ProxyPass        "/bchemxtract" "http://localhost:3000/bchemxtract"
+ProxyPassReverse "/bchemxtract" "http://localhost:3000/bchemxtract"
+ProxyTimeout     1800   # batch progress (SSE) streams stay open up to 30 min
+```
+
+Two things to get right on the proxy host:
+
+- **`ProxyTimeout`** must exceed the longest batch run, or Apache cuts the `/api/batch/{id}/progress` SSE stream mid-batch. Extraction itself needs ≥130 s.
+- **Don't let `mod_deflate` buffer `text/event-stream`**, or progress events arrive in one lump at the end.
+
+And in `.env`, set `CORS_ORIGINS` to the **public origin without the path** (`["https://cheminfo.beilstein.org"]`). That is also what flips the `bcx_sid` cookie to `Secure` — see **Production posture switch** below.
+
+The prefix that nginx strips is hardcoded in `nginx/nginx.conf.template` (two `rewrite` lines); change it there too if you use anything other than `/bchemxtract`. Alternatively, have Apache strip the prefix itself (`ProxyPass "/bchemxtract/" "http://localhost:3000/"` plus `RedirectMatch ^/bchemxtract$ /bchemxtract/`) and delete those two rewrites, which keeps the prefix defined in exactly one place.
+
 ### Rotating secrets
 
 Every `./deploy.sh` run probes the live database with the current `.env` credentials before bringing the stack up, and aborts with the matching rotation command if either the bootstrap superuser or the `bchemxtract_app` role rejects auth, so a hand-edited `.env` can't crash `migrate` silently. (The probe is a no-op on a fresh deploy.) Three rotation flags:
@@ -232,11 +259,35 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 - **`SECRET_KEY`**: PBKDF2 salt for API-key lookup hashes and HMAC key for CSRF tokens. **Do not** rotate without coordinating a full API-key re-issue; rotating it invalidates every stored key hash and every outstanding CSRF token. `deploy.sh --rotate-keys` deliberately leaves it alone.
 - **`ADMIN_SECRET`**: gate for `POST/GET/DELETE /api/admin/api-keys`. Constant-time compared against the `X-Admin-Secret` request header. Safe to rotate via `./deploy.sh --rotate-keys`.
 
-**Production posture switch.** `deploy.sh` brings the stack up on plain-HTTP `http://localhost:${HTTP_PORT}`, so the default `.env` ships with `DEBUG=true` and `CORS_ORIGINS=["http://localhost:${HTTP_PORT}"]`. To run a real HTTPS deployment:
+**Production posture switch.** `DEBUG`, `CORS_ORIGINS` and `BASE_PATH` have to agree, so `deploy.sh` derives all three from one answer — the URL users will open — instead of asking you to hand-edit `.env`. An interactive run prompts:
 
-1. Put HTTPS termination in front of the stack (cloudflared, an external reverse proxy, or a TLS-terminating nginx replacing the one in `docker-compose.yml`).
-2. Edit `.env`: `DEBUG=false` and `CORS_ORIGINS=["https://your.public.origin"]` (no `localhost` entries; the `_validate_prod_cors` backend guard refuses to start otherwise).
-3. `docker compose restart backend celery-worker celery-beat`. The `bcx_sid` cookie then carries the `Secure` flag and the secret-length validators enforce ≥32 chars on `SECRET_KEY` / `ADMIN_SECRET` / `APP_DB_PASSWORD`.
+```
+==> Deployment posture
+
+  1) localhost — plain HTTP on this machine only
+       DEBUG=true, CORS_ORIGINS=["http://localhost:3000"]
+       /docs + /openapi.json exposed, session cookie NOT Secure
+
+  2) production — reachable from a network, TLS terminated upstream
+       DEBUG=false, CORS_ORIGINS + BASE_PATH derived from your URL
+       /docs + /openapi.json disabled, session cookie Secure
+```
+
+Picking **2** asks for the public URL and writes the rest. Non-interactively:
+
+```bash
+./deploy.sh --public-url https://cheminfo.beilstein.org/bchemxtract   # production
+./deploy.sh --localhost                                              # back to dev
+```
+
+From `https://cheminfo.beilstein.org/bchemxtract` it writes `DEBUG=false`, `CORS_ORIGINS=["https://cheminfo.beilstein.org"]` (origin only — CORS never takes a path) and `BASE_PATH=/bchemxtract`. An explicit `--base-path` still wins over the URL's path.
+
+You still have to **terminate TLS upstream yourself** — the bundled nginx serves plain HTTP. Everything else is enforced for you:
+
+- `https://` is required. Over plain HTTP the browser discards the `Secure` `bcx_sid` cookie, so every request would arrive session-less — `--public-url http://…` is rejected rather than left to fail confusingly at runtime.
+- A `localhost` URL is rejected too: that's posture 1.
+- `DEBUG=false` requires ≥32-char `SECRET_KEY` / `ADMIN_SECRET`. `deploy.sh` mints those itself, but a hand-shortened value aborts the deploy with the `--rotate-keys` fix instead of crash-looping the backend.
+- A re-deploy with no flags and no TTY never silently downgrades a production posture; a hand-edited `DEBUG=false` + localhost CORS combination (which the backend's `_validate_prod_cors` guard rejects on import) aborts before `compose up`.
 
 </details>
 
@@ -276,8 +327,12 @@ cd backend && pytest                                      # full suite
 cd backend && pytest tests/test_substructure_algorithm.py # a single file
 
 # Frontend
-cd frontend && npm run test                               # full suite (Vitest)
+cd frontend && npx vitest run                             # full suite (Vitest)
 cd frontend && npx vitest run src/hooks/useSearchImpl.test.ts
+
+# deploy.sh (not in CI — needs docker/git stubs, takes a few minutes)
+bash tests/test_deploy_port.sh          # ports, base path, posture (.env writes)
+python3 tests/test_deploy_prompts.py    # the interactive prompts, via a pty
 
 # CI-equivalent green check before pushing
 cd backend && ruff check . && ruff format --check .

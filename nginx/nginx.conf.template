@@ -17,6 +17,23 @@ server {
     set $frontend_upstream "http://frontend:80";
     set $backend_upstream  "http://backend:8000";
 
+    # Deployment sub-path absorber.
+    #
+    # The production Apache vhost proxies
+    #   /bchemxtract -> http://localhost:3000/bchemxtract
+    # with the prefix PRESERVED. Prefix `location` blocks match from the START
+    # of the URI, so /bchemxtract/api/... would NOT match `location /api/` —
+    # it would fall into `location /`, be served the SPA's index.html with a
+    # 200, and every API call would silently receive HTML instead of JSON.
+    # Strip the prefix here so the existing locations match unchanged.
+    #
+    # Must stay in sync with BASE_PATH in .env, which is what the frontend
+    # build bakes into its asset and API URLs. No-op when the prefix is absent,
+    # so direct :3000 access, both container healthchecks, and local dev are
+    # unaffected. `last` re-runs location matching on the rewritten URI.
+    rewrite ^/bchemxtract$      /  last;
+    rewrite ^/bchemxtract(/.*)$ $1 last;
+
     # Frontend SPA (proxied to frontend container)
     location / {
         proxy_pass $frontend_upstream;

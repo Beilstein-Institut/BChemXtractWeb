@@ -10,11 +10,11 @@ per-workspace licensing.
 Drop `.woff2` files here with these exact names. `@font-face` rules in
 `frontend/src/styles/clan-pro.css` reference these paths verbatim:
 
-| file                           | css `font-weight` | css `font-style` |
-| ------------------------------ | ----------------- | ---------------- |
-| `clan-pro-regular.woff2`       | `400`             | `normal`         |
-| `clan-pro-medium.woff2`        | `500`             | `normal`         |
-| `clan-pro-bold.woff2`          | `700`             | `normal`         |
+| file                     | css `font-weight` | css `font-style` |
+| ------------------------ | ----------------- | ---------------- |
+| `clan-pro-regular.woff2` | `400`             | `normal`         |
+| `clan-pro-medium.woff2`  | `500`             | `normal`         |
+| `clan-pro-bold.woff2`    | `700`             | `normal`         |
 
 Only `medium` is load-bearing for the current design (the `X` in the
 wordmark uses it). `regular` and `bold` are declared for future use so
@@ -30,6 +30,16 @@ Once the files are present:
 
 Without the files, `@font-face` loading silently fails and the CSS stack
 falls back to `var(--font-display)` (JetBrains Mono). This is intentional.
+
+## Caveat: sub-path deployments
+
+The `url()` paths in `clan-pro.css` are root-absolute (`/fonts/clan-pro/…`),
+which escapes the prefix when the app is served below the origin root (see
+`BASE_PATH` in `.env`) — the fonts 404 and the JetBrains Mono fallback kicks in.
+CSS cannot read `import.meta.env.BASE_URL`, so fixing it means moving these
+files under `frontend/src/` and switching to relative `url()` so Vite hashes
+them and rewrites the URLs with the base path. Left alone for now: the
+stylesheet is not imported by `fonts.css` yet, so nothing loads these paths.
 
 ## License handling
 

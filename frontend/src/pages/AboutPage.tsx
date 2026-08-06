@@ -30,6 +30,7 @@ import { BrandName } from "@/components/BrandName";
 import { Badge } from "@/components/ui/badge";
 import { BackgroundPaths } from "@/components/ui/background-paths";
 import { buttonVariants } from "@/components/ui/button";
+import { asset } from "@/lib/basePath";
 import { Link } from "@/lib/Link";
 
 interface TechEntry {
@@ -72,7 +73,12 @@ const LINKS: LinkEntry[] = [
     description:
       "Open-source cheminformatics library (CDK 2.12) powering string-representation generation.",
     icon: (
-      <img src="/cdk-logo.png" alt="" aria-hidden="true" className="h-5 w-auto object-contain" />
+      <img
+        src={asset("cdk-logo.png")}
+        alt=""
+        aria-hidden="true"
+        className="h-5 w-auto object-contain"
+      />
     ),
   },
 ];

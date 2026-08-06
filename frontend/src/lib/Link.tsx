@@ -4,6 +4,7 @@
  * still open in new tab / window normally.
  */
 import type { AnchorHTMLAttributes, MouseEvent } from "react";
+import { withBase } from "@/lib/basePath";
 import { navigate } from "@/lib/router";
 
 type LinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
@@ -25,7 +26,9 @@ export function Link({ to, onClick, children, ...rest }: LinkProps) {
   }
 
   return (
-    <a href={to} onClick={handleClick} {...rest}>
+    // `to` is root-relative; withBase keeps cmd/middle-click (which bypasses
+    // the click handler and uses the raw href) inside the deployment sub-path.
+    <a href={withBase(to)} onClick={handleClick} {...rest}>
       {children}
     </a>
   );

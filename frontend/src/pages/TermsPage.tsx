@@ -25,6 +25,7 @@
 import { ArrowUpRightIcon, ScaleIcon } from "lucide-react";
 
 import { PageContainer } from "@/components/layout/PageContainer";
+import { asset } from "@/lib/basePath";
 import { Link } from "@/lib/Link";
 import { LEGAL_LINK_CLASS, LegalPageHeader } from "@/pages/legalShared";
 import { cn } from "@/lib/utils";
@@ -138,7 +139,7 @@ export function TermsPage() {
             Terms and conditions of use
           </h2>
           <img
-            src="/beilstein-institut-logo.png"
+            src={asset("beilstein-institut-logo.png")}
             alt="Beilstein-Institut"
             width={400}
             height={183}
