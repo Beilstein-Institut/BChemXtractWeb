@@ -202,6 +202,89 @@ test_invalid_base_path_rejected() {
   fi
 }
 
+test_public_url_sets_production_posture() {
+  # One answer must configure all three coupled values.
+  ./deploy.sh --public-url https://cheminfo.beilstein.org/bchemxtract </dev/null >/dev/null 2>&1
+  assert_env_has DEBUG false
+  assert_env_has CORS_ORIGINS '["https://cheminfo.beilstein.org"]'
+  assert_env_has BASE_PATH /bchemxtract
+}
+
+test_public_url_without_path_clears_base_path() {
+  ./deploy.sh --public-url https://cheminfo.beilstein.org/bchemxtract </dev/null >/dev/null 2>&1
+  ./deploy.sh --public-url https://cheminfo.beilstein.org </dev/null >/dev/null 2>&1
+  assert_env_has CORS_ORIGINS '["https://cheminfo.beilstein.org"]'
+  assert_env_has BASE_PATH ''
+}
+
+test_base_path_flag_beats_public_url_path() {
+  ./deploy.sh --public-url https://host.example.org/fromurl --base-path /explicit \
+    </dev/null >/dev/null 2>&1
+  assert_env_has BASE_PATH /explicit
+}
+
+test_localhost_flag_restores_dev_posture() {
+  ./deploy.sh --public-url https://cheminfo.beilstein.org </dev/null >/dev/null 2>&1
+  HTTP_PORT=9000 ./deploy.sh --localhost </dev/null >/dev/null 2>&1
+  assert_env_has DEBUG true
+  assert_env_has CORS_ORIGINS '["http://localhost:9000"]'
+}
+
+test_http_public_url_rejected() {
+  # A Secure cookie over plain HTTP is discarded by the browser, so a
+  # production posture on http:// cannot hold a session at all.
+  if ./deploy.sh --public-url http://cheminfo.beilstein.org </dev/null >/dev/null 2>&1; then
+    echo "FAIL: http:// --public-url should have errored" >&2
+    return 1
+  fi
+}
+
+test_localhost_public_url_rejected() {
+  if ./deploy.sh --public-url https://localhost:3000 </dev/null >/dev/null 2>&1; then
+    echo "FAIL: a localhost --public-url should have errored" >&2
+    return 1
+  fi
+}
+
+test_garbage_public_url_rejected() {
+  if ./deploy.sh --public-url 'not a url' </dev/null >/dev/null 2>&1; then
+    echo "FAIL: 'not a url' should have errored" >&2
+    return 1
+  fi
+}
+
+test_non_tty_rerun_preserves_production_posture() {
+  # A plain re-deploy (no flags, no TTY) must not silently drop a production
+  # posture back to localhost.
+  ./deploy.sh --public-url https://cheminfo.beilstein.org/bchemxtract </dev/null >/dev/null 2>&1
+  ./deploy.sh </dev/null >/dev/null 2>&1
+  assert_env_has DEBUG false
+  assert_env_has CORS_ORIGINS '["https://cheminfo.beilstein.org"]'
+  assert_env_has BASE_PATH /bchemxtract
+}
+
+test_cors_debug_mismatch_aborts() {
+  # Hand-edited .env that the backend's _validate_prod_cors would reject:
+  # deploy.sh must refuse before `compose up` rather than crash-loop it.
+  ./deploy.sh --localhost </dev/null >/dev/null 2>&1
+  /usr/bin/sed -i.bak 's/^DEBUG=.*/DEBUG=false/' .env && rm -f .env.bak
+  if ./deploy.sh </dev/null >/dev/null 2>&1; then
+    echo "FAIL: DEBUG=false + localhost CORS should have aborted" >&2
+    return 1
+  fi
+}
+
+test_production_posture_rejects_short_secret() {
+  ./deploy.sh --localhost </dev/null >/dev/null 2>&1
+  /usr/bin/sed -i.bak 's/^ADMIN_SECRET=.*/ADMIN_SECRET=tooshort/' .env && rm -f .env.bak
+  if ./deploy.sh --public-url https://cheminfo.beilstein.org </dev/null >/dev/null 2>&1; then
+    echo "FAIL: a <32-char ADMIN_SECRET should block DEBUG=false" >&2
+    return 1
+  fi
+  # And it must not have half-applied the posture.
+  assert_env_has DEBUG true
+}
+
 # --- runner ------------------------------------------------------------------
 
 main() {
@@ -222,6 +305,16 @@ main() {
   run_test "--base-path / resets to origin root"     test_base_path_slash_resets_to_root
   run_test "rerun preserves existing base path"      test_base_path_rerun_preserves_value
   run_test "--base-path with a space rejected"       test_invalid_base_path_rejected
+  run_test "--public-url sets production posture"    test_public_url_sets_production_posture
+  run_test "--public-url w/o path clears BASE_PATH"  test_public_url_without_path_clears_base_path
+  run_test "--base-path overrides --public-url path" test_base_path_flag_beats_public_url_path
+  run_test "--localhost restores dev posture"        test_localhost_flag_restores_dev_posture
+  run_test "http:// --public-url rejected"           test_http_public_url_rejected
+  run_test "localhost --public-url rejected"         test_localhost_public_url_rejected
+  run_test "garbage --public-url rejected"           test_garbage_public_url_rejected
+  run_test "non-tty rerun keeps production posture"  test_non_tty_rerun_preserves_production_posture
+  run_test "CORS/DEBUG mismatch aborts deploy"       test_cors_debug_mismatch_aborts
+  run_test "short secret blocks production posture"  test_production_posture_rejects_short_secret
   echo
   printf '%d passed, %d failed\n' "$PASS" "$FAIL"
   [[ "$FAIL" -eq 0 ]]
