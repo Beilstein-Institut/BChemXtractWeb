@@ -1,6 +1,7 @@
 import { Globe } from "lucide-react";
 
 import { Footer, type FooterTextLink } from "@/components/ui/footer";
+import { asset } from "@/lib/basePath";
 import { Link } from "@/lib/Link";
 
 /**
@@ -142,7 +143,7 @@ export function SiteFooter() {
               className="shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <img
-                src="/Logo_Beilstein_schmal_RGB.svg"
+                src={asset("Logo_Beilstein_schmal_RGB.svg")}
                 alt="Beilstein-Institut"
                 width={876}
                 height={202}

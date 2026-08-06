@@ -1,3 +1,4 @@
+import { withBase } from "@/lib/basePath";
 import { csrfTokenCache, needsCsrf } from "@/lib/csrfTokenCache";
 import type {
   ExtractionResponse,
@@ -99,7 +100,7 @@ async function isCsrfError(response: Response): Promise<boolean> {
  */
 async function refreshCsrfToken(): Promise<void> {
   try {
-    const r = await fetch("/api/csrf-token", { credentials: "include" });
+    const r = await fetch(withBase("/api/csrf-token"), { credentials: "include" });
     if (!r.ok) return;
     const body = await r.json();
     if (typeof body?.csrf_token === "string") {
@@ -115,6 +116,10 @@ async function apiFetch(
   { connectionError, errorPrefix, ...init }: ApiFetchOptions,
 ): Promise<Response> {
   let response: Response;
+
+  // Every caller below passes a root-relative "/api/…" path; the deployment
+  // base path is applied here so no endpoint helper has to know about it.
+  const target = withBase(url);
 
   // State-changing requests carry the CSRF token from the
   // module-level cache (populated by useCsrfToken on mount + on retry below).
@@ -143,7 +148,7 @@ async function apiFetch(
   };
 
   try {
-    response = await fetch(url, enhancedInit);
+    response = await fetch(target, enhancedInit);
   } catch (err) {
     if (isAbortError(err)) throw err;
     throw new Error(connectionError ?? DEFAULT_CONNECTION_ERROR);
@@ -159,7 +164,7 @@ async function apiFetch(
     if (csrfTokenCache.value) retryHeaders["X-CSRF-Token"] = csrfTokenCache.value;
     const retryInit: RequestInit = { ...enhancedInit, headers: retryHeaders };
     try {
-      response = await fetch(url, retryInit);
+      response = await fetch(target, retryInit);
     } catch (err) {
       if (isAbortError(err)) throw err;
       throw new Error(connectionError ?? DEFAULT_CONNECTION_ERROR);
@@ -445,7 +450,9 @@ export async function postBatchStart(files: File[]): Promise<BatchStartResponse>
  * @param batchId - batch_id from BatchStartResponse
  */
 export function getBatchSSEUrl(batchId: string): string {
-  return `/api/batch/${encodeURIComponent(batchId)}/progress`;
+  // withBase because native EventSource resolves this itself — it never goes
+  // through apiFetch, so the deployment base path has to be applied here.
+  return withBase(`/api/batch/${encodeURIComponent(batchId)}/progress`);
 }
 
 /**
@@ -667,7 +674,7 @@ export async function postAuthRestore(code: string): Promise<void> {
  * hook side; this helper just returns the wire shape.
  */
 export async function getCsrfToken(): Promise<CsrfTokenResponse> {
-  const r = await fetch("/api/csrf-token", { credentials: "include" });
+  const r = await fetch(withBase("/api/csrf-token"), { credentials: "include" });
   if (!r.ok) throw new Error(`CSRF token fetch failed — HTTP ${r.status}`);
   return r.json() as Promise<CsrfTokenResponse>;
 }

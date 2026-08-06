@@ -191,6 +191,33 @@ Validation:
 
 The backend FastAPI is **bound to `127.0.0.1:8000` only**: curl and CLI scripts on the deploy host reach it at `http://127.0.0.1:8000`; other machines cannot. Like `db` and `redis` it is internal by design, so the only public surface is nginx on `HTTP_PORT`. Set `BACKEND_PORT=N` in `.env` to move the host port, or replace the `127.0.0.1` in `docker-compose.yml` with `0.0.0.0` if you really do want the raw API on the network.
 
+### Serving from a sub-path (behind a corporate reverse proxy)
+
+By default the app owns the origin root. To publish it below a prefix instead — e.g. `https://cheminfo.beilstein.org/bchemxtract` — set the prefix once and rebuild:
+
+```bash
+./deploy.sh --base-path /bchemxtract    # --base-path / resets to the root
+```
+
+Vite bakes the prefix into every asset, API, and route URL **at build time**, so changing it always requires the image rebuild that `deploy.sh` performs. A stale build is the classic symptom: the page serves, the boot splash paints, and then hangs forever because `/assets/index-*.js` resolved above the prefix, 404'd as HTML, and got rejected by `nosniff`.
+
+The Apache side can forward the prefix as-is — `nginx/nginx.conf.template` strips it before its own `location` blocks match:
+
+```apache
+ProxyPass        "/bchemxtract" "http://localhost:3000/bchemxtract"
+ProxyPassReverse "/bchemxtract" "http://localhost:3000/bchemxtract"
+ProxyTimeout     1800   # batch progress (SSE) streams stay open up to 30 min
+```
+
+Two things to get right on the proxy host:
+
+- **`ProxyTimeout`** must exceed the longest batch run, or Apache cuts the `/api/batch/{id}/progress` SSE stream mid-batch. Extraction itself needs ≥130 s.
+- **Don't let `mod_deflate` buffer `text/event-stream`**, or progress events arrive in one lump at the end.
+
+And in `.env`, set `CORS_ORIGINS` to the **public origin without the path** (`["https://cheminfo.beilstein.org"]`). That is also what flips the `bcx_sid` cookie to `Secure` — see **Production posture switch** below.
+
+The prefix that nginx strips is hardcoded in `nginx/nginx.conf.template` (two `rewrite` lines); change it there too if you use anything other than `/bchemxtract`. Alternatively, have Apache strip the prefix itself (`ProxyPass "/bchemxtract/" "http://localhost:3000/"` plus `RedirectMatch ^/bchemxtract$ /bchemxtract/`) and delete those two rewrites, which keeps the prefix defined in exactly one place.
+
 ### Rotating secrets
 
 Every `./deploy.sh` run probes the live database with the current `.env` credentials before bringing the stack up, and aborts with the matching rotation command if either the bootstrap superuser or the `bchemxtract_app` role rejects auth, so a hand-edited `.env` can't crash `migrate` silently. (The probe is a no-op on a fresh deploy.) Three rotation flags:

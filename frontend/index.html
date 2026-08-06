@@ -2,8 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/bchemxtract-logo.svg" />
-    <link rel="alternate icon" type="image/png" href="/bchemxtract-logo.png" />
+    <!-- %BASE_URL% is Vite's build-time base-path placeholder. Root-absolute
+         hrefs would escape the deployment sub-path when a reverse proxy serves
+         the app below the origin root, so every public/ reference goes through
+         it. Resolves to "/" for dev and root deployments. -->
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%bchemxtract-logo.svg" />
+    <link rel="alternate icon" type="image/png" href="%BASE_URL%bchemxtract-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BChemXtract — Extract chemistry from ChemDraw files</title>
     <!-- Resolve the theme before first paint so the boot splash (and the app)
@@ -11,7 +15,7 @@
          same-origin script (not inline) so it satisfies the production CSP
          `script-src 'self'` with no unsafe-inline/hash/nonce. Synchronous and
          in <head>, so it still runs before the body paints (no FOUC). -->
-    <script src="/theme-init.js"></script>
+    <script src="%BASE_URL%theme-init.js"></script>
     <!-- Boot splash: painted instantly from index.html (before the JS bundle
          loads) and removed by main.tsx the moment React mounts. The fade-IN is
          delayed, so fast/cached loads never see it — only loads slow enough to
@@ -88,7 +92,7 @@
   <body>
     <div id="root"></div>
     <div id="boot-splash" aria-hidden="true">
-      <img src="/bchemxtract-logo.svg" alt="" />
+      <img src="%BASE_URL%bchemxtract-logo.svg" alt="" />
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -165,6 +165,43 @@ test_bchemxtract_version_re_resolved_on_rerun() {
   assert_env_has BCHEMXTRACT_VERSION "v9.9.9-second"
 }
 
+test_base_path_flag_written_to_env() {
+  ./deploy.sh --base-path /bchemxtract </dev/null >/dev/null 2>&1
+  assert_env_has BASE_PATH /bchemxtract
+}
+
+test_base_path_normalised() {
+  # Accept the sloppy forms an operator is likely to type; both Vite and the
+  # nginx rewrite need exactly "/segment" with no trailing slash.
+  ./deploy.sh --base-path bchemxtract/ </dev/null >/dev/null 2>&1
+  assert_env_has BASE_PATH /bchemxtract
+}
+
+test_base_path_slash_resets_to_root() {
+  ./deploy.sh --base-path /bchemxtract </dev/null >/dev/null 2>&1
+  ./deploy.sh --base-path / </dev/null >/dev/null 2>&1
+  # The line must be present and empty — not merely absent, which would also
+  # read as "" but would leave a stale value in a hand-edited .env.
+  if ! grep -qE '^BASE_PATH=$' .env; then
+    echo "FAIL: --base-path / should leave BASE_PATH= (empty) in .env" >&2
+    return 1
+  fi
+}
+
+test_base_path_rerun_preserves_value() {
+  # A user preference like HTTP_PORT: a plain re-deploy must not clear it.
+  ./deploy.sh --base-path /bchemxtract </dev/null >/dev/null 2>&1
+  ./deploy.sh </dev/null >/dev/null 2>&1
+  assert_env_has BASE_PATH /bchemxtract
+}
+
+test_invalid_base_path_rejected() {
+  if ./deploy.sh --base-path 'has space' </dev/null >/dev/null 2>&1; then
+    echo "FAIL: --base-path 'has space' should have errored" >&2
+    return 1
+  fi
+}
+
 # --- runner ------------------------------------------------------------------
 
 main() {
@@ -180,6 +217,11 @@ main() {
   run_test "--port + --change-port rejected"         test_mutually_exclusive_flags_rejected
   run_test "BChemXtract version written to .env"     test_bchemxtract_version_written_to_env
   run_test "BChemXtract version re-resolved on rerun" test_bchemxtract_version_re_resolved_on_rerun
+  run_test "--base-path written to .env"             test_base_path_flag_written_to_env
+  run_test "--base-path normalised to /segment"      test_base_path_normalised
+  run_test "--base-path / resets to origin root"     test_base_path_slash_resets_to_root
+  run_test "rerun preserves existing base path"      test_base_path_rerun_preserves_value
+  run_test "--base-path with a space rejected"       test_invalid_base_path_rejected
   echo
   printf '%d passed, %d failed\n' "$PASS" "$FAIL"
   [[ "$FAIL" -eq 0 ]]

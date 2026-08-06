@@ -5,6 +5,11 @@
 #   ./deploy.sh                  # full deploy: secrets + JAR + docker compose up
 #   ./deploy.sh --port N         # set public HTTP port (host) — default 3000
 #   ./deploy.sh --change-port    # re-prompt for the public HTTP port
+#   ./deploy.sh --base-path P    # serve the app below the origin root, e.g.
+#                                # --base-path /bchemxtract when a reverse
+#                                # proxy maps https://host/bchemxtract here.
+#                                # Baked into the SPA at build time; use
+#                                # --base-path / to reset to the root.
 #   ./deploy.sh --pubchem on|off # enable/disable PubChem enrichment, then
 #                                # recreate the backend (no image rebuild)
 #   ./deploy.sh --audit-retention N
@@ -44,7 +49,7 @@ warn() { printf '%s ! %s %s\n' "$C_YELLOW" "$C_RESET" "$*"; }
 die()  { printf '%s ✗ %s %s\n' "$C_RED"    "$C_RESET" "$*" >&2; exit 1; }
 
 usage() {
-  sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 }
 
@@ -54,6 +59,8 @@ ROTATE_APP_DB=false
 ROTATE_POSTGRES_PASSWORD=false
 CHANGE_PORT=false
 PORT_FLAG=""
+BASE_PATH_FLAG=""
+BASE_PATH_SET=false
 PUBCHEM_TOGGLE=""
 AUDIT_RETENTION=""
 INSTALL_LOG_CRON=false
@@ -68,6 +75,8 @@ while [[ $# -gt 0 ]]; do
     --change-port)              CHANGE_PORT=true; shift ;;
     --port)                     [[ $# -ge 2 ]] || die "--port requires a value"; PORT_FLAG="$2"; shift 2 ;;
     --port=*)                   PORT_FLAG="${1#*=}"; shift ;;
+    --base-path)                [[ $# -ge 2 ]] || die "--base-path requires a value"; BASE_PATH_FLAG="$2"; BASE_PATH_SET=true; shift 2 ;;
+    --base-path=*)              BASE_PATH_FLAG="${1#*=}"; BASE_PATH_SET=true; shift ;;
     --pubchem)                  [[ $# -ge 2 ]] || die "--pubchem requires on|off"; PUBCHEM_TOGGLE="$2"; shift 2 ;;
     --pubchem=*)                PUBCHEM_TOGGLE="${1#*=}"; shift ;;
     -h|--help)                  usage ;;
@@ -92,6 +101,15 @@ n_rot=0
 if [[ -n "$PORT_FLAG" && "$CHANGE_PORT" == true ]]; then
   die "--port and --change-port are mutually exclusive"
 fi
+if [[ "$BASE_PATH_SET" == true ]]; then
+  # Normalise to either "" (origin root) or "/segment[/segment...]" — no
+  # trailing slash. Vite and the nginx rewrite both want that exact shape.
+  BASE_PATH_FLAG="/$(printf '%s' "$BASE_PATH_FLAG" | sed 's#^/*##; s#/*$##')"
+  [[ "$BASE_PATH_FLAG" == "/" ]] && BASE_PATH_FLAG=""
+  if [[ -n "$BASE_PATH_FLAG" && ! "$BASE_PATH_FLAG" =~ ^(/[A-Za-z0-9._~-]+)+$ ]]; then
+    die "--base-path must look like /bchemxtract (got: $BASE_PATH_FLAG)"
+  fi
+fi
 if [[ -n "$PUBCHEM_TOGGLE" ]]; then
   case "$PUBCHEM_TOGGLE" in
     on|off) ;;
@@ -99,7 +117,8 @@ if [[ -n "$PUBCHEM_TOGGLE" ]]; then
   esac
   if [[ "$ROTATE_KEYS" == true || "$ROTATE_APP_DB" == true \
         || "$ROTATE_POSTGRES_PASSWORD" == true || "$CHANGE_PORT" == true \
-        || -n "$PORT_FLAG" || -n "$AUDIT_RETENTION" || "$INSTALL_LOG_CRON" == true ]]; then
+        || -n "$PORT_FLAG" || -n "$AUDIT_RETENTION" || "$INSTALL_LOG_CRON" == true \
+        || "$BASE_PATH_SET" == true ]]; then
     die "--pubchem cannot be combined with other action flags"
   fi
 fi
@@ -108,7 +127,8 @@ if [[ -n "$AUDIT_RETENTION" ]]; then
     || die "--audit-retention requires a positive whole number of days (got: $AUDIT_RETENTION)"
   if [[ "$ROTATE_KEYS" == true || "$ROTATE_APP_DB" == true \
         || "$ROTATE_POSTGRES_PASSWORD" == true || "$CHANGE_PORT" == true \
-        || -n "$PORT_FLAG" || "$INSTALL_LOG_CRON" == true ]]; then
+        || -n "$PORT_FLAG" || "$INSTALL_LOG_CRON" == true \
+        || "$BASE_PATH_SET" == true ]]; then
     die "--audit-retention cannot be combined with other action flags"
   fi
 fi
@@ -711,6 +731,23 @@ if [[ "$ROTATE_KEYS" == false && "$ROTATE_APP_DB" == false \
   ok "PUBCHEM_ENABLED=$PUBCHEM_VALUE"
 fi
 
+# --- deployment base path ---------------------------------------------------
+# Only written when --base-path was passed, so a plain re-deploy preserves
+# whatever the operator set previously (same treatment as HTTP_PORT). The
+# frontend image bakes this into every asset / API / route URL at build time,
+# so a change only takes effect via the `compose build` below.
+if [[ "$BASE_PATH_SET" == true ]]; then
+  update_env_var BASE_PATH "$BASE_PATH_FLAG"
+  if [[ -n "$BASE_PATH_FLAG" ]]; then
+    ok "BASE_PATH=$BASE_PATH_FLAG"
+    warn "nginx/nginx.conf.template strips a hardcoded /bchemxtract prefix —"
+    warn "update its two rewrite rules if BASE_PATH is anything else."
+  else
+    ok 'BASE_PATH= (served from the origin root)'
+  fi
+fi
+BASE_PATH_VALUE="$(read_env_var BASE_PATH)"
+
 # --- BChemXtract version --------------------------------------------------
 # Always re-resolved on each deploy (unlike HTTP_PORT, which is a user
 # preference). Both the backend Dockerfile and the frontend Vite build
@@ -740,8 +777,8 @@ ok 'Stack is up'
 cat <<EOF
 
   BChemXtract: $BCHEMXTRACT_VERSION
-  Frontend:    http://localhost:$HTTP_PORT_VALUE
-  API:         http://localhost:$HTTP_PORT_VALUE/api
+  Frontend:    http://localhost:$HTTP_PORT_VALUE$BASE_PATH_VALUE/
+  API:         http://localhost:$HTTP_PORT_VALUE$BASE_PATH_VALUE/api
   Docs:        http://localhost:$HTTP_PORT_VALUE/docs
 
   Tail logs:   docker compose logs -f

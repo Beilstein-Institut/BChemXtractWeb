@@ -204,6 +204,13 @@ services:
         # so the footer can render the running version without a live API call.
         # deploy.sh writes BCHEMXTRACT_VERSION to .env before `compose build`.
         BCHEMXTRACT_VERSION: ${BCHEMXTRACT_VERSION:-}
+        # Deployment sub-path (e.g. /bchemxtract) when a reverse proxy serves
+        # the app below the origin root. Vite rewrites every asset, API, and
+        # route URL with it at BUILD time, so changing it needs a rebuild of
+        # this image — and it must match the prefix nginx.conf.template
+        # strips. Empty (the default) means the app is served from the root.
+        # `./deploy.sh --base-path /bchemxtract` sets it.
+        BASE_PATH: ${BASE_PATH:-}
     restart: unless-stopped
     logging: *default_logging
     depends_on:
