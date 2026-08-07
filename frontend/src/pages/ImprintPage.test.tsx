@@ -20,6 +20,7 @@ describe("ImprintPage", () => {
     // Contact numbers are grouped exactly as in the institute's Impressum.
     expect(text).toMatch(/\+49 69 716732-0/);
     expect(text).toMatch(/\+49 69 716732-19/);
+    expect(text).toMatch(/foundation established under civil law/);
     expect(text).toMatch(/Olaf Beckmann-Haag, Dr\. Wendy Patterson/);
     expect(text).toMatch(/\(AZ\): III 21-25d 04\/11-\(12\)-22/);
   });
