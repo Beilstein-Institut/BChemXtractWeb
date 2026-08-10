@@ -12,23 +12,25 @@
  * revisions carried a no-external-hosting statement, a no-web-analytics
  * statement, GDPR article numbers, the supervisory authority's postal
  * address, a page lede, a table of contents, a sourcing note linking the
- * institute's full policy, and a § 2(2) paragraph describing log rotation
- * mechanics; all were removed on request).
+ * institute's full policy, a § 2(2) paragraph describing log rotation
+ * mechanics, a § 3 paragraph describing extraction-record storage and
+ * deletion, a § 3 paragraph stating the GDPR basis for uploads and the
+ * audit log, and a § 3 paragraph citing Section 25 (2) TDDDG; all were
+ * removed on request).
  *
- * The single departure that remains exists because the document would
- * otherwise be false about this application: § 3 replaces "we do not use
- * Cookies or similar technical aids" with what this app actually does —
- * the bcx_sid session cookie, the extraction records, the audit log and
- * browser storage. A privacy policy that understates processing is worse
- * than none. This is reported to the rights holder for their master
- * document.
+ * The departures that remain exist because the document would otherwise be
+ * false about this application: § 2 discloses the audit log, and § 3
+ * replaces "we do not use Cookies or similar technical aids" with what this
+ * app actually does — the bcx_sid session cookie and browser storage. A
+ * privacy policy that understates processing is worse than none. This is
+ * reported to the rights holder for their master document.
  *
  * The controller's postcode is 60487, as in the Impressum — the privacy
  * document says 60486, which is a typo for Trakehner Str. 7-9. Telephone
  * and street are likewise spelled as on the Impressum page so the same
  * address does not appear two ways on one site.
  *
- * What § 3 describes, in code:
+ * What this app does, in code (the policy no longer covers uploads):
  *   - No user accounts. An anonymous session UUID in the `bcx_sid`
  *     cookie (backend/app/core/session.py: 30 days, HttpOnly, Secure,
  *     SameSite=Lax) scopes extraction history via Postgres RLS.
@@ -39,7 +41,7 @@
  *   - Security-relevant events land in audit_log with hashed session
  *     id, raw IP, and user agent (backend/app/services/audit.py); pruned
  *     daily after AUDIT_LOG_RETENTION_DAYS, default 14
- *     (backend/app/tasks/audit_log.py). If that default is raised, § 3(3)
+ *     (backend/app/tasks/audit_log.py). If that default is raised, § 2(3)
  *     below must be edited to match.
  *   - Rate limiter inspects the client IP transiently
  *     (backend/app/middleware/rate_limit.py) — never persisted on
@@ -56,7 +58,6 @@ import { ShieldCheckIcon } from "lucide-react";
 
 import { PageContainer } from "@/components/layout/PageContainer";
 import { asset } from "@/lib/basePath";
-import { Link } from "@/lib/Link";
 import { LEGAL_LINK_CLASS, LegalPageHeader } from "@/pages/legalShared";
 
 const INSTITUTE_URL = "https://www.beilstein-institut.de/en/";
@@ -134,7 +135,7 @@ const TOPICS: Topic[] = [
   },
   {
     id: "website-visit",
-    title: "§ 2 Data processing when you visit our website",
+    title: "§ 2 Data processing when you visit and use our website",
     body: (
       <>
         <p>
@@ -161,10 +162,18 @@ const TOPICS: Topic[] = [
           are exempt from deletion until the respective incident has been finally clarified. The
           collection of data for the provision of the website and the storage of the data in log
           files is absolutely necessary for the operation of the website. Therefore, the user has no
-          right to object.
+          right to object. Insofar as you use the functions of our website, the processing of the
+          data required for this is also carried out in accordance with Art. 6 (1) lit. b GDPR in
+          order to provide the services you request from us.
         </p>
         <p>
-          (3) Data processing is carried out on the basis of our legal obligation to guarantee IT
+          (3) Security-relevant events (for example session creation, session restore from a
+          recovery code, and data deletion) are recorded in an audit log together with a hashed form
+          of the session identifier, the IP address, and the browser user agent. Audit-log entries
+          are deleted automatically after two weeks.
+        </p>
+        <p>
+          (4) Data processing is carried out on the basis of our legal obligation to guarantee IT
           security in accordance with Art. 6 (1) lit. c in conjunction with Art. 32 GDPR and in
           accordance with Art. 6 (1) lit. f GDPR, as otherwise we would not be able to provide our
           offered services in a functional manner. Your visit to our website is based on your
@@ -176,46 +185,17 @@ const TOPICS: Topic[] = [
   },
   {
     id: "cookies",
-    title: "§ 3 Cookies and data processing when you extract ChemDraw files",
+    title: "§ 3 Cookies",
     body: (
       <>
         <p>
           (1) BChemXtractWeb requires no registration and has no user accounts. Instead, a randomly
           generated anonymous session identifier (a UUID stored in the <code>bcx_sid</code> cookie,
-          see (5) below) associates your extractions with your browser, so that only you can see
+          see (2) below) associates your extractions with your browser, so that only you can see
           your own extraction history.
         </p>
         <p>
-          (2) When you extract a file via the Extract page, your browser sends the selected ChemDraw
-          file (<code>.cdx</code> or <code>.cdxml</code>) to our server. The server parses the file,
-          runs structure extraction via the BChemXtract Java library, and persists an extraction
-          record to our PostgreSQL database together with the extracted chemical structures. The
-          record contains the original file name, file size, format, structure count, processing
-          time, and any warnings emitted by the extractor. Extracted structures are deduplicated by
-          InChIKey and stored as SMILES, InChI, molecular formula, MDL V3000 block, and rendered
-          SVG. These records are retained until you delete them — individually via the{" "}
-          <Link to="/history" className={LEGAL_LINK_CLASS}>
-            History page
-          </Link>
-          , or all at once via "Delete all my data" on the{" "}
-          <Link to="/settings" className={LEGAL_LINK_CLASS}>
-            Settings page
-          </Link>{" "}
-          (an immediate, permanent deletion). Do not upload files that contain personal data.
-        </p>
-        <p>
-          (3) Security-relevant events (for example session creation, session restore from a
-          recovery code, and data deletion) are recorded in an audit log together with a hashed form
-          of the session identifier, the IP address, and the browser user agent. Audit-log entries
-          are deleted automatically after two weeks.
-        </p>
-        <p>
-          (4) The legal basis for processing your uploads is Art. 6 (1) lit. b GDPR (performance of
-          the service you requested); for the audit log it is Art. 6 (1) lit. f GDPR (legitimate
-          interest in the security and abuse-resistance of the service).
-        </p>
-        <p>
-          (5) For functions of the website, technical aids — in particular cookies — may be stored
+          (2) For functions of the website, technical aids — in particular cookies — may be stored
           on your terminal equipment. We use only technically necessary cookies; no optional,
           marketing, or tracking cookies are set, which is why this website shows no consent banner.
           The single cookie used is set with the <code>HttpOnly</code>, <code>Secure</code>, and{" "}
@@ -254,7 +234,7 @@ const TOPICS: Topic[] = [
           You can configure your browser to refuse or delete cookies at any time; in that case your
           extraction history can no longer be associated with your browser.
         </p>
-        <p>(6) In addition, two entries are stored in your browser's local storage:</p>
+        <p>(3) In addition, two entries are stored in your browser's local storage:</p>
         <ul className="ml-5 list-disc space-y-1 marker:text-foreground-muted">
           <li>
             <code>localStorage["bchemxtract-theme"]</code> — your chosen colour theme (
@@ -270,11 +250,6 @@ const TOPICS: Topic[] = [
         <p>
           Both entries remain in your browser, are never sent to the server, and contain no personal
           data. You can clear them at any time through your browser's site-data settings.
-        </p>
-        <p>
-          (7) The storage of and access to this information is carried out in accordance with
-          Section 25 (2) of the German Telecommunications-Digital-Services-Data-Protection-Act
-          (TDDDG) and Art. 6 (1) lit. f GDPR.
         </p>
       </>
     ),
