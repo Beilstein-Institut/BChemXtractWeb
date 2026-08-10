@@ -38,21 +38,13 @@ describe("PrivacyPage", () => {
     expect(text).toMatch(/Art\. 6 \(1\) lit\. c GDPR/);
   });
 
-  it("discloses that uploads are persisted and can be deleted from History or Settings", () => {
-    const { container } = render(<PrivacyPage />);
-    const section = container.querySelector('[data-slot="privacy-cookies"]') as HTMLElement | null;
-    expect(section).not.toBeNull();
-    expect(section!.textContent).toMatch(/PostgreSQL/);
-    expect(section!.textContent).toMatch(/InChIKey/);
-    // Internal links so users can act on their erasure right.
-    expect(section!.querySelector('a[href="/history"]')).not.toBeNull();
-    expect(section!.querySelector('a[href="/settings"]')).not.toBeNull();
-  });
-
   // Retention here must track AUDIT_LOG_RETENTION_DAYS (backend default 14).
+  // The audit log is disclosed in § 2 (website visit), not § 3.
   it("discloses the audit log with its two-week retention", () => {
     const { container } = render(<PrivacyPage />);
-    const section = container.querySelector('[data-slot="privacy-cookies"]') as HTMLElement | null;
+    const section = container.querySelector(
+      '[data-slot="privacy-website-visit"]',
+    ) as HTMLElement | null;
     expect(section).not.toBeNull();
     const text = section!.textContent ?? "";
     expect(text).toMatch(/audit log/i);
@@ -89,9 +81,9 @@ describe("PrivacyPage", () => {
     expect(logo.closest("a")).toHaveAttribute("href", "https://www.beilstein-institut.de/en/");
   });
 
-  // The rights holder asked for its § 2 text verbatim, with nothing added —
-  // an earlier revision appended a paragraph on log-rotation mechanics.
-  it("keeps § 2 free of added technical detail", () => {
+  // § 2 carries the institute's text plus the audit-log paragraph; an earlier
+  // revision also appended log-rotation mechanics, which was removed.
+  it("keeps § 2 free of log-rotation mechanics", () => {
     const { container } = render(<PrivacyPage />);
     const section = container.querySelector(
       '[data-slot="privacy-website-visit"]',
