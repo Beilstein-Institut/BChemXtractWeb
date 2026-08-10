@@ -185,7 +185,7 @@ const TOPICS: Topic[] = [
   },
   {
     id: "cookies",
-    title: "§ 3 Cookies and data processing when you extract ChemDraw files",
+    title: "§ 3 Cookies",
     body: (
       <>
         <p>
