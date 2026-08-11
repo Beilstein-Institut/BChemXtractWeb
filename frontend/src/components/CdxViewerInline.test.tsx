@@ -65,7 +65,7 @@ describe("CdxViewerInline", () => {
   it("renders the CdxViewer (an <img>) once state is success", () => {
     mockHookState = { state: "success", svg: "<svg><g/></svg>", errorCode: null };
     render(<CdxViewerInline extractionId={7} open />);
-    expect(screen.getByRole("img", { name: /original chemdraw/i })).toHaveAttribute(
+    expect(screen.getByRole("img", { name: /original drawing/i })).toHaveAttribute(
       "src",
       "blob:cdx",
     );

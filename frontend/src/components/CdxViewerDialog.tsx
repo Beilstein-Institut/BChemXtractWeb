@@ -84,7 +84,7 @@ export function CdxViewerDialog({ extractionId, iconOnly }: CdxViewerDialogProps
       </DialogTrigger>
       <DialogContent size="lg" className="flex h-[85vh] w-[92vw] max-w-[95vw] flex-col">
         <DialogHeader>
-          <DialogTitle>Original ChemDraw (as drawn)</DialogTitle>
+          <DialogTitle>Original page (as drawn)</DialogTitle>
         </DialogHeader>
 
         {state === "loading" && (
@@ -115,7 +115,7 @@ export function CdxViewerDialog({ extractionId, iconOnly }: CdxViewerDialogProps
 
         {state === "success" && svg && (
           <div className="min-h-0 flex-1">
-            <CdxViewer svg={svg} title="Original ChemDraw" />
+            <CdxViewer svg={svg} title="Original drawing" />
           </div>
         )}
       </DialogContent>

@@ -64,7 +64,7 @@ const THIRD_PARTY: ThirdPartyEntry[] = [
     name: "BChemXtract",
     href: "https://github.com/Beilstein-Institut/BChemXtract",
     spdx: "MIT",
-    note: "Pure-Java ChemDraw extractor. Bundled in backend/jars/ at build time. © 2025 Beilstein Institute for the Advancement of Chemical Sciences.",
+    note: "Pure-Java CDX/CDXML extractor. Bundled in backend/jars/ at build time. © 2025 Beilstein Institute for the Advancement of Chemical Sciences.",
   },
   {
     name: "Chemistry Development Kit (CDK 2.12)",

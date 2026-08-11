@@ -401,13 +401,13 @@ export function StructureSheet({
                                 : "text-neutral-600 hover:text-neutral-900"
                             } disabled:opacity-50 disabled:hover:text-neutral-600 disabled:cursor-not-allowed`}
                           >
-                            ChemDraw
+                            As drawn
                           </button>
                         }
                       />
                       <TooltipContent className="max-w-[280px]">
                         {substance?.svg_cdx
-                          ? "Original 2D coordinates from the uploaded ChemDraw file. Matches the uploaded file."
+                          ? "Original 2D coordinates from the uploaded file. Matches the drawing as you made it."
                           : "Original coordinates unavailable for this structure."}
                       </TooltipContent>
                     </Tooltip>

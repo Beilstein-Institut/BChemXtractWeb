@@ -190,7 +190,7 @@ export function BrowsePage({
           <EmptyState
             icon={FileUpIcon}
             title="No extraction loaded"
-            message="Upload a ChemDraw file or open a past extraction from your history to start browsing."
+            message="Upload a CDX or CDXML file, or open a past extraction from your history, to start browsing."
             action={
               <div className="flex flex-wrap justify-center gap-3">
                 <Link to="/extract" className={buttonVariants({ size: "lg" }) + " gap-2"}>

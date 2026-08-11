@@ -107,7 +107,7 @@ export function HistoryPage({
           <EmptyState
             icon={FileUpIcon}
             title="No extractions yet"
-            message="Upload your first ChemDraw file to build up a searchable history."
+            message="Upload your first CDX or CDXML file to build up a searchable history."
             action={
               <Link to="/extract" className={buttonVariants({ size: "lg" })}>
                 Upload a file
