@@ -21,7 +21,7 @@ function announceOnce(): void {
   localStorage.setItem(NOTICE_KEY, "true");
   toast("Your structures are being matched against PubChem", {
     description:
-      "Only chemical identifiers are sent to the U.S. NIH service — no personal data. Turn it off for unpublished work.",
+      "Only chemical identifiers are sent — no personal data. Turn it off for unpublished work.",
     duration: 12000,
     action: { label: "Settings", onClick: () => navigate("/settings") },
   });
