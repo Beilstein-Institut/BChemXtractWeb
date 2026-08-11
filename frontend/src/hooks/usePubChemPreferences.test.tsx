@@ -20,13 +20,23 @@ afterEach(() => {
 });
 
 describe("usePubChemPreferences", () => {
-  it("defaults to disabled", () => {
+  it("defaults to enabled when the user has never chosen", () => {
+    const { result } = renderHook(() => usePubChemPreferences(), { wrapper });
+    expect(result.current.enabled).toBe(true);
+  });
+
+  it("respects a stored opt-out", () => {
+    localStorage.setItem("bchemxtract-pubchem-enabled", "false");
     const { result } = renderHook(() => usePubChemPreferences(), { wrapper });
     expect(result.current.enabled).toBe(false);
   });
 
-  it("persists the opt-in to localStorage", () => {
+  it("persists the choice to localStorage", () => {
     const { result } = renderHook(() => usePubChemPreferences(), { wrapper });
+    act(() => result.current.setEnabled(false));
+    expect(result.current.enabled).toBe(false);
+    expect(localStorage.getItem("bchemxtract-pubchem-enabled")).toBe("false");
+
     act(() => result.current.setEnabled(true));
     expect(result.current.enabled).toBe(true);
     expect(localStorage.getItem("bchemxtract-pubchem-enabled")).toBe("true");

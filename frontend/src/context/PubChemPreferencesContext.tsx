@@ -2,7 +2,11 @@ import { createContext, useEffect, useState } from "react";
 import { getPubChemStatus } from "@/lib/apiClient";
 
 export interface PubChemPreferencesState {
-  /** The user's opt-in (persisted to localStorage). */
+  /**
+   * The user's preference (persisted to localStorage). On unless explicitly
+   * turned off, so enrichment works out of the box; the server flag below is
+   * still the hard gate.
+   */
   enabled: boolean;
   setEnabled: (enabled: boolean) => void;
   /**
@@ -27,8 +31,10 @@ export const PubChemPreferencesContext = createContext<PubChemPreferencesState>(
 });
 
 export function PubChemPreferencesProvider({ children }: { children: React.ReactNode }) {
+  // Default on: only an explicit "false" (the user flipped the switch off)
+  // disables it, so an unset key means enabled.
   const [enabled, setEnabledState] = useState<boolean>(
-    () => localStorage.getItem(STORAGE_KEY) === "true",
+    () => localStorage.getItem(STORAGE_KEY) !== "false",
   );
   const [available, setAvailable] = useState<boolean>(false);
 
