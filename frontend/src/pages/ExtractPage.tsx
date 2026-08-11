@@ -133,7 +133,7 @@ export function ExtractPage({
     <PageContainer>
       <header className="mb-8 space-y-3">
         <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-          ChemDraw, read back.
+          Your drawings, read back.
         </h1>
         <p className="max-w-[60ch] text-base text-foreground-muted">
           Drop a CDX or CDXML file. Get structures, reactions, and string representations — SMILES,

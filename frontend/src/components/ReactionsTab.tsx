@@ -183,7 +183,7 @@ export function ReactionsTab({
             </EmptyMedia>
             <EmptyTitle>Re-upload to extract reactions</EmptyTitle>
             <EmptyDescription>
-              Your ChemDraw file isn't in memory — re-select it to extract reactions.
+              Your file isn't in memory — re-select it to extract reactions.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
@@ -259,8 +259,7 @@ export function ReactionsTab({
             </EmptyMedia>
             <EmptyTitle>No reactions detected in this file</EmptyTitle>
             <EmptyDescription>
-              {displayFilename} didn't contain any detectable reactions. Try a different ChemDraw
-              file.
+              {displayFilename} didn't contain any detectable reactions. Try a different file.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -276,7 +275,7 @@ export function ReactionsTab({
             <EmptyTitle>Reaction extraction failed</EmptyTitle>
             <EmptyDescription>
               {errorMessage ??
-                "No detail returned. Retry, or open the file in ChemDraw to verify the reactions render."}
+                "No detail returned. Retry, or open the file in your drawing program to verify the reactions render."}
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>

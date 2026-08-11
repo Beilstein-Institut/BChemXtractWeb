@@ -150,7 +150,7 @@ describe("SettingsPage PubChem toggle", () => {
     localStorage.clear();
   });
 
-  it("renders the opt-in toggle, default off, and persists when enabled", async () => {
+  it("renders the toggle, default on, and persists when turned off", async () => {
     mockAuthMe();
     render(
       <PubChemPreferencesProvider>
@@ -162,9 +162,9 @@ describe("SettingsPage PubChem toggle", () => {
     // Toggle appears once the server status resolves to enabled.
     const toggle = await screen.findByRole("switch", { name: /pubchem/i });
     // Base UI Switch reflects state via data-checked (absent when off).
-    expect(toggle.getAttribute("data-checked")).toBeNull();
+    expect(toggle.getAttribute("data-checked")).not.toBeNull();
     fireEvent.click(toggle);
-    expect(localStorage.getItem("bchemxtract-pubchem-enabled")).toBe("true");
+    expect(localStorage.getItem("bchemxtract-pubchem-enabled")).toBe("false");
   });
 
   it("shows the privacy disclosure", async () => {

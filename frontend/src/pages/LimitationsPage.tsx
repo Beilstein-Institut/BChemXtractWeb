@@ -1,9 +1,11 @@
 /**
  * LimitationsPage — honest account of what extraction does and does not do.
  *
- * Content mirrors the upstream BChemXtract LIMITATIONS document, with two
- * entries rewritten because they describe the bare Java library rather than
- * this web app:
+ * Plain-language retelling of the upstream BChemXtract LIMITATIONS document,
+ * written for chemists rather than developers: chemistry vocabulary stays,
+ * software vocabulary (class names, HTTP codes, build-time constants) goes.
+ * Two entries also differ on substance, because upstream describes the bare
+ * Java library rather than this web app:
  *
  *   - "Large structures": upstream caps at 500 atoms; this app skips InChI
  *     above 100 heavy atoms (backend/app/services/extractor.py) because InChI
@@ -67,145 +69,144 @@ const LIMITATIONS: Limitation[] = [
   {
     id: "reactions",
     area: "Reactions",
-    summary: "Experimental; arrow-alignment heuristics, sanitize off by default",
+    summary: "Experimental — which molecule is a reactant or a product is guessed from the drawing",
     severity: "High",
-    title: "Reaction extraction is experimental",
+    title: "Reaction extraction is still experimental",
     body: (
       <p>
-        Reaction extraction is under active development and should be treated as a preview, not a
-        supported feature. <code>ReactionXtractor</code> defaults to <code>sanitize = false</code>,
-        and correct grouping of reactants / products / agents depends on{" "}
-        <strong>arrow-alignment heuristics</strong>. RInChI and reaction SMILES are produced, but
-        reaction output should not be trusted unsupervised.
+        Reactions are a preview, not a finished feature. Which molecules count as reactants,
+        products, or reagents is worked out from{" "}
+        <strong>how they are arranged around the arrow</strong> — so a crowded scheme, an unusual
+        layout, or a multi-step sequence can easily be grouped the wrong way. You do get a RInChI
+        and a reaction SMILES out of it, but please check reaction results yourself before relying
+        on them.
       </p>
     ),
   },
   {
     id: "cdxml-fidelity",
-    area: "CDXML fidelity",
-    summary: "Arrow, BioShape, LinkNode, ColoredMolecularAreas silently dropped",
+    area: "Drawing details",
+    summary: "Arrows, shapes and colours are dropped, and nothing tells you so",
     severity: "Medium-High",
-    title: "Silent data loss on several CDXML constructs",
+    title: "Parts of the drawing disappear without warning",
     body: (
       <>
         <p>
-          Several CDX/CDXML constructs are dropped during read or write{" "}
-          <strong>without surfacing to the caller</strong> — the riskiest kind of gap, because it is
-          invisible unless you diff against the source:
+          This is a tool for reading the <strong>chemistry</strong> out of a file, not for
+          reproducing the drawing itself. Elements that carry no chemical meaning are quietly left
+          behind, and nothing in the results points that out — the only way to notice is to compare
+          with your original file. What goes missing:
         </p>
         <ul className={BULLETS_CLASS}>
+          <li>Arrows and biological shapes (membranes, cells, DNA strands, and the like)</li>
+          <li>Link nodes — the shorthand for a repeating part of a structure</li>
           <li>
-            <code>Arrow</code> and <code>BioShape</code> elements are discarded on read
+            Coloured areas behind molecules, which are read but lost again if the file is written
+            back out
           </li>
-          <li>
-            <code>LinkNode</code> maps to <code>null</code>
-          </li>
-          <li>
-            <code>ColoredMolecularAreas</code> are not written back out (round-trip loss)
-          </li>
-          <li>
-            <code>CDArrow.dipole</code> is unimplemented
-          </li>
-          <li>Arrowhead-type constants are marked unverified upstream</li>
+          <li>Dipole arrows, which are not supported at all</li>
+          <li>Arrowhead styles, which the underlying library itself flags as not fully verified</li>
         </ul>
-        <p>
-          BChemXtract is a <strong>chemistry extractor, not a faithful CDX round-trip tool</strong>{" "}
-          — drawing-level (non-chemistry) content is not a first-class citizen.
-        </p>
       </>
     ),
   },
   {
     id: "large-structures",
     area: "Large structures",
-    summary: "Above 100 heavy atoms → no InChI/InChIKey, and no PubChem enrichment",
+    summary: "Above 100 heavy atoms there is no InChI, no InChIKey, and no PubChem match",
     severity: "Medium",
-    title: "Hard safety limits on large structures",
+    title: "Very large structures come back with fewer identifiers",
     body: (
       <>
         <p>
-          This app applies its own limit, lower than the library's: InChI, InChIKey, and AuxInfo are{" "}
-          <strong>skipped for molecules above 100 heavy (non-hydrogen) atoms</strong>. InChI
-          generation blows up super-linearly on large, highly symmetric structures — a
-          162-heavy-atom supramolecular cage takes about five minutes, while ordinary molecules
-          finish in well under a second. Where the molecular formula cannot be parsed, the same skip
-          applies to SMILES longer than 1500 characters.
+          Working out an InChI gets disproportionately slower as a molecule grows: an everyday
+          molecule is done in a fraction of a second, while a large, highly symmetric cage of 162
+          atoms can take around five minutes. So that one upload cannot hold up everyone else, we
+          skip the InChI, the InChIKey, and the extra AuxInfo layer{" "}
+          <strong>for anything above 100 heavy (non-hydrogen) atoms</strong>. Where the molecular
+          formula cannot be read at all, the same skip applies to any SMILES longer than 1500
+          characters.
         </p>
-        <p>Consequences for those structures:</p>
+        <p>For those structures:</p>
         <ul className={BULLETS_CLASS}>
           <li>
-            InChI and InChIKey come back <strong>empty</strong>, and the structure is de-duplicated
-            by a hash of its SMILES instead.
+            The InChI and InChIKey fields come back <strong>empty</strong>, and repeats of the same
+            structure are recognised by their SMILES instead.
           </li>
           <li>
-            PubChem enrichment is unavailable — lookups are keyed on a well-formed InChIKey, so a
-            structure without one cannot be resolved.
+            PubChem enrichment is unavailable — a lookup needs a proper InChIKey, so a structure
+            without one cannot be matched.
           </li>
-          <li>AuxInfo longer than 4000 characters is silently dropped.</li>
+          <li>AuxInfo longer than 4000 characters is dropped.</li>
         </ul>
         <p>
-          Large peptides, polymers, and big natural products therefore come back InChI-less. The
-          library enforces a further 500-atom cap of its own underneath, but this app's guard is the
-          one you will hit first. Neither limit is configurable at runtime.
+          In practice this is what you will see with large peptides, polymers, and big natural
+          products. The underlying library stops at 500 atoms of its own accord, but our lower limit
+          is the one you meet first. Neither can be changed while the app is running.
         </p>
       </>
     ),
   },
   {
     id: "stereo",
-    area: "Stereo",
-    summary: "Wavy-bond E/Z: SMILES vs InChI/MDL descriptors can disagree",
+    area: "Stereochemistry",
+    summary:
+      "With a wavy bond, the SMILES and the InChI can describe the same molecule differently",
     severity: "Medium",
-    title: "Stereochemistry edge cases",
+    title: "Stereochemistry: one honest disagreement",
     body: (
       <>
         <p>
-          Tetrahedral stereo loss on the MDL V3000 round-trip has been fixed. One open, deliberately{" "}
-          <strong>undecided</strong> case remains:
+          Stereochemistry drawn with wedges and dashes comes through reliably, and structures now
+          keep it intact when they pass through a mol file. One case is deliberately left open:
         </p>
         <ul className={BULLETS_CLASS}>
           <li>
-            <strong>Double bonds drawn with a wavy substituent</strong> mean "E/Z deliberately
-            unspecified" in ChemDraw. SMILES honors the wavy and omits E/Z, but the InChI and
-            MDL→InChI paths assign E/Z from the 2D coordinates. As a result, the three descriptors
-            for the <em>same molecule</em> can legitimately disagree. This is a pending
-            chemistry-intent decision, not yet a code fix.
+            A <strong>double bond drawn with a wavy substituent</strong> is how a chemist says "E/Z
+            deliberately unspecified". The SMILES respects that and leaves the configuration out,
+            while the InChI reads E/Z back from the way the bond sits on the page. The same molecule
+            can therefore end up with descriptors that disagree. That is a question of chemical
+            intent we have not settled yet, rather than a bug waiting to be fixed.
           </li>
         </ul>
         <p>
-          Related: when a stereocentre is left undetermined, InChI falls back to raw 2D coordinates
-          for that centre — so <strong>coordinates are not always cosmetic</strong> and can change
-          the InChIKey.
+          Related, and worth knowing: where a stereocentre is left undefined, the InChI falls back
+          on the drawn coordinates for that centre.{" "}
+          <strong>How a structure is laid out on the page is therefore not purely cosmetic</strong>{" "}
+          — it can change the InChIKey.
         </p>
       </>
     ),
   },
   {
     id: "markush",
-    area: "Markush",
-    summary: "Alt-group path thinly validated; multi-atom substituents can fail",
+    area: "R-groups",
+    summary: "Barely tested against real files; substituents of more than one atom can fail",
     severity: "Medium",
-    title: "Markush / R-group support has soft edges",
+    title: "R-group (Markush) structures have soft edges",
     body: (
       <>
-        <p>R-group enumeration is opt-in and combinatorial. Known gaps:</p>
+        <p>
+          Turning an R-group drawing into the individual structures it stands for is optional, and
+          the number of combinations grows quickly. What we know is shaky:
+        </p>
         <ul className={BULLETS_CLASS}>
           <li>
-            The structural <code>NamedAlternativeGroup</code> path is validated only against a{" "}
-            <strong>hand-authored fixture</strong> — no real ChemDraw file exercises it, so
-            real-world alternative-group connection conventions are unverified.
+            The handling of alternative-group drawings has only ever been checked against an example
+            we wrote ourselves. <strong>No real-world file has exercised it</strong>, so we cannot
+            promise it copes with the conventions people actually draw with.
           </li>
           <li>
-            <strong>Multi-atom alternative-group substituents</strong> can error (the
-            external-connection-point <code>*</code> is dropped).
+            <strong>Substituents made of more than one atom</strong> can fail outright, because the
+            marker showing where they attach gets lost.
           </li>
           <li>
-            Common shorthands such as <code>Me</code> are absent from the SMILES lookup tables and
-            are not valid SMILES, so <code>R = Me</code> alone does not resolve.
+            Everyday shorthand is missing from the lookup table, so an R defined only as{" "}
+            <code>Me</code> does not resolve to a methyl group.
           </li>
           <li>
-            A known fallback issue: expanded R-groups are reported as successful even when
-            substitution produced no structures.
+            Expansion sometimes reports success even when it produced no structures at all — so an
+            empty result is not always announced as a failure.
           </li>
         </ul>
       </>
@@ -213,62 +214,65 @@ const LIMITATIONS: Limitation[] = [
   },
   {
     id: "untrusted-input",
-    area: "Untrusted input",
-    summary: "DOCTYPE/ENTITY screened at upload; the Java parser itself is unhardened",
+    area: "Unsafe files",
+    summary: "Uploads are screened for booby-trapped XML; the reader underneath is not hardened",
     severity: "Low",
-    title: "Security posture on untrusted input",
+    title: "What happens with a file that is out to cause trouble",
     body: (
       <>
         <p>
-          Uploaded CDXML is screened before it is parsed. The XML prolog is inspected, and the
-          upload is rejected with a <code>415</code> if it carries any <code>&lt;!ENTITY&gt;</code>{" "}
-          declaration, or a <code>&lt;!DOCTYPE&gt;</code> with an internal subset or a system
-          identifier other than the two known ChemDraw DTDs. That closes the XXE primitives — local
-          file reads and requests to internal services — at the boundary.
+          A CDXML file is really a text document, and text documents can be written to trick a
+          careless reader into opening other files on the server. Every upload is therefore screened
+          before it is parsed: if it declares content of its own to pull in, or refers to anything
+          other than the two known ChemDraw document types, it is rejected on the spot and you get
+          an "unsupported file" error (HTTP 415). That closes the door on files fishing for
+          server-side data.
         </p>
         <p>
-          The residual gap is upstream: the Java XML reader itself does not explicitly disable
-          external entities or DTDs.{" "}
-          <strong>The upload screen is therefore the whole defence</strong> — anything that reaches
-          the Java parser is trusted by it. Relevant if you run this codebase with the screen
-          bypassed, or call the library directly.
+          The gap sits one level below us: the reader inside the library does not switch those
+          features off itself. <strong>The screen at upload is the whole defence</strong> — anything
+          that gets past it is trusted. Worth knowing only if you run this code with the screen
+          disabled, or use the library directly.
         </p>
       </>
     ),
   },
   {
     id: "configurability",
-    area: "Configurability",
-    summary: "Safety limits and reader strictness are hardcoded",
+    area: "Settings",
+    summary: "Size limits and how strictly files are read are fixed",
     severity: "Low-Medium",
-    title: "Limited configurability",
+    title: "There is very little you can adjust",
     body: (
       <ul className={BULLETS_CLASS}>
-        <li>Atom-count and AuxInfo limits are compile-time constants.</li>
         <li>
-          Reader strictness is governed by a compile-time constant; there is no option to toggle
-          strict vs. best-effort parsing per call.
+          The size limits described above are fixed. There is no setting to raise or lower them.
+        </li>
+        <li>
+          How strictly a file is read is fixed too — you cannot ask for a second, more forgiving
+          attempt at a file that was refused.
         </li>
       </ul>
     ),
   },
   {
     id: "test-coverage",
-    area: "Test coverage",
-    summary: "No unit tests for several correctness-critical chemistry handlers",
+    area: "Testing",
+    summary: "Several chemistry routines have no tests written specifically for them",
     severity: "Medium",
-    title: "Test-coverage gaps in chemistry-critical code",
+    title: "Parts of the chemistry are not directly tested",
     body: (
       <>
         <p>
-          No dedicated unit tests exist for several non-trivial, correctness-critical classes in the
-          library — they are exercised only indirectly through integration tests: the stereo
-          handler, sugar-projection detector, chemical utilities, S-group handler, the text /
-          bracket / reaction-step visitors, and the lookup classes.
+          Several pieces of the underlying library have no tests of their own. They are only covered
+          indirectly, as a side effect of testing something bigger — among them the stereochemistry
+          handling, sugar-projection detection, S-group handling, and the routines that read text,
+          brackets, and reaction steps.
         </p>
         <p>
-          Coverage has no minimum threshold, and the static-analysis and CVE gates are advisory, so
-          quality can regress without a signal.
+          There is also no minimum bar for how much of the code the tests have to reach, and the
+          automated quality and security checks report problems rather than block a release. A
+          mistake can therefore slip in without anything raising a flag.
         </p>
       </>
     ),
@@ -324,7 +328,7 @@ export function LimitationsPage() {
         icon={<TriangleAlertIcon aria-hidden="true" className="size-3.5" />}
         eyebrow="Limitations"
         title="Limitations & known gaps"
-        lede="An honest account of what BChemXtract can and cannot do today, where it fails, and what is missing. Read it before relying on BChemXtract for anything beyond discrete small-molecule extraction."
+        lede="A plain account of what BChemXtract does well today, where it struggles, and what it simply cannot do. Worth reading before you lean on it for anything beyond everyday single structures."
       />
 
       {/* TL;DR leads — anyone who reads one block should read this one. Elevated
@@ -332,17 +336,18 @@ export function LimitationsPage() {
       <Section
         slot="limitations-tldr"
         headingId="limitations-tldr-heading"
-        heading="TL;DR"
+        heading="In short"
         className="mt-8 bg-surface-elevated"
         headingClassName="text-caption font-semibold uppercase tracking-wider text-foreground-muted"
       >
         <p className="mt-3 max-w-[70ch] text-sm leading-relaxed text-foreground">
-          Extracting individual small-to-medium chemical structures from ChemDraw into InChI /
-          SMILES / mol is <strong className="font-semibold">mature and battle-tested</strong>.
-          Reactions, very large molecules, Markush alternative-groups, wavy-bond E/Z, and
-          non-chemistry drawing constructs are{" "}
-          <strong className="font-semibold">weaker, experimental, or silently dropped</strong>. When
-          fidelity matters, validate against the source file.
+          Reading individual small-to-medium structures out of a drawing and turning them into an
+          InChI, a SMILES, or a mol file is{" "}
+          <strong className="font-semibold">mature and well proven</strong>. Reactions, very large
+          molecules, R-group drawings, wavy-bond stereochemistry, and anything that is drawing
+          rather than chemistry are{" "}
+          <strong className="font-semibold">weaker, experimental, or quietly left out</strong>. When
+          the details matter, check the results against your original file.
         </p>
       </Section>
 
@@ -354,29 +359,31 @@ export function LimitationsPage() {
       >
         <div className={PROSE_CLASS}>
           <p>
-            Single-structure extraction is the mature core and runs Beilstein's Diamond Open Access
-            publishing pipeline in production. It complements{" "}
+            Reading single structures is the mature heart of the tool, and it runs Beilstein's
+            Diamond Open Access publishing every day. It sits alongside{" "}
             <Link to="/about" className={LEGAL_LINK_CLASS}>
               the feature list on the About page
             </Link>
-            . For a well-drawn structure in either <code>.cdx</code> (binary) or <code>.cdxml</code>{" "}
-            (XML) you reliably get:
+            . For a cleanly drawn structure, in either <code>.cdx</code> or <code>.cdxml</code>, you
+            can count on getting:
           </p>
           <ul className={BULLETS_CLASS}>
-            <li>Atoms, bonds, stereo (from wedge/dash geometry), charges, isotopes, rings</li>
             <li>
-              InChI + InChIKey, canonical / isomeric SMILES, extended SMILES (CXSMILES), MDL V3000
-              mol block, molecular formula
+              Atoms, bonds, rings, charges, isotopes, and the stereochemistry drawn with wedges and
+              dashes
             </li>
             <li>
-              Abbreviation expansion (<code>Ph</code>, S-groups, …) and sugar-projection detection
-              (Chair / Haworth)
+              InChI and InChIKey, SMILES (plain and stereochemistry-aware), extended SMILES, an MDL
+              V3000 mol file, and the molecular formula
             </li>
-            <li>Structure depiction via CDK — SVG in the browser, PNG on export</li>
+            <li>
+              Abbreviations written out in full (<code>Ph</code> and similar shorthand)
+            </li>
+            <li>A picture of every structure — on screen, and as an image file when you export</li>
           </ul>
           <p>
-            Both parsers converge on one format-agnostic object model, so downstream behavior is
-            consistent across the two file formats.
+            Both file types are read into the same internal form, so you get the same results either
+            way.
           </p>
         </div>
       </Section>
@@ -458,25 +465,26 @@ export function LimitationsPage() {
       <Section
         slot="limitations-missing"
         headingId="limitations-missing-heading"
-        heading="Missing outright"
+        heading="Not there at all"
         className="mt-8"
       >
         <div className={PROSE_CLASS}>
           <ul className={BULLETS_CLASS}>
             <li>
-              <strong>Non-ChemDraw inputs</strong> — no MOL/SDF or other ingest; the entry point is
-              strictly ChemDraw <code>.cdx</code> / <code>.cdxml</code>.
+              <strong>Other file types</strong> — only <code>.cdx</code> and <code>.cdxml</code> go
+              in. There is no MOL or SDF import.
             </li>
             <li>
-              <strong>Full CDX(ML) fidelity</strong> — arrows, bio-shapes, colored areas, and link
-              nodes are not faithfully preserved.
+              <strong>A faithful copy of your drawing</strong> — arrows, shapes, coloured areas, and
+              link nodes are not preserved.
             </li>
             <li>
-              <strong>Robust reaction semantics</strong> — atom-atom mapping, reaction roles, and
-              conditions beyond the experimental heuristics.
+              <strong>Dependable reaction chemistry</strong> — no atom-to-atom mapping, and no
+              reliable roles or reaction conditions beyond the guesswork described above.
             </li>
             <li>
-              <strong>Runtime configuration</strong> — of safety limits and parser strictness.
+              <strong>Adjustable limits</strong> — the size caps and the strictness of the reader
+              are fixed.
             </li>
           </ul>
         </div>
@@ -493,7 +501,8 @@ export function LimitationsPage() {
           Reporting
         </h2>
         <p className="mt-4 max-w-[70ch] text-sm leading-relaxed text-foreground-muted">
-          Found a limitation not listed here, or a case that should work but does not? Please open a{" "}
+          Hit something that should have worked, or a limitation we have not listed here? Please
+          open a{" "}
           <a
             href={UPSTREAM_ISSUES_URL}
             target="_blank"

@@ -200,7 +200,7 @@ export function StructureBrowser({
         <EmptyState
           icon={LayoutGridIcon}
           title="Nothing to browse yet"
-          message="Upload a ChemDraw file or open a past extraction from your history to see its structures here."
+          message="Upload a CDX or CDXML file, or open a past extraction from your history, to see its structures here."
           size="large"
         />
       )}
