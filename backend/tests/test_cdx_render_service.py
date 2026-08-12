@@ -66,3 +66,31 @@ async def test_render_svg_transform_maps_from_document_frame(started_app):
     assert _attr("data-cdx-scale") > scale, (
         "scale must include the 72/70 normalization factor"
     )
+
+
+@pytest.mark.asyncio
+async def test_render_embeds_its_own_fonts(started_app, cdx_file_bytes: bytes):
+    """The SVG must carry the faces it references.
+
+    The viewer shows this SVG as an <img> blob, where page CSS never applies,
+    and users download both the .svg and a canvas-rasterized .png. Without
+    embedded faces every client substitutes a local font whose advance widths
+    differ from the ones the JVM positioned the runs with.
+    """
+    svg = await render_cdx_svg(cdx_file_bytes)
+    assert "@font-face" in svg
+    assert "data:font/woff2;base64," in svg
+
+
+@pytest.mark.asyncio
+async def test_render_ships_no_proprietary_font_names(
+    started_app, cdx_file_bytes: bytes
+):
+    svg = await render_cdx_svg(cdx_file_bytes)
+    for outgoing in (
+        "Arial MT",
+        "Times New Roman WGL",
+        "Courier10 WGL4 BT",
+        "NimbusRoman",
+    ):
+        assert outgoing not in svg, f"{outgoing} must not reach the browser"

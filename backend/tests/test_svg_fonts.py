@@ -9,7 +9,9 @@ from pathlib import Path
 import pytest
 from fontTools.ttLib import TTFont
 
+from app.services.cdx_render import render_cdx_svg
 from app.services.svg_fonts import (
+    _FACE_FILES,
     FaceKey,
     _read_face_bytes,
     _subset_woff2,
@@ -157,3 +159,30 @@ def test_embed_returns_input_unchanged_when_the_jar_is_missing(monkeypatch):
 def test_embed_returns_input_unchanged_for_textless_svg():
     svg = '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0"/></svg>'
     assert embed_subset_fonts(svg) == svg
+
+
+@pytest.mark.asyncio
+async def test_real_render_never_uses_a_face_we_cannot_embed(
+    started_app, cdx_file_bytes: bytes
+):
+    """No <text> in a real render may resolve to a face outside _FACE_FILES.
+
+    The Java-side font guard matches font-family with a regex over raw CDX
+    strings, so it cannot resolve font-family attributes a <text> element
+    inherits from an ancestor <g> -- it can prove a family string was never
+    written, not that every <text> element actually resolves to an embeddable
+    face. scan_faces walks the real, already-inherited SVG DOM instead, so it
+    can catch what the Java guard structurally cannot: a <text> element that
+    falls back to Batik's 'Dialog' default, or to any other family this
+    module has no TTF for. That is the exact failure this whole feature
+    exists to prevent, so it must be checked against a real render, not just
+    the hand-built fixture the other tests in this file use.
+    """
+    svg = await render_cdx_svg(cdx_file_bytes)
+    faces = scan_faces(svg)
+    assert faces, "expected at least one text face in this fixture's render"
+    for key in faces:
+        assert (key.family, key.bold, key.italic) in _FACE_FILES, (
+            f"{key} has no embeddable face; the browser will substitute a font "
+            "whose advance widths do not match the JVM's layout"
+        )
