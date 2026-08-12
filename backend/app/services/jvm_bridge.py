@@ -140,7 +140,7 @@ def initialize_jvm(settings: Settings) -> None:
 
     # Warm up the faithful CDX renderer's fonts at startup instead of inside the
     # first user render: force-loading PDFFontUtils runs its static block, which
-    # reads + registers the 25 embedded ChemDraw fonts (one-time cost). Best
+    # reads + registers the 12 embedded ChemDraw fonts (one-time cost). Best
     # effort — a missing cdx-render jar or font-load hiccup must not fail startup.
     try:
         jpype.JClass("org.beilstein.chemxtract.render.pdf.PDFFontUtils")

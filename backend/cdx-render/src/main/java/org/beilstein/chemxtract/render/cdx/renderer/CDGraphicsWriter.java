@@ -1207,7 +1207,7 @@ public class CDGraphicsWriter {
       String chunkText = chunk.getText();
       int length = chunkText.length();
 
-      String fontFamily = chunk.getFont() != null ? chunk.getFont().getName() : PDFFontUtils.NIMBUS_ROMAN;
+      String fontFamily = chunk.getFont() != null ? chunk.getFont().getName() : PDFFontUtils.LIBERATION_SERIF;
 
       boolean convertSymbolText = fontFamily.equals("Symbol");
 
