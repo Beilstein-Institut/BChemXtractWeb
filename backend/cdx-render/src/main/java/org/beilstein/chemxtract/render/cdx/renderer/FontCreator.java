@@ -18,20 +18,15 @@ public class FontCreator {
   }
 
   static Font createFont(String fontFamily, float fontSize, boolean bold, boolean italic, boolean underline) {
-    if (fontFamily.equals("Times New Roman")) {
-      fontFamily = PDFFontUtils.TIMES_NEW_ROMAN_WGL;
-    } else if (fontFamily.equals("Arial")) {
-      fontFamily = PDFFontUtils.ARIAL_MT;
-    } else if (fontFamily.equals("Symbol")) {
-      // Symbol is a serif font
-      fontFamily = PDFFontUtils.TIMES_NEW_ROMAN_WGL;
+    if (fontFamily.equals("Arial") || fontFamily.equals("Helvetica")) {
+      fontFamily = PDFFontUtils.LIBERATION_SANS;
     } else if (fontFamily.equals("Courier New")) {
-      fontFamily = PDFFontUtils.COURIER;
-    } else if (fontFamily.equals("Helvetica")) {
-      // Replace Helvetica with Arial
-      fontFamily = PDFFontUtils.ARIAL_MT;
+      fontFamily = PDFFontUtils.LIBERATION_MONO;
     } else {
-      fontFamily = PDFFontUtils.TIMES_NEW_ROMAN_WGL;
+      // Times New Roman, Symbol (a serif face), and every unmapped family.
+      // Liberation Serif is metric-compatible with Times New Roman and covers
+      // the full Greek range the Symbol->Unicode path emits.
+      fontFamily = PDFFontUtils.LIBERATION_SERIF;
     }
 
     Map<TextAttribute, Object> map = new HashMap<>();

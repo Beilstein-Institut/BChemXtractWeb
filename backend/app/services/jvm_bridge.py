@@ -49,6 +49,8 @@ _pool_size: int = 0
 # that would otherwise be mislabeled as a per-file 422.
 _cdx_renderer_available: bool = False
 
+_cdx_render_jar: str | None = None
+
 # Cap on concurrent in-flight JVM daemon subtasks, INCLUDING ones abandoned
 # after a timeout that are still draining a native call. JPype cannot interrupt
 # a native call, so a flood of pathological inputs would otherwise spawn
@@ -81,7 +83,8 @@ def initialize_jvm(settings: Settings) -> None:
     Raises:
         JVMStartupError: If no JAR is found or the JVM fails to start.
     """
-    global _executor, _pool_size, _cdx_renderer_available  # noqa: PLW0603
+    global _executor, _pool_size  # noqa: PLW0603
+    global _cdx_renderer_available, _cdx_render_jar  # noqa: PLW0603
 
     if jpype.isJVMStarted():
         logger.warning("JVM is already started -- skipping initialization")
@@ -109,6 +112,7 @@ def initialize_jvm(settings: Settings) -> None:
             render_jar_matches[-1],
         )
     render_jars = render_jar_matches[-1:]
+    _cdx_render_jar = render_jars[0] if render_jars else None
     classpath = [jars[0], *render_jars]
 
     # Build JVM arguments
@@ -140,7 +144,7 @@ def initialize_jvm(settings: Settings) -> None:
 
     # Warm up the faithful CDX renderer's fonts at startup instead of inside the
     # first user render: force-loading PDFFontUtils runs its static block, which
-    # reads + registers the 25 embedded ChemDraw fonts (one-time cost). Best
+    # reads + registers the 12 embedded ChemDraw fonts (one-time cost). Best
     # effort — a missing cdx-render jar or font-load hiccup must not fail startup.
     try:
         jpype.JClass("org.beilstein.chemxtract.render.pdf.PDFFontUtils")
@@ -224,6 +228,16 @@ def is_cdx_renderer_available() -> bool:
     if not jpype.isJVMStarted():
         return False
     return _cdx_renderer_available
+
+
+def get_cdx_render_jar_path() -> str | None:
+    """Path of the cdx-render jar on the JVM classpath, or None if absent.
+
+    The jar doubles as the font source for SVG embedding: reading the faces
+    back out of it guarantees the bytes shipped to the browser are the same
+    ones the JVM measured the text with.
+    """
+    return _cdx_render_jar
 
 
 def get_pool_stats() -> dict[str, int]:
