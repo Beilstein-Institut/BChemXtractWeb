@@ -5,6 +5,10 @@ import { PubChemPreferencesContext } from "@/context/PubChemPreferencesContext";
 import { usePubChemEnrichment } from "@/hooks/usePubChemEnrichment";
 import type { SubstanceResponse } from "@/types/chemistry";
 
+// The hook announces the PubChem disclosure through sonner on the first lookup.
+vi.mock("sonner", () => ({ toast: vi.fn() }));
+const { toast } = await import("sonner");
+
 function makeSubstance(key: string): SubstanceResponse {
   return {
     id: 1,
@@ -29,7 +33,11 @@ function enabledWrapper(enabled: boolean, available = true) {
   );
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.mocked(toast).mockClear();
+  localStorage.clear();
+});
 
 describe("usePubChemEnrichment", () => {
   it("does not fetch when disabled", () => {
@@ -128,5 +136,34 @@ describe("usePubChemEnrichment", () => {
     await waitFor(() => expect(spy).toHaveBeenCalledTimes(2));
     const secondCallKeys = spy.mock.calls[1][0].map((i) => i.inchi_key);
     expect(secondCallKeys).toContain(A);
+  });
+
+  // Enrichment is on unless turned off, so the first lookup is the only moment
+  // the disclosure reaches a user who never opens Settings.
+  it("announces the PubChem disclosure once, on the first lookup only", async () => {
+    vi.spyOn(api, "postPubChemEnrich").mockResolvedValue({ results: {} });
+    const A = "AAAAAAAAAAAAAA-AAAAAAAAAA-N";
+    const B = "BBBBBBBBBBBBBB-AAAAAAAAAA-N";
+
+    const { rerender } = renderHook(({ subs }) => usePubChemEnrichment(subs), {
+      wrapper: enabledWrapper(true),
+      initialProps: { subs: [makeSubstance(A)] },
+    });
+    await waitFor(() => expect(toast).toHaveBeenCalledTimes(1));
+
+    // A second batch, and any later session, stays silent.
+    await act(async () => {
+      rerender({ subs: [makeSubstance(A), makeSubstance(B)] });
+    });
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem("bchemxtract-pubchem-notice-seen")).toBe("true");
+  });
+
+  it("stays silent when no lookup is fired", () => {
+    renderHook(() => usePubChemEnrichment([makeSubstance("AAAAAAAAAAAAAA-AAAAAAAAAA-N")]), {
+      wrapper: enabledWrapper(false),
+    });
+    expect(toast).not.toHaveBeenCalled();
+    expect(localStorage.getItem("bchemxtract-pubchem-notice-seen")).toBeNull();
   });
 });

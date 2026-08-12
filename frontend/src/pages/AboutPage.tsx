@@ -114,7 +114,7 @@ export function AboutPage() {
         </h1>
         <p className="text-base text-foreground-muted">
           A browser wrapper around the <BrandName /> Java library — built at the Beilstein-Institut
-          to make ChemDraw extraction accessible to anyone.
+          to make structure extraction accessible to anyone.
         </p>
       </header>
 
@@ -178,7 +178,7 @@ function HeroTile() {
           Chemistry · Extraction
         </Badge>
         <h2 className="font-display text-[clamp(2rem,4vw,3.25rem)] font-semibold leading-[1.05] tracking-tight text-foreground">
-          ChemDraw, decoded for <span className="text-primary">anyone</span>.
+          Chemical drawings, decoded for <span className="text-primary">anyone</span>.
         </h2>
         <p className="max-w-[52ch] text-base leading-relaxed text-foreground-muted">
           <BrandName suffix="Web" /> parses CDX and CDXML files, extracts structures and reactions,

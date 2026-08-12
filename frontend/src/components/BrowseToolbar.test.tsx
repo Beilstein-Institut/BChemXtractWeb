@@ -280,19 +280,19 @@ describe("BrowseToolbar", () => {
     const firstToggle = (container: HTMLElement) =>
       within(container.querySelectorAll('[data-slot="depiction-toggle"]')[0] as HTMLElement);
 
-    it("renders ChemDraw and CDK options when onDepictionChange is provided", () => {
+    it("renders the as-drawn and CDK options when onDepictionChange is provided", () => {
       const { container } = render(<BrowseToolbar {...depictionProps} />);
       const toggle = firstToggle(container);
-      expect(toggle.getByLabelText(/ChemDraw depiction/)).toBeTruthy();
+      expect(toggle.getByLabelText(/As drawn/)).toBeTruthy();
       expect(toggle.getByLabelText(/CDK depiction/)).toBeTruthy();
     });
 
-    it("marks ChemDraw as pressed by default", () => {
+    it("marks as-drawn as pressed by default", () => {
       const { container } = render(<BrowseToolbar {...depictionProps} />);
       const group = container.querySelector('[data-slot="depiction-toggle"]');
       expect(group?.getAttribute("data-depiction")).toBe("cdx");
       const toggle = firstToggle(container);
-      expect(toggle.getByLabelText(/ChemDraw depiction/).getAttribute("aria-pressed")).toBe("true");
+      expect(toggle.getByLabelText(/As drawn/).getAttribute("aria-pressed")).toBe("true");
       expect(toggle.getByLabelText(/CDK depiction/).getAttribute("aria-pressed")).toBe("false");
     });
 
@@ -310,7 +310,7 @@ describe("BrowseToolbar", () => {
       const { container } = render(
         <BrowseToolbar {...depictionProps} onDepictionChange={onDepictionChange} />,
       );
-      fireEvent.click(firstToggle(container).getByLabelText(/ChemDraw depiction/));
+      fireEvent.click(firstToggle(container).getByLabelText(/As drawn/));
       expect(onDepictionChange).not.toHaveBeenCalled();
     });
 
@@ -321,7 +321,7 @@ describe("BrowseToolbar", () => {
 
     it("is hidden when no onDepictionChange handler is provided", () => {
       render(<BrowseToolbar {...defaultProps} />);
-      expect(screen.queryByLabelText(/ChemDraw depiction/)).toBeNull();
+      expect(screen.queryByLabelText(/As drawn/)).toBeNull();
       expect(screen.queryByLabelText(/CDK depiction/)).toBeNull();
     });
   });

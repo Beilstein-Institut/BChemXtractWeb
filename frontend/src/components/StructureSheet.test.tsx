@@ -107,12 +107,14 @@ vi.mock("@base-ui/react/tooltip", () => {
 });
 
 // Mock sonner
+// sonner's toast is a callable that also carries .error/.loading/.success —
+// the PubChem disclosure notice calls it directly, so the mock must be callable.
 vi.mock("sonner", () => ({
-  toast: {
+  toast: Object.assign(vi.fn(), {
     error: vi.fn(),
     loading: vi.fn(),
     success: vi.fn(),
-  },
+  }),
 }));
 
 // Mock navigator.clipboard
@@ -257,7 +259,7 @@ describe("StructureSheet component", () => {
     expect(screen.queryByText("1 of 10")).not.toBeInTheDocument();
   });
 
-  it("shows both CDK and ChemDraw buttons even when svg_cdx is empty", () => {
+  it("shows both CDK and as-drawn buttons even when svg_cdx is empty", () => {
     render(
       <StructureSheet
         open={true}
@@ -270,10 +272,10 @@ describe("StructureSheet component", () => {
       />,
     );
     expect(screen.getByRole("button", { name: /^CDK$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^ChemDraw$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^As drawn$/i })).toBeInTheDocument();
   });
 
-  it("disables the ChemDraw button when svg_cdx is empty", () => {
+  it("disables the as-drawn button when svg_cdx is empty", () => {
     render(
       <StructureSheet
         open={true}
@@ -285,7 +287,7 @@ describe("StructureSheet component", () => {
         onNext={vi.fn()}
       />,
     );
-    expect(screen.getByRole("button", { name: /^ChemDraw$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^As drawn$/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /^CDK$/i })).toBeEnabled();
   });
 
@@ -302,10 +304,10 @@ describe("StructureSheet component", () => {
       />,
     );
     expect(screen.getByRole("button", { name: /^CDK$/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /^ChemDraw$/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /^As drawn$/i })).toBeEnabled();
   });
 
-  it("auto-selects ChemDraw when svg (CDK) is empty so the image area is not blank", () => {
+  it("auto-selects the as-drawn layout when svg (CDK) is empty so the image area is not blank", () => {
     render(
       <StructureSheet
         open={true}
@@ -336,7 +338,7 @@ describe("StructureSheet component", () => {
       />,
     );
     expect(screen.getByRole("button", { name: /^CDK$/i })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: /^ChemDraw$/i })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: /^As drawn$/i })).toHaveAttribute(
       "aria-pressed",
       "false",
     );
@@ -371,9 +373,9 @@ describe("StructureSheet component", () => {
         depiction="cdx"
       />,
     );
-    // ChemDraw layout not stored -> the sheet shows the CDK render.
+    // As-drawn layout not stored -> the sheet shows the CDK render.
     expect(screen.getByRole("button", { name: /^CDK$/i })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: /^ChemDraw$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^As drawn$/i })).toBeDisabled();
   });
 });
 

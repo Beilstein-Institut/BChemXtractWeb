@@ -75,7 +75,7 @@ describe("CdxViewerDialog", () => {
     mockHookState = { state: "success", svg: "<svg><g/></svg>", errorCode: null };
     render(<CdxViewerDialog extractionId={7} />);
     fireEvent.click(screen.getByRole("button", { name: /view as drawn/i }));
-    const img = screen.getByRole("img", { name: /original chemdraw/i });
+    const img = screen.getByRole("img", { name: /original drawing/i });
     expect(img).toHaveAttribute("src", "blob:cdx");
   });
 

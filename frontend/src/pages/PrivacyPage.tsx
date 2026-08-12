@@ -180,6 +180,11 @@ const TOPICS: Topic[] = [
           autonomous decision. This wish can only be fulfilled by means of the described data
           processing.
         </p>
+        <p>
+          (5) When PubChem enrichment is switched on, chemical identifiers of your structures are
+          sent from our server to the PubChem service. No personal data of yours is transmitted, and
+          you can turn the feature off in the settings.
+        </p>
       </>
     ),
   },

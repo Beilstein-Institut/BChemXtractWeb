@@ -145,7 +145,7 @@ test.describe("Typography and Spacing", () => {
   });
 
   test("hero h1 renders the Extract page tagline in the display scale", async ({ page }) => {
-    const h1 = page.locator("h1").filter({ hasText: /ChemDraw, read back\./i });
+    const h1 = page.locator("h1").filter({ hasText: /Your drawings, read back\./i });
     await expect(h1).toBeVisible();
 
     const fontSize = await h1.evaluate((el) => getComputedStyle(el).fontSize);

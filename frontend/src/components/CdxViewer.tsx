@@ -51,7 +51,7 @@ const STEP = 1.2;
  */
 export function CdxViewer({
   svg,
-  title = "ChemDraw structure",
+  title = "Structure as drawn",
   className,
   highlights,
   actions,

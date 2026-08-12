@@ -380,7 +380,7 @@ function DepictionToggle({
         )}
         style={{ left: indicator.left, width: indicator.width }}
       />
-      {segment("cdx", "ChemDraw", "ChemDraw depiction — original drawing coordinates", cdxRef)}
+      {segment("cdx", "As drawn", "As drawn — original coordinates from the uploaded file", cdxRef)}
       {segment("cdk", "CDK", "CDK depiction — regenerated canonical layout", cdkRef)}
     </div>
   );

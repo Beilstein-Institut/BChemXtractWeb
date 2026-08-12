@@ -48,7 +48,7 @@ function PrivacyNotice() {
 export function ViewPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [svg, setSvg] = useState<string | null>(null);
-  const [title, setTitle] = useState("ChemDraw file");
+  const [title, setTitle] = useState("Your file");
   const [loading, setLoading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 

@@ -40,8 +40,8 @@ export function HomePage() {
         </h1>
         <p className="mt-2.5 max-w-[60ch] text-sm leading-snug text-foreground-muted sm:text-base">
           Parse ChemDraw CDX and CDXML files in the browser. Every structure and reaction comes back
-          with InChI, SMILES, RInChI, and molecular formulas, ready to export as JSON, SDF, or TSV.
-          No Java, no command line.
+          with InChI, SMILES, RInChI, and molecular formulas, ready to export as JSON, SDF/Mol, TSV,
+          and images. No software to install, no coding required.
         </p>
 
         {/* The one visual: a real structure resolving into its identifiers. */}

@@ -15,10 +15,10 @@ Object.defineProperty(navigator, "clipboard", {
 });
 
 // Mock sonner
+// sonner's toast is a callable that also carries .error/.success — the PubChem
+// disclosure notice calls it directly, so the mock has to be callable too.
 vi.mock("sonner", () => ({
-  toast: {
-    error: vi.fn(),
-  },
+  toast: Object.assign(vi.fn(), { error: vi.fn() }),
 }));
 
 // Mock @base-ui/react/dialog

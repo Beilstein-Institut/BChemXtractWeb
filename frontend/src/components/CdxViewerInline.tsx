@@ -113,7 +113,7 @@ export function CdxViewerInline({
 
       {state === "success" && svg && (
         <div className="min-h-0 flex-1">
-          <CdxViewer svg={svg} title="Original ChemDraw" highlights={highlights} />
+          <CdxViewer svg={svg} title="Original drawing" highlights={highlights} />
         </div>
       )}
     </div>

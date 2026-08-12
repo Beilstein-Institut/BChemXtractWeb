@@ -67,9 +67,9 @@ export function SettingsPage() {
                   onCheckedChange={setPubchemEnabled}
                 />
                 <span className="text-sm text-foreground-muted">
-                  When enabled, this sends the InChIKeys (and connectivity SMILES for scaffold
-                  matching) of your extracted structures to the U.S. NIH PubChem service. Leave off
-                  for unpublished or proprietary structures.
+                  On by default. This sends the InChIKeys (and connectivity SMILES for scaffold
+                  matching) of your extracted structures to the PubChem service. Turn it off for
+                  unpublished or proprietary structures.
                 </span>
               </label>
             </CardContent>
