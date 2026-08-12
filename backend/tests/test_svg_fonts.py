@@ -71,33 +71,39 @@ def jar_on_disk(monkeypatch):
     _subset_woff2.cache_clear()
 
 
-def _embedded_faces(svg: str) -> dict[str, bytes]:
-    """Decode every @font-face data URI in `svg`, keyed by declared family.
+def _embedded_faces(svg: str) -> dict[FaceKey, bytes]:
+    """Decode every @font-face data URI in `svg`, keyed like `FaceKey`.
 
-    A family can have more than one face embedded (e.g. regular + italic);
-    `setdefault` keeps the first (which `_style_block` sorts to be the plain
-    regular/non-bold/non-italic one when there's a collision) rather than
-    letting a later bold/italic rule silently overwrite it.
+    Keyed on the full (family, bold, italic) triple -- not just family --
+    because a family can have more than one face embedded (e.g. regular and
+    italic share "Liberation Sans"); a family-only key would let one silently
+    collide with the other depending on `_style_block`'s emission order. This
+    way each test names the exact face it means.
     """
     out = {}
-    for family, b64 in re.findall(
-        r"@font-face\{font-family:'([^']+)';[^}]*?base64,([A-Za-z0-9+/=]+)\)", svg
+    for family, weight, style, b64 in re.findall(
+        r"@font-face\{font-family:'([^']+)';font-weight:(\w+);"
+        r"font-style:(\w+);[^}]*?base64,([A-Za-z0-9+/=]+)\)",
+        svg,
     ):
-        out.setdefault(family, base64.b64decode(b64))
+        key = FaceKey(family=family, bold=weight == "bold", italic=style == "italic")
+        out[key] = base64.b64decode(b64)
     return out
 
 
 def test_embed_adds_woff2_font_face_rules(jar_on_disk):
     result = embed_subset_fonts(_SVG)
     faces = _embedded_faces(result)
-    assert "Liberation Sans" in faces
+    regular_sans = FaceKey("Liberation Sans", bold=False, italic=False)
+    assert regular_sans in faces
     # WOFF2 magic number; proves brotli compression actually ran.
-    assert faces["Liberation Sans"][:4] == b"wOF2"
+    assert faces[regular_sans][:4] == b"wOF2"
 
 
 def test_embed_keeps_only_the_characters_the_drawing_uses(jar_on_disk):
     result = embed_subset_fonts(_SVG)
-    font = TTFont(io.BytesIO(_embedded_faces(result)["Liberation Sans"]))
+    regular_sans = FaceKey("Liberation Sans", bold=False, italic=False)
+    font = TTFont(io.BytesIO(_embedded_faces(result)[regular_sans]))
     cmap = font.getBestCmap()
     for present in "B(OH)2":
         assert ord(present) in cmap, f"{present!r} was dropped from the subset"

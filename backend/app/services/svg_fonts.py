@@ -116,6 +116,26 @@ _FACE_FILES = {
 
 _SVG_OPEN_RE = re.compile(r"<svg\b[^>]*>")
 
+# fontTools.subset logs one WARNING per table it doesn't know how to subset,
+# right before dropping it (see fontTools/subset/__init__.py _subset_glyphs).
+# FFTM is FontForge's private build-timestamp table -- present because the
+# Liberation masters were built with FontForge -- and it carries no rendering
+# information, so dropping it from every embedded face is intentional, not a
+# bug to "fix" by keeping it (options.passthrough_tables stays False). This
+# feature is a silent best-effort layer, so that expected, harmless drop
+# should not log a warning on every single render. The filter matches the
+# exact message and the exact table name, so fontTools.subset stays audible
+# for anything else it can't subset.
+_FFTM_DROPPED_MSG = "%s NOT subset; don't know how to subset; dropped"
+
+
+class _SuppressFFTMDropWarning(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return not (record.msg == _FFTM_DROPPED_MSG and record.args == ("FFTM",))
+
+
+logging.getLogger("fontTools.subset").addFilter(_SuppressFFTMDropWarning())
+
 
 @lru_cache(maxsize=16)
 def _read_face_bytes(filename: str) -> bytes:
