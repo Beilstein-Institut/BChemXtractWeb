@@ -39,13 +39,29 @@ public class CdxSvgRendererTest {
     while (m.find()) {
       families.add(m.group(1));
     }
-    // Batik stamps its own default graphics state ("Dialog") on the root <svg>
-    // and on group elements; no <text> element ever resolves to it.
+    // Batik legitimately stamps its own default graphics state ("Dialog") on
+    // the root <svg> element and on <image> elements; that is not a font
+    // fallback and would falsely trip the allowed-set check below. The
+    // separate <g> assertion is what actually catches a genuine text
+    // fallback to Dialog, since svggen emits the resolved font-family on the
+    // <g> wrapping each <text> run.
     families.remove("Dialog");
     assertFalse("no font-family found in render output", families.isEmpty());
     Set<String> allowed = Set.of("Liberation Sans", "Liberation Serif", "Liberation Mono");
     for (String family : families) {
       assertTrue("non-redistributable font in render output: " + family, allowed.contains(family));
+    }
+
+    // Precise check: a <text> run inheriting Dialog (e.g. a regression that
+    // drops the resolved family) would show up as a <g font-family="'Dialog'">
+    // wrapper -- catch that directly instead of relying on the allowed-set
+    // check above, which only sees font-family values and can't tell which
+    // element they came from.
+    Matcher g = Pattern.compile("<g\\b[^>]*>").matcher(svg);
+    while (g.find()) {
+      String tag = g.group();
+      assertFalse("text fell back to unembedded Dialog font: " + tag,
+          tag.contains("font-family=\"'Dialog'\""));
     }
   }
 
