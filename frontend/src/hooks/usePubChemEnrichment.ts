@@ -1,10 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { getPubChemCompound, postPubChemEnrich } from "@/lib/apiClient";
 import { isRealInchiKey } from "@/lib/inchi";
+import { navigate } from "@/lib/router";
 import { usePubChemPreferences } from "@/hooks/usePubChemPreferences";
 import type { PubChemCardState, SubstanceResponse } from "@/types/chemistry";
 
 const BATCH_MAX = 50;
+
+const NOTICE_KEY = "bchemxtract-pubchem-notice-seen";
+
+/**
+ * Say once, the first time a lookup actually leaves the browser, that
+ * structures are being matched against PubChem. Enrichment is on unless the
+ * user turns it off, so without this the disclosure would only ever reach
+ * someone who opens Settings of their own accord.
+ */
+function announceOnce(): void {
+  if (localStorage.getItem(NOTICE_KEY)) return;
+  localStorage.setItem(NOTICE_KEY, "true");
+  toast("Your structures are being matched against PubChem", {
+    description:
+      "Only chemical identifiers are sent — no personal data. Turn it off for unpublished work.",
+    duration: 12000,
+    action: { label: "Settings", onClick: () => navigate("/settings") },
+  });
+}
 
 /**
  * Tier-1 batch enrichment for a list of visible substances. Fetches only when
@@ -44,6 +65,7 @@ export function usePubChemEnrichment(
     const pending = substances.filter((s) => isRealInchiKey(s.inchi_key) && !req.has(s.inchi_key));
     if (pending.length === 0) return;
 
+    announceOnce();
     pending.forEach((s) => req.add(s.inchi_key));
     setStates((prev) => {
       const next = new Map(prev);
@@ -121,6 +143,7 @@ export function usePubChemCompound(inchiKey: string | undefined): PubChemCardSta
     // render-derivable update.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFetchState({ state: "loading", data: null });
+    announceOnce();
     getPubChemCompound(inchiKey)
       .then((data) => {
         if (!cancelled) setFetchState({ state: "success", data });

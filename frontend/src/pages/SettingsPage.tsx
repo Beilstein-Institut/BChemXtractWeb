@@ -68,8 +68,8 @@ export function SettingsPage() {
                 />
                 <span className="text-sm text-foreground-muted">
                   On by default. This sends the InChIKeys (and connectivity SMILES for scaffold
-                  matching) of your extracted structures to the U.S. NIH PubChem service. Turn it
-                  off for unpublished or proprietary structures.
+                  matching) of your extracted structures to the PubChem service. Turn it off for
+                  unpublished or proprietary structures.
                 </span>
               </label>
             </CardContent>

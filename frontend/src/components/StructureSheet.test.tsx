@@ -107,12 +107,14 @@ vi.mock("@base-ui/react/tooltip", () => {
 });
 
 // Mock sonner
+// sonner's toast is a callable that also carries .error/.loading/.success —
+// the PubChem disclosure notice calls it directly, so the mock must be callable.
 vi.mock("sonner", () => ({
-  toast: {
+  toast: Object.assign(vi.fn(), {
     error: vi.fn(),
     loading: vi.fn(),
     success: vi.fn(),
-  },
+  }),
 }));
 
 // Mock navigator.clipboard
