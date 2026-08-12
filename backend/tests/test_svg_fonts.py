@@ -186,3 +186,37 @@ async def test_real_render_never_uses_a_face_we_cannot_embed(
             f"{key} has no embeddable face; the browser will substitute a font "
             "whose advance widths do not match the JVM's layout"
         )
+
+
+@pytest.mark.asyncio
+async def test_symbol_font_greek_survives_embedding(started_app):
+    """Symbol-encoded text is remapped to Unicode Greek by the renderer.
+
+    Liberation Serif covers that range, but the subset must actually keep those
+    codepoints -- a subsetter fed the pre-remap characters would silently ship a
+    face missing every Greek glyph, and the browser would substitute.
+    """
+    from app.services.cdx_render import render_cdx_svg
+
+    data = (
+        Path(__file__).resolve().parent / "fixtures" / "reactions" / "greek_label.cdxml"
+    ).read_bytes()
+    svg = await render_cdx_svg(data)
+
+    # Batik's SVGGraphicWriter always XML-escapes non-ASCII text content as
+    # numeric character references (e.g. "&#x3b1;"), never as literal UTF-8
+    # bytes -- so "α" in svg is False regardless of whether the remap ran; the
+    # rendered document still *is* Greek, just spelled with an entity. scan_faces
+    # is what actually decides which characters get embedded (it walks the DOM
+    # through lxml, which resolves those references back to real codepoints),
+    # so it is the direct, honest way to confirm the renderer performed the
+    # Symbol->Greek remap at all.
+    serif_key = FaceKey("Liberation Serif", bold=False, italic=False)
+    greek_used = scan_faces(svg).get(serif_key, set()) & set("αβγ")
+    assert greek_used, "renderer did not emit Unicode Greek for the Symbol run"
+
+    serif = _embedded_faces(svg).get(serif_key)
+    assert serif is not None, "no serif face embedded for the Symbol text"
+    cmap = TTFont(io.BytesIO(serif)).getBestCmap()
+    for greek in greek_used:
+        assert ord(greek) in cmap, f"{greek!r} missing from the embedded subset"
