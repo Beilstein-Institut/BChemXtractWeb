@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/Beilstein-Institut/BChemXtractWeb/compare/v1.0.0...v1.0.1) (2026-08-14)
+
+
+### Bug Fixes
+
+* **deps:** patch Dependabot alerts in frontend and backend lockfiles ([d2a62a7](https://github.com/Beilstein-Institut/BChemXtractWeb/commit/d2a62a7632c74a2da9dc876869644ef3dabb2be5))
+* **deps:** patch Dependabot alerts in frontend and backend lockfiles ([9483405](https://github.com/Beilstein-Institut/BChemXtractWeb/commit/9483405129d2fc95442186c6835b8b7b005d050b))
+
 ## 0.1.0 (2026-08-12)
 
 
