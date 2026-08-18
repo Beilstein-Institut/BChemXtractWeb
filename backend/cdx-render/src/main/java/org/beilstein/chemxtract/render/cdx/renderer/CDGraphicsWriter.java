@@ -82,6 +82,13 @@ public class CDGraphicsWriter {
    */
   private List<?> selectedObjects = null;
 
+  /**
+   * Heap ceiling for pictures embedded in this document. Decoded rasters stay
+   * reachable until the page is painted, so the budget is cumulative across
+   * every picture in one render rather than a per-picture limit.
+   */
+  private final ImagePixelBudget pictureBudget = new ImagePixelBudget();
+
   public CDGraphicsWriter(CDDocument document, Graphics2D g) {
     this.document = document;
     this.g = g;
@@ -2530,19 +2537,19 @@ public class CDGraphicsWriter {
     Graphic graphic = null;
     try {
       if (picture.getGif() != null) {
-        graphic = GIFGraphicReader.readGraphic(new ByteArrayInputStream(picture.getGif()));
+        graphic = GIFGraphicReader.readGraphic(new ByteArrayInputStream(picture.getGif()), pictureBudget);
       }
       if (picture.getTiff() != null) {
-        graphic = TIFFGraphicReader.readGraphic(new ByteArrayInputStream(picture.getTiff()));
+        graphic = TIFFGraphicReader.readGraphic(new ByteArrayInputStream(picture.getTiff()), pictureBudget);
       }
       if (picture.getPng() != null) {
-        graphic = PNGGraphicReader.readGraphic(new ByteArrayInputStream(picture.getPng()));
+        graphic = PNGGraphicReader.readGraphic(new ByteArrayInputStream(picture.getPng()), pictureBudget);
       }
       if (picture.getJpeg() != null) {
-        graphic = JPEGGraphicReader.readGraphic(new ByteArrayInputStream(picture.getJpeg()));
+        graphic = JPEGGraphicReader.readGraphic(new ByteArrayInputStream(picture.getJpeg()), pictureBudget);
       }
       if (picture.getBmp() != null) {
-        graphic = BMPGraphicReader.readGraphic(new ByteArrayInputStream(picture.getBmp()));
+        graphic = BMPGraphicReader.readGraphic(new ByteArrayInputStream(picture.getBmp()), pictureBudget);
       }
       if (picture.getWindowsMetafile() != null) {
         graphic = WMFGraphicReader.readGraphic(new ByteArrayInputStream(picture.getWindowsMetafile()));
