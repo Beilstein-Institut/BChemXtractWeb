@@ -263,8 +263,13 @@ export function BrowsePage({
                   setViewerOpen(false);
                   // Return focus to the "View as drawn" toggle (its aria-controls
                   // points at this panel) so keyboard users don't get dropped to
-                  // <body> when the panel unmounts.
-                  document.querySelector<HTMLElement>('[aria-controls="cdx-drawn-panel"]')?.focus();
+                  // <body> when the panel unmounts. preventScroll: the toggle
+                  // lives in the receipt at the top of the page, so a scrolling
+                  // focus would yank the reader back up there after they closed
+                  // a drawing opened from a card far down the grid.
+                  document
+                    .querySelector<HTMLElement>('[aria-controls="cdx-drawn-panel"]')
+                    ?.focus({ preventScroll: true });
                 }}
               />
             )}
