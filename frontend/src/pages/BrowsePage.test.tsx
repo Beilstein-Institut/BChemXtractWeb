@@ -33,6 +33,13 @@ vi.mock("@/components/StructureBrowser", () => ({
   ),
 }));
 
+// The inline drawing panel renders a real SVG via useCdxRender (network) —
+// stand in for it so the close-handler wiring can be tested on its own.
+vi.mock("@/components/CdxViewerInline", () => ({
+  CdxViewerInline: (props: { open: boolean; onClose?: () => void }) =>
+    props.open ? <button data-testid="mock-viewer-close" onClick={props.onClose} /> : null,
+}));
+
 vi.mock("@/components/ExtractionTabs", () => ({
   ExtractionTabs: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="extraction-tabs">{children}</div>
@@ -179,5 +186,27 @@ describe("BrowsePage", () => {
     );
     expect(screen.getByRole("button", { name: /back to extract all/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /back to latest/i })).toBeNull();
+  });
+
+  it("returns focus to the 'View as drawn' toggle without scrolling on close", () => {
+    render(
+      <BrowsePage
+        {...makeProps({
+          activeExtractionId: 42,
+          activeResult: makeResponse([makeSubstance()]),
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /view as drawn/i }));
+    const focusSpy = vi.spyOn(HTMLElement.prototype, "focus");
+
+    fireEvent.click(screen.getByTestId("mock-viewer-close"));
+
+    // preventScroll keeps the reader where the drawing was: the toggle sits in
+    // the receipt at the top of the page, so a scrolling focus would jump them
+    // back up out of a long structure list.
+    expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
+    focusSpy.mockRestore();
   });
 });
