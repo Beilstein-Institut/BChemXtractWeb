@@ -32,9 +32,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Config lives in release-please-config.json + .release-please-manifest.json
+      # (the action's default paths) rather than inline here, because inline mode
+      # only knows how to bump one package. The config also carries the version
+      # out to frontend/package.json (the number the About page shows) and to the
+      # project's own entry in backend/uv.lock, which the `uv lock --check` gate
+      # in lint.yml would otherwise fail on for every release PR.
       - uses: googleapis/release-please-action@v4
         with:
-          release-type: python
-          package-name: bchemxtract-web
-          path: backend
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
