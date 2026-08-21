@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.2](https://github.com/Beilstein-Institut/BChemXtractWeb/compare/v1.0.1...v1.0.2) (2026-08-21)
+
+
+### Bug Fixes
+
+* **deps:** relock backend after v1.0.1 bump, gate lockfile drift in CI ([f2977fd](https://github.com/Beilstein-Institut/BChemXtractWeb/commit/f2977fd0119999557c4e989dd5c8503c4381622a))
+* **deps:** relock backend after v1.0.1 bump, gate lockfile drift in CI ([2fd39af](https://github.com/Beilstein-Institut/BChemXtractWeb/commit/2fd39af283fdd040d1950a231f8bb291e4f0aa3e))
+* **render:** cap total pixels decoded from embedded pictures ([4f19901](https://github.com/Beilstein-Institut/BChemXtractWeb/commit/4f19901ed293e81217a2da6b032eea19f940979c))
+
 ## [1.0.1](https://github.com/Beilstein-Institut/BChemXtractWeb/compare/v1.0.0...v1.0.1) (2026-08-14)
 
 
