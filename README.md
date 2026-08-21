@@ -449,7 +449,7 @@ curl -X POST http://localhost:3000/api/search/validate \
 | Bulk file processing with progress tracking | ✅ |
 | Hosted public demo | 🔜 *Coming soon* |
 
-<sub>Issues and pull requests welcome. A contributor guide will follow.</sub>
+<sub>Issues and pull requests welcome — start with the **[contributing guide](./.github/CONTRIBUTING.md)**. Found a security problem? Please follow the **[security policy](./.github/SECURITY.md)** instead of opening an issue.</sub>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./assets/readme/divider-dark.svg">
