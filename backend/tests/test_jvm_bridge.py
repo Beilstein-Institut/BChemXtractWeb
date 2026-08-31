@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import AsyncMock, patch
 
 import jpype
+import jpype.config
 import pytest
 from httpx import AsyncClient
 
@@ -212,3 +213,17 @@ class TestHealthWithJvm:
         response = await client.get("/api/health")
         assert response.status_code == 200
         assert response.json() == {"status": "ok"}
+
+
+class TestJvmShutdownPolicy:
+    """The JVM must not be destroyed when the interpreter exits."""
+
+    def test_destroy_jvm_disabled(self) -> None:
+        """DestroyJavaVM segfaults (exit 139) on JDK 25 when an abandoned
+        daemon thread is still draining an uninterruptible native call, which
+        extraction can leave behind. initialize_jvm() turns it off; the JVM
+        lives exactly as long as the process either way.
+        """
+        if not jpype.isJVMStarted():
+            pytest.skip("policy is applied by initialize_jvm()")
+        assert jpype.config.destroy_jvm is False

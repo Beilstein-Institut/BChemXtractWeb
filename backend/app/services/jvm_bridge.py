@@ -28,6 +28,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import jpype
+import jpype.config
 
 from app.errors import JVMStartupError
 
@@ -120,9 +121,21 @@ def initialize_jvm(settings: Settings) -> None:
         f"-Xmx{settings.jvm_max_heap}",
         # Required for CDK SVG rendering in headless environments
         "-Djava.awt.headless=true",
+        # JPype loads its native bridge via System.load(). Since JDK 24 that is
+        # a "restricted method": it warns today and will be blocked outright in
+        # a later release unless native access is granted explicitly.
+        "--enable-native-access=ALL-UNNAMED",
     ]
     if settings.jvm_opts:
         jvm_args.extend(settings.jvm_opts.split())
+
+    # Do NOT call DestroyJavaVM when the interpreter exits. Extraction runs on
+    # abandonable daemon threads (see _run_jvm_subtask) and an uninterruptible
+    # native InChI call can still be draining at shutdown; JDK 25 crashes
+    # (SIGSEGV, exit 139) tearing the VM down over one. The JVM lives exactly as
+    # long as the process either way, so the OS reclaims it -- skipping destroy
+    # only removes the crash.
+    jpype.config.destroy_jvm = False
 
     try:
         jpype.startJVM(

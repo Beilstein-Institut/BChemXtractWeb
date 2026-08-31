@@ -299,7 +299,7 @@ You still have to **terminate TLS upstream yourself** — the bundled nginx serv
 Useful if you're iterating on the backend or frontend directly.
 
 ```bash
-# Backend: Python 3.11 + Java 21 JDK + Maven 3.8+ required
+# Backend: Python 3.11 + Java 25 JDK + Maven 3.8+ required
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"

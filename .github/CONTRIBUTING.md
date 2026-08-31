@@ -38,7 +38,7 @@ Include:
 The README is the single source of truth for setup, so we do not duplicate it
 here. Read these two sections:
 
-- **Running the dev stack without Docker** — backend (Python 3.11 + Java 21 JDK
+- **Running the dev stack without Docker** — backend (Python 3.11 + Java 25 JDK
   + Maven), frontend (Node 18+), and the local PostgreSQL 16 the backend needs.
 - **Running the test suites** — the backend, frontend, and `deploy.sh` suites.
 

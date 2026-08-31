@@ -11,7 +11,7 @@
 #   bash scripts/build_jar.sh                         # latest upstream tag
 #   BCHEMXTRACT_REF=v1.1.0 bash scripts/build_jar.sh  # pin a specific tag
 #
-# Prerequisites: Java 21+ JDK, Maven 3.8+, network access to github.com.
+# Prerequisites: Java 25+ JDK, Maven 3.8+, network access to github.com.
 
 set -euo pipefail
 
@@ -40,7 +40,7 @@ git clone --branch "$REF" --depth 1 "$UPSTREAM" "$WORK_DIR"
 
 # Build the fat JAR. `-Dmaven.javadoc.skip=true` matters from v1.1 onwards —
 # upstream attaches Javadoc by default and the bundled plugin treats
-# missing-comment warnings as fatal under JDK 21. We only need the fat JAR,
+# missing-comment warnings as fatal under the build JDK. We only need the fat JAR,
 # so skip Javadoc entirely.
 echo "Building BChemXtract fat JAR ($REF)..."
 ( cd "$WORK_DIR" && mvn clean package -DskipTests -Dmaven.javadoc.skip=true -q )
