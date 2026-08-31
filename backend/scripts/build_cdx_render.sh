@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build the first-party cdx-render jar (faithful ChemDraw -> SVG renderer) for
 # host-side dev runs, and drop it next to the bchemxtract fat jar. Mirrors the
-# Dockerfile's cdx-render build step. Prereqs: Java 21+ JDK, Maven 3.8+.
+# Dockerfile's cdx-render build step. Prereqs: Java 25+ JDK, Maven 3.8+.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"

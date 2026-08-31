@@ -120,6 +120,10 @@ def initialize_jvm(settings: Settings) -> None:
         f"-Xmx{settings.jvm_max_heap}",
         # Required for CDK SVG rendering in headless environments
         "-Djava.awt.headless=true",
+        # JPype loads its native bridge via System.load(). Since JDK 24 that is
+        # a "restricted method": it warns today and will be blocked outright in
+        # a later release unless native access is granted explicitly.
+        "--enable-native-access=ALL-UNNAMED",
     ]
     if settings.jvm_opts:
         jvm_args.extend(settings.jvm_opts.split())
