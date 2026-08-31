@@ -28,6 +28,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import jpype
+import jpype.config
 
 from app.errors import JVMStartupError
 
@@ -127,6 +128,14 @@ def initialize_jvm(settings: Settings) -> None:
     ]
     if settings.jvm_opts:
         jvm_args.extend(settings.jvm_opts.split())
+
+    # Do NOT call DestroyJavaVM when the interpreter exits. Extraction runs on
+    # abandonable daemon threads (see _run_jvm_subtask) and an uninterruptible
+    # native InChI call can still be draining at shutdown; JDK 25 crashes
+    # (SIGSEGV, exit 139) tearing the VM down over one. The JVM lives exactly as
+    # long as the process either way, so the OS reclaims it -- skipping destroy
+    # only removes the crash.
+    jpype.config.destroy_jvm = False
 
     try:
         jpype.startJVM(
