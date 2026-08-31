@@ -1,5 +1,5 @@
 # Stage 1: Build BChemXtract JAR
-FROM maven:3.9-eclipse-temurin-21 AS jar-builder
+FROM maven:3.9-eclipse-temurin-25 AS jar-builder
 WORKDIR /build
 # Resolve the latest BChemXtract release tag at build time, then shallow-clone
 # only that tag.
@@ -19,7 +19,7 @@ RUN set -eu; \
     git clone --branch "$REF" --depth 1 https://github.com/Beilstein-Institut/BChemXtract.git bchemxtract
 # `-Dmaven.javadoc.skip=true` matters from v1.1 onwards: upstream attaches
 # Javadoc by default and the bundled javadoc plugin treats missing-comment
-# warnings as fatal under JDK 21. The runtime image only needs the fat JAR,
+# warnings as fatal under the build JDK. The runtime image only needs the fat JAR,
 # so we bypass Javadoc generation entirely.
 RUN cd bchemxtract && mvn clean package -DskipTests -Dmaven.javadoc.skip=true -q
 
@@ -43,11 +43,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Stage 3: Runtime
 FROM python:3.12-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    openjdk-21-jdk-headless curl \
+    openjdk-25-jdk-headless curl \
     libharfbuzz0b libfreetype6 fontconfig fonts-dejavu-core \
     libcairo2 \
     && rm -rf /var/lib/apt/lists/*
-ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+ENV JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64
 WORKDIR /app
 
 # Copy Python virtual environment from builder

@@ -293,7 +293,7 @@ services:
       # connect as bchemxtract_app so RLS policies enforce ownership.
       <<: [*runtime_db_url, *app_env, *celery_env]
       JAR_PATH: /app/jars
-      JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
+      JAVA_HOME: /usr/lib/jvm/java-25-openjdk-amd64
       # The worker runs ALL extractions (single-file + batch) in one long-lived
       # JVM. Heap is capped MODESTLY (not "as big as fits") because a large heap
       # on this shared 8 GB host is what drove it into swap — see the mem_limit
@@ -352,7 +352,7 @@ services:
       # grant from the 2026_05_16_create_app_role migration is sufficient.
       <<: [*runtime_db_url, *app_env, *celery_env]
       JAR_PATH: /app/jars
-      JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
+      JAVA_HOME: /usr/lib/jvm/java-25-openjdk-amd64
 
 volumes:
   pgdata:
