@@ -32,6 +32,7 @@ from app.models.chemistry import (
     SubstanceResponse,
 )
 from app.services.depiction import (
+    MAX_LAYOUT_ATOMS,
     SVG_TARGET_HEIGHT,
     SVG_TARGET_WIDTH,
     _make_depiction_generator,
@@ -820,6 +821,15 @@ def _render_with_cdk_layout(container) -> str:
     """
     try:
         if container is None:
+            return ""
+        # See MAX_LAYOUT_ATOMS: re-layout cost explodes with atom count, and
+        # one giant fragment would otherwise time out the whole extraction.
+        if int(container.getAtomCount()) > MAX_LAYOUT_ATOMS:
+            logger.info(
+                "Skipping CDK re-layout: %d atoms exceeds the %d-atom cap",
+                int(container.getAtomCount()),
+                MAX_LAYOUT_ATOMS,
+            )
             return ""
 
         StructureDiagramGenerator = jpype.JClass(  # noqa: N806
