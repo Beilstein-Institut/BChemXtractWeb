@@ -74,3 +74,51 @@ async def test_cdk_layout_returns_empty_on_none(started_app) -> None:
 
     out = await run_in_jvm_thread(_render)
     assert out == ""
+
+
+@pytest.mark.asyncio
+async def test_cdk_layout_skipped_above_atom_cap(started_app) -> None:
+    """Oversized molecules skip the re-layout and return empty string.
+
+    ``StructureDiagramGenerator.generateCoordinates`` is strongly
+    superlinear in atom count (a 162-atom cage lays out in ~2s, a
+    2900-atom one in ~95s), so a single giant fragment could blow the
+    whole extraction's time budget. Both CDK-layout renderers must bail
+    out above :data:`MAX_LAYOUT_ATOMS` instead; the caller still has the
+    ChemDraw-coordinate depiction.
+    """
+    import jpype
+
+    from app.services.depiction import (
+        MAX_LAYOUT_ATOMS,
+        render_substance_svg_cdk_layout,
+    )
+    from app.services.extractor import _render_with_cdk_layout
+    from app.services.jvm_bridge import run_in_jvm_thread
+
+    def _render() -> tuple[str, str, int]:
+        SilentChemObjectBuilder = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.silent.SilentChemObjectBuilder"
+        )
+        SmilesParser = jpype.JClass(  # noqa: N806
+            "org.openscience.cdk.smiles.SmilesParser"
+        )
+        parser = SmilesParser(SilentChemObjectBuilder.getInstance())
+        container = parser.parseSmiles("C" * (MAX_LAYOUT_ATOMS + 1))
+
+        # The depiction-module renderer takes a BCXSubstance-like object;
+        # only getAtomContainer() is touched, so a stub is enough.
+        class _SubstanceStub:
+            def getAtomContainer(self):  # noqa: N802 — mirrors the Java API
+                return container
+
+        return (
+            _render_with_cdk_layout(container),
+            render_substance_svg_cdk_layout(_SubstanceStub()),
+            int(container.getAtomCount()),
+        )
+
+    frag_svg, substance_svg, atom_count = await run_in_jvm_thread(_render)
+    assert atom_count > MAX_LAYOUT_ATOMS
+    assert frag_svg == ""
+    assert substance_svg == ""
