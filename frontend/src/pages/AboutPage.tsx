@@ -233,19 +233,14 @@ function VersionTile() {
       >
         {__APP_VERSION__}
       </span>
-      {/* The big number is this web app (package.json). The engine line names
-          the separate BChemXtract Java library it runs on — the two version
-          independently, so both are labelled to avoid the "which is right?"
-          confusion. The engine slot text stays exactly "BChemXtract <v>". */}
-      <span className="text-caption text-foreground-muted">
-        BChemXtractWeb
-        {engineVersion && (
-          <>
-            {" · running on "}
-            <span data-slot="about-engine-version">BChemXtract {engineVersion}</span>
-          </>
-        )}
-      </span>
+      {/* The big number is this web app (package.json); this line names the
+          separate BChemXtract Java engine it runs on. The engine slot text
+          stays exactly "BChemXtract <v>" for the test. */}
+      {engineVersion && (
+        <span className="text-caption text-foreground-muted">
+          running on <span data-slot="about-engine-version">BChemXtract {engineVersion}</span>
+        </span>
+      )}
     </article>
   );
 }

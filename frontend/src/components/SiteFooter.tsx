@@ -18,6 +18,22 @@ function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 /**
+ * GitHub mark with a small caption badge. Two of the footer's social links go
+ * to GitHub (the web app repo and the engine repo), so a bare octocat can't
+ * tell them apart — the badge names which is which ("web" vs "engine").
+ */
+function GithubMark({ tag }: { tag: string }) {
+  return (
+    <span className="relative inline-flex items-center justify-center">
+      <GithubIcon />
+      <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-primary px-1 text-[0.5rem] font-semibold uppercase leading-[1.4] tracking-tight text-primary-foreground">
+        {tag}
+      </span>
+    </span>
+  );
+}
+
+/**
  * Project-specific footer composition.
  *
  * Wraps the generic <Footer /> primitive with BChemXtract branding:
@@ -95,14 +111,14 @@ export function SiteFooter({ className }: { className?: string }) {
       renderLink={renderInternalLink}
       socialLinks={[
         {
-          icon: <GithubIcon />,
+          icon: <GithubMark tag="web" />,
           href: "https://github.com/Beilstein-Institut/BChemXtractWeb",
-          label: "BChemXtractWeb on GitHub",
+          label: "BChemXtractWeb (web app) on GitHub",
         },
         {
-          icon: <GithubIcon />,
+          icon: <GithubMark tag="engine" />,
           href: "https://github.com/Beilstein-Institut/BChemXtract",
-          label: "BChemXtract on GitHub",
+          label: "BChemXtract (engine) on GitHub",
         },
         {
           icon: (

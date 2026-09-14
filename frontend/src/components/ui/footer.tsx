@@ -69,7 +69,7 @@ export function Footer({
   const ariaLabel = brandLabel ?? (typeof brandName === "string" ? brandName : undefined);
   return (
     <footer
-      className={cn("pb-6 pt-16 lg:pb-8 lg:pt-24", className)}
+      className={cn("pb-4 pt-8 lg:pb-6 lg:pt-10", className)}
       aria-labelledby="site-footer-heading"
     >
       <h2 id="site-footer-heading" className="sr-only">
