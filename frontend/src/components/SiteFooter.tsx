@@ -24,9 +24,9 @@ function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
  */
 function GithubMark({ tag }: { tag: string }) {
   return (
-    <span className="inline-flex flex-col items-center gap-1 leading-none">
+    <span className="inline-flex w-11 flex-col items-center gap-0.5 leading-none">
       <GithubIcon className="size-4" />
-      <span className="rounded-full bg-primary px-1 py-0.5 text-[0.5rem] font-semibold uppercase leading-none tracking-tight text-primary-foreground">
+      <span className="max-w-full whitespace-nowrap rounded-full bg-primary px-1 py-0.5 text-[0.4rem] font-semibold uppercase leading-none tracking-tight text-primary-foreground">
         {tag}
       </span>
     </span>
