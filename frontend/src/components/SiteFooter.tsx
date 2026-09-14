@@ -1,5 +1,3 @@
-import { Globe } from "lucide-react";
-
 import { Footer, type FooterTextLink } from "@/components/ui/footer";
 import { asset } from "@/lib/basePath";
 import { Link } from "@/lib/Link";
@@ -140,7 +138,14 @@ export function SiteFooter({ className }: { className?: string }) {
           label: "CDK on GitHub",
         },
         {
-          icon: <Globe />,
+          icon: (
+            <img
+              src={asset("beilstein-institut-logo.png")}
+              alt=""
+              aria-hidden="true"
+              className="logo-glow h-auto w-8 object-contain"
+            />
+          ),
           href: "https://www.beilstein-institut.de/en/",
           label: "Beilstein-Institut website",
         },
