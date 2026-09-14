@@ -131,15 +131,12 @@ export function SiteFooter({ className }: { className?: string }) {
           label: "CDK on GitHub",
         },
         {
-          // The only Beilstein asset is the full wordmark (rings + text). Crop
-          // to just the left square (the rings) with a square box + object-cover
-          // + object-left, so the icon shows the ring mark without the text.
           icon: (
             <img
-              src={asset("beilstein-institut-logo.png")}
+              src={asset("logo_small_Beilstein-Institut.svg")}
               alt=""
               aria-hidden="true"
-              className="logo-glow size-6 object-cover object-left"
+              className="logo-glow size-6 object-contain"
             />
           ),
           href: "https://www.beilstein-institut.de/en/",
