@@ -154,12 +154,12 @@ export function SiteFooter({ className }: { className?: string }) {
         // "© 2026" followed by the institute's mark, which now carries the
         // name — hence real alt text, not a decorative empty string.
         //
-        // Dark mode: no white plate (too heavy against the copyright line) and
-        // no recolour of the artwork. Instead `logo-glow` traces a soft white
-        // halo along the alpha edges so the navy #072563 wordmark reads against
-        // the dark surface. A supplied negative variant would still be better.
+        // Dark mode: the navy #072563 "INSTITUT" wordmark is invisible on the
+        // dark surface and a glow alone can't lift a dark fill, so — matching
+        // the legal pages — a small white plate sits behind the mark. A supplied
+        // negative variant would still be better.
         //
-        // h-8 against 14px text: the wordmark's caps are a quarter of the
+        // h-10 against 14px text: the wordmark's caps are a quarter of the
         // artwork's height, so anything smaller stops being readable. The
         // SVG's canvas was tightened to its ink (viewBox "0 48 876 202"; it
         // shipped with ~23% empty margin on the right, which would otherwise
@@ -171,14 +171,14 @@ export function SiteFooter({ className }: { className?: string }) {
               href="https://www.beilstein-institut.de/en/"
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:rounded-md dark:bg-white dark:px-2 dark:py-1"
             >
               <img
                 src={asset("Logo_Beilstein_schmal_RGB.svg")}
                 alt="Beilstein-Institut"
                 width={876}
                 height={202}
-                className="logo-glow h-8 w-auto"
+                className="h-10 w-auto"
               />
             </a>
           </span>
