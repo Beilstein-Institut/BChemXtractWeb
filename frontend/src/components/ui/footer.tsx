@@ -69,7 +69,7 @@ export function Footer({
   const ariaLabel = brandLabel ?? (typeof brandName === "string" ? brandName : undefined);
   return (
     <footer
-      className={cn("pb-6 pt-16 lg:pb-8 lg:pt-24", className)}
+      className={cn("pb-4 pt-8 lg:pb-6 lg:pt-10", className)}
       aria-labelledby="site-footer-heading"
     >
       <h2 id="site-footer-heading" className="sr-only">
@@ -121,15 +121,18 @@ export function Footer({
           </ul>
         </div>
         <div className="mt-6 border-t border-border pt-6 md:mt-4 md:pt-8 lg:grid lg:grid-cols-12">
-          <div
-            className={cn(
-              "text-sm leading-6 text-foreground-muted",
-              "lg:col-[1/4] lg:row-[1/3] lg:mt-0",
-            )}
-          >
-            <div className="whitespace-nowrap">{copyright.text}</div>
-            {copyright.license && <div className="whitespace-nowrap">{copyright.license}</div>}
+          {/* Copyright + license are two separate grid items on their own rows
+              (not one stacked block), so the license line shares grid row 2
+              with the right column's legal links and the two bottom lines align
+              — no matter how tall the logo-bearing copyright line is. */}
+          <div className="whitespace-nowrap text-sm leading-6 text-foreground-muted lg:col-[1/8] lg:row-[1/2] lg:mt-0">
+            {copyright.text}
           </div>
+          {copyright.license && (
+            <div className="whitespace-nowrap text-sm leading-6 text-foreground-muted lg:col-[1/8] lg:row-[2/3] lg:mt-0">
+              {copyright.license}
+            </div>
+          )}
           <nav aria-label="Footer navigation" className="mt-6 lg:col-[9/13] lg:row-[1/2] lg:mt-0">
             <ul className="-my-1 -mx-2 flex list-none flex-wrap justify-end">
               {mainLinks.map((link) => (

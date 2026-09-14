@@ -27,6 +27,14 @@ logger = logging.getLogger(__name__)
 SVG_TARGET_WIDTH = 450
 SVG_TARGET_HEIGHT = 450
 
+# Skip CDK's StructureDiagramGenerator above this many atoms. Its cost is
+# strongly superlinear: a 162-atom cage re-lays out in ~2s, a 2900-atom
+# polymer in ~95s, which alone overruns the extraction's time budget and
+# turns the whole upload into a 503. Above the cap the CDK-layout SVG is
+# left empty; the ChemDraw-coordinate depiction (cheap, it reuses the
+# coordinates in the file) is still rendered and the UI falls back to it.
+MAX_LAYOUT_ATOMS = 300
+
 # SVG sanitiser ------------------------------------------------------------
 # Defence in depth against a hypothetical CDK CVE that causes the SVG
 # writer to emit script-bearing content. Regex-based because (a) we own
@@ -206,6 +214,13 @@ def render_substance_svg_cdk_layout(java_substance) -> str:
             return ""
         container = java_substance.getAtomContainer()
         if container is None:
+            return ""
+        if int(container.getAtomCount()) > MAX_LAYOUT_ATOMS:
+            logger.info(
+                "Skipping CDK re-layout: %d atoms exceeds the %d-atom cap",
+                int(container.getAtomCount()),
+                MAX_LAYOUT_ATOMS,
+            )
             return ""
 
         StructureDiagramGenerator = jpype.JClass(  # noqa: N806

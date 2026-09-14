@@ -1,5 +1,5 @@
 /**
- * StardustButton — dark-navy pearl CTA.
+ * StardustButton — ocean pearl CTA.
  *
  * Covers: default label, label override, children override, onClick
  * dispatch, disabled short-circuits onClick, data-slot contract,

@@ -110,6 +110,11 @@ function App() {
   const activeResult = historicalResult ?? result;
   const isHistoricalView = historicalResult !== null;
 
+  // The home landing is a short, vertically-centered hero. The footer's
+  // generous top padding (pt-24) compounds with that centering into a big
+  // empty band above the footer, so trim it on this route only.
+  const isHomeLanding = route === "/" && !searchActive;
+
   // Surface extract / batch error messages as toasts.
   useEffect(() => {
     if (state === "error" && errorMessage) toast.error(errorMessage);
@@ -333,14 +338,14 @@ function App() {
                 // generous padding other routes use so header + hero + footer fit
                 // without scrolling. The sticky header is in-flow, so no top
                 // padding is needed to clear it.
-                route === "/" && !searchActive
+                isHomeLanding
                   ? "flex flex-col justify-center py-3"
                   : "pt-20 pb-10 sm:pt-24 sm:pb-12",
               )}
             >
               <Suspense fallback={<PageSuspenseFallback />}>{renderRoute()}</Suspense>
             </main>
-            <SiteFooter />
+            <SiteFooter className={isHomeLanding ? "pt-6 lg:pt-8" : undefined} />
             {/* Globally mounted so ⌘K works from any route.
              *  Lazy-loaded on first ⌘K to keep motion/react out of the
              *  initial bundle — see DeferredCommandPalette.
