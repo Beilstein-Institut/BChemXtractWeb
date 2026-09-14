@@ -6,15 +6,16 @@ import { FlaskConicalIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * StardustButton — deep-navy pearl CTA.
+ * StardustButton — teal pearl CTA.
  *
  * A self-contained specialty button used for the Extract structures CTA
  * in the upload drop-zone. Unlike the generic claymorphism Button, the
  * StardustButton uses a nested-pseudo-element pearl shell, a sparkle
  * glyph that swaps on hover, and an icon that tilts + scales. All of
- * this is layered on top of a deep-navy body so the CTA reads as the
- * primary action without competing visually with crimson claymorphism
- * buttons elsewhere on the page.
+ * this is layered on top of a teal body — the brand teal from the logo, so
+ * the palette stays to crimson + teal + navy rather than adding a third
+ * sky-blue accent — and it still reads as a distinct action next to the
+ * crimson claymorphism buttons elsewhere on the page.
  *
  * The styling lives in a scoped `<style>` tag rendered alongside the
  * button. This keeps the component drop-in usable without extending
@@ -87,27 +88,27 @@ StardustButton.displayName = "StardustButton";
  */
 const stardustCss = `
 .stardust-button {
-  /* Light-mode (default) — sky-600 ocean pearl.
-   * Chosen distinct from --primary Apple Blue so the CTA still reads as
-   * a specialty button, not the generic primary. White text on sky-600
-   * passes WCAG AA (~5.0:1).
+  /* Light-mode (default) — brand-teal pearl (#096779, the teal from the
+   * BChemXtract logo). Reusing a brand hue keeps the app to crimson + teal +
+   * navy instead of a separate sky-blue. White text on #096779 clears WCAG AA
+   * for normal text (~5.8:1).
    */
-  --pearl-bg: #0284c7;
+  --pearl-bg: #096779;
   --pearl-text: #ffffff;
-  --pearl-accent: #e0f2fe;
+  --pearl-accent: #ccfbf1;
   --pearl-rest-highlight: rgba(255, 255, 255, 0.55);
-  --pearl-rest-edge: rgba(8, 47, 73, 0.45);
-  --pearl-rest-underglow: rgba(186, 230, 253, 0.55);
+  --pearl-rest-edge: rgba(6, 46, 43, 0.45);
+  --pearl-rest-underglow: rgba(153, 246, 228, 0.55);
   --pearl-rest-drop-far: rgba(15, 23, 42, 0.18);
   --pearl-rest-drop-near: rgba(15, 23, 42, 0.30);
   --pearl-hover-highlight: rgba(255, 255, 255, 0.70);
-  --pearl-hover-edge: rgba(8, 47, 73, 0.50);
-  --pearl-hover-underglow: rgba(186, 230, 253, 0.75);
+  --pearl-hover-edge: rgba(6, 46, 43, 0.50);
+  --pearl-hover-underglow: rgba(153, 246, 228, 0.75);
   --pearl-hover-drop-far: rgba(15, 23, 42, 0.22);
   --pearl-hover-drop-near: rgba(15, 23, 42, 0.38);
   --pearl-active-highlight: rgba(255, 255, 255, 0.65);
-  --pearl-active-edge: rgba(8, 47, 73, 0.60);
-  --pearl-active-underglow: rgba(186, 230, 253, 0.45);
+  --pearl-active-edge: rgba(6, 46, 43, 0.60);
+  --pearl-active-underglow: rgba(153, 246, 228, 0.45);
   --pearl-active-drop-far: rgba(15, 23, 42, 0.20);
   --pearl-active-drop-near: rgba(15, 23, 42, 0.40);
   --pearl-bubble-bg: rgba(255, 255, 255, 0.35);
@@ -135,29 +136,31 @@ const stardustCss = `
     0 1rem 1rem -0.6rem var(--pearl-rest-drop-near);
 }
 
-/* Dark-mode — original deep-navy pearl. */
+/* Dark-mode — lifted teal pearl. The body is kept well above the deep
+ * indigo page background so the CTA reads as a raised pill rather than a
+ * hole punched in the page; the accent/glow family shifts to teal. */
 .dark .stardust-button {
-  --pearl-bg: #0a1929;
-  --pearl-text: rgba(193, 228, 255, 0.95);
-  --pearl-accent: rgba(129, 216, 255, 0.9);
+  --pearl-bg: #0e6f6a;
+  --pearl-text: #ecfeff;
+  --pearl-accent: rgba(94, 234, 212, 0.9);
   --pearl-rest-highlight: rgba(255, 255, 255, 0.30);
   --pearl-rest-edge: rgba(0, 0, 0, 0.70);
-  --pearl-rest-underglow: rgba(129, 216, 255, 0.50);
+  --pearl-rest-underglow: rgba(94, 234, 212, 0.50);
   --pearl-rest-drop-far: rgba(0, 0, 0, 0.25);
   --pearl-rest-drop-near: rgba(0, 0, 0, 0.70);
-  --pearl-hover-highlight: rgba(129, 216, 255, 0.40);
+  --pearl-hover-highlight: rgba(94, 234, 212, 0.40);
   --pearl-hover-edge: rgba(0, 0, 0, 0.70);
-  --pearl-hover-underglow: rgba(64, 180, 255, 0.60);
+  --pearl-hover-underglow: rgba(45, 212, 191, 0.60);
   --pearl-hover-drop-far: rgba(0, 0, 0, 0.30);
   --pearl-hover-drop-near: rgba(0, 0, 0, 0.80);
-  --pearl-active-highlight: rgba(129, 216, 255, 0.50);
+  --pearl-active-highlight: rgba(94, 234, 212, 0.50);
   --pearl-active-edge: rgba(0, 0, 0, 0.80);
-  --pearl-active-underglow: rgba(64, 180, 255, 0.40);
+  --pearl-active-underglow: rgba(45, 212, 191, 0.40);
   --pearl-active-drop-far: rgba(0, 0, 0, 0.30);
   --pearl-active-drop-near: rgba(0, 0, 0, 0.80);
-  --pearl-bubble-bg: rgba(64, 180, 255, 0.15);
-  --pearl-gloss-start: rgba(64, 180, 255, 0.25);
-  --pearl-gloss-sheen: rgba(129, 216, 255, 0.60);
+  --pearl-bubble-bg: rgba(45, 212, 191, 0.15);
+  --pearl-gloss-start: rgba(45, 212, 191, 0.25);
+  --pearl-gloss-sheen: rgba(94, 234, 212, 0.60);
 }
 
 .stardust-button__wrap {

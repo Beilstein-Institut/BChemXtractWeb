@@ -53,7 +53,7 @@ function Logo() {
         src={asset("bchemxtract-logo.svg")}
         alt=""
         aria-hidden="true"
-        className="h-8 w-8 shrink-0"
+        className="logo-glow h-8 w-8 shrink-0"
       />
       {/* Icon-only below 400px so the right-cluster controls (search + theme +
           hamburger, all 44px tap targets) never get squeezed off-screen on

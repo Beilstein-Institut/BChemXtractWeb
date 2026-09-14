@@ -88,15 +88,33 @@ function renderInternalLink(link: FooterTextLink, className: string): React.Reac
   );
 }
 
-export function SiteFooter() {
+export function SiteFooter({ className }: { className?: string }) {
   return (
     <Footer
+      className={className}
       renderLink={renderInternalLink}
       socialLinks={[
         {
           icon: <GithubIcon />,
           href: "https://github.com/Beilstein-Institut/BChemXtractWeb",
           label: "BChemXtractWeb on GitHub",
+        },
+        {
+          icon: <GithubIcon />,
+          href: "https://github.com/Beilstein-Institut/BChemXtract",
+          label: "BChemXtract on GitHub",
+        },
+        {
+          icon: (
+            <img
+              src={asset("cdk-logo.png")}
+              alt=""
+              aria-hidden="true"
+              className="logo-glow size-5 w-auto object-contain"
+            />
+          ),
+          href: "https://github.com/cdk/cdk",
+          label: "CDK on GitHub",
         },
         {
           icon: <Globe />,
@@ -120,13 +138,10 @@ export function SiteFooter() {
         // "© 2026" followed by the institute's mark, which now carries the
         // name — hence real alt text, not a decorative empty string.
         //
-        // No white plate behind it in dark mode: asked for explicitly, and
-        // consistent with the legal pages. Known and accepted consequence —
-        // the wordmark is navy #072563 on the dark theme's #0a0e2b, i.e.
-        // 1.31:1, so dark-theme readers see the crimson/teal swirl but not
-        // the lettering (the alt text still names it). Do not "fix" this with
-        // a plate or a recolour; the fix is a negative version of the
-        // artwork, if the institute supplies one.
+        // Dark mode: no white plate (too heavy against the copyright line) and
+        // no recolour of the artwork. Instead `logo-glow` traces a soft white
+        // halo along the alpha edges so the navy #072563 wordmark reads against
+        // the dark surface. A supplied negative variant would still be better.
         //
         // h-8 against 14px text: the wordmark's caps are a quarter of the
         // artwork's height, so anything smaller stops being readable. The
@@ -147,7 +162,7 @@ export function SiteFooter() {
                 alt="Beilstein-Institut"
                 width={876}
                 height={202}
-                className="h-8 w-auto"
+                className="logo-glow h-8 w-auto"
               />
             </a>
           </span>
