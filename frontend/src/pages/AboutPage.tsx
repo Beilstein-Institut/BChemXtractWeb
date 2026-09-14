@@ -77,7 +77,7 @@ const LINKS: LinkEntry[] = [
         src={asset("cdk-logo.png")}
         alt=""
         aria-hidden="true"
-        className="h-5 w-auto object-contain"
+        className="logo-glow h-5 w-auto object-contain"
       />
     ),
   },
@@ -233,9 +233,12 @@ function VersionTile() {
       >
         {__APP_VERSION__}
       </span>
+      {/* The big number is this web app (package.json); this line names the
+          separate BChemXtract Java engine it runs on. The engine slot text
+          stays exactly "BChemXtract <v>" for the test. */}
       {engineVersion && (
-        <span className="text-caption text-foreground-muted" data-slot="about-engine-version">
-          BChemXtract {engineVersion}
+        <span className="text-caption text-foreground-muted">
+          running on <span data-slot="about-engine-version">BChemXtract {engineVersion}</span>
         </span>
       )}
     </article>
@@ -334,7 +337,7 @@ function CreditsTile() {
           </a>{" "}
           Java library developed at the{" "}
           <a
-            href="https://www.beilstein-institut.de/"
+            href="https://www.beilstein-institut.de/en/"
             target="_blank"
             rel="noreferrer"
             className="text-primary underline-offset-2 hover:underline"
@@ -369,7 +372,7 @@ function CreditsTile() {
           <ArrowUpRightIcon className="size-3.5" />
         </a>
         <a
-          href="https://www.beilstein-institut.de/"
+          href="https://www.beilstein-institut.de/en/"
           target="_blank"
           rel="noreferrer"
           className={buttonVariants({ variant: "ghost", size: "sm" }) + " gap-1.5"}

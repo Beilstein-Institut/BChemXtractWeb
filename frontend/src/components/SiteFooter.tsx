@@ -1,5 +1,3 @@
-import { Globe } from "lucide-react";
-
 import { Footer, type FooterTextLink } from "@/components/ui/footer";
 import { asset } from "@/lib/basePath";
 import { Link } from "@/lib/Link";
@@ -14,6 +12,22 @@ function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
     <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" {...props}>
       <path d="M12 .5C5.65.5.5 5.65.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.53-1.34-1.3-1.7-1.3-1.7-1.05-.72.08-.7.08-.7 1.17.08 1.78 1.2 1.78 1.2 1.04 1.77 2.72 1.26 3.38.96.1-.75.4-1.26.74-1.55-2.56-.29-5.26-1.28-5.26-5.7 0-1.26.45-2.3 1.2-3.1-.12-.3-.52-1.5.1-3.13 0 0 .98-.31 3.21 1.18.93-.26 1.93-.4 2.92-.4s1.99.14 2.92.4c2.23-1.5 3.21-1.18 3.21-1.18.62 1.63.22 2.83.1 3.13.75.8 1.2 1.84 1.2 3.1 0 4.43-2.7 5.4-5.28 5.69.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
     </svg>
+  );
+}
+
+/**
+ * GitHub mark with a small caption badge. Two of the footer's social links go
+ * to GitHub (the web app repo and the engine repo), so a bare octocat can't
+ * tell them apart — the badge names which is which ("web" vs "engine").
+ */
+function GithubMark({ tag }: { tag: string }) {
+  return (
+    <span className="inline-flex w-11 flex-col items-center gap-0.5 leading-none">
+      <GithubIcon className="size-4" />
+      <span className="max-w-full whitespace-nowrap rounded-full bg-primary px-1.5 py-0.5 text-[0.5rem] font-semibold uppercase leading-none tracking-tight text-primary-foreground">
+        {tag}
+      </span>
+    </span>
   );
 }
 
@@ -88,18 +102,43 @@ function renderInternalLink(link: FooterTextLink, className: string): React.Reac
   );
 }
 
-export function SiteFooter() {
+export function SiteFooter({ className }: { className?: string }) {
   return (
     <Footer
+      className={className}
       renderLink={renderInternalLink}
       socialLinks={[
         {
-          icon: <GithubIcon />,
+          icon: <GithubMark tag="web" />,
           href: "https://github.com/Beilstein-Institut/BChemXtractWeb",
-          label: "BChemXtractWeb on GitHub",
+          label: "BChemXtractWeb (web app) on GitHub",
         },
         {
-          icon: <Globe />,
+          icon: <GithubMark tag="eng" />,
+          href: "https://github.com/Beilstein-Institut/BChemXtract",
+          label: "BChemXtract (engine) on GitHub",
+        },
+        {
+          icon: (
+            <img
+              src={asset("cdk-logo.png")}
+              alt=""
+              aria-hidden="true"
+              className="logo-glow size-5 w-auto object-contain"
+            />
+          ),
+          href: "https://github.com/cdk/cdk",
+          label: "CDK on GitHub",
+        },
+        {
+          icon: (
+            <img
+              src={asset("logo_small_Beilstein-Institut.svg")}
+              alt=""
+              aria-hidden="true"
+              className="logo-glow size-6 object-contain"
+            />
+          ),
           href: "https://www.beilstein-institut.de/en/",
           label: "Beilstein-Institut website",
         },
@@ -120,15 +159,12 @@ export function SiteFooter() {
         // "© 2026" followed by the institute's mark, which now carries the
         // name — hence real alt text, not a decorative empty string.
         //
-        // No white plate behind it in dark mode: asked for explicitly, and
-        // consistent with the legal pages. Known and accepted consequence —
-        // the wordmark is navy #072563 on the dark theme's #0a0e2b, i.e.
-        // 1.31:1, so dark-theme readers see the crimson/teal swirl but not
-        // the lettering (the alt text still names it). Do not "fix" this with
-        // a plate or a recolour; the fix is a negative version of the
-        // artwork, if the institute supplies one.
+        // Dark mode: the navy #072563 "INSTITUT" wordmark is invisible on the
+        // dark surface and a glow alone can't lift a dark fill, so — matching
+        // the legal pages — a small white plate sits behind the mark. A supplied
+        // negative variant would still be better.
         //
-        // h-8 against 14px text: the wordmark's caps are a quarter of the
+        // h-10 against 14px text: the wordmark's caps are a quarter of the
         // artwork's height, so anything smaller stops being readable. The
         // SVG's canvas was tightened to its ink (viewBox "0 48 876 202"; it
         // shipped with ~23% empty margin on the right, which would otherwise
@@ -140,14 +176,14 @@ export function SiteFooter() {
               href="https://www.beilstein-institut.de/en/"
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:rounded-md dark:bg-white dark:px-2 dark:py-1"
             >
               <img
                 src={asset("Logo_Beilstein_schmal_RGB.svg")}
                 alt="Beilstein-Institut"
                 width={876}
                 height={202}
-                className="h-8 w-auto"
+                className="h-10 w-auto"
               />
             </a>
           </span>

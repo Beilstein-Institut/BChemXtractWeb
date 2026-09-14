@@ -54,12 +54,12 @@ const DETAILS: LabelledEntry[] = [
     label: "Internet",
     value: (
       <a
-        href="http://www.beilstein-institut.de"
+        href="https://www.beilstein-institut.de"
         target="_blank"
         rel="noreferrer"
         className={LEGAL_LINK_CLASS}
       >
-        http://www.beilstein-institut.de
+        https://www.beilstein-institut.de
       </a>
     ),
   },

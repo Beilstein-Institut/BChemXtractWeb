@@ -90,6 +90,15 @@
  * prefers-reduced-transparency.
  */
 @layer components {
+  /* Brand logos are dark-navy artwork (no negative variant supplied), so on
+     the near-black dark surfaces the navy shapes vanish. A soft white glow
+     traces the alpha edges and lifts the mark off the background without
+     recolouring the artwork. Light mode leaves the logo untouched. */
+  .dark .logo-glow {
+    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.85))
+      drop-shadow(0 0 5px rgba(255, 255, 255, 0.45));
+  }
+
   /* Shared base for claymorphism buttons */
   .btn-clay {
     position: relative;

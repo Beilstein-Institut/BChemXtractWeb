@@ -156,9 +156,9 @@ describe("AboutPage", () => {
       name: /beilstein-institut/i,
     });
     expect(institute.length).toBeGreaterThanOrEqual(1);
-    // Every Beilstein-Institut link should open externally.
+    // Every Beilstein-Institut link should open externally, to the English site.
     for (const link of institute) {
-      expect(link.getAttribute("href")).toBe("https://www.beilstein-institut.de/");
+      expect(link.getAttribute("href")).toBe("https://www.beilstein-institut.de/en/");
       expect(link.getAttribute("target")).toBe("_blank");
       expect(link.getAttribute("rel")).toBe("noreferrer");
     }

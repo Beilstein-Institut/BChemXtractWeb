@@ -45,9 +45,12 @@ export function HomePage() {
         </p>
 
         {/* The one visual: a real structure resolving into its identifiers. */}
-        <div className="mt-4 flex w-full max-w-xl flex-col items-stretch gap-3 rounded-2xl bg-surface p-3.5 shadow-[var(--shadow-neu-raised)] sm:flex-row sm:items-center sm:p-4">
-          <figure className="m-0 flex flex-1 flex-col items-center gap-2">
-            <div className="w-full max-w-[140px] rounded-xl bg-white p-2.5 shadow-[var(--shadow-neu-inset)]">
+        {/* Card scaled ~25% larger overall (width, padding, gaps, structure
+            image) while every font size stays put — the identifiers and caption
+            keep their exact text-[…] values. */}
+        <div className="mt-5 flex w-full max-w-[45rem] flex-col items-stretch gap-4 rounded-2xl bg-surface p-[1.1rem] shadow-[var(--shadow-neu-raised)] sm:flex-row sm:items-center sm:p-5">
+          <figure className="m-0 flex flex-1 flex-col items-center gap-2.5">
+            <div className="w-full max-w-[175px] rounded-xl bg-white p-[0.78rem] shadow-[var(--shadow-neu-inset)]">
               <img
                 src={aspirinStructure}
                 alt="2D structure of aspirin"
@@ -64,10 +67,10 @@ export function HomePage() {
 
           <ArrowRightIcon
             aria-hidden
-            className="mx-auto size-4 flex-none rotate-90 text-primary sm:rotate-0"
+            className="mx-auto size-5 flex-none rotate-90 text-primary sm:rotate-0"
           />
 
-          <dl className="flex-1 space-y-2 text-left text-[0.78rem]">
+          <dl className="flex-1 space-y-2.5 text-left text-[0.78rem]">
             <div>
               <dt className="text-foreground-muted">SMILES</dt>
               <dd className="text-foreground">CC(=O)Oc1ccccc1C(=O)O</dd>
