@@ -111,7 +111,14 @@ export function SiteFooter({ className }: { className?: string }) {
       renderLink={renderInternalLink}
       socialLinks={[
         {
-          icon: <GithubMark tag="web" />,
+          icon: (
+            <img
+              src={asset("bchemxtract-logo.svg")}
+              alt=""
+              aria-hidden="true"
+              className="logo-glow size-6 w-auto object-contain"
+            />
+          ),
           href: "https://github.com/Beilstein-Institut/BChemXtractWeb",
           label: "BChemXtractWeb (web app) on GitHub",
         },
