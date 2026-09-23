@@ -150,10 +150,10 @@ test.describe("Typography and Spacing", () => {
 
     const fontSize = await h1.evaluate((el) => getComputedStyle(el).fontSize);
     const size = parseFloat(fontSize);
-    // Liquid Glass hero: font-display + text-3xl (30px) on mobile,
-    // text-4xl (36px) from sm: upward. Viewport here is 1280×720.
-    expect(size).toBeGreaterThanOrEqual(30);
-    expect(size).toBeLessThanOrEqual(40);
+    // Shared PageHeader: text-4xl (36px) on mobile, text-5xl (48px) from sm:
+    // upward. Viewport here is 1280×720.
+    expect(size).toBeGreaterThanOrEqual(44);
+    expect(size).toBeLessThanOrEqual(52);
   });
 
   test("subtitle uses the body-base type step", async ({ page }) => {
@@ -169,12 +169,15 @@ test.describe("Typography and Spacing", () => {
     expect(size).toBeLessThanOrEqual(20);
   });
 
-  test("main content has generous top padding for sticky header", async ({ page }) => {
-    const main = page.locator("main");
-    const paddingTop = await main.evaluate((el) => getComputedStyle(el).paddingTop);
-    const pt = parseFloat(paddingTop);
-    // pt-24 = 96px
-    expect(pt).toBeGreaterThanOrEqual(90);
+  test("title sits the same distance below the header on every inner page", async ({ page }) => {
+    const gaps: number[] = [];
+    for (const route of ["/extract", "/view", "/browse", "/history", "/about", "/settings"]) {
+      await page.goto(route);
+      const h1 = page.locator("main h1").first();
+      await expect(h1).toBeVisible();
+      gaps.push(await h1.evaluate((el) => Math.round(el.getBoundingClientRect().top)));
+    }
+    expect(new Set(gaps).size).toBe(1);
   });
 
   test("header height is 64px (h-16)", async ({ page }) => {

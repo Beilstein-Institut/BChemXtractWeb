@@ -43,7 +43,10 @@ export function BackToTop() {
       data-slot="back-to-top"
       onClick={scrollToTop}
       className={cn(
-        "fixed bottom-6 right-6 z-40 rounded-full shadow-lg transition-all duration-300 motion-reduce:transition-none",
+        // Unpinned footer: fixed to the viewport corner. Pinned footer: this
+        // renders inside its sticky dock, so anchor just above the dock.
+        "fixed bottom-6 right-6 footer-pinned:absolute footer-pinned:bottom-[calc(100%+1.5rem)]",
+        "z-40 rounded-full shadow-lg transition-all duration-300 motion-reduce:transition-none",
         visible ? "opacity-100" : "pointer-events-none translate-y-2 opacity-0",
       )}
     >

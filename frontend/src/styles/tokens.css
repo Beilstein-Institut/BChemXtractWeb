@@ -110,7 +110,7 @@
   --color-surface-elevated: oklch(0.26 0.07 274);
   --color-surface-muted: oklch(0.3 0.05 274);
   --color-foreground: oklch(0.96 0.01 75);
-  --color-foreground-muted: oklch(0.72 0.03 75);
+  --color-foreground-muted: oklch(0.82 0.03 75);
   --color-border: oklch(0.35 0.04 274);
 
   /* Accents carry two jobs that pull in opposite directions on a dark

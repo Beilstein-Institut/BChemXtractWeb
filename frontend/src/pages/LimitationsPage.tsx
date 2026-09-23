@@ -337,7 +337,7 @@ export function LimitationsPage() {
         slot="limitations-tldr"
         headingId="limitations-tldr-heading"
         heading="In short"
-        className="mt-8 bg-surface-elevated"
+        className="bg-surface-elevated"
         headingClassName="text-caption font-semibold uppercase tracking-wider text-foreground-muted"
       >
         <p className="mt-3 max-w-[70ch] text-sm leading-relaxed text-foreground">

@@ -8,15 +8,15 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PubChemPreferencesProvider } from "@/context/PubChemPreferencesContext";
 import { SearchProvider } from "@/context/SearchContext";
+import { SearchNavReset } from "@/context/SearchNavReset";
 import { useAuth } from "@/hooks/useAuth";
 import { useBatch } from "@/hooks/useBatch";
 import { useCsrfToken } from "@/hooks/useCsrfToken";
 import { useExtract } from "@/hooks/useExtract";
 import { useHistory } from "@/hooks/useHistory";
 import { getExtractionReactions, getHistoryDetail } from "@/lib/apiClient";
-import { navigate, ROUTE_CHANGE_EVENT, routePath, useRoute } from "@/lib/router";
+import { navigate, routePath, useRoute } from "@/lib/router";
 import { cn } from "@/lib/utils";
-import { SEARCH_URL_EVENT } from "@/hooks/useSearchImpl";
 import { BrowsePage } from "@/pages/BrowsePage";
 import { ExtractPage } from "@/pages/ExtractPage";
 import { HistoryPage } from "@/pages/HistoryPage";
@@ -25,9 +25,9 @@ import type { ExtractionResponse, ReactionExtractionResponse } from "@/types/che
 
 // Lazy-loaded routes: kept out of the initial bundle because they're
 // only rendered in response to explicit navigation (legal pages via
-// the footer, /about from nav, SearchResults only when ?q= is in the
-// URL). HomePage/BrowsePage/ExtractPage/HistoryPage are eager — users hit
-// them on the default flow and lazy-loading would introduce a skeleton flash.
+// the footer, /about from nav). HomePage/BrowsePage/ExtractPage/HistoryPage
+// are eager — users hit them on the default flow and lazy-loading would
+// introduce a skeleton flash.
 const AboutPage = lazy(() => import("@/pages/AboutPage").then((m) => ({ default: m.AboutPage })));
 const ImprintPage = lazy(() =>
   import("@/pages/ImprintPage").then((m) => ({ default: m.ImprintPage })),
@@ -42,20 +42,10 @@ const LimitationsPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import("@/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
 );
-const SearchResults = lazy(() =>
-  import("@/components/SearchResults").then((m) => ({ default: m.SearchResults })),
-);
 const BatchViewPage = lazy(() =>
   import("@/pages/BatchViewPage").then((m) => ({ default: m.BatchViewPage })),
 );
 const ViewPage = lazy(() => import("@/pages/ViewPage").then((m) => ({ default: m.ViewPage })));
-
-/** Events that can change whether `?q=` is present in the URL. */
-const SEARCH_URL_EVENTS = ["popstate", SEARCH_URL_EVENT, ROUTE_CHANGE_EVENT] as const;
-
-function hasSearchQuery(): boolean {
-  return new URLSearchParams(window.location.search).has("q");
-}
 
 function App() {
   // Bootstrap session + CSRF token BEFORE any other API call. Both hooks
@@ -105,15 +95,12 @@ function App() {
     null,
   );
   const [liveReactionCount, setLiveReactionCount] = useState(0);
-  const [searchActive, setSearchActive] = useState<boolean>(hasSearchQuery);
 
   const activeResult = historicalResult ?? result;
   const isHistoricalView = historicalResult !== null;
 
-  // The home landing is a short, vertically-centered hero. The footer's
-  // generous top padding (pt-24) compounds with that centering into a big
-  // empty band above the footer, so trim it on this route only.
-  const isHomeLanding = route === "/" && !searchActive;
+  // The home landing is a short hero centered between header and footer.
+  const isHomeLanding = route === "/";
 
   // Surface extract / batch error messages as toasts.
   useEffect(() => {
@@ -168,16 +155,6 @@ function App() {
       });
     return () => controller.abort();
   }, [activeResult?.extraction_id, selectedFile]);
-
-  // URL-gated SearchResults routing — `?q=` in the URL replaces the
-  // current page with <SearchResults> regardless of the pathname.
-  useEffect(() => {
-    const sync = () => setSearchActive(hasSearchQuery());
-    for (const evt of SEARCH_URL_EVENTS) window.addEventListener(evt, sync);
-    return () => {
-      for (const evt of SEARCH_URL_EVENTS) window.removeEventListener(evt, sync);
-    };
-  }, []);
 
   const handleExtract = useCallback(
     (file: File) => {
@@ -252,7 +229,6 @@ function App() {
   );
 
   function renderRoute() {
-    if (searchActive) return <SearchResults onViewExtraction={handleViewExtraction} />;
     switch (route) {
       case "/about":
         return <AboutPage />;
@@ -284,6 +260,7 @@ function App() {
             onReset={handleReset}
             onBackToLatest={handleBackToLatest}
             onReactionsCountChange={setLiveReactionCount}
+            onViewExtraction={handleViewExtraction}
           />
         );
       case "/history":
@@ -299,6 +276,7 @@ function App() {
             onReload={reloadEntry}
             onDelete={deleteEntry}
             onReloadSuccess={handleReloadSuccess}
+            onViewExtraction={handleViewExtraction}
           />
         );
       case "/extract":
@@ -328,30 +306,46 @@ function App() {
     <ThemeProvider defaultTheme="light" storageKey="bchemxtract-theme">
       <PubChemPreferencesProvider>
         <SearchProvider>
+          <SearchNavReset />
           <div className="flex min-h-screen flex-col bg-background text-foreground">
             <AppHeader />
             <main
               className={cn(
                 "mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6",
                 // The home landing is a single-screen hero: center the content
-                // vertically in the space between header and footer, and trim the
-                // generous padding other routes use so header + hero + footer fit
-                // without scrolling. The sticky header is in-flow, so no top
-                // padding is needed to clear it.
-                isHomeLanding
-                  ? "flex flex-col justify-center py-3"
-                  : "pt-20 pb-10 sm:pt-24 sm:pb-12",
+                // vertically between header and footer. Other routes share one
+                // small top gap (PageContainer adds the rest) so short pages like
+                // Extract and View fit header + page + footer on one screen. The
+                // sticky header is in-flow, so no padding is needed to clear it.
+                isHomeLanding ? "flex flex-col justify-center py-3" : "pt-2 sm:pt-4",
               )}
             >
               <Suspense fallback={<PageSuspenseFallback />}>{renderRoute()}</Suspense>
             </main>
-            <SiteFooter className={isHomeLanding ? "pt-6 lg:pt-8" : undefined} />
+            {/* The footer is pinned to the bottom of the viewport on screens at
+             *  least 768px wide and 640px tall (the `footer-pinned` variant), so
+             *  it is visible on every route without scrolling; long pages scroll
+             *  their content above it. Smaller screens keep it in flow (pinned,
+             *  it would cover too much of the screen). BackToTop rides in the
+             *  same sticky box so it sits just above the footer, not on it. */}
+            <div
+              data-slot="site-footer-dock"
+              className="relative z-30 bg-background footer-pinned:sticky footer-pinned:bottom-0"
+            >
+              {/* Soft fade above the pinned footer so scrolling content dissolves
+               *  into it instead of being cut off by a hard edge. */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 bottom-full hidden h-12 bg-gradient-to-t from-background to-transparent footer-pinned:block"
+              />
+              <BackToTop />
+              <SiteFooter />
+            </div>
             {/* Globally mounted so ⌘K works from any route.
              *  Lazy-loaded on first ⌘K to keep motion/react out of the
              *  initial bundle — see DeferredCommandPalette.
              */}
             <DeferredCommandPalette />
-            <BackToTop />
           </div>
           <Toaster richColors />
         </SearchProvider>

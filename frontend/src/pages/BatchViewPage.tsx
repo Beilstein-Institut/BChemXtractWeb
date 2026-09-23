@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowUpRightIcon, DownloadIcon, FileUpIcon, LayoutGridIcon, ListIcon } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { StructureTable } from "@/components/StructureTable";
 import { StructureCard } from "@/components/StructureCard";
 import { StructureSheet } from "@/components/StructureSheet";
@@ -138,51 +139,47 @@ export function BatchViewPage({ onViewExtraction }: BatchViewPageProps) {
 
   return (
     <PageContainer data-slot="batch-view-page">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            All extractions
-          </h1>
-          <p className="text-base text-foreground-muted">
-            {sections.length} files · {totalStructures} structures
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <ToggleGroup
-            value={[view]}
-            onValueChange={(v: string[]) => {
-              const next = v.find((x) => x !== view);
-              if (next) setView(next as View);
-            }}
-            aria-label="View mode"
-          >
-            <ToggleGroupItem value="table" aria-label="Table view" className="h-9 w-9 p-0">
-              <ListIcon className="size-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="grid" aria-label="Grid view" className="h-9 w-9 p-0">
-              <LayoutGridIcon className="size-4" />
-            </ToggleGroupItem>
-          </ToggleGroup>
-          <Button
-            variant="primary"
-            size="sm"
-            className="rounded-full"
-            onClick={handleDownloadZip}
-            icon={<DownloadIcon />}
-          >
-            <span className="hidden sm:inline">Download ZIP</span>
-          </Button>
-        </div>
-      </header>
+      <PageHeader
+        title="All extractions"
+        lede={`${sections.length} files · ${totalStructures} structures`}
+        actions={
+          <>
+            <ToggleGroup
+              value={[view]}
+              onValueChange={(v: string[]) => {
+                const next = v.find((x) => x !== view);
+                if (next) setView(next as View);
+              }}
+              aria-label="View mode"
+            >
+              <ToggleGroupItem value="table" aria-label="Table view" className="h-9 w-9 p-0">
+                <ListIcon className="size-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="grid" aria-label="Grid view" className="h-9 w-9 p-0">
+                <LayoutGridIcon className="size-4" />
+              </ToggleGroupItem>
+            </ToggleGroup>
+            <Button
+              variant="primary"
+              size="sm"
+              className="rounded-full"
+              onClick={handleDownloadZip}
+              icon={<DownloadIcon />}
+            >
+              <span className="hidden sm:inline">Download ZIP</span>
+            </Button>
+          </>
+        }
+      />
 
       {state === "loading" ? (
-        <div className="mt-8 space-y-8" data-slot="batch-view-loading">
+        <div className="space-y-8" data-slot="batch-view-loading">
           {[0, 1].map((i) => (
             <Skeleton key={i} className="h-40 w-full rounded-xl" />
           ))}
         </div>
       ) : (
-        <div className="mt-8 space-y-10">
+        <div className="space-y-10">
           {sections.map((s, sectionIdx) => (
             <section key={s.extractionId} data-slot="batch-view-section">
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border pb-2">

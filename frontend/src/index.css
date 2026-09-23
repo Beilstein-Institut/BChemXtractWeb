@@ -17,6 +17,12 @@
  */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* The site footer is pinned to the viewport bottom only when the screen is
+ * wide AND tall enough (App.tsx). Width alone let short landscape phones and
+ * small tablets lose most of the screen to the pinned footer. One variant, so
+ * the dock, its fade, BackToTop and the scroll padding all switch together. */
+@custom-variant footer-pinned (@media (min-width: 48rem) and (min-height: 40rem));
+
 /* Re-export a curated slice of the token system into Tailwind's theme scope.
  * In Tailwind 4 only vars declared inside `@theme` become utility-generating
  * (`bg-primary`, `text-foreground`, `rounded-lg`, `font-display`, ...).
@@ -26,6 +32,11 @@
  * utilities.
  */
 @theme {
+  /* Wide screens: the footer's three-column bottom line (license | brand +
+     copyright | legal links) only fits from here. A named breakpoint, so it
+     sorts after lg: (arbitrary min-[…] variants sorted before it and lost). */
+  --breakpoint-wide: 87.5rem;
+
   --color-background: var(--color-background);
   --color-surface: var(--color-surface);
   --color-surface-elevated: var(--color-surface-elevated);
@@ -95,8 +106,27 @@
      traces the alpha edges and lifts the mark off the background without
      recolouring the artwork. Light mode leaves the logo untouched. */
   .dark .logo-glow {
-    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.85))
-      drop-shadow(0 0 5px rgba(255, 255, 255, 0.45));
+    filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 1))
+      drop-shadow(0 0 10px rgba(255, 255, 255, 0.6));
+  }
+  /* Header publisher mark (navy wordmark, thin letters): a glow that follows
+     the mark's own shape, like the BChemXtract logo's. Three stacked sub-pixel
+     white edges outline each letter so the thin strokes stay sharp and
+     legible; a soft halo behind them adds the glow. No background field or
+     plate. */
+  .dark .publisher-glow img {
+    filter: drop-shadow(0 0 0.6px rgba(255, 255, 255, 1))
+      drop-shadow(0 0 0.6px rgba(255, 255, 255, 1)) drop-shadow(0 0 0.6px rgba(255, 255, 255, 1))
+      drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
+  }
+
+  /* Small detailed marks (the dotted CDK logo, 16–24px icons): the wide halo
+     floods the gaps between their fine shapes and smears them, so they get
+     only a crisp sub-pixel edge that still lifts navy strokes off the dark
+     surface. */
+  .dark .logo-glow--tight {
+    filter: drop-shadow(0 0 0.5px rgba(255, 255, 255, 1))
+      drop-shadow(0 0 1px rgba(255, 255, 255, 0.5));
   }
 
   /* Shared base for claymorphism buttons */
@@ -358,6 +388,20 @@ body {
   overflow-x: clip;
 }
 
+/* Reserve the scrollbar's width on every route so page content does not shift
+   sideways when moving between pages that scroll and pages that fit. */
+html {
+  scrollbar-gutter: stable;
+}
+/* When the site footer is pinned, keep anchor jumps and focus-into-view
+   scrolling clear of it so nothing lands hidden behind the footer. 18rem
+   covers its tallest pinned height (~277px at 768px wide). */
+html {
+  @variant footer-pinned {
+    scroll-padding-bottom: 18rem;
+  }
+}
+
 ::selection {
   background: var(--color-primary);
   color: var(--color-primary-foreground);
@@ -424,7 +468,7 @@ body {
    =========================================================== */
 
 .theme-switch {
-  --toggle-size: 12px; /* single size knob for the whole toggle (pill + flask) */
+  --toggle-size: 10px; /* single size knob for the whole toggle (pill + flask) */
   --container-width: 5.625em;
   --container-height: 2.5em;
   --container-radius: 6.25em;
@@ -454,7 +498,11 @@ body {
   --liquid-night-deep: #0f172a;
   --liquid-night-surface: rgba(30, 41, 59, 0.5);
 
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  cursor: pointer;
+  flex-shrink: 0; /* never squeezed by the rest of the header */
   font-size: var(--toggle-size);
 }
 
@@ -479,6 +527,31 @@ body {
 
 .theme-switch__checkbox {
   display: none;
+}
+
+/* "Light / Dark" stacked beside the pill: the active mode reads at full
+   strength, the other is greyed out. Sized in rem so it stays legible
+   independent of --toggle-size (declared after the descendant
+   `font-size: inherit` rule, so this wins at equal specificity). */
+.theme-switch__legend {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; /* right-aligned so both words hug the pill */
+  font-size: 0.6875rem;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+/* The inactive word is greyed by colour + weight only — no opacity — so it
+   still clears the 4.5:1 text-contrast floor in both themes. */
+.theme-switch__legend > span {
+  color: var(--color-foreground-muted);
+  font-weight: 400;
+  transition: color 0.3s;
+}
+.theme-switch__legend > span[data-active] {
+  color: var(--color-foreground);
+  font-weight: 700;
 }
 
 .theme-switch__container {

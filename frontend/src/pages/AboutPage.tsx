@@ -26,6 +26,7 @@ import { ArrowUpRightIcon, ExternalLinkIcon, FlaskConicalIcon, BookOpenIcon } fr
 import { BentoCell } from "@/components/layout/BentoCell";
 import { BentoGrid } from "@/components/layout/BentoGrid";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { BrandName } from "@/components/BrandName";
 import { Badge } from "@/components/ui/badge";
 import { BackgroundPaths } from "@/components/ui/background-paths";
@@ -77,7 +78,7 @@ const LINKS: LinkEntry[] = [
         src={asset("cdk-logo.png")}
         alt=""
         aria-hidden="true"
-        className="logo-glow h-5 w-auto object-contain"
+        className="logo-glow logo-glow--tight h-5 w-auto object-contain"
       />
     ),
   },
@@ -108,17 +109,17 @@ export function AboutPage() {
   useApiBuilderConsoleNote();
   return (
     <PageContainer data-slot="about-page">
-      <header className="space-y-2">
-        <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-          About
-        </h1>
-        <p className="text-base text-foreground-muted">
-          A browser wrapper around the <BrandName /> Java library — built at the Beilstein-Institut
-          to make structure extraction accessible to anyone.
-        </p>
-      </header>
+      <PageHeader
+        title="About"
+        lede={
+          <>
+            A browser wrapper around the <BrandName /> Java library — built at the
+            Beilstein-Institut to make structure extraction accessible to anyone.
+          </>
+        }
+      />
 
-      <BentoGrid cols={3} className="mt-8 auto-rows-[minmax(180px,auto)]" data-slot="about-bento">
+      <BentoGrid cols={3} className="auto-rows-[minmax(180px,auto)]" data-slot="about-bento">
         <BentoCell span="2:2" data-slot="about-hero-cell">
           <HeroTile />
         </BentoCell>
@@ -225,7 +226,7 @@ function VersionTile() {
       className="flex h-full flex-col justify-center gap-2 rounded-lg border border-border bg-surface p-6"
     >
       <span className="text-caption font-semibold uppercase tracking-wide text-foreground-muted">
-        Version
+        Web version
       </span>
       <span
         data-slot="about-version-value"

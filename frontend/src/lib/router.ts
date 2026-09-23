@@ -22,6 +22,21 @@ export function routePath(): string {
   return stripBase(window.location.pathname);
 }
 
+/** Routes that host the structure search box. */
+const SEARCH_ROUTES = ["/browse", "/history"];
+
+/**
+ * Search used to live in the header, so older shared links carry `?q=` on any
+ * route (`/?q=…`, `/extract?q=…`). Search now lives on Browse and History only;
+ * send such a link to History (which opens in Structures mode for `?q=`) with
+ * its query intact, so it still shows results. Call once, before first render.
+ */
+export function redirectLegacySearchLink(): void {
+  if (!new URLSearchParams(window.location.search).has("q")) return;
+  if (SEARCH_ROUTES.includes(routePath())) return;
+  window.history.replaceState(null, "", withBase("/history") + window.location.search);
+}
+
 export function navigate(to: string): void {
   const target = withBase(to);
   if (target === window.location.pathname + window.location.search) return;
