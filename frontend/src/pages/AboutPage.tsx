@@ -78,7 +78,7 @@ const LINKS: LinkEntry[] = [
         src={asset("cdk-logo.png")}
         alt=""
         aria-hidden="true"
-        className="logo-glow logo-glow--tight h-5 w-auto object-contain"
+        className="logo-glow h-5 w-auto object-contain"
       />
     ),
   },

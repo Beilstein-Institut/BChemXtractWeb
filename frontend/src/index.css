@@ -102,31 +102,15 @@
  */
 @layer components {
   /* Brand logos are dark-navy artwork (no negative variant supplied), so on
-     the near-black dark surfaces the navy shapes vanish. A soft white glow
-     traces the alpha edges and lifts the mark off the background without
-     recolouring the artwork. Light mode leaves the logo untouched. */
+     the near-black dark surfaces the navy shapes vanish. Every logo gets the
+     same glow that follows its own shape, without recolouring the artwork:
+     four stacked 1px white edges outline each stroke (keeping thin letters,
+     like the Beilstein wordmark, legible) and a soft 12px halo lifts the mark
+     off the background. Light mode leaves the logos untouched. */
   .dark .logo-glow {
-    filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 1))
-      drop-shadow(0 0 10px rgba(255, 255, 255, 0.6));
-  }
-  /* Header publisher mark (navy wordmark, thin letters): a glow that follows
-     the mark's own shape, like the BChemXtract logo's. Three stacked sub-pixel
-     white edges outline each letter so the thin strokes stay sharp and
-     legible; a soft halo behind them adds the glow. No background field or
-     plate. */
-  .dark .publisher-glow img {
-    filter: drop-shadow(0 0 0.6px rgba(255, 255, 255, 1))
-      drop-shadow(0 0 0.6px rgba(255, 255, 255, 1)) drop-shadow(0 0 0.6px rgba(255, 255, 255, 1))
-      drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
-  }
-
-  /* Small detailed marks (the dotted CDK logo, 16–24px icons): the wide halo
-     floods the gaps between their fine shapes and smears them, so they get
-     only a crisp sub-pixel edge that still lifts navy strokes off the dark
-     surface. */
-  .dark .logo-glow--tight {
-    filter: drop-shadow(0 0 0.5px rgba(255, 255, 255, 1))
-      drop-shadow(0 0 1px rgba(255, 255, 255, 0.5));
+    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 1)) drop-shadow(0 0 1px rgba(255, 255, 255, 1))
+      drop-shadow(0 0 1px rgba(255, 255, 255, 1)) drop-shadow(0 0 1px rgba(255, 255, 255, 1))
+      drop-shadow(0 0 12px rgba(255, 255, 255, 0.8));
   }
 
   /* Shared base for claymorphism buttons */
