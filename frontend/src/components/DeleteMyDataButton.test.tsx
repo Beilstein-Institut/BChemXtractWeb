@@ -2,7 +2,7 @@
  * DeleteMyDataButton — unit tests for GDPR Article 17.
  *
  * Verifies:
- *   - Renders the destructive trigger button.
+ *   - Renders the trigger button in the primary (pink) style.
  *   - Clicking the trigger opens the AlertDialog with a confirmation
  *     description.
  *   - Clicking Cancel closes the dialog without firing the network call.
@@ -37,11 +37,11 @@ describe("DeleteMyDataButton", () => {
     csrfTokenCache.value = null;
   });
 
-  it("renders the destructive trigger button", () => {
+  it("renders the trigger button in the primary style", () => {
     render(<DeleteMyDataButton />);
     const trigger = screen.getByRole("button", { name: /delete all my data/i });
     expect(trigger).toBeInTheDocument();
-    expect(trigger.getAttribute("data-variant")).toBe("destructive");
+    expect(trigger.getAttribute("data-variant")).toBe("primary");
   });
 
   it("opens the confirmation dialog on trigger click", async () => {
