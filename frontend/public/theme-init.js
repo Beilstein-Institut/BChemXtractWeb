@@ -1,7 +1,7 @@
 // Resolve the theme before first paint so the boot splash (and the app) pick
 // the right light/dark colors with no flash. Mirrors theme-provider: storageKey
-// "bchemxtract-theme", "system" default resolved via the prefers-color-scheme
-// media query.
+// "bchemxtract-theme", "light" default (an explicitly saved "system" still follows the
+// prefers-color-scheme media query).
 //
 // This lives as an external same-origin file (not an inline <script>) so it
 // satisfies the production CSP `script-src 'self'` (see nginx/frontend.conf)
@@ -10,7 +10,7 @@
 // paints — no flash of the wrong theme.
 (function () {
   try {
-    var t = localStorage.getItem("bchemxtract-theme") || "system";
+    var t = localStorage.getItem("bchemxtract-theme") || "light";
     var dark =
       t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.classList.add(dark ? "dark" : "light");
