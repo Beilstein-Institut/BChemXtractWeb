@@ -325,7 +325,7 @@ function App() {
   }
 
   return (
-    <ThemeProvider defaultTheme="system" storageKey="bchemxtract-theme">
+    <ThemeProvider defaultTheme="light" storageKey="bchemxtract-theme">
       <PubChemPreferencesProvider>
         <SearchProvider>
           <div className="flex min-h-screen flex-col bg-background text-foreground">
