@@ -109,24 +109,24 @@ export function AppHeader() {
               hairline: the left edge stays the product (mark = Home), the
               right edge says who makes it, and the two links never sit side by
               side. Hidden on phones, where the controls need the width; the
-              footer still names the institute there. Dark mode: a shape-
-              following glow (index.css .publisher-glow) keeps the navy mark
-              readable without recolouring it; a filter takes no space, so the
-              header never shifts between themes. */}
+              footer still names the institute there. Dark mode: the shared
+              logo glow (index.css .logo-glow) keeps the navy mark readable
+              without recolouring it; a filter takes no space, so the header
+              never shifts between themes. */}
           <span aria-hidden="true" className="hidden h-8 w-px bg-border sm:block" />
           <a
             href="https://www.beilstein-institut.de/en/"
             target="_blank"
             rel="noopener noreferrer"
             data-slot="header-publisher"
-            className="publisher-glow hidden shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:block"
+            className="hidden shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:block"
           >
             <img
               src={asset("Logo_Beilstein_schmal_RGB.svg")}
               alt="Beilstein-Institut"
               width={876}
               height={202}
-              className="h-10 w-auto"
+              className="logo-glow h-10 w-auto"
             />
           </a>
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>

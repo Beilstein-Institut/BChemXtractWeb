@@ -127,7 +127,7 @@ export function SiteFooter({ className }: { className?: string }) {
               src={asset("cdk-logo.png")}
               alt=""
               aria-hidden="true"
-              className="logo-glow logo-glow--tight size-5 w-auto object-contain"
+              className="logo-glow size-5 w-auto object-contain"
             />
           ),
           href: "https://github.com/cdk/cdk",
@@ -164,7 +164,7 @@ export function SiteFooter({ className }: { className?: string }) {
               src={asset("bchemxtract-logo.svg")}
               alt=""
               aria-hidden="true"
-              className="logo-glow logo-glow--tight size-5"
+              className="logo-glow size-5"
             />
             <BrandName />
           </Link>
