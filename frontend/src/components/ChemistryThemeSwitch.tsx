@@ -54,6 +54,12 @@ export function ChemistryThemeSwitch() {
       data-slot="theme-switch"
       aria-label={resolvedDark ? "Switch to light theme" : "Switch to dark theme"}
     >
+      {/* Visual-only legend, left of the pill; the label's aria-label already names the action.
+          Placed before the checkbox: the CSS keys the pill off `checkbox + container`. */}
+      <span className="theme-switch__legend" aria-hidden="true">
+        <span data-active={!resolvedDark || undefined}>Light</span>
+        <span data-active={resolvedDark || undefined}>Dark</span>
+      </span>
       <input
         type="checkbox"
         role="switch"

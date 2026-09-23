@@ -19,6 +19,7 @@ import { useEffect, useRef } from "react";
 import { AlertCircleIcon, SearchXIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Pagination,
@@ -62,13 +63,17 @@ function buildPageNumbers(current: number, total: number): number[] {
 export interface SearchResultsProps {
   /**
    * Callback when a user picks an extraction from a result's AttributionPill.
-   * Wired in App.tsx to `handleViewExtraction`, which fetches the extraction
-   * detail, primes the active extraction state, and routes to /browse.
+   * Wired (via the Browse and History pages) to App.tsx `handleViewExtraction`,
+   * which fetches the extraction detail, primes the active extraction state,
+   * and routes to /browse.
    */
   onViewExtraction?: (extractionId: number) => void;
+  /** Extra classes for the root section (pages embed it under their own
+   *  search bar, so they trim the standalone padding). */
+  className?: string;
 }
 
-export function SearchResults({ onViewExtraction }: SearchResultsProps = {}) {
+export function SearchResults({ onViewExtraction, className }: SearchResultsProps = {}) {
   const {
     searchState,
     response,
@@ -118,7 +123,7 @@ export function SearchResults({ onViewExtraction }: SearchResultsProps = {}) {
 
   return (
     <section
-      className="max-w-[1280px] mx-auto px-6 py-8"
+      className={cn("max-w-[1280px] mx-auto px-6 py-8", className)}
       aria-busy={searchState === "loading" ? "true" : "false"}
     >
       <h2 className="sr-only">Search results</h2>

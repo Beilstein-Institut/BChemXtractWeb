@@ -25,6 +25,7 @@ import { BatchStopped } from "@/components/BatchStopped";
 import { BatchSummary } from "@/components/BatchSummary";
 import { FileUpload } from "@/components/FileUpload";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { WizardStepper, type WizardStep } from "@/components/layout/WizardStepper";
 import type { BatchState } from "@/hooks/useBatch";
 import type { ExtractState } from "@/hooks/useExtract";
@@ -131,15 +132,10 @@ export function ExtractPage({
 
   return (
     <PageContainer>
-      <header className="mb-8 space-y-3">
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-          Your drawings, read back.
-        </h1>
-        <p className="max-w-[60ch] text-base text-foreground-muted">
-          Drop a CDX or CDXML file. Get structures, reactions, and string representations — SMILES,
-          InChI, RInChI, molecular formula.
-        </p>
-      </header>
+      <PageHeader
+        title="Your drawings, read back."
+        lede="Drop a CDX or CDXML file. Get structures, reactions, and string representations — SMILES, InChI, RInChI, molecular formula."
+      />
 
       <WizardStepper
         steps={WIZARD_STEPS}

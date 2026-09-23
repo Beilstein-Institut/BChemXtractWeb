@@ -35,7 +35,7 @@ export function HomePage() {
           }}
         />
 
-        <h1 className="font-display text-4xl font-bold tracking-tight text-balance text-foreground sm:text-5xl">
+        <h1 className="font-display text-4xl font-semibold tracking-tight text-balance text-foreground sm:text-5xl">
           ChemDraw, <span className="text-foreground-muted">read back.</span>
         </h1>
         <p className="mt-2.5 max-w-[60ch] text-sm leading-snug text-foreground-muted sm:text-base">

@@ -8,6 +8,7 @@
  *  - Stereo toggle → URL + new fetch
  *  - Invalid substructure query → no fetch
  *  - Clear() resets everything including stereo
+ *  - Search writes keep the host page's own URL params (Browse's ?page= etc.)
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
@@ -51,6 +52,31 @@ describe("useSearchImpl — URL round trip", () => {
     act(() => result.current.setStereo(true));
     expect(result.current.stereo).toBe(true);
     expect(window.location.search).toContain("stereo=1");
+  });
+});
+
+describe("useSearchImpl — shares the URL with the host page", () => {
+  it("typing and clearing keep the page's own params, and results paging uses qpage", () => {
+    window.history.replaceState(null, "", "/browse?extraction=5&page=2&view=table");
+    const { result } = renderHook(() => useSearchImpl());
+
+    act(() => result.current.setQuery("C6H6"));
+    act(() => result.current.goToPage(3));
+    let params = new URLSearchParams(window.location.search);
+    expect(params.get("q")).toBe("C6H6");
+    expect(params.get("qpage")).toBe("3");
+    // Browse's own grid page is untouched by the search's paging.
+    expect(params.get("page")).toBe("2");
+    expect(params.get("extraction")).toBe("5");
+    expect(params.get("view")).toBe("table");
+
+    act(() => result.current.clear());
+    params = new URLSearchParams(window.location.search);
+    expect(params.has("q")).toBe(false);
+    expect(params.has("qpage")).toBe(false);
+    expect(window.location.pathname).toBe("/browse");
+    expect(params.get("extraction")).toBe("5");
+    expect(params.get("page")).toBe("2");
   });
 });
 

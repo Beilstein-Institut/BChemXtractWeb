@@ -1,17 +1,13 @@
 /**
  * AppHeader — tests for the Liquid Glass chrome top bar.
  *
- * Mocks @base-ui/react/menu + SearchInput + ChemistryThemeSwitch to
- * isolate the header shell. Asserts the sticky + glass token class
- * cluster and `data-slot` contract plus the Logo wordmark.
+ * Mocks @base-ui/react/menu + ChemistryThemeSwitch to isolate the header
+ * shell. Asserts the sticky + glass token class cluster and `data-slot`
+ * contract plus the logo mark.
  */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { AppHeader } from "./AppHeader";
-
-vi.mock("./SearchInput", () => ({
-  SearchInput: () => <div data-testid="search-input" />,
-}));
 
 vi.mock("./ChemistryThemeSwitch", () => ({
   ChemistryThemeSwitch: () => <label data-slot="theme-switch" aria-label="Switch to dark mode" />,
@@ -48,7 +44,7 @@ describe("AppHeader", () => {
     expect(inner.className).toContain("h-[var(--header-height)]");
   });
 
-  it("renders the BChemXtract wordmark Logo", () => {
+  it("renders the BChemXtract logo mark", () => {
     render(<AppHeader />);
     const logo = screen.getByLabelText("BChemXtract home");
     expect(logo).toBeInTheDocument();
@@ -71,12 +67,13 @@ describe("AppHeader", () => {
     expect(pill?.querySelector('[data-slot="nav-links"]')).not.toBeNull();
   });
 
-  it("groups search + theme switch in the right-cluster slot", () => {
+  it("puts the theme switch in the right cluster and no search box in the header", () => {
     render(<AppHeader />);
     const cluster = document.querySelector('[data-slot="header-right-cluster"]');
     expect(cluster).not.toBeNull();
-    expect(cluster?.querySelector('[data-testid="search-input"]')).not.toBeNull();
     expect(cluster?.querySelector('[data-slot="theme-switch"]')).not.toBeNull();
+    // Search lives on the Browse and History pages, not in the header.
+    expect(document.querySelector('[data-slot="search-input-neu"]')).toBeNull();
   });
 
   it("renders the stubbed ChemistryThemeSwitch trigger", () => {

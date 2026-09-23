@@ -95,7 +95,10 @@ function writeUrlParams(
   extractionId: number | null | undefined,
   { page, size, view, sort }: UrlParams,
 ): void {
-  const params = new URLSearchParams();
+  // Merge into the current query string so a structure search on the same
+  // page (?q=&scope=…) survives grid paging, sorting and view changes.
+  const params = new URLSearchParams(window.location.search);
+  params.delete("extraction");
   if (extractionId) params.set("extraction", String(extractionId));
   params.set("page", String(page));
   params.set("size", String(size));

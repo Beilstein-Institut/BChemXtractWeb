@@ -119,4 +119,14 @@ describe("ChemistryThemeSwitch", () => {
     fireEvent.click(checkbox);
     expect(screen.getByLabelText("Switch to light theme")).toBeInTheDocument();
   });
+  it("highlights the active mode in the Light/Dark legend", () => {
+    renderWithProvider("light");
+    const active = () =>
+      Array.from(document.querySelectorAll(".theme-switch__legend > [data-active]")).map(
+        (el) => el.textContent,
+      );
+    expect(active()).toEqual(["Light"]);
+    fireEvent.click(screen.getByRole("switch"));
+    expect(active()).toEqual(["Dark"]);
+  });
 });

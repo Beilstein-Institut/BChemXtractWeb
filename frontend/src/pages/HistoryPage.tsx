@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { BentoCell } from "@/components/layout/BentoCell";
 import { BentoGrid } from "@/components/layout/BentoGrid";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { HistoryList } from "@/components/HistoryList";
 import { StatCard } from "@/components/StatCard";
 import { buttonVariants } from "@/components/ui/button";
@@ -57,6 +58,8 @@ export interface HistoryPageProps {
   onReload: (id: number) => Promise<ExtractionResponse>;
   onDelete: (id: number) => Promise<void>;
   onReloadSuccess: (response: ExtractionResponse) => void;
+  /** Open an extraction picked from a structure-search result. */
+  onViewExtraction?: (extractionId: number) => void;
 }
 
 export function HistoryPage({
@@ -70,6 +73,7 @@ export function HistoryPage({
   onReload,
   onDelete,
   onReloadSuccess,
+  onViewExtraction,
 }: HistoryPageProps) {
   const hasAny = total > 0 || entries.length > 0 || (stats !== null && stats.total_extractions > 0);
 
@@ -93,17 +97,10 @@ export function HistoryPage({
 
   return (
     <PageContainer data-slot="history-page">
-      <header className="space-y-2">
-        <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-          History
-        </h1>
-        <p className="text-base text-foreground-muted">
-          All extractions, searchable and exportable.
-        </p>
-      </header>
+      <PageHeader title="History" lede="All extractions, searchable and exportable." />
 
       {!hasAny ? (
-        <div className="mt-16">
+        <div className="mt-8">
           <EmptyState
             icon={FileUpIcon}
             title="No extractions yet"
@@ -117,11 +114,7 @@ export function HistoryPage({
         </div>
       ) : (
         <>
-          <BentoGrid
-            cols={4}
-            className="mt-8 auto-rows-[minmax(128px,auto)]"
-            data-slot="history-stats"
-          >
+          <BentoGrid cols={4} className="auto-rows-[minmax(128px,auto)]" data-slot="history-stats">
             <BentoCell span="1:1" data-slot="history-stat-total">
               <StatCard
                 label="Total extractions"
@@ -174,6 +167,7 @@ export function HistoryPage({
               onReload={onReload}
               onDelete={handleDelete}
               onReloadSuccess={onReloadSuccess}
+              onViewExtraction={onViewExtraction}
             />
           </section>
         </>
