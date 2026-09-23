@@ -12,11 +12,16 @@
  *     flight AND no entries have been received yet.
  */
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render as rtlRender, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { SearchProvider } from "@/context/SearchContext";
 
 import { HistoryPage } from "./HistoryPage";
 import { computeHistoryStats } from "./historyStats";
 import type { HistoryListItem, StatsResponse } from "@/types/history";
+
+// Pages and the list read shared search state, so render inside its provider.
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: SearchProvider });
 
 const baseEntry: HistoryListItem = {
   id: 1,

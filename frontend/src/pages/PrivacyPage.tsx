@@ -316,6 +316,7 @@ export function PrivacyPage() {
           icon={<ShieldCheckIcon aria-hidden="true" className="size-3.5" />}
           eyebrow="Privacy"
           title="Privacy Policy"
+          className="mb-0"
         />
         <a
           href={INSTITUTE_URL}
@@ -333,7 +334,7 @@ export function PrivacyPage() {
         </a>
       </div>
 
-      <div className="mt-10 flex flex-col gap-8">
+      <div className="mt-8 flex flex-col gap-8">
         {TOPICS.map((t) => (
           <section
             key={t.id}

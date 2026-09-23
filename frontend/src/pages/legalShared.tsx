@@ -10,7 +10,7 @@
  */
 import type { ReactNode } from "react";
 
-import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 /**
  * Primary inline-link style used across legal pages — tinted crimson
@@ -40,13 +40,16 @@ interface LegalPageHeaderProps {
  */
 export function LegalPageHeader({ icon, eyebrow, title, lede, className }: LegalPageHeaderProps) {
   return (
-    <header className={cn("space-y-3", className)}>
-      <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-elevated px-3 py-1 text-caption uppercase tracking-wider text-foreground-muted">
-        {icon}
-        <span>{eyebrow}</span>
-      </div>
-      <h1 className="text-4xl text-foreground sm:text-5xl">{title}</h1>
-      {lede ? <p className="max-w-[70ch] text-base text-foreground-muted">{lede}</p> : null}
-    </header>
+    <PageHeader
+      className={className}
+      title={title}
+      lede={lede}
+      eyebrow={
+        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-elevated px-3 py-1 text-caption uppercase tracking-wider text-foreground-muted">
+          {icon}
+          <span>{eyebrow}</span>
+        </div>
+      }
+    />
   );
 }

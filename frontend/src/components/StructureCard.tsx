@@ -322,6 +322,9 @@ export function StructureCard({
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogTrigger
+        // The whole card is the trigger, so it renders a div (a <button> can't
+        // hold the card's block content); tell Base UI it isn't a native button.
+        nativeButton={false}
         render={
           <div
             role="button"

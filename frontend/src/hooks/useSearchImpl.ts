@@ -29,7 +29,6 @@ export type QueryValidity =
 const VALIDATE_DEBOUNCE_MS = 150;
 const FETCH_DEBOUNCE_MS = 300;
 const DEFAULT_SIZE = 24;
-export const SEARCH_URL_EVENT = "searchurlchange";
 
 const VALID_TYPES: readonly SearchType[] = [
   "auto",
@@ -43,6 +42,10 @@ const VALID_MATCH: readonly SearchMatch[] = ["canonical", "literal"];
 const MAX_PAGE = 10_000;
 const MAX_QUERY_LEN = 512;
 const SCOPE_RE = /^(?:global|extraction:\d+)$/;
+/** Results-page key; not "page", which Browse uses for its own grid paging. */
+const PAGE_PARAM = "qpage";
+/** Every URL key the search owns, so writes can leave the rest untouched. */
+const SEARCH_KEYS = ["q", "type", "scope", "match", PAGE_PARAM, "stereo"] as const;
 
 export interface UseSearchReturn {
   searchState: SearchState;
@@ -55,6 +58,9 @@ export interface UseSearchReturn {
   stereo: boolean;
   queryValidity: QueryValidity;
   setQuery: (q: string) => void;
+  /** Set query and scope in one update, so the first request of a scoped
+   *  search box (e.g. "this extraction" on Browse) already carries its scope. */
+  setQueryAndScope: (q: string, s: SearchScope) => void;
   setType: (t: SearchType) => void;
   setScope: (s: SearchScope) => void;
   setMatch: (m: SearchMatch) => void;
@@ -75,7 +81,7 @@ interface SearchParams {
 
 function readUrlParams(): SearchParams {
   const params = new URLSearchParams(window.location.search);
-  const rawPage = parseInt(params.get("page") ?? "1", 10);
+  const rawPage = parseInt(params.get(PAGE_PARAM) ?? "1", 10);
   const rawType = params.get("type") ?? "auto";
   const rawMatch = params.get("match") ?? "canonical";
   const rawScope = params.get("scope") ?? "global";
@@ -91,18 +97,28 @@ function readUrlParams(): SearchParams {
   };
 }
 
-function writeUrlParams(p: SearchParams): void {
-  const params = new URLSearchParams();
-  if (p.q) params.set("q", p.q);
-  if (p.type !== "auto") params.set("type", p.type);
-  if (p.scope !== "global") params.set("scope", p.scope);
-  if (p.match !== "canonical") params.set("match", p.match);
-  if (p.page > 1) params.set("page", String(p.page));
-  if (p.stereo) params.set("stereo", "1");
+/**
+ * Rewrite only the search's own keys, keeping every other query param: pages
+ * that host the search box keep their own URL state (e.g. Browse's
+ * ?extraction=&page=&view=), which a whole-string replace would wipe.
+ */
+function replaceSearchParams(set: (params: URLSearchParams) => void): void {
+  const params = new URLSearchParams(window.location.search);
+  for (const key of SEARCH_KEYS) params.delete(key);
+  set(params);
   const qs = params.toString();
-  const url = qs ? `?${qs}` : window.location.pathname;
-  window.history.replaceState(null, "", url);
-  window.dispatchEvent(new CustomEvent(SEARCH_URL_EVENT));
+  window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+}
+
+function writeUrlParams(p: SearchParams): void {
+  replaceSearchParams((params) => {
+    if (p.q) params.set("q", p.q);
+    if (p.type !== "auto") params.set("type", p.type);
+    if (p.scope !== "global") params.set("scope", p.scope);
+    if (p.match !== "canonical") params.set("match", p.match);
+    if (p.page > 1) params.set(PAGE_PARAM, String(p.page));
+    if (p.stereo) params.set("stereo", "1");
+  });
 }
 
 export function useSearchImpl(): UseSearchReturn {
@@ -146,6 +162,15 @@ export function useSearchImpl(): UseSearchReturn {
       writeUrlParams({ q, type, scope, match, page: 1, stereo });
     },
     [type, scope, match, stereo],
+  );
+  const setQueryAndScope = useCallback(
+    (q: string, s: SearchScope) => {
+      setQueryState(q);
+      setScopeState(s);
+      setPageState(1);
+      writeUrlParams({ q, type, scope: s, match, page: 1, stereo });
+    },
+    [type, match, stereo],
   );
   const setType = useCallback(
     (t: SearchType) => {
@@ -195,9 +220,7 @@ export function useSearchImpl(): UseSearchReturn {
     setResponse(null);
     setSearchState("idle");
     setQueryValidity({ state: "unknown" });
-    window.history.replaceState(null, "", window.location.pathname);
-    // App listens for this to re-evaluate the ?q= → SearchResults routing gate.
-    window.dispatchEvent(new CustomEvent(SEARCH_URL_EVENT));
+    replaceSearchParams(() => {});
   }, []);
 
   // --- Validation effect (substructure only) ---
@@ -307,6 +330,7 @@ export function useSearchImpl(): UseSearchReturn {
     stereo,
     queryValidity,
     setQuery,
+    setQueryAndScope,
     setType,
     setScope,
     setMatch,

@@ -13,10 +13,16 @@ import { RotateCcwIcon, ShieldCheckIcon, UploadCloudIcon } from "lucide-react";
 import { toast } from "sonner";
 import { CdxViewer } from "@/components/CdxViewer";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { postRenderUpload } from "@/lib/apiClient";
 import { cn } from "@/lib/utils";
+import {
+  DROP_ZONE_EMPTY_HEIGHT_CLASS,
+  DROP_ZONE_SURFACE_CLASS,
+  DROP_ZONE_SURFACE_STYLE,
+} from "@/components/dropZoneSurface";
 
 // Matches the backend cap and the Extract page's drop-zone validation.
 const MAX_FILE_BYTES = 52_428_800; // 50 MB
@@ -71,16 +77,12 @@ export function ViewPage() {
 
   return (
     <PageContainer>
-      <header className="mb-8 space-y-3">
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-          View as drawn.
-        </h1>
-        <p className="max-w-[60ch] text-base text-foreground-muted">
-          Drop a CDX or CDXML file to see it rendered exactly as drawn, then download it as SVG or
-          PNG.
-        </p>
+      <PageHeader
+        title="View as drawn."
+        lede="Drop a CDX or CDXML file to see it rendered exactly as drawn, then download it as SVG or PNG."
+      >
         <PrivacyNotice />
-      </header>
+      </PageHeader>
 
       {svg && (
         <div className="h-[70vh] animate-in fade-in-0 slide-in-from-bottom-2 duration-300 ease-out motion-reduce:animate-none">
@@ -146,12 +148,15 @@ export function ViewPage() {
               const f = e.dataTransfer.files?.[0];
               if (f) handleFile(f);
             }}
+            style={DROP_ZONE_SURFACE_STYLE}
             className={cn(
-              "flex min-h-[280px] w-full cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed p-8 text-center transition-colors",
+              "flex w-full cursor-pointer flex-col items-center justify-center gap-4 p-6 text-center sm:p-8",
+              DROP_ZONE_SURFACE_CLASS,
+              DROP_ZONE_EMPTY_HEIGHT_CLASS,
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               isDragOver
-                ? "border-primary bg-accent/30"
-                : "border-border bg-surface-elevated hover:border-primary/40",
+                ? "border-primary bg-accent/30 shadow-[var(--shadow-neu-raised)]"
+                : "hover:border-primary/40",
             )}
           >
             <UploadCloudIcon className="size-12 text-foreground-muted" aria-hidden="true" />

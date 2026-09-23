@@ -15,6 +15,7 @@
  */
 import { DeleteMyDataButton } from "@/components/DeleteMyDataButton";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { RecoveryCodeCard } from "@/components/RecoveryCodeCard";
 import { RestoreSessionForm } from "@/components/RestoreSessionForm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,22 +33,15 @@ export function SettingsPage() {
 
   return (
     <PageContainer data-slot="settings-page">
-      <header className="space-y-2">
-        <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-          Settings
-        </h1>
-        <p className="text-base text-foreground-muted">
-          Your session, recovery code, and data privacy controls.
-        </p>
-      </header>
+      <PageHeader title="Settings" lede="Your session, recovery code, and data privacy controls." />
 
       {error !== null && (
-        <p role="alert" data-slot="settings-error" className="mt-4 text-sm text-destructive">
+        <p role="alert" data-slot="settings-error" className="mb-6 text-sm text-destructive">
           {error}
         </p>
       )}
 
-      <section className="mt-8 grid gap-6" data-slot="settings-sections">
+      <section className="grid gap-6" data-slot="settings-sections">
         <RecoveryCodeCard sessionId={sessionId} isLoading={isLoading} />
         <RestoreSessionForm />
         {pubchemAvailable && (

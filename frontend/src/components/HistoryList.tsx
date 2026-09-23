@@ -2,7 +2,9 @@
  * HistoryList — Liquid Glass rebuild.
  *
  * Re-skinned table-style list with:
- *   - Sticky glass toolbar: heading, debounced search box, CSV export.
+ *   - Sticky glass toolbar: heading, one search box with a Files | Structures
+ *     switch (file-name filter, or structure search across all extractions),
+ *     CSV export.
  *   - Sticky column header row (uppercase captions, glass tint).
  *   - Zebra-striped rows (alt rows get `bg-surface-elevated`).
  *   - Click / keyboard-activate on a row to reload the extraction.
@@ -28,6 +30,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CdxViewerDialog } from "@/components/CdxViewerDialog";
+import { SearchInput } from "@/components/SearchInput";
+import { LazySearchResults } from "@/components/LazySearchResults";
+import { PillToggle } from "@/components/ui/pill-toggle";
+import { useSearch } from "@/context/SearchContext";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useCSVExport, type CSVColumn } from "@/hooks/useCSVExport";
@@ -44,7 +50,12 @@ interface HistoryListProps {
   onReload: (id: number) => Promise<ExtractionResponse>;
   onDelete: (id: number) => Promise<void>;
   onReloadSuccess: (response: ExtractionResponse) => void;
+  /** Open an extraction picked from a structure-search result. */
+  onViewExtraction?: (extractionId: number) => void;
 }
+
+/** What the toolbar search box searches: the file list, or the chemistry. */
+type SearchMode = "files" | "structures";
 
 /** Short relative-then-absolute date used by each history row. */
 function formatEntryDate(dateStr: string): string {
@@ -229,8 +240,28 @@ export function HistoryList({
   onReload,
   onDelete,
   onReloadSuccess,
+  onViewExtraction,
 }: HistoryListProps) {
+  const { query: structureQuery, clear: clearStructureSearch } = useSearch();
+  // A deep link with ?q= lands in structure mode so its results show. Read the
+  // URL, not the shared query: arriving from a Browse search, the old query is
+  // still in state for this first render (it is cleared on route change).
+  const [mode, setMode] = useState<SearchMode>(() =>
+    new URLSearchParams(window.location.search).has("q") ? "structures" : "files",
+  );
   const [search, setSearch] = useState("");
+  const searchingStructures = mode === "structures" && structureQuery.length > 0;
+
+  // Each mode owns its own text; switching drops the other mode's query so a
+  // stale filter or structure search never hides the list unexpectedly.
+  const changeMode = useCallback(
+    (next: SearchMode) => {
+      setMode(next);
+      if (next === "files") clearStructureSearch();
+      else setSearch("");
+    },
+    [clearStructureSearch],
+  );
   const debouncedSearch = useDebouncedValue(search, 150);
 
   const filteredEntries = useMemo(
@@ -273,7 +304,14 @@ export function HistoryList({
         data-slot="history-list"
         className="overflow-hidden rounded-lg border border-border bg-surface"
       >
-        <Toolbar search="" onSearchChange={() => {}} onExport={() => {}} exportDisabled />
+        <Toolbar
+          mode="files"
+          onModeChange={() => {}}
+          search=""
+          onSearchChange={() => {}}
+          onExport={() => {}}
+          exportDisabled
+        />
         <Header />
         <div className="divide-y divide-border">
           {[0, 1, 2].map((i) => (
@@ -303,55 +341,67 @@ export function HistoryList({
       className="overflow-hidden rounded-lg border border-border bg-surface"
     >
       <Toolbar
+        mode={mode}
+        onModeChange={changeMode}
         search={search}
         onSearchChange={setSearch}
         onExport={handleExportCsv}
-        exportDisabled={filteredEntries.length === 0}
+        exportDisabled={searchingStructures || filteredEntries.length === 0}
       />
-      <Header />
 
-      {filteredEntries.length === 0 ? (
-        <p className="px-5 py-8 text-center text-sm text-foreground-muted">
-          No extractions match &ldquo;{search}&rdquo;.
-        </p>
+      {searchingStructures ? (
+        <LazySearchResults className="max-w-none px-5 py-4" onViewExtraction={onViewExtraction} />
       ) : (
-        <ul role="list" className="divide-y divide-border">
-          {filteredEntries.map((entry, idx) => (
-            <HistoryRow
-              key={entry.id}
-              entry={entry}
-              index={idx}
-              onRowClick={() => handleRowClick(entry.id)}
-              onDelete={() => onDelete(entry.id)}
-            />
-          ))}
-        </ul>
-      )}
+        <>
+          <Header />
+          {filteredEntries.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm text-foreground-muted">
+              No extractions match &ldquo;{search}&rdquo;.
+            </p>
+          ) : (
+            <ul role="list" className="divide-y divide-border">
+              {filteredEntries.map((entry, idx) => (
+                <HistoryRow
+                  key={entry.id}
+                  entry={entry}
+                  index={idx}
+                  onRowClick={() => handleRowClick(entry.id)}
+                  onDelete={() => onDelete(entry.id)}
+                />
+              ))}
+            </ul>
+          )}
 
-      {!loading && total > 10 && (
-        <div className="border-t border-border px-5 py-3">
-          <Button
-            variant="ghost"
-            data-underline
-            className="h-auto min-h-[44px] rounded-full p-0 text-sm font-normal text-primary"
-            onClick={onToggleShowAll}
-            data-slot="history-toggle-show-all"
-          >
-            {showAll ? "Show less" : `Show all ${total} extractions`}
-          </Button>
-        </div>
+          {!loading && total > 10 && (
+            <div className="border-t border-border px-5 py-3">
+              <Button
+                variant="ghost"
+                data-underline
+                className="h-auto min-h-[44px] rounded-full p-0 text-sm font-normal text-primary"
+                onClick={onToggleShowAll}
+                data-slot="history-toggle-show-all"
+              >
+                {showAll ? "Show less" : `Show all ${total} extractions`}
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </section>
   );
 }
 
-/** Sticky glass toolbar — search + export CSV. */
+/** Sticky glass toolbar — one search box (files or structures) + export CSV. */
 function Toolbar({
+  mode,
+  onModeChange,
   search,
   onSearchChange,
   onExport,
   exportDisabled,
 }: {
+  mode: SearchMode;
+  onModeChange: (mode: SearchMode) => void;
   search: string;
   onSearchChange: (value: string) => void;
   onExport: () => void;
@@ -370,29 +420,43 @@ function Toolbar({
       <h2 className="font-display text-xl font-semibold leading-tight text-foreground">
         Recent extractions
       </h2>
-      <div className="flex flex-1 items-center gap-2 sm:flex-none sm:justify-end">
-        <div
-          className={cn(
-            "relative flex min-w-0 flex-1 items-center gap-2 sm:w-72 sm:flex-none",
-            "h-10 rounded-full bg-surface px-4",
-            "shadow-[var(--shadow-neu-inset)]",
-            "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0",
-          )}
-        >
-          <SearchIcon className="size-4 shrink-0 text-foreground-muted" aria-hidden="true" />
-          <input
-            type="search"
-            value={search}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSearchChange(e.target.value)}
-            placeholder="Search by filename or format"
-            aria-label="Search history"
-            data-slot="history-search"
+      <div className="flex flex-1 flex-wrap items-center gap-2 sm:flex-none sm:justify-end">
+        {mode === "structures" ? (
+          <SearchInput className="flex-1 sm:w-80 sm:flex-none" />
+        ) : (
+          <div
             className={cn(
-              "min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none",
-              "placeholder:text-foreground-muted",
+              "relative flex min-w-0 flex-1 items-center gap-2 sm:w-80 sm:flex-none",
+              "h-10 rounded-full bg-surface px-4",
+              "shadow-[var(--shadow-neu-inset)]",
+              "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0",
             )}
-          />
-        </div>
+          >
+            <SearchIcon className="size-4 shrink-0 text-foreground-muted" aria-hidden="true" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSearchChange(e.target.value)}
+              placeholder="Search by filename or format"
+              aria-label="Search history"
+              data-slot="history-search"
+              className={cn(
+                "min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none",
+                "placeholder:text-foreground-muted",
+              )}
+            />
+          </div>
+        )}
+        <PillToggle
+          value={mode}
+          onChange={onModeChange}
+          aria-label="Search in"
+          data-slot="history-search-mode"
+          options={[
+            { value: "files", label: "Files" },
+            { value: "structures", label: "Structures" },
+          ]}
+        />
         <Button
           variant="outline"
           size="sm"

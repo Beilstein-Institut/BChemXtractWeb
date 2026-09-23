@@ -6,7 +6,9 @@
  *   - bento grid + structure browser render when an extraction is loaded
  *   - page-wide depiction default + toolbar toggle
  */
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render as rtlRender, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { SearchProvider } from "@/context/SearchContext";
 import { vi } from "vitest";
 
 import type { ExtractionResponse, SubstanceResponse } from "@/types/chemistry";
@@ -47,6 +49,9 @@ vi.mock("@/components/ExtractionTabs", () => ({
 }));
 
 import { BrowsePage, type BrowsePageProps } from "./BrowsePage";
+
+// Pages and the list read shared search state, so render inside its provider.
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: SearchProvider });
 
 function makeSubstance(overrides: Partial<SubstanceResponse> = {}): SubstanceResponse {
   return {

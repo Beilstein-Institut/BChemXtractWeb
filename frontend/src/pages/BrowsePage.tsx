@@ -19,10 +19,14 @@
 import { useCallback, useMemo, useState } from "react";
 import { ArrowLeftIcon, FileUpIcon, HistoryIcon } from "lucide-react";
 import { BrowseBento } from "@/components/browse/BrowseBento";
+import { BrowseSearch } from "@/components/browse/BrowseSearch";
 import { CdxViewerInline } from "@/components/CdxViewerInline";
 import { ExtractionTabs } from "@/components/ExtractionTabs";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { LazySearchResults } from "@/components/LazySearchResults";
 import { StructureBrowser } from "@/components/StructureBrowser";
+import { useSearch } from "@/context/SearchContext";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DEFAULT_DEPICTION } from "@/lib/depiction";
@@ -50,6 +54,8 @@ export interface BrowsePageProps {
   onReset: () => void;
   onBackToLatest: () => void;
   onReactionsCountChange: (count: number) => void;
+  /** Open an extraction picked from a search result. */
+  onViewExtraction: (extractionId: number) => void;
 }
 
 export function BrowsePage({
@@ -63,8 +69,11 @@ export function BrowsePage({
   onReset,
   onBackToLatest,
   onReactionsCountChange,
+  onViewExtraction,
 }: BrowsePageProps) {
   const hasExtraction = activeExtractionId !== null && activeResult !== null;
+  const { query, clear: clearSearch } = useSearch();
+  const searching = query.length > 0;
 
   // Page-wide 2D layout: CDK (canonical layout) by default, ChemDraw via
   // the toolbar toggle. Drives every structure render on this page plus
@@ -174,19 +183,25 @@ export function BrowsePage({
 
   return (
     <PageContainer data-slot="browse-page">
-      <header className="space-y-2">
-        <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-          Browse
-        </h1>
-        <p className="text-base text-foreground-muted">
-          {hasExtraction
+      <PageHeader
+        title="Browse"
+        lede={
+          hasExtraction
             ? `Structures and reactions extracted from ${activeResult.filename}.`
-            : "Browse extracted structures and reactions."}
-        </p>
-      </header>
+            : "Browse extracted structures and reactions."
+        }
+      />
 
-      {!hasExtraction ? (
-        <div className="mt-16">
+      {!hasExtraction && searching ? (
+        // A shared /browse?q=… link opened with nothing loaded: nothing narrower
+        // to search, so show the search (global) and its results instead of the
+        // empty state. Clearing the search brings the empty state back.
+        <>
+          <BrowseSearch extractionId={null} />
+          <LazySearchResults className="max-w-none px-0 py-4" onViewExtraction={onViewExtraction} />
+        </>
+      ) : !hasExtraction ? (
+        <div className="mt-8">
           <EmptyState
             icon={FileUpIcon}
             title="No extraction loaded"
@@ -211,7 +226,7 @@ export function BrowsePage({
       ) : (
         <>
           {isHistoricalView && (
-            <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <span className="text-caption text-foreground-muted">
                 Viewing past extraction: {activeResult.filename}
               </span>
@@ -226,7 +241,7 @@ export function BrowsePage({
             </div>
           )}
 
-          <section className="mt-6">
+          <section className={isHistoricalView ? "mt-6" : undefined}>
             <BrowseBento
               filename={activeResult.filename}
               extractionId={activeResult.extraction_id}
@@ -293,15 +308,31 @@ export function BrowsePage({
                 onReactionsCountChange,
               }}
             >
-              <StructureBrowser
-                extractionId={activeExtractionId}
-                onReset={onReset}
-                reactionsAvailable={liveReactionCount > 0}
-                depiction={depiction}
-                onDepictionChange={setDepiction}
-                pubchem={pubchemStates}
-                onLocate={handleLocate}
-              />
+              <BrowseSearch extractionId={activeResult.extraction_id ?? null} />
+              {searching && (
+                <LazySearchResults
+                  className="max-w-none px-0 py-4"
+                  onViewExtraction={(id) => {
+                    // Opening a hit replaces the browsed extraction, so drop the
+                    // search that would otherwise keep covering it.
+                    clearSearch();
+                    onViewExtraction(id);
+                  }}
+                />
+              )}
+              {/* Hidden, not unmounted, while searching so paging, view mode
+                  and selection survive clearing the search. */}
+              <div hidden={searching} className="mt-4">
+                <StructureBrowser
+                  extractionId={activeExtractionId}
+                  onReset={onReset}
+                  reactionsAvailable={liveReactionCount > 0}
+                  depiction={depiction}
+                  onDepictionChange={setDepiction}
+                  pubchem={pubchemStates}
+                  onLocate={handleLocate}
+                />
+              </div>
             </ExtractionTabs>
           </div>
         </>

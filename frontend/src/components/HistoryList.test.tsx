@@ -10,12 +10,18 @@
  *   - Search filters by filename and format (debounced + case-insensitive).
  *   - CSV export button invokes a blob download via URL.createObjectURL.
  *   - "Show all N" link only when total > 10.
+ *   - Files | Structures switch swaps the filename filter for structure search.
  */
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
+import { render as rtlRender, screen, fireEvent, act, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { SearchProvider } from "@/context/SearchContext";
 
 import { HistoryList } from "./HistoryList";
 import type { HistoryListItem } from "@/types/history";
+
+// Pages and the list read shared search state, so render inside its provider.
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: SearchProvider });
 
 const mockReload = {
   substances: [],
@@ -294,5 +300,69 @@ describe("HistoryList", () => {
       />,
     );
     expect(screen.getByText(/Show all 25 extractions/)).toBeInTheDocument();
+  });
+  it("Files | Structures switch swaps the filename filter for the structure search", () => {
+    window.history.replaceState(null, "", "/history");
+    render(
+      <HistoryList
+        entries={[mkEntry({ filename: "aspirin.cdx" })]}
+        total={1}
+        loading={false}
+        showAll={false}
+        onToggleShowAll={noopToggle}
+        onReload={alwaysReload}
+        onDelete={noopDelete}
+        onReloadSuccess={noopReloadSuccess}
+      />,
+    );
+    expect(screen.getByLabelText("Search history")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Structures" }));
+    expect(screen.queryByLabelText("Search history")).toBeNull();
+    expect(screen.getByLabelText("Search structures across all extractions")).toBeInTheDocument();
+    // An empty structure box keeps the file list visible.
+    expect(screen.getByText("aspirin.cdx")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Files" }));
+    expect(screen.getByLabelText("Search history")).toBeInTheDocument();
+  });
+  it("opens in Files mode when arriving with a stale query but no ?q= in the URL", () => {
+    // Shared search state still holds a query from the previous page…
+    window.history.replaceState(null, "", "/browse?q=C6H6");
+    const list = (
+      <HistoryList
+        entries={[mkEntry()]}
+        total={1}
+        loading={false}
+        showAll={false}
+        onToggleShowAll={noopToggle}
+        onReload={alwaysReload}
+        onDelete={noopDelete}
+        onReloadSuccess={noopReloadSuccess}
+      />
+    );
+    const { rerender } = rtlRender(<SearchProvider>{null}</SearchProvider>);
+    // …but navigation already moved to a plain /history URL.
+    window.history.replaceState(null, "", "/history");
+    rerender(<SearchProvider>{list}</SearchProvider>);
+    expect(screen.getByLabelText("Search history")).toBeInTheDocument();
+  });
+
+  it("opens in Structures mode for a /history?q= deep link", () => {
+    window.history.replaceState(null, "", "/history?q=C6H6");
+    render(
+      <HistoryList
+        entries={[mkEntry()]}
+        total={1}
+        loading={false}
+        showAll={false}
+        onToggleShowAll={noopToggle}
+        onReload={alwaysReload}
+        onDelete={noopDelete}
+        onReloadSuccess={noopReloadSuccess}
+      />,
+    );
+    expect(screen.queryByLabelText("Search history")).toBeNull();
+    window.history.replaceState(null, "", "/");
   });
 });

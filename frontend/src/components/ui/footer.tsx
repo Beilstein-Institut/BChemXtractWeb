@@ -16,32 +16,17 @@ export interface FooterTextLink {
 }
 
 export interface FooterCopyright {
-  text: ReactNode;
+  /** Left column, bottom row (level with the legal links). */
   license?: ReactNode;
 }
 
 export interface FooterProps {
-  /**
-   * Brand mark rendered on the left of the top row. Omit (together with
-   * `brandName`) to drop the branding entirely and push the social row
-   * to the right on its own line.
-   */
-  logo?: ReactNode;
-  /**
-   * Brand wordmark displayed next to the logo. Accepts plain text or a
-   * composed node (e.g. a styled wordmark component). `brandLabel`
-   * supplies the aria-label when brandName is not a simple string.
-   */
-  brandName?: ReactNode;
-  /**
-   * Accessible name for the home-link anchor. Falls back to `brandName`
-   * when that prop is a string; otherwise required for screen readers.
-   */
-  brandLabel?: string;
   socialLinks: FooterSocialLink[];
   mainLinks: FooterTextLink[];
   legalLinks: FooterTextLink[];
   copyright: FooterCopyright;
+  /** Optional centered line along the bottom (brand + copyright holder). */
+  bottomLine?: ReactNode;
   /** Renderer for internal links (main + legal). Defaults to a plain anchor. */
   renderLink?: (link: FooterTextLink, className: string) => ReactNode;
   className?: string;
@@ -56,48 +41,31 @@ function defaultRenderLink(link: FooterTextLink, className: string): ReactNode {
 }
 
 export function Footer({
-  logo,
-  brandName,
-  brandLabel,
   socialLinks,
   mainLinks,
   legalLinks,
   copyright,
+  bottomLine,
   renderLink = defaultRenderLink,
   className,
 }: FooterProps) {
-  const ariaLabel = brandLabel ?? (typeof brandName === "string" ? brandName : undefined);
   return (
-    <footer
-      className={cn("pb-4 pt-8 lg:pb-6 lg:pt-10", className)}
-      aria-labelledby="site-footer-heading"
-    >
+    <footer className={cn("pb-3", className)} aria-labelledby="site-footer-heading">
       <h2 id="site-footer-heading" className="sr-only">
         Site footer
       </h2>
       <div className="px-3 sm:px-4 lg:px-8">
-        <div
-          className={cn(
-            "md:flex md:items-start",
-            logo || brandName ? "md:justify-between" : "md:justify-end",
-          )}
-        >
-          {(logo || brandName) && (
-            <a
-              href="/"
-              className="flex items-center gap-x-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
-              aria-label={ariaLabel}
-            >
-              {logo}
-              {brandName &&
-                (typeof brandName === "string" ? (
-                  <span className="font-display text-xl font-bold tracking-tight">{brandName}</span>
-                ) : (
-                  brandName
-                ))}
-            </a>
-          )}
-          <ul className={cn("flex list-none space-x-3", (logo || brandName) && "mt-6 md:mt-0")}>
+        {/* The hairline is the footer's top edge. Row 1: social icons (left) level
+            with the main links (right). Row 2: license line (left) level with
+            the legal links (right). lg: 12-col grid, centered line as its own
+            last row. 1400px+: three columns (left | centered line | links): the
+            outer columns size to their content and the line centers in the
+            space between them, spanning both rows and vertically centered in
+            the footer, so no extra row is needed and it can never overlap the
+            text beside it.
+            Below lg everything stacks in reading order. */}
+        <div className="border-t border-border pt-3 lg:grid lg:grid-cols-12 wide:grid-cols-[auto_1fr_auto] wide:gap-x-8">
+          <ul className="flex list-none space-x-3 lg:col-[1/7] lg:row-[1/2] lg:self-center wide:col-[1]">
             {socialLinks.map((link) => (
               <li key={link.href}>
                 <a
@@ -119,21 +87,16 @@ export function Footer({
               </li>
             ))}
           </ul>
-        </div>
-        <div className="mt-6 border-t border-border pt-6 md:mt-4 md:pt-8 lg:grid lg:grid-cols-12">
-          {/* Copyright + license are two separate grid items on their own rows
-              (not one stacked block), so the license line shares grid row 2
-              with the right column's legal links and the two bottom lines align
-              — no matter how tall the logo-bearing copyright line is. */}
-          <div className="whitespace-nowrap text-sm leading-6 text-foreground-muted lg:col-[1/8] lg:row-[1/2] lg:mt-0">
-            {copyright.text}
-          </div>
+
           {copyright.license && (
-            <div className="whitespace-nowrap text-sm leading-6 text-foreground-muted lg:col-[1/8] lg:row-[2/3] lg:mt-0">
+            <div className="whitespace-nowrap text-sm leading-6 text-foreground-muted lg:col-[1/7] lg:row-[2/3] lg:mt-0 lg:self-center wide:col-[1]">
               {copyright.license}
             </div>
           )}
-          <nav aria-label="Footer navigation" className="mt-6 lg:col-[9/13] lg:row-[1/2] lg:mt-0">
+          <nav
+            aria-label="Footer navigation"
+            className="mt-6 lg:col-[7/13] lg:row-[1/2] lg:mt-0 lg:self-end wide:col-[3]"
+          >
             <ul className="-my-1 -mx-2 flex list-none flex-wrap justify-end">
               {mainLinks.map((link) => (
                 <li key={link.href} className="my-1 mx-2 shrink-0">
@@ -145,7 +108,7 @@ export function Footer({
               ))}
             </ul>
           </nav>
-          <div className="mt-1 lg:col-[9/13] lg:row-[2/3] lg:mt-0">
+          <div className="mt-1 lg:col-[7/13] lg:row-[2/3] lg:mt-0 lg:self-center wide:col-[3]">
             <ul className="-my-1 -mx-3 flex list-none flex-wrap justify-end">
               {legalLinks.map((link) => (
                 <li key={link.href} className="my-1 mx-3 shrink-0">
@@ -157,6 +120,11 @@ export function Footer({
               ))}
             </ul>
           </div>
+          {bottomLine && (
+            <div className="mt-3 flex justify-center text-sm text-foreground-muted lg:col-[1/13] lg:row-[3] wide:col-[2] wide:row-[1/3] wide:mt-0 wide:self-center">
+              {bottomLine}
+            </div>
+          )}
         </div>
       </div>
     </footer>

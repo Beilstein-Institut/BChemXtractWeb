@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangleIcon, FileIcon, SparklesIcon, UploadCloudIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  DROP_ZONE_EMPTY_HEIGHT_CLASS,
+  DROP_ZONE_SURFACE_CLASS,
+  DROP_ZONE_SURFACE_STYLE,
+} from "@/components/dropZoneSurface";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { StardustButton } from "@/components/ui/stardust-button";
@@ -244,14 +249,10 @@ export function FileUpload({
         data-drag-over={isDragOver ? "true" : undefined}
         className={cn(
           "group/zone relative flex w-full flex-col items-center justify-center gap-4 overflow-hidden p-6 sm:p-8",
-          "rounded-xl border-2 border-dashed",
+          // Idle: recessed surface, default border (shared with the View page).
+          DROP_ZONE_SURFACE_CLASS,
           // Min-height varies by queue state. Layout-driving property → no transition.
-          // Empty zone is compact on phones (200px) so the CTA + help text stay
-          // above the fold, expanding to 400px at sm+.
-          "data-[queue=empty]:min-h-[200px] data-[queue=empty]:sm:min-h-[400px]",
-          "data-[queue=building]:min-h-[240px] data-[queue=full]:min-h-[240px]",
-          // Idle: recessed surface, default border.
-          "bg-surface-elevated border-border shadow-[var(--shadow-neu-inset)]",
+          queueState === "empty" ? DROP_ZONE_EMPTY_HEIGHT_CLASS : "min-h-[240px]",
           // Drag-over: lifted, primary border, accent-tinted background.
           "data-[state=drag-over]:border-primary data-[state=drag-over]:bg-accent/30",
           "data-[state=drag-over]:shadow-[var(--shadow-neu-raised)]",
@@ -262,21 +263,7 @@ export function FileUpload({
           // Hover affordance from any inner button.
           "has-[button:hover]:border-primary/40",
         )}
-        style={{
-          // Faint molecular-paper dot pattern, primary-hue tinted at ~7%.
-          // Always present so the surface reads as chemistry-adjacent
-          // without illustrating chemistry.
-          backgroundImage:
-            "radial-gradient(circle at center, color-mix(in oklch, var(--color-primary) 7%, transparent) 1px, transparent 1.2px)",
-          backgroundSize: "16px 16px",
-          backgroundPosition: "0 0",
-          // Background-color, border-color, and shadow all transition together.
-          // Layout properties (min-height) intentionally do NOT transition.
-          // Reduced motion zeroes --motion-medium via tokens.css.
-          transitionProperty: "background-color, border-color, box-shadow",
-          transitionDuration: "var(--motion-medium)",
-          transitionTimingFunction: "var(--ease-out)",
-        }}
+        style={DROP_ZONE_SURFACE_STYLE}
         onDragOver={(e) => {
           e.preventDefault();
           setIsDragOver(true);

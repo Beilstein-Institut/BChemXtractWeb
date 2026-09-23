@@ -1,3 +1,4 @@
+import { BrandName } from "@/components/BrandName";
 import { Footer, type FooterTextLink } from "@/components/ui/footer";
 import { asset } from "@/lib/basePath";
 import { Link } from "@/lib/Link";
@@ -36,13 +37,15 @@ function GithubMark({ tag }: { tag: string }) {
  *
  * Wraps the generic <Footer /> primitive with BChemXtract branding:
  *   - No top-row brand mark (design choice — the AppHeader carries the logo)
- *   - Social: BChemXtractWeb GitHub + Beilstein-Institut website
+ *   - Social: BChemXtractWeb + BChemXtract GitHub, CDK (the institute site is
+ *     linked from its mark on the © line)
  *   - Main links: Home / Extract / Browse / History / About — routed through
  *     the internal <Link /> so clicks stay inside the SPA
  *   - Legal: Terms & Conditions / Impressum / Privacy Policy — internal pages
- *   - Copyright: "© 2026" + the institute's mark · Open source — the © line
- *     names the legal rights holder (industry standard) via its logo rather
- *     than in words; the AppHeader carries the BChemXtract product branding
+ *   - Left column: "Open source · running BChemXtract <version>"
+ *   - Centered bottom line: BChemXtract mark + wordmark · "© 2026
+ *     Beilstein-Institut" (the legal rights holder); the institute's logo
+ *     itself lives in the AppHeader
  */
 
 /**
@@ -124,23 +127,11 @@ export function SiteFooter({ className }: { className?: string }) {
               src={asset("cdk-logo.png")}
               alt=""
               aria-hidden="true"
-              className="logo-glow size-5 w-auto object-contain"
+              className="logo-glow logo-glow--tight size-5 w-auto object-contain"
             />
           ),
           href: "https://github.com/cdk/cdk",
           label: "CDK on GitHub",
-        },
-        {
-          icon: (
-            <img
-              src={asset("logo_small_Beilstein-Institut.svg")}
-              alt=""
-              aria-hidden="true"
-              className="logo-glow size-6 object-contain"
-            />
-          ),
-          href: "https://www.beilstein-institut.de/en/",
-          label: "Beilstein-Institut website",
         },
       ]}
       mainLinks={[
@@ -156,40 +147,40 @@ export function SiteFooter({ className }: { className?: string }) {
         { href: "/privacy", label: "Privacy Policy", internal: true },
       ]}
       copyright={{
-        // "© 2026" followed by the institute's mark, which now carries the
-        // name — hence real alt text, not a decorative empty string.
-        //
-        // Dark mode: the navy #072563 "INSTITUT" wordmark is invisible on the
-        // dark surface and a glow alone can't lift a dark fill, so — matching
-        // the legal pages — a small white plate sits behind the mark. A supplied
-        // negative variant would still be better.
-        //
-        // h-10 against 14px text: the wordmark's caps are a quarter of the
-        // artwork's height, so anything smaller stops being readable. The
-        // SVG's canvas was tightened to its ink (viewBox "0 48 876 202"; it
-        // shipped with ~23% empty margin on the right, which would otherwise
-        // open a gap between "© 2026" and the mark). Artwork untouched.
-        text: (
-          <span className="inline-flex items-center gap-2 whitespace-nowrap">
-            <span>© 2026</span>
+        // "Open source · running BChemXtract <version>" sits on the bottom row,
+        // level with the centered brand + rights holder and the legal links.
+        license: <LicenseLine />,
+      }}
+      // Centered bottom line: the product (mark + wordmark, linking home) and
+      // the legal rights holder. "© BChemXtract" alone would name a product,
+      // not an owner, so the institute is the named holder.
+      bottomLine={
+        <span className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 rounded text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <img
+              src={asset("bchemxtract-logo.svg")}
+              alt=""
+              aria-hidden="true"
+              className="logo-glow logo-glow--tight size-5"
+            />
+            <BrandName />
+          </Link>
+          <span>
+            © 2026{" "}
             <a
               href="https://www.beilstein-institut.de/en/"
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:rounded-md dark:bg-white dark:px-2 dark:py-1"
+              className="underline-offset-4 hover:text-primary hover:underline"
             >
-              <img
-                src={asset("Logo_Beilstein_schmal_RGB.svg")}
-                alt="Beilstein-Institut"
-                width={876}
-                height={202}
-                className="h-10 w-auto"
-              />
+              Beilstein-Institut
             </a>
           </span>
-        ),
-        license: <LicenseLine />,
-      }}
+        </span>
+      }
     />
   );
 }

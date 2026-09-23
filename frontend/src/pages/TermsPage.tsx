@@ -131,7 +131,7 @@ export function TermsPage() {
           the wordmark is dark navy and must not be recoloured. */}
       <section
         aria-labelledby="terms-conditions-heading"
-        className="mt-10 rounded-lg border border-border bg-surface p-6 sm:p-8"
+        className="rounded-lg border border-border bg-surface p-6 sm:p-8"
         data-slot="terms-conditions"
       >
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8">

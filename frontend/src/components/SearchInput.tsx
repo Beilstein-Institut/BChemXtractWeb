@@ -1,25 +1,24 @@
 /**
- * SearchInput — inline global search box for AppHeader.
+ * SearchInput — structure search box that sits on the Browse and History
+ * pages (search is only useful where there is extracted data to search).
  *
  * Features:
  *  - `/` keyboard shortcut focuses (outside other text inputs)
  *  - `Esc` clears + blurs
  *  - Type-detection badge appears once input ≥ 2 chars; click opens
  *    override Popover with radio items
- *  - Mobile (< md): icon-only trigger; tap opens Sheet side="top" with the
- *    full input
+ *  - Optional `scope`: typing then sets query + scope together, so the very
+ *    first request already targets e.g. the extraction being browsed
  *  - SVG rendering of results lives in SearchResults — this file
  *    only drives the useSearch hook
  */
 import { useEffect, useRef, useState } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Sheet, SheetTrigger, SheetContent, SheetClose } from "@/components/ui/sheet";
 import { useSearch } from "@/context/SearchContext";
 import type { SearchType } from "@/types/search";
 import { cn } from "@/lib/utils";
@@ -43,12 +42,6 @@ function detectHint(raw: string): Exclude<SearchType, "auto"> {
   return "smiles";
 }
 
-interface RenderInputArgs {
-  /** Pass `true` for the header-inlined input (desktop), `false` for the
-   *  mobile Sheet copy. Drives styling + which describedby id is used. */
-  isHeader: boolean;
-}
-
 /**
  * Trailing affordance inside the search input — one of:
  *   loading spinner, clear-button, keyboard hint, or nothing.
@@ -56,11 +49,10 @@ interface RenderInputArgs {
 function renderTrailingAffordance(args: {
   isPending: boolean;
   hasContent: boolean;
-  isHeader: boolean;
   showKbdHint: boolean;
   clear: () => void;
 }) {
-  const { isPending, hasContent, isHeader, showKbdHint, clear } = args;
+  const { isPending, hasContent, showKbdHint, clear } = args;
   if (isPending) {
     return <Spinner className="size-4 text-muted-foreground" aria-label="Searching\u2026" />;
   }
@@ -71,7 +63,7 @@ function renderTrailingAffordance(args: {
       </Button>
     );
   }
-  if (isHeader && showKbdHint) {
+  if (showKbdHint) {
     return (
       <Kbd aria-hidden="true" className="h-5 px-1.5 text-micro border-primary/40 text-primary/60">
         /
@@ -81,7 +73,21 @@ function renderTrailingAffordance(args: {
   return null;
 }
 
-export function SearchInput({ className }: { className?: string }) {
+interface SearchInputProps {
+  /** Extra classes for the pill (width, flex behaviour). */
+  className?: string;
+  /** Search scope applied as the user types ("global" or "extraction:<id>").
+   *  Omit to keep whatever scope the shared search state already has. */
+  scope?: string;
+  /** Accessible name; defaults to searching across all extractions. */
+  ariaLabel?: string;
+}
+
+export function SearchInput({
+  className,
+  scope,
+  ariaLabel = "Search structures across all extractions",
+}: SearchInputProps) {
   const {
     query,
     type,
@@ -89,15 +95,14 @@ export function SearchInput({ className }: { className?: string }) {
     stereo,
     queryValidity,
     setQuery,
+    setQueryAndScope,
     setType,
     setStereo,
     clear,
     submit,
   } = useSearch();
 
-  const headerInputRef = useRef<HTMLInputElement>(null);
-  const mobileInputRef = useRef<HTMLInputElement>(null);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [focused, setFocused] = useState(false);
 
   // Name the query types so the box guides the user on WHAT to search by.
@@ -105,8 +110,7 @@ export function SearchInput({ className }: { className?: string }) {
   // type toggle, so it's omitted here to avoid implying you can just type it.
   const placeholder = "Search by formula, SMILES, or InChIKey…";
 
-  // Global `/` shortcut — focus + prevent the character. Focuses whichever
-  // input is currently live: mobile sheet input if open, else header input.
+  // `/` shortcut — focus + prevent the character, unless typing elsewhere.
   useEffect(() => {
     function handler(e: KeyboardEvent) {
       if (e.key !== "/") return;
@@ -117,12 +121,11 @@ export function SearchInput({ className }: { className?: string }) {
         return;
       }
       e.preventDefault();
-      const live = mobileOpen ? mobileInputRef.current : headerInputRef.current;
-      live?.focus();
+      inputRef.current?.focus();
     }
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [mobileOpen]);
+  }, []);
 
   const effectiveType = type === "auto" && query.length >= 2 ? detectHint(query) : type;
   const badgeLabel =
@@ -144,12 +147,16 @@ export function SearchInput({ className }: { className?: string }) {
           ? { label: badgeLabel, tone: "secondary", tooltip: null }
           : null;
 
+  function handleChange(value: string) {
+    if (scope === undefined) setQuery(value);
+    else setQueryAndScope(value, scope);
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Escape") {
       e.preventDefault();
       clear();
-      headerInputRef.current?.blur();
-      mobileInputRef.current?.blur();
+      inputRef.current?.blur();
     } else if (e.key === "Enter") {
       e.preventDefault();
       submit();
@@ -160,192 +167,117 @@ export function SearchInput({ className }: { className?: string }) {
   const hasContent = query.length > 0;
   const showKbdHint = !hasContent && !focused;
 
-  function renderInput({ isHeader }: RenderInputArgs) {
-    const refToUse = isHeader ? headerInputRef : mobileInputRef;
-    const describedById = isHeader ? "search-input-hint" : "search-input-hint-mobile";
-    return (
-      <div
-        // Header variant: neomorphic pill with inset shadow so the search
-        // reads as a carved divot on the glass header. Mobile (sheet)
-        // variant keeps the plain form-tier Input — the sheet already has
-        // its own glass surface and neumorphism would fight the tint.
-        data-slot={isHeader ? "search-input-neu" : undefined}
+  return (
+    <div
+      // Neomorphic pill with an inset shadow so the search reads as a carved
+      // divot in the page surface.
+      data-slot="search-input-neu"
+      className={cn(
+        "relative flex h-10 w-full min-w-0 items-center gap-2 rounded-full bg-surface px-4",
+        "shadow-[var(--shadow-neu-inset)]",
+        "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0",
+        className,
+      )}
+    >
+      <SearchIcon
+        className="size-4 shrink-0 text-foreground-muted pointer-events-none"
+        aria-hidden="true"
+      />
+      <input
+        ref={inputRef}
+        type="search"
+        aria-label={ariaLabel}
+        aria-describedby="search-input-hint"
+        placeholder={placeholder}
+        title={placeholder}
+        value={query}
+        onChange={(e) => handleChange(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        data-slot="input"
         className={cn(
-          "relative flex items-center gap-2",
-          isHeader
-            ? [
-                "h-10 rounded-full bg-surface px-4",
-                "shadow-[var(--shadow-neu-inset)]",
-                "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0",
-                // 280px must hold through lg: at 1024px the nav pill +
-                // theme switch leave no room for a wider pill (it used to
-                // leak 76px past the viewport). min-w-0 + shrink let the
-                // pill compress instead of overflowing if space runs out.
-                "w-[280px] min-w-0 shrink xl:w-[480px]",
-              ]
-            : "h-9 w-full",
-          className,
+          "min-w-0 flex-1 bg-transparent text-body-sm text-foreground outline-none",
+          "placeholder:text-foreground-muted",
+          // The box draws its own Clear button; hide the browser's duplicate.
+          "[&::-webkit-search-cancel-button]:appearance-none",
+          hasContent ? "pr-20" : "pr-10",
         )}
-      >
-        <SearchIcon
-          className={cn(
-            "size-4 text-foreground-muted pointer-events-none",
-            isHeader ? "shrink-0" : "absolute left-2.5",
-          )}
-          aria-hidden="true"
-        />
-        {isHeader ? (
-          <input
-            ref={refToUse}
-            type="search"
-            aria-label="Search structures across all extractions"
-            aria-describedby={describedById}
-            placeholder={placeholder}
-            // The header pill is width-capped (280px), so the placeholder
-            // truncates. Native title = full text on hover, no tooltip lib.
-            title={placeholder}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            data-slot="input"
-            className={cn(
-              "min-w-0 flex-1 bg-transparent text-body-sm text-foreground outline-none",
-              "placeholder:text-foreground-muted",
-              hasContent ? "pr-20" : "pr-10",
-            )}
-          />
-        ) : (
-          <Input
-            ref={refToUse}
-            type="search"
-            aria-label="Search structures across all extractions"
-            aria-describedby={describedById}
-            placeholder={placeholder}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            className={cn(
-              "h-9 pl-8 text-body transition-[padding]",
-              hasContent ? "pr-20" : "pr-16",
-            )}
-          />
-        )}
-        <span id={describedById} className="sr-only">
-          Press slash to focus search from anywhere. Press Escape to clear.
-        </span>
-        <div className={cn("absolute flex items-center gap-1", isHeader ? "right-2" : "right-1.5")}>
-          {validityBadge && (
-            <Popover>
-              <PopoverTrigger
-                render={
-                  <button
-                    type="button"
-                    aria-label={
-                      validityBadge.tone === "destructive"
-                        ? `Invalid query${validityBadge.tooltip ? `: ${validityBadge.tooltip}` : ""}. Click to override type.`
-                        : `Detected type: ${validityBadge.label}. Click to override.`
-                    }
-                    title={validityBadge.tooltip ?? undefined}
-                    className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
-                  />
-                }
-              >
-                <Badge
-                  variant="secondary"
-                  className={cn(
-                    "h-5 px-1.5 text-micro font-semibold",
-                    validityBadge.tone === "destructive" &&
-                      "bg-destructive text-destructive-foreground destructive",
-                  )}
-                >
-                  {validityBadge.label}
-                </Badge>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-56 flex flex-col gap-2 p-3">
-                <p className="text-micro font-semibold">Detected type</p>
-                {(["inchi_key", "formula", "smiles", "substructure"] as const).map((t) => (
-                  <label key={t} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name={`search-type-${isHeader ? "header" : "mobile"}`}
-                      checked={type === t}
-                      onChange={() => setType(t)}
-                    />
-                    <span className="text-caption">{TYPE_LABEL[t]}</span>
-                  </label>
-                ))}
-                {type === "substructure" && (
-                  <>
-                    <div className="border-t border-border my-1" />
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={stereo}
-                        onChange={(e) => setStereo(e.target.checked)}
-                        aria-label="Match stereochemistry"
-                      />
-                      <span className="text-caption">Match stereochemistry</span>
-                    </label>
-                    <p className="text-micro text-muted-foreground">
-                      When off (default), {"@"}, {"/"}, {"\\"} in the query are ignored so both
-                      enantiomers match.
-                    </p>
-                  </>
-                )}
+      />
+      <span id="search-input-hint" className="sr-only">
+        Press slash to focus search. Press Escape to clear.
+      </span>
+      <div className="absolute right-2 flex items-center gap-1">
+        {validityBadge && (
+          <Popover>
+            <PopoverTrigger
+              render={
                 <button
                   type="button"
-                  className="text-micro text-primary underline-offset-2 hover:underline mt-2 self-start"
-                  onClick={() => setType("auto")}
-                >
-                  Reset to auto-detect
-                </button>
-              </PopoverContent>
-            </Popover>
-          )}
-          {renderTrailingAffordance({ isPending, hasContent, isHeader, showKbdHint, clear })}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {/* Desktop header-inlined input (md+) */}
-      <div className="hidden md:flex">{renderInput({ isHeader: true })}</div>
-      {/* Mobile: SearchIcon trigger + top Sheet with an independent input */}
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetTrigger
-          render={<Button variant="ghost" size="icon" className="md:hidden" aria-label="Search" />}
-        >
-          <SearchIcon className="size-5" />
-        </SheetTrigger>
-        {/* Compact mobile search bar: a single padded row — the input fills
-            the width with an explicit Close beside it. No scroll container:
-            it's one row, so max-h/overflow-y would only add dead space. The
-            Sheet's default corner close is suppressed so it can't float over
-            the input. */}
-        <SheetContent side="top" showCloseButton={false} className="p-4">
-          <div className="flex items-center gap-2">
-            <div className="min-w-0 flex-1">{renderInput({ isHeader: false })}</div>
-            <SheetClose
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Close search"
-                  className="shrink-0"
+                  aria-label={
+                    validityBadge.tone === "destructive"
+                      ? `Invalid query${validityBadge.tooltip ? `: ${validityBadge.tooltip}` : ""}. Click to override type.`
+                      : `Detected type: ${validityBadge.label}. Click to override.`
+                  }
+                  title={validityBadge.tooltip ?? undefined}
+                  className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
                 />
               }
             >
-              <XIcon className="size-5" />
-            </SheetClose>
-          </div>
-        </SheetContent>
-      </Sheet>
-    </>
+              <Badge
+                variant="secondary"
+                className={cn(
+                  "h-5 px-1.5 text-micro font-semibold",
+                  validityBadge.tone === "destructive" &&
+                    "bg-destructive text-destructive-foreground destructive",
+                )}
+              >
+                {validityBadge.label}
+              </Badge>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-56 flex flex-col gap-2 p-3">
+              <p className="text-micro font-semibold">Detected type</p>
+              {(["inchi_key", "formula", "smiles", "substructure"] as const).map((t) => (
+                <label key={t} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="search-type"
+                    checked={type === t}
+                    onChange={() => setType(t)}
+                  />
+                  <span className="text-caption">{TYPE_LABEL[t]}</span>
+                </label>
+              ))}
+              {type === "substructure" && (
+                <>
+                  <div className="border-t border-border my-1" />
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={stereo}
+                      onChange={(e) => setStereo(e.target.checked)}
+                      aria-label="Match stereochemistry"
+                    />
+                    <span className="text-caption">Match stereochemistry</span>
+                  </label>
+                  <p className="text-micro text-muted-foreground">
+                    When off (default), {"@"}, {"/"}, {"\\"} in the query are ignored so both
+                    enantiomers match.
+                  </p>
+                </>
+              )}
+              <button
+                type="button"
+                className="text-micro text-primary underline-offset-2 hover:underline mt-2 self-start"
+                onClick={() => setType("auto")}
+              >
+                Reset to auto-detect
+              </button>
+            </PopoverContent>
+          </Popover>
+        )}
+        {renderTrailingAffordance({ isPending, hasContent, showKbdHint, clear })}
+      </div>
+    </div>
   );
 }
