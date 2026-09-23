@@ -59,7 +59,10 @@ export function DeleteMyDataButton() {
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogTrigger
-        render={<Button variant="destructive" data-slot="delete-my-data-trigger" />}
+        // Same pink primary style as the page's other actions; the red danger
+        // colour stays on the confirm button inside the dialog, the step that
+        // actually deletes.
+        render={<Button variant="primary" data-slot="delete-my-data-trigger" />}
       >
         Delete all my data
       </AlertDialogTrigger>
