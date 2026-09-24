@@ -109,10 +109,10 @@ export function AppHeader() {
               hairline: the left edge stays the product (mark = Home), the
               right edge says who makes it, and the two links never sit side by
               side. Hidden on phones, where the controls need the width; the
-              footer still names the institute there. Dark mode: the shared
-              logo glow (index.css .logo-glow) keeps the navy mark readable
-              without recolouring it; a filter takes no space, so the header
-              never shifts between themes. */}
+              footer still names the institute there. Dark mode: a white card
+              behind the navy mark (as on the Imprint page) keeps it readable
+              without recolouring it; the padding applies in both themes, so
+              the header never shifts between them. */}
           <span aria-hidden="true" className="hidden h-8 w-px bg-border sm:block" />
           <a
             href="https://www.beilstein-institut.de/en/"
@@ -126,7 +126,7 @@ export function AppHeader() {
               alt="Beilstein-Institut"
               width={876}
               height={202}
-              className="logo-glow h-10 w-auto"
+              className="h-10 w-auto px-2 py-1 dark:rounded-md dark:bg-white"
             />
           </a>
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
