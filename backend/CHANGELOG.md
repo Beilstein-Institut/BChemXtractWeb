@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.2](https://github.com/Beilstein-Institut/BChemXtractWeb/compare/v1.0.1...v1.0.2) (2026-09-24)
+
+
+### Bug Fixes
+
+* **deps:** bump anyio to 4.14.2 for Dependabot alerts ([2450aaa](https://github.com/Beilstein-Institut/BChemXtractWeb/commit/2450aaa14407b1d01922901599c20db4fd2d27f0))
+* **deps:** relock backend after v1.0.1 bump, gate lockfile drift in CI ([f2977fd](https://github.com/Beilstein-Institut/BChemXtractWeb/commit/f2977fd0119999557c4e989dd5c8503c4381622a))
+* **deps:** relock backend after v1.0.1 bump, gate lockfile drift in CI ([2fd39af](https://github.com/Beilstein-Institut/BChemXtractWeb/commit/2fd39af283fdd040d1950a231f8bb291e4f0aa3e))
+* **render:** cap total pixels decoded from embedded pictures ([4f19901](https://github.com/Beilstein-Institut/BChemXtractWeb/commit/4f19901ed293e81217a2da6b032eea19f940979c))
+* skip CDK re-layout above 300 atoms ([851c9c9](https://github.com/Beilstein-Institut/BChemXtractWeb/commit/851c9c9ea7db68a9b14636e20b5bd322fc666327))
+* skip CDK re-layout above 300 atoms ([6ebd12a](https://github.com/Beilstein-Institut/BChemXtractWeb/commit/6ebd12abd352a9623ae1e1c4aabcc6dfc9850865))
+* skip CDK re-layout above 300 atoms ([d09d4d0](https://github.com/Beilstein-Institut/BChemXtractWeb/commit/d09d4d0f972e51ea69b82f89de4a00af5e2a4c4d))
+* stop destroying the JVM at interpreter exit ([724d9c9](https://github.com/Beilstein-Institut/BChemXtractWeb/commit/724d9c9b3e500e1469bd259d151a652f8a05abb8))
+* stop destroying the JVM at interpreter exit ([36f6648](https://github.com/Beilstein-Institut/BChemXtractWeb/commit/36f6648f5f32d5dcc3b773bbad3155ee0f415ef3))
+
 ## [1.0.1](https://github.com/Beilstein-Institut/BChemXtractWeb/compare/v1.0.0...v1.0.1) (2026-08-14)
 
 
