@@ -36,7 +36,7 @@ from app.services.canonicalize_backfill import backfill_canonical_smiles
 # via Base.metadata.create_all and already contains canonical_smiles.
 ALEMBIC_TEST_DB = "bchemxtract_alembic_test"
 ALEMBIC_DB_URL = (
-    f"postgresql+psycopg://postgres:postgres@localhost:5432/{ALEMBIC_TEST_DB}"
+    f"postgresql+psycopg://postgres:postgres@localhost:5430/{ALEMBIC_TEST_DB}"
 )
 # Sync engine URL. psycopg3 supports sync + async under the same driver
 # suffix — no need to strip ``+psycopg`` (psycopg2 is not installed and
@@ -54,7 +54,7 @@ def _reset_alembic_db() -> None:
             user="postgres",
             password="postgres",
             host="localhost",
-            port=5432,
+            port=5430,
             autocommit=True,
         ) as conn,
         conn.cursor() as cur,
