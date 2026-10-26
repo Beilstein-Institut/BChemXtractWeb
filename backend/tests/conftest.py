@@ -46,7 +46,7 @@ os.environ.setdefault("CORS_ORIGINS", '["http://test"]')
 # the dedicated bchemxtract_test DB.
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+psycopg://postgres:postgres@localhost:5432/bchemxtract_test",
+    "postgresql+psycopg://postgres:postgres@localhost:5430/bchemxtract_test",
 )
 # Loosen rate limits for the general test suite — specific rate-limit
 # tests narrow the limit + reset counters explicitly.
