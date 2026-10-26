@@ -325,7 +325,8 @@ services:
   # 12-month audit-log retention window. The task is idempotent (a re-run
   # with no stale rows removes zero), so an accidental double-beat would
   # still produce the right outcome — just extra log noise. Beat has no
-  # HTTP server and no Redis ping handle, so no healthcheck — the
+  # HTTP server and no Redis ping handle, so its healthcheck is disabled
+  # (the Dockerfile's baked-in one curls :8000 and always fails here) — the
   # `restart: unless-stopped` policy is the only liveness mechanism.
   # No --pool=solo flag: beat doesn't run JVM extraction tasks (the prune
   # is pure SQL inside asyncio.run, see app/tasks/audit_log.py).
@@ -353,6 +354,8 @@ services:
       <<: [*runtime_db_url, *app_env, *celery_env]
       JAR_PATH: /app/jars
       JAVA_HOME: /usr/lib/jvm/java-25-openjdk-amd64
+    healthcheck:
+      disable: true
 
 volumes:
   pgdata:
