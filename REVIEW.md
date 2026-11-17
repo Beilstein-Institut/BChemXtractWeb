@@ -11,7 +11,9 @@ What a reviewer (human or Claude) must check in this repo. Read `CLAUDE.md` firs
   cleanup that deletes rows other sessions still use (chem pools have no RLS; use
   `sweep_orphan_chem_rows()`).
 - **JVM misuse.** A second `jpype.startJVM()`, a `shutdownJVM()`, or a blocking JPype
-  call on the async event loop (must go through an executor or a sync handler).
+  call on the async event loop (must go through `run_in_jvm_thread` or
+  `run_in_jvm_thread_abandonable` in `app/services/jvm_bridge.py`, which attach the
+  JVM thread and cap in-flight calls; a bare executor is not enough).
 - **Unsafe SVG or upload.** Rendered SVG that skips `sanitize_svg`, or file input
   trusted before format detection (`VjCD` magic bytes vs CDXML).
 - **Broken migration.** An Alembic migration without a working `downgrade()`.
