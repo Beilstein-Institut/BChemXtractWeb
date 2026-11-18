@@ -115,6 +115,11 @@ Installing the pre-commit hooks handles the formatting half automatically:
 pip install pre-commit && pre-commit install
 ```
 
+This also installs a pre-push hook (`scripts/ai-review.sh`) that runs a Claude
+code review and security review on the commits you push. It skips itself when the
+`claude` CLI is missing or not signed in. Skip it for one push with
+`SKIP_AI_REVIEW=1 git push`.
+
 A separate secret-scanning job (gitleaks) also runs on every pull request. If it
 flags something, rotate the credential — do not just amend the commit, because
 the value is already in the pushed history.
